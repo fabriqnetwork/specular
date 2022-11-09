@@ -1,0 +1,16 @@
+node_modules
+.env
+coverage
+coverage.json
+typechain
+
+#Hardhat files
+abi
+cache
+artifacts
+deployments
+typechain-types
+
+#Foundry
+forge-cache
+out

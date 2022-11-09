@@ -1,0 +1,11 @@
+{
+  "filter_paths": "(lib/|@openzeppelin|hardhat|src/libraries/BytesLib.sol)",
+  "solc_remaps": [
+    "@ensdomains/=node_modules/@ensdomains/",
+    "@openzeppelin/=node_modules/@openzeppelin/",
+    "ds-test/=lib/forge-std/lib/ds-test/src/",
+    "forge-std/=lib/forge-std/src/",
+    "hardhat-deploy/=node_modules/hardhat-deploy/",
+    "hardhat/=node_modules/hardhat/"
+  ]
+}
