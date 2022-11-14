@@ -34,8 +34,8 @@ module.exports = async (hre) => {
   const rollup = await upgrades.deployProxy(Rollup, rollupArgs, {initializer: 'initialize'});
 
   console.log("Rollup Proxy:", rollup.address);
-  console.log("Rollup Implementation Address" ,await upgrades.erc1967.getImplementationAddress(rollup.address));
-  console.log("Rollup Admin Address" ,await upgrades.erc1967.getAdminAddress(rollup.address))    
+  console.log("Rollup Implementation Address", await upgrades.erc1967.getImplementationAddress(rollup.address));
+  console.log("Rollup Admin Address", await upgrades.erc1967.getAdminAddress(rollup.address))    
 
 }
 

@@ -90,11 +90,7 @@ contract Rollup is RollupBase {
         uint256 _baseStakeAmount,
         bytes32 _initialVMhash
     ) public initializer {
-        require(
-            _owner != address(0) && _sequencerInbox != address(0) && _verifier != address(0)
-                && _stakeToken != address(0),
-            "ZERO_ADDRESS"
-        );
+        require(_owner != address(0) && _sequencerInbox != address(0) && _verifier != address(0), "ZERO_ADDRESS");
         owner = _owner;
         sequencerInbox = ISequencerInbox(_sequencerInbox);
         stakeToken = IERC20(_stakeToken);

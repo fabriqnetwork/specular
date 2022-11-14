@@ -29,6 +29,9 @@ contract AssertionMap {
         // Staking state
         uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
+        // Child state
+        uint256 childInboxSize; // child assertion inbox state
+        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
 
     mapping(uint256 => Assertion) public assertions;
@@ -80,6 +83,18 @@ contract AssertionMap {
         uint256 deadline
     ) external rollupOnly {
         Assertion storage assertion = assertions[assertionID];
+        Assertion storage parentAssertion = assertions[parentID];
+        // Child assertions must have same inbox size
+        uint256 parentChildInboxSize = parentAssertion.childInboxSize;
+        if (parentChildInboxSize == 0) {
+            parentAssertion.childInboxSize = inboxSize;
+        } else {
+            require(inboxSize == parentChildInboxSize, "CHILD_INBOX_SIZE_MISMATCH");
+        }
+
+        require(!parentAssertion.childStateHashes[stateHash], "SIBLING_STATE_HASH_EXISTS");
+        parentAssertion.childStateHashes[stateHash] = true;
+
         assertion.stateHash = stateHash;
         assertion.inboxSize = inboxSize;
         assertion.parent = parentID;

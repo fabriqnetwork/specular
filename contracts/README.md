@@ -51,12 +51,6 @@ Run slither:
 slither .
 ```
 
-## Generate Golang Bindings
-
-```sh
-./scripts/build_bindings.sh
-```
-
 ## Run Local Development Node
 
 ```sh
