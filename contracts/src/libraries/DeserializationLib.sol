@@ -21,17 +21,35 @@ pragma solidity ^0.8.0;
 import "./BytesLib.sol";
 
 library DeserializationLib {
-    function deserializeAddress(bytes memory data, uint256 startOffset) internal pure returns (uint256, address) {
+    function deserializeAddress(bytes memory data, uint256 startOffset)
+        internal
+        pure
+        returns (uint256, address)
+    {
         return (startOffset + 20, BytesLib.toAddress(data, startOffset));
     }
 
-    function deserializeUint256(bytes memory data, uint256 startOffset) internal pure returns (uint256, uint256) {
-        require(data.length >= startOffset && data.length - startOffset >= 32, "too short");
+    function deserializeUint256(bytes memory data, uint256 startOffset)
+        internal
+        pure
+        returns (uint256, uint256)
+    {
+        require(
+            data.length >= startOffset && data.length - startOffset >= 32,
+            "too short"
+        );
         return (startOffset + 32, BytesLib.toUint256(data, startOffset));
     }
 
-    function deserializeBytes32(bytes memory data, uint256 startOffset) internal pure returns (uint256, bytes32) {
-        require(data.length >= startOffset && data.length - startOffset >= 32, "too short");
+    function deserializeBytes32(bytes memory data, uint256 startOffset)
+        internal
+        pure
+        returns (uint256, bytes32)
+    {
+        require(
+            data.length >= startOffset && data.length - startOffset >= 32,
+            "too short"
+        );
         return (startOffset + 32, BytesLib.toBytes32(data, startOffset));
     }
 }

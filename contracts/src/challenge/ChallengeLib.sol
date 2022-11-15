@@ -29,7 +29,11 @@ library ChallengeLib {
      * @param endStateHash Disagreed-upon end state.
      * @param numSteps Number of steps from the end of `startState` to the end of `endState`.
      */
-    function initialBisectionHash(bytes32 startStateHash, bytes32 endStateHash, uint256 numSteps)
+    function initialBisectionHash(
+        bytes32 startStateHash,
+        bytes32 endStateHash,
+        uint256 numSteps
+    )
         internal
         pure
         returns (bytes32)
@@ -50,21 +54,35 @@ library ChallengeLib {
         bytes32[] memory bisection,
         uint256 challengedSegmentStart,
         uint256 challengedSegmentLength
-    ) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(bisection, challengedSegmentStart, challengedSegmentLength));
+    )
+        internal
+        pure
+        returns (bytes32)
+    {
+        return keccak256(
+            abi.encodePacked(bisection, challengedSegmentStart, challengedSegmentLength)
+        );
     }
 
     /**
      * @notice Returns length of first segment in a bisection.
      */
-    function firstSegmentLength(uint256 length, uint256 bisectionDegree) internal pure returns (uint256) {
-        return length / bisectionDegree + (length % bisectionDegree);
+    function firstSegmentLength(uint256 length, uint256 bisectionDegree)
+        internal
+        pure
+        returns (uint256)
+    {
+        return length / bisectionDegree + length % bisectionDegree;
     }
 
     /**
      * @notice Returns length of a segment (after first) in a bisection.
      */
-    function otherSegmentLength(uint256 length, uint256 bisectionDegree) internal pure returns (uint256) {
+    function otherSegmentLength(uint256 length, uint256 bisectionDegree)
+        internal
+        pure
+        returns (uint256)
+    {
         return length / bisectionDegree;
     }
 }

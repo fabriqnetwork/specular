@@ -34,7 +34,11 @@ library RollupLib {
     /**
      * @notice Computes the hash of `execState`.
      */
-    function stateHash(ExecutionState memory execState) internal pure returns (bytes32) {
+    function stateHash(ExecutionState memory execState)
+        internal
+        pure
+        returns (bytes32)
+    {
         return keccak256(abi.encodePacked(execState.l2GasUsed, execState.vmHash));
     }
 }

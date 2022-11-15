@@ -25,6 +25,7 @@ pragma solidity ^0.8.0;
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
+import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable {
@@ -38,7 +39,9 @@ contract SequencerInbox is ISequencerInbox, Initializable {
     address public sequencerAddress;
 
     function initialize(address _sequencerAddress) public initializer {
-        require(_sequencerAddress != address(0), "ZERO_ADDRESS");
+        if (_sequencerAddress == address(0)) {
+            revert ZeroAddress();
+        }
         sequencerAddress = _sequencerAddress;
     }
 
@@ -51,11 +54,17 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         return inboxSize;
     }
 
-    function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
+    function appendTxBatch(
+        uint256[] calldata contexts,
+        uint256[] calldata txLengths,
+        bytes calldata txBatch
+    )
         external
         override
     {
-        require(msg.sender == sequencerAddress, "INVALID_SEQUENCER");
+        if (msg.sender != sequencerAddress) {
+            revert NotSequencer(msg.sender, sequencerAddress);
+        }
 
         uint256 start = inboxSize;
         uint256 numTxs = inboxSize;
@@ -74,7 +83,8 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             // TODO: consider adding L1 context.
             uint256 l2BlockNumber = contexts[i + 1];
             uint256 l2Timestamp = contexts[i + 2];
-            bytes32 prefixHash = keccak256(abi.encodePacked(msg.sender, l2BlockNumber, l2Timestamp));
+            bytes32 prefixHash =
+                keccak256(abi.encodePacked(msg.sender, l2BlockNumber, l2Timestamp));
 
             uint256 numCtxTxs = contexts[i];
             for (uint256 j = 0; j < numCtxTxs; j++) {
@@ -83,14 +93,16 @@ contract SequencerInbox is ISequencerInbox, Initializable {
                 assembly {
                     txDataHash := keccak256(dataOffset, txLength)
                 }
-                runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
+                runningAccumulator = keccak256(
+                    abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash)
+                );
                 dataOffset += txLength;
                 numTxs++;
             }
             numProcessedTxs += numCtxTxs;
         }
 
-        require(numTxs > inboxSize, EMPTY_BATCH);
+        if (numTxs <= inboxSize) revert EmptyBatch();
         inboxSize = numTxs;
         accumulators.push(runningAccumulator);
 
@@ -107,9 +119,12 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         uint256 txDataLength;
         bytes32 txDataHash;
         (offset, sender) = DeserializationLib.deserializeAddress(proof, offset);
-        (offset, l2BlockNumber) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, l2Timestamp) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, txDataLength) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, l2BlockNumber) =
+            DeserializationLib.deserializeUint256(proof, offset);
+        (offset, l2Timestamp) =
+            DeserializationLib.deserializeUint256(proof, offset);
+        (offset, txDataLength) =
+            DeserializationLib.deserializeUint256(proof, offset);
         assembly {
             // TODO: check if off-by-32.
             txDataHash := keccak256(add(proof, offset), txDataLength)
@@ -121,24 +136,32 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         uint256 numTxs;
         uint256 numTxsAfterInBatch;
         bytes32 acc;
-        (offset, batchNum) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, batchNum) =
+            DeserializationLib.deserializeUint256(proof, offset);
         (offset, numTxs) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, numTxsAfterInBatch) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, numTxsAfterInBatch) =
+            DeserializationLib.deserializeUint256(proof, offset);
         (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
 
         // Start accumulator at the tx.
-        bytes32 prefixHash = keccak256(abi.encodePacked(sender, l2BlockNumber, l2Timestamp));
+        bytes32 prefixHash =
+            keccak256(abi.encodePacked(sender, l2BlockNumber, l2Timestamp));
         acc = keccak256(abi.encodePacked(acc, numTxs, prefixHash, txDataHash));
         numTxs++;
 
         // Compute final accumulator value.
         for (uint256 i = 0; i < numTxsAfterInBatch; i++) {
-            (offset, prefixHash) = DeserializationLib.deserializeBytes32(proof, offset);
-            (offset, txDataHash) = DeserializationLib.deserializeBytes32(proof, offset);
-            acc = keccak256(abi.encodePacked(acc, numTxs, prefixHash, txDataHash));
+            (offset, prefixHash) =
+                DeserializationLib.deserializeBytes32(proof, offset);
+            (offset, txDataHash) =
+                DeserializationLib.deserializeBytes32(proof, offset);
+            acc =
+                keccak256(abi.encodePacked(acc, numTxs, prefixHash, txDataHash));
             numTxs++;
         }
 
-        require(acc == accumulators[batchNum], "INCORRECT_ACC_OR_BATCH_NUM");
+        if (acc != accumulators[batchNum]) {
+            revert IncorrectAccOrBatch();
+        }
     }
 }

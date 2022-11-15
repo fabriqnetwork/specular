@@ -18,6 +18,8 @@
 
 pragma solidity ^0.8.0;
 
+import "./libraries/Errors.sol";
+
 // Exists only to reduce size of Rollup contract (maybe revert since Rollup fits under optimized compilation).
 contract AssertionMap {
     struct Assertion {
@@ -29,49 +31,78 @@ contract AssertionMap {
         // Staking state
         uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
-        // Child state
-        uint256 childInboxSize; // child assertion inbox state
-        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
 
     mapping(uint256 => Assertion) public assertions;
     address public rollupAddress;
 
     modifier rollupOnly() {
-        require(msg.sender == rollupAddress, "ROLLUP_ONLY");
+        if (msg.sender != rollupAddress) {
+            revert NotRollup(msg.sender, rollupAddress);
+        }
         _;
     }
 
     constructor(address _rollupAddress) {
-        require(_rollupAddress != address(0), "ZERO_ADDRESS");
+        if (_rollupAddress == address(0)) {
+            revert ZeroAddress();
+        }
         rollupAddress = _rollupAddress;
     }
 
-    function getStateHash(uint256 assertionID) external view returns (bytes32) {
+    function getStateHash(uint256 assertionID)
+        external
+        view
+        returns (bytes32)
+    {
         return assertions[assertionID].stateHash;
     }
 
-    function getInboxSize(uint256 assertionID) external view returns (uint256) {
+    function getInboxSize(uint256 assertionID)
+        external
+        view
+        returns (uint256)
+    {
         return assertions[assertionID].inboxSize;
     }
 
-    function getParentID(uint256 assertionID) external view returns (uint256) {
+    function getParentID(uint256 assertionID)
+        external
+        view
+        returns (uint256)
+    {
         return assertions[assertionID].parent;
     }
 
-    function getDeadline(uint256 assertionID) external view returns (uint256) {
+    function getDeadline(uint256 assertionID)
+        external
+        view
+        returns (uint256)
+    {
         return assertions[assertionID].deadline;
     }
 
-    function getProposalTime(uint256 assertionID) external view returns (uint256) {
+    function getProposalTime(uint256 assertionID)
+        external
+        view
+        returns (uint256)
+    {
         return assertions[assertionID].proposalTime;
     }
 
-    function getNumStakers(uint256 assertionID) external view returns (uint256) {
+    function getNumStakers(uint256 assertionID)
+        external
+        view
+        returns (uint256)
+    {
         return assertions[assertionID].numStakers;
     }
 
-    function isStaker(uint256 assertionID, address stakerAddress) external view returns (bool) {
+    function isStaker(uint256 assertionID, address stakerAddress)
+        external
+        view
+        returns (bool)
+    {
         return assertions[assertionID].stakers[stakerAddress];
     }
 
@@ -81,20 +112,11 @@ contract AssertionMap {
         uint256 inboxSize,
         uint256 parentID,
         uint256 deadline
-    ) external rollupOnly {
+    )
+        external
+        rollupOnly
+    {
         Assertion storage assertion = assertions[assertionID];
-        Assertion storage parentAssertion = assertions[parentID];
-        // Child assertions must have same inbox size
-        uint256 parentChildInboxSize = parentAssertion.childInboxSize;
-        if (parentChildInboxSize == 0) {
-            parentAssertion.childInboxSize = inboxSize;
-        } else {
-            require(inboxSize == parentChildInboxSize, "CHILD_INBOX_SIZE_MISMATCH");
-        }
-
-        require(!parentAssertion.childStateHashes[stateHash], "SIBLING_STATE_HASH_EXISTS");
-        parentAssertion.childStateHashes[stateHash] = true;
-
         assertion.stateHash = stateHash;
         assertion.inboxSize = inboxSize;
         assertion.parent = parentID;
@@ -102,7 +124,10 @@ contract AssertionMap {
         assertion.proposalTime = block.number;
     }
 
-    function stakeOnAssertion(uint256 assertionID, address stakerAddress) external rollupOnly {
+    function stakeOnAssertion(uint256 assertionID, address stakerAddress)
+        external
+        rollupOnly
+    {
         Assertion storage assertion = assertions[assertionID];
         assertion.stakers[stakerAddress] = true;
         assertion.numStakers++;

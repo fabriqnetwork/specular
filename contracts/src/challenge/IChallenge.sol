@@ -32,14 +32,24 @@ import "./verifier/IVerifier.sol";
  * `verifyOneStepProof`
  */
 interface IChallenge {
-    enum CompletionReason {
-        OSP_VERIFIED, // OSP verified by winner.
-        TIMEOUT // Loser timed out before completing their round.
+    enum CompletionReason // OSP verified by winner.
+        // Loser timed out before completing their round.
+    {
+        OSP_VERIFIED,
+        TIMEOUT
     }
 
-    event ChallengeCompleted(address winner, address loser, CompletionReason reason);
+    event ChallengeCompleted(
+        address winner,
+        address loser,
+        CompletionReason reason
+    );
 
-    event Bisected(bytes32 challengeState, uint256 challengedSegmentStart, uint256 challengedSegmentLength);
+    event Bisected(
+        bytes32 challengeState,
+        uint256 challengedSegmentStart,
+        uint256 challengedSegmentLength
+    );
 
     /**
      * @notice Initializes contract.
@@ -57,7 +67,8 @@ interface IChallenge {
         address _resultReceiver,
         bytes32 _startStateHash,
         bytes32 _endStateHash
-    ) external;
+    )
+        external;
 
     /**
      * @notice Initializes the length of the challenge. Must be called by defender before bisection rounds begin.
@@ -83,7 +94,8 @@ interface IChallenge {
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
-    ) external;
+    )
+        external;
 
     /**
      * @notice Verifies one step proof and completes challenge protocol.
@@ -100,7 +112,8 @@ interface IChallenge {
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
-    ) external;
+    )
+        external;
 
     /**
      * @notice Triggers completion of challenge protocol if a responder timed out.
