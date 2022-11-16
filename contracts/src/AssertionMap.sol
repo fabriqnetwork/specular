@@ -50,59 +50,31 @@ contract AssertionMap {
         rollupAddress = _rollupAddress;
     }
 
-    function getStateHash(uint256 assertionID)
-        external
-        view
-        returns (bytes32)
-    {
+    function getStateHash(uint256 assertionID) external view returns (bytes32) {
         return assertions[assertionID].stateHash;
     }
 
-    function getInboxSize(uint256 assertionID)
-        external
-        view
-        returns (uint256)
-    {
+    function getInboxSize(uint256 assertionID) external view returns (uint256) {
         return assertions[assertionID].inboxSize;
     }
 
-    function getParentID(uint256 assertionID)
-        external
-        view
-        returns (uint256)
-    {
+    function getParentID(uint256 assertionID) external view returns (uint256) {
         return assertions[assertionID].parent;
     }
 
-    function getDeadline(uint256 assertionID)
-        external
-        view
-        returns (uint256)
-    {
+    function getDeadline(uint256 assertionID) external view returns (uint256) {
         return assertions[assertionID].deadline;
     }
 
-    function getProposalTime(uint256 assertionID)
-        external
-        view
-        returns (uint256)
-    {
+    function getProposalTime(uint256 assertionID) external view returns (uint256) {
         return assertions[assertionID].proposalTime;
     }
 
-    function getNumStakers(uint256 assertionID)
-        external
-        view
-        returns (uint256)
-    {
+    function getNumStakers(uint256 assertionID) external view returns (uint256) {
         return assertions[assertionID].numStakers;
     }
 
-    function isStaker(uint256 assertionID, address stakerAddress)
-        external
-        view
-        returns (bool)
-    {
+    function isStaker(uint256 assertionID, address stakerAddress) external view returns (bool) {
         return assertions[assertionID].stakers[stakerAddress];
     }
 
@@ -112,10 +84,7 @@ contract AssertionMap {
         uint256 inboxSize,
         uint256 parentID,
         uint256 deadline
-    )
-        external
-        rollupOnly
-    {
+    ) external rollupOnly {
         Assertion storage assertion = assertions[assertionID];
         assertion.stateHash = stateHash;
         assertion.inboxSize = inboxSize;
@@ -124,10 +93,7 @@ contract AssertionMap {
         assertion.proposalTime = block.number;
     }
 
-    function stakeOnAssertion(uint256 assertionID, address stakerAddress)
-        external
-        rollupOnly
-    {
+    function stakeOnAssertion(uint256 assertionID, address stakerAddress) external rollupOnly {
         Assertion storage assertion = assertions[assertionID];
         assertion.stakers[stakerAddress] = true;
         assertion.numStakers++;

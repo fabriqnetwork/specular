@@ -23,11 +23,7 @@
 pragma solidity ^0.8.0;
 
 interface ISequencerInbox {
-    event TxBatchAppended(
-        uint256 batchNumber,
-        uint256 startTxNumber,
-        uint256 endTxNumber
-    );
+    event TxBatchAppended(uint256 batchNumber, uint256 startTxNumber, uint256 endTxNumber);
 
     /**
      * @notice Gets inbox size (number of messages).
@@ -41,11 +37,7 @@ interface ISequencerInbox {
      * @param txLengths Array of lengths of each encoded tx in txBatch.
      * @param txBatch Batch of RLP-encoded transactions.
      */
-    function appendTxBatch(
-        uint256[] calldata contexts,
-        uint256[] calldata txLengths,
-        bytes calldata txBatch
-    )
+    function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
         external;
 
     /**

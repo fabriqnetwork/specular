@@ -26,11 +26,7 @@ import "./AssertionMap.sol";
 
 interface IRollup {
     event AssertionCreated(
-        uint256 assertionID,
-        address asserterAddr,
-        bytes32 vmHash,
-        uint256 inboxSize,
-        uint256 l2GasUsed
+        uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
     );
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
@@ -108,8 +104,7 @@ interface IRollup {
         uint256 l2GasUsed,
         bytes32 prevVMHash,
         uint256 prevL2GasUsed
-    )
-        external;
+    ) external;
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.
@@ -117,10 +112,7 @@ interface IRollup {
      * @param assertionIDs Assertion IDs of the players engaged in the challenge. The first ID should be the earlier-created and is the one being challenged.
      * @return Newly created challenge contract address.
      */
-    function challengeAssertion(
-        address[2] calldata players,
-        uint256[2] calldata assertionIDs
-    )
+    function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
         external
         returns (address);
 

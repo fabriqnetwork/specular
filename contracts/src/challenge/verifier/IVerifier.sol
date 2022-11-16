@@ -21,11 +21,7 @@ pragma solidity ^0.8.0;
 import "./IVerificationContext.sol";
 
 interface IVerifier {
-    function verifyOneStepProof(
-        IVerificationContext ctx,
-        bytes32 currStateHash,
-        bytes calldata encodedProof
-    )
+    function verifyOneStepProof(IVerificationContext ctx, bytes32 currStateHash, bytes calldata encodedProof)
         external
         view
         returns (bytes32 nextStateHash);

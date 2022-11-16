@@ -75,15 +75,12 @@ contract Challenge is IChallenge {
      */
     modifier onlyOnTurn() {
         require(msg.sender == currentResponder(), BIS_SENDER);
-        require(
-            block.number - lastMoveBlock <= currentResponderTimeLeft(), BIS_DEADLINE
-        );
+        require(block.number - lastMoveBlock <= currentResponderTimeLeft(), BIS_DEADLINE);
 
         _;
 
         if (turn == Turn.Challenger) {
-            challengerTimeLeft =
-                challengerTimeLeft - (block.number - lastMoveBlock);
+            challengerTimeLeft = challengerTimeLeft - (block.number - lastMoveBlock);
             turn = Turn.Defender;
         } else if (turn == Turn.Defender) {
             defenderTimeLeft = defenderTimeLeft - (block.number - lastMoveBlock);
@@ -107,20 +104,9 @@ contract Challenge is IChallenge {
         address _resultReceiver,
         bytes32 _startStateHash,
         bytes32 _endStateHash
-    )
-        external
-        override
-    {
+    ) external override {
         require(turn == Turn.NoChallenge, CHAL_INIT_STATE);
-        require(
-            _defender
-                != address(0)
-                && _challenger
-                != address(0)
-                && _resultReceiver
-                != address(0),
-            "ZERO_ADDRESS"
-        );
+        require(_defender != address(0) && _challenger != address(0) && _resultReceiver != address(0), "ZERO_ADDRESS");
         defender = _defender;
         challenger = _challenger;
         verifier = _verifier;
@@ -135,16 +121,10 @@ contract Challenge is IChallenge {
         challengerTimeLeft = 10;
     }
 
-    function initializeChallengeLength(uint256 _numSteps)
-        external
-        override
-        onlyOnTurn
-    {
+    function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
         require(bisectionHash == 0, CHAL_INIT_STATE);
         require(_numSteps > 0, "INVALID_NUM_STEPS");
-        bisectionHash = ChallengeLib.initialBisectionHash(
-            startStateHash, endStateHash, _numSteps
-        );
+        bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, _numSteps);
         // TODO: consider emitting a different event?
         emit Bisected(bisectionHash, 0, _numSteps);
     }
@@ -155,72 +135,40 @@ contract Challenge is IChallenge {
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
-    )
-        external
-        override
-        onlyOnTurn
-        postInitialization
-    {
+    ) external override onlyOnTurn postInitialization {
         // Verify provided prev bisection.
-        bytes32 prevHash = ChallengeLib.computeBisectionHash(
-            prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength
-        );
+        bytes32 prevHash =
+            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
         require(prevHash == bisectionHash, BIS_PREV);
-        require(
-            challengedSegmentIndex
-                > 0
-                && challengedSegmentIndex
-                < prevBisection.length,
-            "INVALID_INDEX"
-        );
+        require(challengedSegmentIndex > 0 && challengedSegmentIndex < prevBisection.length, "INVALID_INDEX");
         // Require agreed upon start state hash and disagreed upon end state hash.
-        require(
-            bisection[0] == prevBisection[challengedSegmentIndex - 1],
-            "INVALID_START"
-        );
-        require(
-            bisection[bisection.length - 1] != prevBisection[challengedSegmentIndex],
-            "INVALID_END"
-        );
+        require(bisection[0] == prevBisection[challengedSegmentIndex - 1], "INVALID_START");
+        require(bisection[bisection.length - 1] != prevBisection[challengedSegmentIndex], "INVALID_END");
 
         // Compute segment start/length.
         uint256 challengedSegmentStart = prevChallengedSegmentStart;
         uint256 challengedSegmentLength = prevChallengedSegmentLength;
         if (prevBisection.length > 2) {
             // prevBisection.length == 2 means first round
-            uint256 firstSegmentLength = ChallengeLib.firstSegmentLength(
-                prevChallengedSegmentLength, MAX_BISECTION_DEGREE
-            );
-            uint256 otherSegmentLength = ChallengeLib.otherSegmentLength(
-                prevChallengedSegmentLength, MAX_BISECTION_DEGREE
-            );
-            challengedSegmentLength =
-                challengedSegmentIndex == 1
-                ? firstSegmentLength
-                : otherSegmentLength;
+            uint256 firstSegmentLength =
+                ChallengeLib.firstSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+            uint256 otherSegmentLength =
+                ChallengeLib.otherSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+            challengedSegmentLength = challengedSegmentIndex == 1 ? firstSegmentLength : otherSegmentLength;
 
             if (challengedSegmentIndex > 1) {
-                challengedSegmentStart += firstSegmentLength
-                    + otherSegmentLength
-                    * (challengedSegmentIndex - 2);
+                challengedSegmentStart += firstSegmentLength + otherSegmentLength * (challengedSegmentIndex - 2);
             }
         }
         require(challengedSegmentLength > 1, "TOO_SHORT");
 
         // Require that bisection has the correct length. This is only ever less than BISECTION_DEGREE at the last bisection.
-        uint256 target =
-            challengedSegmentLength < MAX_BISECTION_DEGREE
-            ? challengedSegmentLength
-            : MAX_BISECTION_DEGREE;
+        uint256 target = challengedSegmentLength < MAX_BISECTION_DEGREE ? challengedSegmentLength : MAX_BISECTION_DEGREE;
         require(bisection.length == target + 1, "CUT_COUNT");
 
         // Compute new challenge state.
-        bisectionHash = ChallengeLib.computeBisectionHash(
-            bisection, challengedSegmentStart, challengedSegmentLength
-        );
-        emit Bisected(
-            bisectionHash, challengedSegmentStart, challengedSegmentLength
-            );
+        bisectionHash = ChallengeLib.computeBisectionHash(bisection, challengedSegmentStart, challengedSegmentLength);
+        emit Bisected(bisectionHash, challengedSegmentStart, challengedSegmentLength);
     }
 
     function verifyOneStepProof(
@@ -229,25 +177,14 @@ contract Challenge is IChallenge {
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
-    )
-        external
-        override
-        onlyOnTurn
-    {
+    ) external override onlyOnTurn {
         // Verify provided prev bisection.
-        bytes32 prevHash = ChallengeLib.computeBisectionHash(
-            prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength
-        );
+        bytes32 prevHash =
+            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
         require(prevHash == bisectionHash, BIS_PREV);
-        require(
-            challengedStepIndex > 0 && challengedStepIndex < prevBisection.length,
-            "INVALID_INDEX"
-        );
+        require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
-        require(
-            prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1,
-            "BISECTION_INCOMPLETE"
-        );
+        require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
 
         // TODO: verify OSP
         // IVerificationContext ctx = <get ctx from sequenced txs>;
@@ -266,10 +203,7 @@ contract Challenge is IChallenge {
     }
 
     function timeout() external override {
-        require(
-            block.number - lastMoveBlock > currentResponderTimeLeft(),
-            TIMEOUT_DEADLINE
-        );
+        require(block.number - lastMoveBlock > currentResponderTimeLeft(), TIMEOUT_DEADLINE);
         if (turn == Turn.Defender) {
             _challengerWin(CompletionReason.TIMEOUT);
         } else {
@@ -287,12 +221,7 @@ contract Challenge is IChallenge {
         }
     }
 
-    function currentResponderTimeLeft()
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function currentResponderTimeLeft() public view override returns (uint256) {
         if (turn == Turn.Defender) {
             return defenderTimeLeft;
         } else if (turn == Turn.Challenger) {

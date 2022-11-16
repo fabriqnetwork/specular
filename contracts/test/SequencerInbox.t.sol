@@ -19,8 +19,7 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import
-    "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 
@@ -54,11 +53,9 @@ contract SequencerInboxTest is BaseSetup {
         BaseSetup.setUp();
 
         SequencerInbox _impl = new SequencerInbox();
-        bytes memory data =
-            abi.encodeWithSelector(SequencerInbox.initialize.selector, sequencer);
+        bytes memory data = abi.encodeWithSelector(SequencerInbox.initialize.selector, sequencer);
         address admin = address(47); // Random admin
-        TransparentUpgradeableProxy proxy =
-            new TransparentUpgradeableProxy(address(_impl), admin, data);
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(address(_impl), admin, data);
 
         seqIn = SequencerInbox(address(proxy));
     }
