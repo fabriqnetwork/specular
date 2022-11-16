@@ -32,8 +32,6 @@ import "./IRollup.sol";
 import "./RollupLib.sol";
 import "./ISequencerInbox.sol";
 
-import "hardhat/console.sol";
-
 abstract contract RollupBase is IRollup, Initializable {
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
