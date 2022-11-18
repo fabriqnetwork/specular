@@ -65,7 +65,7 @@ contract SequencerInboxTest is BaseSetup {
     }
 
     function testInvalidSequencerReverts() public {
-        vm.expectRevert(bytes("INVALID_SEQUENCER"));
+        vm.expectRevert(abi.encodeWithSignature("NotSequencer(address,address)", alice, sequencer));
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
@@ -73,7 +73,7 @@ contract SequencerInboxTest is BaseSetup {
     }
 
     function testEmptyBatchReverts() public {
-        vm.expectRevert(bytes("EMPTY_BATCH"));
+        vm.expectRevert(abi.encodeWithSignature("EmptyBatch()"));
         vm.prank(sequencer);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
