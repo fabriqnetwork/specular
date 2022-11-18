@@ -32,11 +32,9 @@ import "./verifier/IVerifier.sol";
  * `verifyOneStepProof`
  */
 interface IChallenge {
-    enum CompletionReason // OSP verified by winner.
-        // Loser timed out before completing their round.
-    {
-        OSP_VERIFIED,
-        TIMEOUT
+    enum CompletionReason {
+        OSP_VERIFIED, // OSP verified by winner.
+        TIMEOUT // Loser timed out before completing their round.
     }
 
     event ChallengeCompleted(address winner, address loser, CompletionReason reason);
