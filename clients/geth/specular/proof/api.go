@@ -16,6 +16,7 @@ package proof
 
 import (
 	"context"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -37,6 +38,7 @@ type Backend interface {
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
 	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
 	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error)
+	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
 	RPCGasCap() uint64
 	ChainConfig() *params.ChainConfig
 	Engine() consensus.Engine
@@ -88,6 +90,18 @@ func createChainContext(backend Backend, ctx context.Context) core.ChainContext 
 
 func (api *ProverAPI) ProveTransaction(ctx context.Context, hash common.Hash, target common.Hash, config *ProverConfig) (hexutil.Bytes, error) {
 	return hexutil.Bytes{}, nil
+}
+
+func (api *ProverAPI) GenerateStateHashes(ctx context.Context, startGasUsed *big.Int, startNum, endNum uint64, config *ProverConfig) ([]common.Hash, error) {
+	states, err := GenerateStates(api.backend, ctx, startGasUsed, startNum, endNum, config)
+	if err != nil {
+		return nil, err
+	}
+	hashes := make([]common.Hash, len(states))
+	for i, state := range states {
+		hashes[i] = state.Hash()
+	}
+	return hashes, nil
 }
 
 // APIs return the collection of RPC services the tracer package offers.
