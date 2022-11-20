@@ -21,6 +21,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/specularl2/specular/clients/geth/specular/proof/proof"
+	"github.com/specularl2/specular/clients/geth/specular/proof/state"
 )
 
 type PlaceHolderProof struct{}
@@ -33,10 +34,27 @@ type OneStepProver struct {
 	// Config
 	target common.Hash
 	step   uint64
+
+	// Context (read-only)
+	committedGlobalState vm.StateDB
+	startInterState      *state.InterState
+	blockHashTree        *state.BlockHashTree
 }
 
-func NewProver(target common.Hash, step uint64) *OneStepProver {
-	return &OneStepProver{target: target, step: step}
+func NewProver(
+	target common.Hash,
+	step uint64,
+	committedGlobalState vm.StateDB,
+	interState state.InterState,
+	blockHashTree *state.BlockHashTree,
+) *OneStepProver {
+	return &OneStepProver{
+		target:               target,
+		step:                 step,
+		committedGlobalState: committedGlobalState,
+		startInterState:      &interState,
+		blockHashTree:        blockHashTree,
+	}
 }
 
 func (l *OneStepProver) CaptureTxStart(gasLimit uint64) {}

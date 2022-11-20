@@ -14,6 +14,11 @@
 
 package proof
 
+import (
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+)
+
 type Proof interface {
 	Encode() []byte
 }
@@ -48,4 +53,22 @@ func (p *OneStepProof) Encode() []byte {
 		offset += len(encodedProof)
 	}
 	return encoded
+}
+
+func GetBlockInitiationProof(blockState *state.BlockState) *OneStepProof {
+	proof := EmptyProof()
+	proof.AddProof(BlockStateProofFromBlockState(blockState))
+	return proof
+}
+
+func GetBlockFinalizationProof() *OneStepProof {
+	proof := EmptyProof()
+	// To clean up
+	return proof
+}
+
+func GetTransactionInitaitionProof(tx *types.Transaction) *OneStepProof {
+	proof := EmptyProof()
+	// To clean up
+	return proof
 }
