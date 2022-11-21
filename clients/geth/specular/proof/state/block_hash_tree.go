@@ -100,8 +100,13 @@ func (b *BlockHashTree) SetBlockHash(number *uint256.Int, hash common.Hash) erro
 	return nil
 }
 
-func (b *BlockHashTree) GetProof(number *uint256.Int) ([]common.Hash, uint64, error) {
-	index := number.Mod(number, uint256.NewInt(RECENT_BLOCK_HASHES_LENGTH)).Uint64()
+func (b *BlockHashTree) GetBlockHash(number uint64) common.Hash {
+	index := number % RECENT_BLOCK_HASHES_LENGTH
+	return common.Hash(b.Hashes[index])
+}
+
+func (b *BlockHashTree) GetProof(number uint64) ([]common.Hash, uint64, error) {
+	index := number % RECENT_BLOCK_HASHES_LENGTH
 	proofs, indices, err := b.tree.GetMerklePath(b.Hashes[index])
 	if err != nil {
 		return nil, 0, err

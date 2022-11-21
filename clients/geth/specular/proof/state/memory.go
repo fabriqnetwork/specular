@@ -77,8 +77,16 @@ func (m *Memory) Root() common.Hash {
 	return m.tree.Root()
 }
 
-func (m *Memory) GetProof(i uint64) []common.Hash {
-	return m.tree.GenerateProof([]uint64{i})
+func (m *Memory) GetProof(indices []uint64) []common.Hash {
+	return m.tree.GenerateProof(indices)
+}
+
+func (m *Memory) GetAppendProof() []common.Hash {
+	return m.tree.GenerateAppendProof()
+}
+
+func (m *Memory) GetCombinedProof(indices []uint64) ([]common.Hash, error) {
+	return m.tree.GenerateCombinedProof(indices)
 }
 
 func (m *Memory) EncodeState() []byte {
