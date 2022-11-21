@@ -15,50 +15,87 @@
 package proof
 
 import (
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/holiman/uint256"
-	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+	"github.com/ethereum/go-ethereum/params"
 )
 
-func GetAccountWithProof(
+func GetAccountProof(
 	db vm.StateDB,
 	address common.Address,
-) (*state.Account, [][]byte, error) {
-	balance, _ := uint256.FromBig(db.GetBalance(address))
-	account := &state.Account{
-		Nonce:       db.GetNonce(address),
-		Balance:     *balance,
-		StorageRoot: db.GetStateRootForProof(address),
-		CodeHash:    db.GetCodeHash(address),
+) (*MPTProof, error) {
+	accountProof, err := db.GetProof(address)
+	if err != nil {
+		return nil, err
 	}
+	return &MPTProof{accountProof}, nil
+}
+
+func GetStorageProof(
+	db vm.StateDB,
+	address common.Address,
+	key common.Hash,
+) (*MPTProof, *MPTProof, error) {
 	accountProof, err := db.GetProof(address)
 	if err != nil {
 		return nil, nil, err
 	}
-	return account, accountProof, nil
-}
-
-func GetStorageAtWithProof(
-	db vm.StateDB,
-	address common.Address,
-	key common.Hash,
-) (*uint256.Int, *state.Account, [][]byte, [][]byte, error) {
-	balance, _ := uint256.FromBig(db.GetBalance(address))
-	account := &state.Account{
-		Nonce:       db.GetNonce(address),
-		Balance:     *balance,
-		StorageRoot: db.GetStateRootForProof(address),
-		CodeHash:    db.GetCodeHash(address),
-	}
-	value := new(uint256.Int).SetBytes(db.GetState(address, key).Bytes())
-	accountProof, err := db.GetProof(address)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
 	storageProof, err := db.GetStorageProof(address, key)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, err
 	}
-	return value, account, accountProof, storageProof, nil
+	return &MPTProof{accountProof}, &MPTProof{storageProof}, nil
+}
+
+func calcCellNum(offset, size uint64) uint64 {
+	return (offset+size-1)/32 - offset/32 + 1
+}
+
+func IsStackError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.HasPrefix(err.Error(), "stack")
+}
+
+func IsStopTokenError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return err.Error() == "stop token"
+}
+
+func precompile(rules params.Rules, addr common.Address) (vm.PrecompiledContract, bool) {
+	var precompiles map[common.Address]vm.PrecompiledContract
+	switch {
+	case rules.IsBerlin:
+		precompiles = vm.PrecompiledContractsBerlin
+	case rules.IsIstanbul:
+		precompiles = vm.PrecompiledContractsIstanbul
+	case rules.IsByzantium:
+		precompiles = vm.PrecompiledContractsByzantium
+	default:
+		precompiles = vm.PrecompiledContractsHomestead
+	}
+	p, ok := precompiles[addr]
+	return p, ok
+}
+
+func isEnvironmentalOp(opcode vm.OpCode) bool {
+	return opcode == vm.ADDRESS ||
+		opcode == vm.ORIGIN ||
+		opcode == vm.CALLER ||
+		opcode == vm.CALLVALUE ||
+		opcode == vm.CODESIZE ||
+		opcode == vm.CALLDATASIZE ||
+		opcode == vm.GASPRICE ||
+		opcode == vm.BLOCKHASH ||
+		opcode == vm.COINBASE ||
+		opcode == vm.TIMESTAMP ||
+		opcode == vm.NUMBER ||
+		opcode == vm.DIFFICULTY ||
+		opcode == vm.GASLIMIT ||
+		opcode == vm.CHAINID
 }
