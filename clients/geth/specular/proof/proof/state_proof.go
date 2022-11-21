@@ -18,13 +18,17 @@ import (
 	"encoding/binary"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
 	"github.com/specularl2/specular/clients/geth/specular/proof/state"
 )
 
 type IntraStateProof struct {
+	BlockNumber              uint64
+	TransactionIdx           uint64
 	Depth                    uint16
 	Gas                      uint64
 	Refund                   uint64
@@ -60,6 +64,8 @@ func StateProofFromState(s *state.IntraState) *IntraStateProof {
 		lastDepthHash = s.LastDepthState.Hash()
 	}
 	return &IntraStateProof{
+		BlockNumber:              s.BlockNumber,
+		TransactionIdx:           s.TransactionIdx,
 		Depth:                    s.Depth,
 		Gas:                      s.Gas,
 		Refund:                   s.Refund,
@@ -91,7 +97,7 @@ func StateProofFromState(s *state.IntraState) *IntraStateProof {
 }
 
 func (s *IntraStateProof) Encode() []byte {
-	proofLen := 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 // Depth, Gas, Refund, Pc, OpCode, CodeMerkle, StackSize, StackHash, MemorySize, ReturnDataSize, CommittedGlobalStateRoot, GlobalStateRoot, SelfDestructAcc, LogAcc, BlockHashRoot, AccesslistRoot
+	proofLen := 8 + 8 + 2 + 8 + 8 + 8 + 1 + 32 + 8 + 32 + 8 + 8 + 32 + 32 + 32 + 32 + 32 + 32 // BlockNumber, TransactionIdx, Depth, Gas, Refund, Pc, OpCode, CodeMerkle, StackSize, StackHash, MemorySize, ReturnDataSize, CommittedGlobalStateRoot, GlobalStateRoot, SelfDestructAcc, LogAcc, BlockHashRoot, AccesslistRoot
 	if s.Depth != 1 {
 		proofLen += 32 + 20 + 20 + 32 + 8 + 1 + 8 + 8 // LastDepthHash, ContractAddress, Caller, Value, CallFlag, Out, OutSize, InputDataSize
 		if s.InputDataSize != 0 {
@@ -105,6 +111,10 @@ func (s *IntraStateProof) Encode() []byte {
 		proofLen += 32 // ReturnDataRoot
 	}
 	encoded := make([]byte, proofLen)
+	blockNumber := make([]byte, 8)
+	binary.BigEndian.PutUint64(blockNumber, s.BlockNumber)
+	transactionIdx := make([]byte, 8)
+	binary.BigEndian.PutUint64(transactionIdx, s.TransactionIdx)
 	depth := make([]byte, 2)
 	binary.BigEndian.PutUint16(depth, s.Depth)
 	gas := make([]byte, 8)
@@ -124,10 +134,12 @@ func (s *IntraStateProof) Encode() []byte {
 	}
 	returnDataSize := make([]byte, 8)
 	binary.BigEndian.PutUint64(returnDataSize, s.ReturnDataSize)
-	copy(encoded, depth)
-	copy(encoded[2:], gas)
-	copy(encoded[10:], refund)
-	offset := 18
+	copy(encoded, blockNumber)
+	copy(encoded[8:], transactionIdx)
+	copy(encoded[16:], depth)
+	copy(encoded[18:], gas)
+	copy(encoded[26:], refund)
+	offset := 34
 	if s.Depth != 1 {
 		copy(encoded[offset:], s.LastDepthHash.Bytes())
 		copy(encoded[offset+32:], s.ContractAddress.Bytes())
@@ -182,35 +194,49 @@ func (s *IntraStateProof) Hash() common.Hash {
 }
 
 type InterStateProof struct {
+	BlockNumber         uint64
+	TransactionIdx      uint64
 	GlobalStateRoot     common.Hash
 	CumulativeGasUsed   uint256.Int
+	BlockGasUsed        uint256.Int
+	BlockHashRoot       common.Hash
 	TransactionTireRoot common.Hash
 	ReceiptTrieRoot     common.Hash
-	BlockHashRoot       common.Hash
+	LogsBloom           types.Bloom
 }
 
 func InterStateProofFromInterState(s *state.InterState) *InterStateProof {
 	return &InterStateProof{
+		BlockNumber:         s.BlockNumber,
+		TransactionIdx:      s.TransactionIdx,
 		GlobalStateRoot:     s.GlobalState.GetRootForProof(),
 		CumulativeGasUsed:   *s.CumulativeGasUsed,
+		BlockGasUsed:        *s.BlockGasUsed,
+		BlockHashRoot:       s.BlockHashTree.Root(),
 		TransactionTireRoot: s.TransactionTrie.Root(),
 		ReceiptTrieRoot:     s.ReceiptTrie.Root(),
-		BlockHashRoot:       s.BlockHashTree.Root(),
+		LogsBloom:           s.ReceiptTrie.Bloom(),
 	}
 }
 
 func (s *InterStateProof) Encode() []byte {
-	encoded := make([]byte, 160)
-	copy(encoded, s.GlobalStateRoot.Bytes())
+	encoded := make([]byte, 464)
+	binary.BigEndian.PutUint64(encoded, s.BlockNumber)
+	binary.BigEndian.PutUint64(encoded[8:], s.TransactionIdx)
+	copy(encoded[16:], s.GlobalStateRoot.Bytes())
 	gasBytes := s.CumulativeGasUsed.Bytes32()
-	copy(encoded[32:], gasBytes[:])
-	copy(encoded[64:], s.TransactionTireRoot.Bytes())
-	copy(encoded[96:], s.ReceiptTrieRoot.Bytes())
-	copy(encoded[128:], s.BlockHashRoot.Bytes())
+	copy(encoded[48:], gasBytes[:])
+	blockGasBytes := s.BlockGasUsed.Bytes32()
+	copy(encoded[80:], blockGasBytes[:])
+	copy(encoded[112:], s.BlockHashRoot.Bytes())
+	copy(encoded[144:], s.TransactionTireRoot.Bytes())
+	copy(encoded[176:], s.ReceiptTrieRoot.Bytes())
+	copy(encoded[208:], s.LogsBloom.Bytes())
 	return encoded
 }
 
 type BlockStateProof struct {
+	BlockNumber       uint64
 	GlobalStateRoot   common.Hash
 	CumulativeGasUsed uint256.Int
 	BlockHashRoot     common.Hash
@@ -218,6 +244,7 @@ type BlockStateProof struct {
 
 func BlockStateProofFromBlockState(s *state.BlockState) *BlockStateProof {
 	return &BlockStateProof{
+		BlockNumber:       s.BlockNumber,
 		GlobalStateRoot:   s.GlobalState.GetRootForProof(),
 		CumulativeGasUsed: *s.CumulativeGasUsed,
 		BlockHashRoot:     s.BlockHashTree.Root(),
@@ -225,10 +252,26 @@ func BlockStateProofFromBlockState(s *state.BlockState) *BlockStateProof {
 }
 
 func (s *BlockStateProof) Encode() []byte {
-	encoded := make([]byte, 96)
-	copy(encoded, s.GlobalStateRoot.Bytes())
+	encoded := make([]byte, 104)
+	binary.BigEndian.PutUint64(encoded, s.BlockNumber)
+	copy(encoded[8:], s.GlobalStateRoot.Bytes())
 	gasBytes := s.CumulativeGasUsed.Bytes32()
-	copy(encoded[32:], gasBytes[:])
-	copy(encoded[64:], s.BlockHashRoot.Bytes())
+	copy(encoded[40:], gasBytes[:])
+	copy(encoded[72:], s.BlockHashRoot.Bytes())
 	return encoded
+}
+
+type ReceiptProof struct {
+	RLPEncodedReceipt []byte
+}
+
+func ReceiptProofFromReceipt(r *types.Receipt) *ReceiptProof {
+	encoded, _ := rlp.EncodeToBytes(r)
+	return &ReceiptProof{
+		RLPEncodedReceipt: encoded,
+	}
+}
+
+func (s *ReceiptProof) Encode() []byte {
+	return s.RLPEncodedReceipt
 }

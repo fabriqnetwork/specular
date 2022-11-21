@@ -31,6 +31,8 @@ type GeneratedIntraState struct {
 
 type IntraStateGenerator struct {
 	// Context (read-only)
+	blockNumber          uint64
+	transactionIdx       uint64
 	committedGlobalState vm.StateDB
 	startInterState      *state.InterState
 	blockHashTree        *state.BlockHashTree
@@ -42,7 +44,6 @@ type IntraStateGenerator struct {
 	err             error
 	done            bool
 	selfDestructSet *state.SelfDestructSet
-	logSeries       *state.LogSeries
 	accessListTrie  *state.AccessListTrie
 
 	// Current Call Frame
@@ -56,11 +57,14 @@ type IntraStateGenerator struct {
 }
 
 func NewIntraStateGenerator(
+	blockNumber, transactionIdx uint64,
 	committedGlobalState vm.StateDB,
 	interState state.InterState,
 	blockHashTree *state.BlockHashTree,
 ) *IntraStateGenerator {
 	return &IntraStateGenerator{
+		blockNumber:          blockNumber,
+		transactionIdx:       transactionIdx,
 		committedGlobalState: committedGlobalState,
 		startInterState:      &interState,
 		blockHashTree:        blockHashTree,
@@ -73,7 +77,8 @@ func (l *IntraStateGenerator) CaptureTxEnd(restGas uint64) {}
 
 func (l *IntraStateGenerator) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	l.env = env
-	l.counter = 0
+	// To be consistent with stepIdx, but not necessary for state generation
+	l.counter = 1
 	if create {
 		l.callFlag = state.CALLFLAG_CREATE
 	} else {
@@ -81,7 +86,7 @@ func (l *IntraStateGenerator) CaptureStart(env *vm.EVM, from common.Address, to 
 	}
 	l.input = state.NewMemoryFromBytes(input)
 	l.accessListTrie = state.NewAccessListTrie()
-	l.logSeries = state.EmptyLogSeries()
+	// We manually accumulate the selfdestruct set during tracing to preserve order
 	l.selfDestructSet = state.NewSelfDestructSet()
 	l.startInterState.GlobalState = env.StateDB.Copy() // This state includes gas-buying and nonce-increment
 	l.lastDepthState = l.startInterState
@@ -98,9 +103,10 @@ func (l *IntraStateGenerator) CaptureState(pc uint64, op vm.OpCode, gas, cost ui
 	}
 	// Construct intra state
 	s := state.StateFromCaptured(
+		l.blockNumber,
+		l.transactionIdx,
 		l.committedGlobalState,
 		l.selfDestructSet,
-		l.logSeries,
 		l.blockHashTree,
 		l.accessListTrie,
 		l.env,
@@ -117,14 +123,6 @@ func (l *IntraStateGenerator) CaptureState(pc uint64, op vm.OpCode, gas, cost ui
 	l.states = append(l.states, GeneratedIntraState{s.Hash(), gas})
 	l.lastState = s
 	l.counter += 1
-
-	if op == vm.CALL || op == vm.CALLCODE {
-		l.out = scope.Stack.Back(5).Uint64()
-		l.outSize = scope.Stack.Back(6).Uint64()
-	} else if op == vm.DELEGATECALL || op == vm.STATICCALL {
-		l.out = scope.Stack.Back(4).Uint64()
-		l.outSize = scope.Stack.Back(5).Uint64()
-	}
 }
 
 func (l *IntraStateGenerator) CaptureEnter(typ vm.OpCode, from common.Address, to common.Address, input []byte, gas uint64, value *big.Int) {
@@ -137,6 +135,17 @@ func (l *IntraStateGenerator) CaptureEnter(typ vm.OpCode, from common.Address, t
 		l.selfDestructed = true
 		l.selfDestructSet = l.selfDestructSet.Add(from)
 		return
+	}
+	// Since CaptureState is called before the opcode execution, here l.lastState is exactly
+	// the state before call, so update out and outSize by l.lastState
+	// Note: we don't want to update out and outSize in CaptureState because the call opcode
+	// might fail before entering the call frame
+	if typ == vm.CALL || typ == vm.CALLCODE {
+		l.out = l.lastState.Stack.Back(5).Uint64()
+		l.outSize = l.lastState.Stack.Back(6).Uint64()
+	} else if typ == vm.DELEGATECALL || typ == vm.STATICCALL {
+		l.out = l.lastState.Stack.Back(4).Uint64()
+		l.outSize = l.lastState.Stack.Back(5).Uint64()
 	}
 	l.callFlag = state.OpCodeToCallFlag(typ)
 	l.lastDepthState = l.lastState.StateAsLastDepth(l.callFlag)
@@ -163,8 +172,7 @@ func (l *IntraStateGenerator) CaptureExit(output []byte, gasUsed uint64, vmerr e
 		l.input = lastDepthState.InputData
 		l.lastDepthState = lastDepthState.LastDepthState
 		if vmerr != nil {
-			// Call reverted, so revert the logs, selfdestructs, and access list changes
-			l.logSeries = lastDepthState.LogSeries
+			// Call reverted, so revert the selfdestructs and access list changes
 			l.selfDestructSet = lastDepthState.SelfDestructSet
 			l.accessListTrie = lastDepthState.AccessListTrie
 		}
