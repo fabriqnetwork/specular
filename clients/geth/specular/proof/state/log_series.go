@@ -22,25 +22,25 @@ import (
 )
 
 type LogSeries struct {
-	Logs  []*types.Log
-	Bloom types.Bloom
+	Logs           []*types.Log
+	AccumulateHash common.Hash
+	Bloom          types.Bloom
 }
 
-func EmptyLogSeries() *LogSeries {
-	return &LogSeries{
-		Logs:  make([]*types.Log, 0),
-		Bloom: types.Bloom{},
+func LogSeriesFromLogs(logs []*types.Log) *LogSeries {
+	ls := make([]*types.Log, len(logs))
+	copy(ls, logs)
+	h := common.Hash{}
+	for _, l := range ls {
+		// TODO: should we check rlp encode error here?
+		logBytes, _ := rlp.EncodeToBytes(l)
+		h = crypto.Keccak256Hash(h.Bytes(), logBytes)
 	}
-}
-
-func (l *LogSeries) Add(log *types.Log) *LogSeries {
-	logs := make([]*types.Log, len(l.Logs)+1)
-	copy(logs, l.Logs)
-	var bin types.Bloom
-	bin.SetBytes(types.LogsBloom(l.Logs))
+	bin := types.LogsBloom(ls)
 	return &LogSeries{
-		Logs:  append(logs, log),
-		Bloom: bin,
+		Logs:           ls,
+		AccumulateHash: h,
+		Bloom:          types.BytesToBloom(bin),
 	}
 }
 
@@ -49,7 +49,5 @@ func (l *LogSeries) Hash() common.Hash {
 }
 
 func (l *LogSeries) EncodeState() []byte {
-	// TODO: should we check rlp encode error here?
-	logBytes, _ := rlp.EncodeToBytes(l)
-	return crypto.Keccak256(logBytes, l.Bloom.Bytes())
+	return crypto.Keccak256(l.AccumulateHash.Bytes(), l.Bloom.Bytes())
 }

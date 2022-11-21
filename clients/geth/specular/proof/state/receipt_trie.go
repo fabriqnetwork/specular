@@ -49,9 +49,13 @@ func (r *ReceiptTrie) Root() common.Hash {
 	return r.trie.Hash()
 }
 
+func (r *ReceiptTrie) Bloom() types.Bloom {
+	return types.CreateBloom(r.receipts)
+}
+
 func (r *ReceiptTrie) EncodeState() []byte {
 	encoded := r.Root().Bytes()
-	encoded = append(encoded, types.CreateBloom(r.receipts).Bytes()...)
+	encoded = append(encoded, r.Bloom().Bytes()...)
 	return encoded
 }
 

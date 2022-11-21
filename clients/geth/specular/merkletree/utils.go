@@ -50,7 +50,7 @@ func hashMixedRoot(elementCount uint64, root common.Hash) common.Hash {
 func boolSetToUint256(set []bool) *uint256.Int {
 	result := uint256.NewInt(0)
 	one := uint256.NewInt(1)
-	var tmp *uint256.Int
+	tmp := uint256.NewInt(0)
 	for i, v := range set {
 		if v {
 			tmp.Lsh(one, uint(i))
