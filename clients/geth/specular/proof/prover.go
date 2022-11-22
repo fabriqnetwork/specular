@@ -350,11 +350,10 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 		backend.ChainConfig().Rules(vmctx.BlockNumber, vmctx.Random != nil),
 		startState.Block.NumberU64(),
 		startState.TransactionIdx,
-		transaction.Gas(),
-		transaction.GasPrice(),
 		statedb,
 		*its,
 		blockHashTree,
+		transaction,
 		receipts[startState.TransactionIdx],
 	)
 	// Run the transaction with prover enabled.

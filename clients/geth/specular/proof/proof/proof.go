@@ -27,24 +27,20 @@ import (
 )
 
 type ProofGenContext struct {
-	rules      params.Rules
-	coinbase   common.Address
-	receipt    *types.Receipt
-	actualCode []byte   // For opcode proof when in CALLCODE/DELEGATECALL/STATICCALL
-	initialGas uint64   // For transaction finalization only
-	gasPrice   *big.Int // For transaction finalization only
-	cost       uint64   // For transaction finalization only
+	rules       params.Rules
+	coinbase    common.Address
+	transaction *types.Transaction
+	receipt     *types.Receipt
+	actualCode  []byte // For opcode proof when in CALLCODE/DELEGATECALL/STATICCALL
 }
 
-func NewProofGenContext(rules params.Rules, coinbase common.Address, receipt *types.Receipt, actualCode []byte, initialGas, cost uint64, gasPrice *big.Int) ProofGenContext {
+func NewProofGenContext(rules params.Rules, coinbase common.Address, transaction *types.Transaction, receipt *types.Receipt, actualCode []byte) ProofGenContext {
 	return ProofGenContext{
-		rules:      rules,
-		coinbase:   coinbase,
-		receipt:    receipt,
-		actualCode: actualCode,
-		initialGas: initialGas,
-		cost:       cost,
-		gasPrice:   gasPrice,
+		rules:       rules,
+		coinbase:    coinbase,
+		receipt:     receipt,
+		transaction: transaction,
+		actualCode:  actualCode,
 	}
 }
 
