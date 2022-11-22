@@ -182,7 +182,7 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 
 			// Execute transaction i with intra state generator enabled.
 			prover := prover.NewIntraStateGenerator(block.NumberU64(), uint64(i), statedb, *its, blockHashTree)
-			vmenv := vm.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover, NoBaseFee: true})
+			vmenv := vm.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover})
 			executionResult, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 			if err != nil {
 				return nil, fmt.Errorf("tracing failed: %w", err)
@@ -360,7 +360,7 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 		receipts[startState.TransactionIdx],
 	)
 	// Run the transaction with prover enabled.
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover, NoBaseFee: true})
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover})
 	// Call Prepare to clear out the statedb access list
 	txHash := transactions[startState.TransactionIdx].Hash()
 	statedb.Prepare(txHash, int(startState.TransactionIdx))
