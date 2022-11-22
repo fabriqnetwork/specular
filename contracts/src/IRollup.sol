@@ -35,6 +35,83 @@ interface IRollup {
 
     event AssertionRejected(uint256 assertionID);
 
+    /// @dev Thrown when address that have not staked any token calls a only-staked function
+    error NotStaked();
+
+    /// @dev Thrown when the function is called with Insufficient Stake
+    error InsufficientStake();
+
+    /// @dev Thrown when the caller is staked on unconfirmed assertion.
+    error StakedOnUnconfirmedAssertion();
+
+    /// @dev Thrown when transfer fails
+    error TransferFailed();
+
+    /// @dev Thrown when a staker tries to advance stake to invalid assertionId.
+    error AssertionOutOfRange();
+
+    /// @dev Thrown when a staker tries to advance stake to non-child assertion
+    error ParentAssertionUnstaked();
+
+    /// @dev Thrown when a sender tries to create assertion before the minimum assertion time period
+    error MinimumAssertionPeriodNotPassed();
+
+    /// @dev Thrown when the L2 gas used by the assertion is more the max allowed limit.
+    error MaxGasLimitExceeded();
+
+    /// @dev Thrown when parent's statehash is not equal to the start state(or previous state)/
+    error PreviousStateHash();
+
+    /// @dev Thrown when a sender tries to create assertion without any tx.
+    error EmptyAssertion();
+
+    /// @dev Thrown when the requested assertion read past the end of current Inbox.
+    error InboxReadLimitExceeded();
+
+    /// @dev Thrown when the challenge assertion Id is not ordered or in range.
+    error WrongOrder();
+
+    /// @dev Thrown when the challenger tries to challenge an unproposed assertion
+    error UnproposedAssertion();
+
+    /// @dev Thrown when the assertion is already resolved
+    error AssertionAlreadyResolved();
+
+    /// @dev Thrown when there is no unresolved assertion
+    error NoUnresolvedAssertion();
+
+    /// @dev Thrown when the challenge period has not passed
+    error ChallengePeriodPending();
+
+    /// @dev Thrown when the challenger and defender didn't attest to sibling assertions
+    error DifferentParent();
+
+    /// @dev Thrown when the assertion's parent is not the last confirmed assertion
+    error InvalidParent();
+
+    /// @dev Thrown when the staker is not in a challenge
+    error NotInChallenge();
+
+    /// @dev Thrown when the two stakers are in different challenge
+    /// @param staker1Challenge challenge address of staker 1
+    /// @param staker2Challenge challenge address of staker 2
+    error InDifferentChallenge(address staker1Challenge, address staker2Challenge);
+
+    /// @dev Thrown when the staker is currently in Challenge
+    error ChallengedStaker();
+
+    /// @dev Thrown when all the stakers are not staked
+    error NotAllStaked();
+
+    /// @dev Thrown staker's assertion is descendant of firstUnresolved assertion
+    error StakerStakedOnTarget();
+
+    /// @dev Thrown when there are staker's present on the assertion
+    error StakersPresent();
+
+    /// @dev Thrown when there are zero stakers
+    error NoStaker();
+
     function assertions() external view returns (AssertionMap);
 
     /**
