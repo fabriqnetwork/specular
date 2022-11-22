@@ -1,0 +1,394 @@
+{
+  "manifestVersion": "3.2",
+  "admin": {
+    "address": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
+    "txHash": "0x467fe4ac596ae318e0c833be3f7fcedf4d87859c13c97b48277414ddd938c37c"
+  },
+  "proxies": [
+    {
+      "address": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+      "txHash": "0xf2ee2005d2689237114d09971c23dad2b0d8645d069f82f43e9822b144696519",
+      "kind": "transparent"
+    },
+    {
+      "address": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+      "txHash": "0xa30c5f41b184ee84d1602e53e8c6db378a9fe58f59bb5f6da71b3da3b1c5e99a",
+      "kind": "transparent"
+    },
+    {
+      "address": "0x0165878A594ca255338adfa4d48449f69242Eb8F",
+      "txHash": "0x4308636a2e78974b6f04db482c1727025c310e84a17d4021c3c9d3b793c906f2",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "e6ab26ed6923cc0d43642422f0895c2180c2a23129f7032d445ff074e2f4d138": {
+      "address": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
+      "txHash": "0x18015ee2c3351a6a15527a566f8b73e388095b9d66b62d345181dc56304cf3cf",
+      "layout": {
+        "solcVersion": "0.8.4",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "inboxSize",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "SequencerInbox",
+            "src": "src/SequencerInbox.sol:34"
+          },
+          {
+            "label": "accumulators",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_array(t_bytes32)dyn_storage",
+            "contract": "SequencerInbox",
+            "src": "src/SequencerInbox.sol:36"
+          },
+          {
+            "label": "sequencerAddress",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_address",
+            "contract": "SequencerInbox",
+            "src": "src/SequencerInbox.sol:38"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_bytes32)dyn_storage": {
+            "label": "bytes32[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_bytes32": {
+            "label": "bytes32",
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "cc8eee26f668497ce4758ad1aa0268931b75410a4737a93fbda417a7d62c8809": {
+      "address": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+      "txHash": "0x0e8d39270296dbc058452605e0212ec544a504a7b62d1e64ab8f67d4179c5b95",
+      "layout": {
+        "solcVersion": "0.8.4",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          }
+        ],
+        "types": {
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    },
+    "f2768aa2eb9910de815bf151cdea261c22859f88202ce7e302f1f8685a7a487f": {
+      "address": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
+      "txHash": "0x6dd26c3030f6e305ecb9df334aad67a502a182ae2d998f09e2f6417c2894c8bc",
+      "layout": {
+        "solcVersion": "0.8.4",
+        "storage": [
+          {
+            "label": "_initialized",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_uint8",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:62",
+            "retypedFrom": "bool"
+          },
+          {
+            "label": "_initializing",
+            "offset": 1,
+            "slot": "0",
+            "type": "t_bool",
+            "contract": "Initializable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
+          },
+          {
+            "label": "confirmationPeriod",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:37"
+          },
+          {
+            "label": "challengePeriod",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:38"
+          },
+          {
+            "label": "minimumAssertionPeriod",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:39"
+          },
+          {
+            "label": "maxGasPerAssertion",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_uint256",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:40"
+          },
+          {
+            "label": "baseStakeAmount",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_uint256",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:41"
+          },
+          {
+            "label": "owner",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_address",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:43"
+          },
+          {
+            "label": "stakeToken",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_contract(IERC20)471",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:44"
+          },
+          {
+            "label": "sequencerInbox",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_contract(ISequencerInbox)939",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:45"
+          },
+          {
+            "label": "assertions",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_contract(AssertionMap)776",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:46"
+          },
+          {
+            "label": "verifier",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_contract(IVerifier)3183",
+            "contract": "RollupBase",
+            "src": "src/Rollup.sol:47"
+          },
+          {
+            "label": "lastResolvedAssertionID",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_uint256",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:69"
+          },
+          {
+            "label": "lastConfirmedAssertionID",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_uint256",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:70"
+          },
+          {
+            "label": "lastCreatedAssertionID",
+            "offset": 0,
+            "slot": "13",
+            "type": "t_uint256",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:71"
+          },
+          {
+            "label": "numStakers",
+            "offset": 0,
+            "slot": "14",
+            "type": "t_uint256",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:74"
+          },
+          {
+            "label": "stakers",
+            "offset": 0,
+            "slot": "15",
+            "type": "t_mapping(t_address,t_struct(Staker)987_storage)",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:75"
+          },
+          {
+            "label": "withdrawableFunds",
+            "offset": 0,
+            "slot": "16",
+            "type": "t_mapping(t_address,t_uint256)",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:76"
+          },
+          {
+            "label": "zombies",
+            "offset": 0,
+            "slot": "17",
+            "type": "t_array(t_struct(Zombie)992_storage)dyn_storage",
+            "contract": "Rollup",
+            "src": "src/Rollup.sol:77"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_struct(Zombie)992_storage)dyn_storage": {
+            "label": "struct RollupBase.Zombie[]",
+            "numberOfBytes": "32"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_contract(AssertionMap)776": {
+            "label": "contract AssertionMap",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IERC20)471": {
+            "label": "contract IERC20",
+            "numberOfBytes": "20"
+          },
+          "t_contract(ISequencerInbox)939": {
+            "label": "contract ISequencerInbox",
+            "numberOfBytes": "20"
+          },
+          "t_contract(IVerifier)3183": {
+            "label": "contract IVerifier",
+            "numberOfBytes": "20"
+          },
+          "t_mapping(t_address,t_struct(Staker)987_storage)": {
+            "label": "mapping(address => struct RollupBase.Staker)",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_address,t_uint256)": {
+            "label": "mapping(address => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(Staker)987_storage": {
+            "label": "struct RollupBase.Staker",
+            "members": [
+              {
+                "label": "isStaked",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "amountStaked",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "assertionID",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "currentChallenge",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "3"
+              }
+            ],
+            "numberOfBytes": "128"
+          },
+          "t_struct(Zombie)992_storage": {
+            "label": "struct RollupBase.Zombie",
+            "members": [
+              {
+                "label": "stakerAddress",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "lastAssertionID",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              }
+            ],
+            "numberOfBytes": "64"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint8": {
+            "label": "uint8",
+            "numberOfBytes": "1"
+          }
+        }
+      }
+    }
+  }
+}

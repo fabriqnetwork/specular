@@ -51,6 +51,8 @@ type Proof interface {
 type OneStepProof struct {
 	VerifierType VerifierType
 	Proofs       []Proof
+
+	TotalCodeSize uint64 // for statistics
 }
 
 func EmptyProof() *OneStepProof {

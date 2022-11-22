@@ -25,9 +25,13 @@ func (t *MerkleTree) generateSingleProof(index uint64) []common.Hash {
 	var decommitments []common.Hash
 	for i := leafCount + index; i > 1; i >>= 1 {
 		if i&1 == 0 {
-			decommitments = append(decommitments, t.tree[i-1])
+			if i-1 < uint64(len(t.tree)) {
+				decommitments = append(decommitments, t.tree[i-1])
+			}
 		} else {
-			decommitments = append(decommitments, t.tree[i+1])
+			if i+1 < uint64(len(t.tree)) {
+				decommitments = append(decommitments, t.tree[i+1])
+			}
 		}
 	}
 	proof := []common.Hash{uint256.NewInt(t.ElementCount()).Bytes32()}

@@ -34,25 +34,25 @@ func (osp *OneStepProof) addInterStateProof(s *state.InterState) {
 	osp.AddProof(InterStateProofFromInterState(s))
 }
 
-func (osp *OneStepProof) addCodeProof(currState *state.IntraState, address common.Address) {
-	codeProof := &CodeProof{
-		Content: currState.GlobalState.GetCode(address),
-	}
-	osp.AddProof(codeProof)
-}
-
 func (osp *OneStepProof) addRawCodeProof(code []byte) {
 	codeProof := &CodeProof{
 		Content: code,
 	}
+	osp.TotalCodeSize += uint64(len(code))
 	osp.AddProof(codeProof)
+}
+
+func (osp *OneStepProof) addCodeProof(currState *state.IntraState, address common.Address) {
+	osp.addRawCodeProof(currState.GlobalState.GetCode(address))
 }
 
 func (osp *OneStepProof) addOpCodeProof(ctx ProofGenContext, currState *state.IntraState) {
 	if currState.CallFlag == state.CALLFLAG_CALLCODE || currState.CallFlag == state.CALLFLAG_DELEGATECALL || currState.CallFlag == state.CALLFLAG_STATICCALL {
 		osp.addRawCodeProof(ctx.actualCode)
+	} else if currState.CallFlag == state.CALLFLAG_CALL {
+		osp.addCodeProof(currState, currState.ContractAddress)
 	}
-	osp.addCodeProof(currState, currState.ContractAddress)
+	// We don't need opcode proof for create -- verifier can infer it from inputdata
 }
 
 func (osp *OneStepProof) addBlockHashProof(num uint64, currState *state.IntraState) error {
@@ -656,7 +656,7 @@ func opMLoadProof(ctx ProofGenContext, currState, nextState *state.IntraState, v
 		}
 	}
 	offset := currState.Stack.Peek().Uint64()
-	err := osp.addMemoryReadProof(offset, offset+32, currState)
+	err := osp.addMemoryReadProof(offset, 32, currState)
 	if err != nil {
 		return nil, err
 	}
@@ -686,7 +686,7 @@ func opMStoreProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 		}
 	}
 	offset := currState.Stack.Peek().Uint64()
-	err := osp.addMemoryWriteProof(offset/32, offset+32, currState, nextState)
+	err := osp.addMemoryWriteProof(offset, 32, currState, nextState)
 	if err != nil {
 		return nil, err
 	}
@@ -716,7 +716,7 @@ func opMStore8Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 		}
 	}
 	offset := currState.Stack.Peek().Uint64()
-	err := osp.addMemoryWriteProof(offset/32, 1, currState, nextState)
+	err := osp.addMemoryWriteProof(offset, 32, currState, nextState)
 	if err != nil {
 		return nil, err
 	}
