@@ -22,7 +22,6 @@ import "./libraries/Errors.sol";
 
 // Exists only to reduce size of Rollup contract (maybe revert since Rollup fits under optimized compilation).
 contract AssertionMap {
-
     error ChildInboxSizeMismatch();
 
     error SiblingStateHashExists();
@@ -100,12 +99,12 @@ contract AssertionMap {
         if (parentChildInboxSize == 0) {
             parentAssertion.childInboxSize = inboxSize;
         } else {
-            if(inboxSize != parentChildInboxSize) {
+            if (inboxSize != parentChildInboxSize) {
                 revert ChildInboxSizeMismatch();
             }
         }
 
-        if(parentAssertion.childStateHashes[stateHash]) {
+        if (parentAssertion.childStateHashes[stateHash]) {
             revert SiblingStateHashExists();
         }
         parentAssertion.childStateHashes[stateHash] = true;
