@@ -317,7 +317,10 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 		return nil, err
 	}
 	txContext := core.NewEVMTxContext(msg)
-	receipts, _ := backend.GetReceipts(ctx, startState.Block.Hash())
+	receipts, err := backend.GetReceipts(ctx, startState.Block.Hash())
+	if err != nil {
+		return nil, err
+	}
 	blockHashTree, err := state.BlockHashTreeFromBlockContext(&vmctx)
 	if err != nil {
 		return nil, err
