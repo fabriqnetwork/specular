@@ -41,11 +41,10 @@ type OneStepProver struct {
 	rules                params.Rules
 	blockNumber          uint64
 	transactionIdx       uint64
-	initialGas           uint64
-	gasPrice             *big.Int
 	committedGlobalState vm.StateDB
 	startInterState      *state.InterState
 	blockHashTree        *state.BlockHashTree
+	transaction          *types.Transaction
 	receipt              *types.Receipt
 
 	// Global
@@ -63,7 +62,6 @@ type OneStepProver struct {
 	lastState      *state.IntraState
 	lastCode       []byte
 	lastDepthState state.OneStepState
-	lastCost       uint64
 	input          *state.Memory
 	out            uint64
 	outSize        uint64
@@ -84,11 +82,10 @@ func NewProver(
 	rules params.Rules,
 	blockNumber uint64,
 	transactionIdx uint64,
-	initialGas uint64,
-	gasPrice *big.Int,
 	committedGlobalState vm.StateDB,
 	interState state.InterState,
 	blockHashTree *state.BlockHashTree,
+	transaction *types.Transaction,
 	receipt *types.Receipt,
 ) *OneStepProver {
 	return &OneStepProver{
@@ -97,11 +94,10 @@ func NewProver(
 		rules:                rules,
 		blockNumber:          blockNumber,
 		transactionIdx:       transactionIdx,
-		initialGas:           initialGas,
-		gasPrice:             gasPrice,
 		committedGlobalState: committedGlobalState,
 		startInterState:      &interState,
 		blockHashTree:        blockHashTree,
+		transaction:          transaction,
 		receipt:              receipt,
 	}
 }
@@ -176,7 +172,7 @@ func (l *OneStepProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, 
 		}
 		// l.vmerr is the error of l.lastState, either before/during the opcode execution
 		// if l.vmerr is not nil, the current state s must be in the parent call frame of l.lastState
-		ctx := proof.NewProofGenContext(l.rules, l.env.Context.Coinbase, l.receipt, l.lastCode, l.initialGas, l.lastCost, l.gasPrice)
+		ctx := proof.NewProofGenContext(l.rules, l.env.Context.Coinbase, l.transaction, l.receipt, l.lastCode)
 		osp, err := proof.GetIntraProof(ctx, l.lastState, s, l.vmerr)
 		if err != nil {
 			l.err = err
@@ -187,7 +183,6 @@ func (l *OneStepProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, 
 	}
 	l.lastState = s
 	l.lastCode = scope.Contract.Code
-	l.lastCost = cost
 	// vmerr is not nil means the gas/stack validation failed, the opcode execution will
 	// not happen and the current call frame will be immediately reverted. This is the
 	// last CaptureState call for this call frame and there won't be any CaptureFault call.
@@ -278,7 +273,7 @@ func (l *OneStepProver) CaptureEnd(output []byte, gasUsed uint64, t time.Duratio
 		}
 		// If l.vmerr is not nil, the entire transaction execution will be reverted.
 		// Otherwise, the execution ended through STOP or RETURN opcode.
-		ctx := proof.NewProofGenContext(l.rules, l.env.Context.Coinbase, l.receipt, l.lastCode, l.initialGas, l.lastCost, l.gasPrice)
+		ctx := proof.NewProofGenContext(l.rules, l.env.Context.Coinbase, l.transaction, l.receipt, l.lastCode)
 		osp, err := proof.GetIntraProof(ctx, l.lastState, nil, l.vmerr)
 		if err != nil {
 			l.err = err
