@@ -976,14 +976,16 @@ func (osp *OneStepProof) addTransactionReturnProof(ctx ProofGenContext, currStat
 	if ctx.rules.IsLondon {
 		refundQuotient = params.RefundQuotientEIP3529
 	}
-	gasLeft := currState.Gas - ctx.cost
-	gasUsed := ctx.initialGas - gasLeft
+	initialGas := ctx.transaction.Gas()
+	gasUsed := ctx.receipt.GasUsed
+	gasPrice := ctx.transaction.GasPrice()
+	gasLeft := initialGas - gasUsed
 	refund := gasUsed / refundQuotient
 	if refund > currState.Refund {
 		refund = currState.Refund
 	}
 	gasLeft += refund
-	remaining := new(big.Int).Mul(new(big.Int).SetUint64(gasLeft), ctx.gasPrice)
+	remaining := new(big.Int).Mul(new(big.Int).SetUint64(gasLeft), gasPrice)
 	currState.GlobalState.AddBalance(currState.Caller, remaining)
 	currState.GlobalState.CommitForProof()
 
@@ -991,7 +993,7 @@ func (osp *OneStepProof) addTransactionReturnProof(ctx ProofGenContext, currStat
 	if err != nil {
 		return err
 	}
-	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), ctx.gasPrice)
+	fee := new(big.Int).Mul(new(big.Int).SetUint64(gasUsed), gasPrice)
 	currState.GlobalState.AddBalance(ctx.coinbase, fee)
 	currState.GlobalState.CommitForProof()
 
