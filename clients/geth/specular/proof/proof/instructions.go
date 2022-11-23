@@ -47,12 +47,7 @@ func (osp *OneStepProof) addCodeProof(currState *state.IntraState, address commo
 }
 
 func (osp *OneStepProof) addOpCodeProof(ctx ProofGenContext, currState *state.IntraState) {
-	if currState.CallFlag == state.CALLFLAG_CALLCODE || currState.CallFlag == state.CALLFLAG_DELEGATECALL || currState.CallFlag == state.CALLFLAG_STATICCALL {
-		osp.addRawCodeProof(ctx.actualCode)
-	} else if currState.CallFlag == state.CALLFLAG_CALL {
-		osp.addCodeProof(currState, currState.ContractAddress)
-	}
-	// We don't need opcode proof for create -- verifier can infer it from inputdata
+	osp.addRawCodeProof(ctx.actualCode)
 }
 
 func (osp *OneStepProof) addBlockHashProof(num uint64, currState *state.IntraState) error {
@@ -855,6 +850,7 @@ func opCreateProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp := EmptyProof()
 	osp.SetVerifierType(VerifierTypeCallOp)
 	osp.addStateProof(currState)
+	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
 		err := osp.addRevertProof(ctx, currState, nextState)
@@ -1121,6 +1117,7 @@ func opCreate2Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	osp := EmptyProof()
 	osp.SetVerifierType(VerifierTypeCallOp)
 	osp.addStateProof(currState)
+	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
 		err := osp.addRevertProof(ctx, currState, nextState)
