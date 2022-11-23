@@ -157,7 +157,7 @@ contract Challenge is IChallenge {
             challengedSegmentLength = challengedSegmentIndex == 1 ? firstSegmentLength : otherSegmentLength;
 
             if (challengedSegmentIndex > 1) {
-                challengedSegmentStart += firstSegmentLength + (otherSegmentLength * (challengedSegmentIndex - 2));
+                challengedSegmentStart += firstSegmentLength + otherSegmentLength * (challengedSegmentIndex - 2);
             }
         }
         require(challengedSegmentLength > 1, "TOO_SHORT");
@@ -241,13 +241,11 @@ contract Challenge is IChallenge {
 
     function _asserterWin(CompletionReason reason) private {
         emit ChallengeCompleted(defender, challenger, reason);
-        IRollup(resultReceiver).completeChallenge(defender, challenger);
-        // safeSelfDestruct(msg.sender);
+        IRollup(resultReceiver).completeChallenge(defender, challenger); // safeSelfDestruct(msg.sender);
     }
 
     function _challengerWin(CompletionReason reason) private {
         emit ChallengeCompleted(challenger, defender, reason);
-        IRollup(resultReceiver).completeChallenge(challenger, defender);
-        // safeSelfDestruct(msg.sender);
+        IRollup(resultReceiver).completeChallenge(challenger, defender); // safeSelfDestruct(msg.sender);
     }
 }

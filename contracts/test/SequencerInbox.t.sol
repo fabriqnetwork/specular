@@ -20,6 +20,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "../src/libraries/Errors.sol";
 import "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 
@@ -65,7 +66,7 @@ contract SequencerInboxTest is BaseSetup {
     }
 
     function testInvalidSequencerReverts() public {
-        vm.expectRevert(bytes("INVALID_SEQUENCER"));
+        vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencer));
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
@@ -73,7 +74,7 @@ contract SequencerInboxTest is BaseSetup {
     }
 
     function testEmptyBatchReverts() public {
-        vm.expectRevert(bytes("EMPTY_BATCH"));
+        vm.expectRevert(EmptyBatch.selector);
         vm.prank(sequencer);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);

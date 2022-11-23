@@ -18,8 +18,14 @@
 
 pragma solidity ^0.8.0;
 
+import "./libraries/Errors.sol";
+
 // Exists only to reduce size of Rollup contract (maybe revert since Rollup fits under optimized compilation).
 contract AssertionMap {
+    error ChildInboxSizeMismatch();
+
+    error SiblingStateHashExists();
+
     struct Assertion {
         bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
         uint256 inboxSize; // Inbox size this assertion advanced to
@@ -38,12 +44,16 @@ contract AssertionMap {
     address public rollupAddress;
 
     modifier rollupOnly() {
-        require(msg.sender == rollupAddress, "ROLLUP_ONLY");
+        if (msg.sender != rollupAddress) {
+            revert NotRollup(msg.sender, rollupAddress);
+        }
         _;
     }
 
     constructor(address _rollupAddress) {
-        require(_rollupAddress != address(0), "ZERO_ADDRESS");
+        if (_rollupAddress == address(0)) {
+            revert ZeroAddress();
+        }
         rollupAddress = _rollupAddress;
     }
 
@@ -89,10 +99,14 @@ contract AssertionMap {
         if (parentChildInboxSize == 0) {
             parentAssertion.childInboxSize = inboxSize;
         } else {
-            require(inboxSize == parentChildInboxSize, "CHILD_INBOX_SIZE_MISMATCH");
+            if (inboxSize != parentChildInboxSize) {
+                revert ChildInboxSizeMismatch();
+            }
         }
 
-        require(!parentAssertion.childStateHashes[stateHash], "SIBLING_STATE_HASH_EXISTS");
+        if (parentAssertion.childStateHashes[stateHash]) {
+            revert SiblingStateHashExists();
+        }
         parentAssertion.childStateHashes[stateHash] = true;
 
         assertion.stateHash = stateHash;
