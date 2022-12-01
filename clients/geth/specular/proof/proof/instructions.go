@@ -955,6 +955,10 @@ func (osp *OneStepProof) addCallReturnProof(currState *state.IntraState) error {
 	return nil
 }
 
+func (osp *OneStepProof) addSelfDestructSetProof(currState *state.IntraState) {
+	osp.AddProof(SelfDestructSetProofFromSelfDestructSet(currState.SelfDestructSet))
+}
+
 // If a transaction is returned, transaction needs to be finalized.
 //  1. refund gas
 //  2. tip the coinbase
@@ -993,6 +997,7 @@ func (osp *OneStepProof) addTransactionReturnProof(ctx ProofGenContext, currStat
 	currState.GlobalState.AddBalance(ctx.coinbase, fee)
 	currState.GlobalState.CommitForProof()
 
+	osp.addSelfDestructSetProof(currState)
 	for _, addr := range currState.SelfDestructSet.Contracts {
 		err = osp.addAccountProof(currState, addr)
 		if err != nil {
