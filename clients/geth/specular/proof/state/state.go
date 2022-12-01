@@ -121,8 +121,10 @@ func (s *IntraState) IsInter() bool {
 	return false
 }
 
-func (s *IntraState) StateAsLastDepth(callFlag CallFlag) *IntraState {
+// Make sure the cost is less than the current gas
+func (s *IntraState) StateAsLastDepth(callFlag CallFlag, cost uint64) *IntraState {
 	s_ := *s
+	s_.Gas -= cost
 	s_.Stack = s.Stack.Copy()
 	if callFlag == CALLFLAG_CALL || callFlag == CALLFLAG_CALLCODE {
 		s_.Stack.PopN(7)
@@ -136,8 +138,8 @@ func (s *IntraState) StateAsLastDepth(callFlag CallFlag) *IntraState {
 	return &s_
 }
 
-func (s *IntraState) HashAsLastDepth(callFlag CallFlag) common.Hash {
-	return s.StateAsLastDepth(callFlag).Hash()
+func (s *IntraState) HashAsLastDepth(callFlag CallFlag, cost uint64) common.Hash {
+	return s.StateAsLastDepth(callFlag, cost).Hash()
 }
 
 func StateFromCaptured(
