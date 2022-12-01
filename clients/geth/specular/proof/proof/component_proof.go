@@ -415,3 +415,24 @@ func (p *LogProof) Encode() []byte {
 	copy(encoded[32:], p.Bloom.Bytes())
 	return encoded
 }
+
+type SelfDestructSetProof struct {
+	Contracts []common.Address
+}
+
+func SelfDestructSetProofFromSelfDestructSet(selfDestructSet *state.SelfDestructSet) *SelfDestructSetProof {
+	return &SelfDestructSetProof{
+		Contracts: selfDestructSet.Contracts,
+	}
+}
+
+func (p *SelfDestructSetProof) Encode() []byte {
+	encoded := make([]byte, 8+20*len(p.Contracts))
+	binary.BigEndian.PutUint64(encoded, uint64(len(p.Contracts)))
+	encodedOffset := 8
+	for _, addr := range p.Contracts {
+		copy(encoded[encodedOffset:], addr.Bytes())
+		encodedOffset += 20
+	}
+	return encoded
+}
