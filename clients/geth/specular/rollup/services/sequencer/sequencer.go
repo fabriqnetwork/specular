@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -60,27 +61,108 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 }
 
 // This goroutine fetches txs from txpool and batches them
-// TODO: fetching txs through sub is unstable
-// TODO: batch txs by timer and directly querying txpool as worker does
 func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
 	defer close(s.batchCh)
+
+	// Timer
+	var timeInterval = 10 * time.Second
+	var timer = time.NewTimer(timeInterval)
+	defer timer.Stop()
 
 	// Watch transactions in TxPool
 	txsCh := make(chan core.NewTxsEvent, 4096)
 	txsSub := s.Eth.TxPool().SubscribeNewTxsEvent(txsCh)
 	defer txsSub.Unsubscribe()
 
+	// Process txns via batcher
 	batcher, err := NewBatcher(s.Config.Coinbase, s.Eth)
 	if err != nil {
 		log.Crit("Failed to start batcher", "err", err)
 	}
 
+	// Track processed txs
+	processedTxs := make(map[common.Hash]bool)
+
+	// Loop over txns
 	for {
 		select {
+		case <-timer.C:
+			// Get pending txs - locals and remotes, sorted by price
+			var txs []*types.Transaction
+			var sortedTxs *types.TransactionsByPriceAndNonce
+			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+			pending := s.Eth.TxPool().Pending(true)
+			localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+			for _, account := range s.Eth.TxPool().Locals() {
+				if txs = remoteTxs[account]; len(txs) > 0 {
+					delete(remoteTxs, account)
+					localTxs[account] = txs
+				}
+			}
+			if len(localTxs) > 0 {
+				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
+			}
+			if len(remoteTxs) > 0 {
+				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+			}
+
+			// Batch txns
+			if sortedTxs == nil {
+				timer.Reset(timeInterval)
+				break
+			}
+			for {
+				tx := sortedTxs.Peek()
+				if tx == nil {
+					break
+				}
+				if !processedTxs[tx.Hash()] {
+					txs = append(txs, tx)
+				}
+				sortedTxs.Pop()
+			}
+			// Filter already seen txs
+			for i := 0; i < len(txs); i++ {
+				currTx := txs[i]
+				if processedTxs[currTx.Hash()] {
+					txs = append(txs[:i], txs[i+1:]...)
+				}
+			}
+			if len(txs) == 0 {
+				break
+			}
+			err = batcher.CommitTransactions(txs)
+			if err != nil {
+				log.Crit("Failed to commit transactions", "err", err)
+			}
+			blocks, err := batcher.Batch()
+			if err != nil {
+				log.Crit("Failed to batch blocks", "err", err)
+			}
+			batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
+			s.batchCh <- batch
+			timer.Reset(timeInterval)
 		case ev := <-txsCh:
-			// New transactions from TxPool
-			err = batcher.CommitTransactions(ev.Txs)
+			// Batch txs based on tx events
+			var batchTxs []*types.Transaction
+			txs := make(map[common.Address]types.Transactions)
+			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+			for _, tx := range ev.Txs {
+				acc, _ := types.Sender(signer, tx)
+				txs[acc] = append(txs[acc], tx)
+			}
+			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
+			for {
+				tx := sortedTxs.Peek()
+				if tx == nil {
+					break
+				}
+				batchTxs = append(batchTxs, tx)
+				sortedTxs.Pop()
+				processedTxs[tx.Hash()] = true
+			}
+			err = batcher.CommitTransactions(batchTxs)
 			if err != nil {
 				log.Crit("Failed to commit transactions", "err", err)
 			}
@@ -94,6 +176,7 @@ func (s *Sequencer) batchingLoop() {
 			return
 		}
 	}
+
 }
 
 // This goroutine sequences batches to L1 SequencerInbox and creates DAs
