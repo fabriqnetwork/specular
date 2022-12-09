@@ -123,7 +123,7 @@ func (v *Validator) commitBlocks(blocks []*rollupTypes.SequenceBlock) (common.Ha
 			}
 			logs = append(logs, receipt.Logs...)
 		}
-		_, err := v.Chain.WriteBlockAndSetHead(block, receipts, logs, state, false)
+		_, err := v.Chain.WriteBlockAndSetHead(block, receipts, logs, state, true)
 		if err != nil {
 			return common.Hash{}, nil, err
 		}
