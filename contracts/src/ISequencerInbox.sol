@@ -32,6 +32,11 @@ interface ISequencerInbox {
     error EmptyBatch();
 
     /**
+     * @notice Gets current sequencer address.
+     */
+    function sequencerAddress() external view returns (address);
+
+    /**
      * @notice Gets inbox size (number of messages).
      */
     function getInboxSize() external view returns (uint256);
