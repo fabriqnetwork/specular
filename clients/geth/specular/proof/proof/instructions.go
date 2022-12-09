@@ -51,6 +51,9 @@ func (osp *OneStepProof) addOpCodeProof(ctx ProofGenContext, currState *state.In
 }
 
 func (osp *OneStepProof) addBlockHashProof(num uint64, currState *state.IntraState) error {
+	if num >= currState.BlockNumber || num < currState.BlockNumber-state.RECENT_BLOCK_HASHES_LENGTH {
+		return nil
+	}
 	pf, err := GetBlockHashMerkleProof(currState.BlockHashTree, num)
 	if err != nil {
 		return err
@@ -84,7 +87,9 @@ func (osp *OneStepProof) addMemoryLikeReadProof(offset, size uint64, memoryLike 
 	if err != nil {
 		return err
 	}
-	osp.AddProof(pf)
+	if pf != nil {
+		osp.AddProof(pf)
+	}
 	return nil
 }
 
@@ -124,7 +129,9 @@ func (osp *OneStepProof) addMemoryWriteProof(offset, size uint64, currState, nex
 	if err != nil {
 		return err
 	}
-	osp.AddProof(pf)
+	if pf != nil {
+		osp.AddProof(pf)
+	}
 	return nil
 }
 
@@ -196,7 +203,7 @@ func (osp *OneStepProof) addCallRevertProof(currState *state.IntraState) error {
 // If a transaction is reverted, nothing changed in the state except the gas tip to the coinbase.
 // We need to send the InterStateProof for the verifier to construct the next InterState.
 // We also need to send the receipt to help the verifier update the receipt trie.
-func (osp *OneStepProof) addTransactionRevertProof(ctx ProofGenContext, currState *state.IntraState) error {
+func (osp *OneStepProof) addTransactionRevertProof(ctx ProofGenContext, currState *state.IntraState, vmerr error) error {
 	lastDepthState := currState.LastDepthState.(*state.InterState)
 	osp.addInterStateProof(lastDepthState)
 	err := osp.addCommittedAccountProof(currState, ctx.coinbase)
@@ -207,10 +214,10 @@ func (osp *OneStepProof) addTransactionRevertProof(ctx ProofGenContext, currStat
 	return nil
 }
 
-func (osp *OneStepProof) addRevertProof(ctx ProofGenContext, currState, nextState *state.IntraState) error {
+func (osp *OneStepProof) addRevertProof(ctx ProofGenContext, currState, nextState *state.IntraState, vmerr error) error {
 	if nextState == nil {
 		// We're in the topmost call frame, the entire transaction will be reverted
-		return osp.addTransactionRevertProof(ctx, currState)
+		return osp.addTransactionRevertProof(ctx, currState, vmerr)
 	}
 	return osp.addCallRevertProof(currState)
 }
@@ -228,7 +235,7 @@ func makeStackOnlyInstructionProof(popNum int) func(ctx ProofGenContext, currSta
 		if popNum > 0 {
 			// If the stack validation fails, we don't need to provide stack proofs
 			if IsStackError(vmerr) {
-				err := osp.addRevertProof(ctx, currState, nextState)
+				err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 				if err != nil {
 					return nil, err
 				}
@@ -239,7 +246,7 @@ func makeStackOnlyInstructionProof(popNum int) func(ctx ProofGenContext, currSta
 		// If error happens after the stack validation, in most cases we only need the stack proof
 		// and revert proof
 		if vmerr != nil {
-			err := osp.addRevertProof(ctx, currState, nextState)
+			err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 			if err != nil {
 				return nil, err
 			}
@@ -262,7 +269,7 @@ func makeLogProof(topicNum int) func(ctx ProofGenContext, currState, nextState *
 		osp.addOpCodeProof(ctx, currState)
 		// If the stack validation fails, we don't need to provide stack proofs
 		if IsStackError(vmerr) {
-			err := osp.addRevertProof(ctx, currState, nextState)
+			err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 			if err != nil {
 				return nil, err
 			}
@@ -272,7 +279,7 @@ func makeLogProof(topicNum int) func(ctx ProofGenContext, currState, nextState *
 		// If error happens after the stack validation, in most cases we only need the stack proof
 		// and revert proof
 		if vmerr != nil {
-			err := osp.addRevertProof(ctx, currState, nextState)
+			err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 			if err != nil {
 				return nil, err
 			}
@@ -298,7 +305,7 @@ func opKeccak256Proof(ctx ProofGenContext, currState, nextState *state.IntraStat
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -308,7 +315,7 @@ func opKeccak256Proof(ctx ProofGenContext, currState, nextState *state.IntraStat
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -329,7 +336,7 @@ func opBalanceProof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -339,7 +346,7 @@ func opBalanceProof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -360,7 +367,7 @@ func opCallDataLoadProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -370,13 +377,13 @@ func opCallDataLoadProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
 	}
 	offset := currState.Stack.Peek().Uint64()
-	err := osp.addInputDataReadProof(offset, offset+32, currState)
+	err := osp.addInputDataReadProof(offset, 32, currState)
 	if err != nil {
 		return nil, err
 	}
@@ -390,7 +397,7 @@ func opCallDataCopyProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -400,7 +407,7 @@ func opCallDataCopyProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -426,7 +433,7 @@ func opCodeCopyProof(ctx ProofGenContext, currState, nextState *state.IntraState
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -436,7 +443,7 @@ func opCodeCopyProof(ctx ProofGenContext, currState, nextState *state.IntraState
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -457,7 +464,7 @@ func opExtCodeSizeProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -467,7 +474,7 @@ func opExtCodeSizeProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -489,7 +496,7 @@ func opExtCodeCopyProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -499,7 +506,7 @@ func opExtCodeCopyProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -527,7 +534,7 @@ func opExtCodeHashProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -537,7 +544,7 @@ func opExtCodeHashProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -558,7 +565,7 @@ func opReturnDataCopyProof(ctx ProofGenContext, currState, nextState *state.Intr
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -568,7 +575,7 @@ func opReturnDataCopyProof(ctx ProofGenContext, currState, nextState *state.Intr
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -593,7 +600,7 @@ func opSelfBalanceProof(ctx ProofGenContext, currState, nextState *state.IntraSt
 	osp.addStateProof(currState)
 	osp.addOpCodeProof(ctx, currState)
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -613,7 +620,7 @@ func opBlockHashProof(ctx ProofGenContext, currState, nextState *state.IntraStat
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -635,7 +642,7 @@ func opMLoadProof(ctx ProofGenContext, currState, nextState *state.IntraState, v
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -645,7 +652,7 @@ func opMLoadProof(ctx ProofGenContext, currState, nextState *state.IntraState, v
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -665,7 +672,7 @@ func opMStoreProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -675,7 +682,7 @@ func opMStoreProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -695,7 +702,7 @@ func opMStore8Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -705,7 +712,7 @@ func opMStore8Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -725,7 +732,7 @@ func opSLoadProof(ctx ProofGenContext, currState, nextState *state.IntraState, v
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -735,7 +742,7 @@ func opSLoadProof(ctx ProofGenContext, currState, nextState *state.IntraState, v
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -755,7 +762,7 @@ func opSStoreProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -765,7 +772,7 @@ func opSStoreProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	// If error happens after the stack validation, in most cases we only need the stack proof
 	// and revert proof
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -784,7 +791,7 @@ func opJumpDestProof(ctx ProofGenContext, currState, nextState *state.IntraState
 	osp.addStateProof(currState)
 	osp.addOpCodeProof(ctx, currState)
 	if vmerr != nil {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -853,7 +860,7 @@ func opCreateProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -861,7 +868,7 @@ func opCreateProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	}
 	osp.addStackProof(3, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -871,7 +878,7 @@ func opCreateProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 		return nil, err
 	}
 	if vmerr == vm.ErrInsufficientBalance || vmerr == vm.ErrNonceUintOverflow || vmerr == vm.ErrContractAddressCollision {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -891,7 +898,7 @@ func opCallProof(ctx ProofGenContext, currState, nextState *state.IntraState, vm
 	osp.addStateProof(currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -899,7 +906,7 @@ func opCallProof(ctx ProofGenContext, currState, nextState *state.IntraState, vm
 	}
 	osp.addStackProof(7, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -909,7 +916,7 @@ func opCallProof(ctx ProofGenContext, currState, nextState *state.IntraState, vm
 		return nil, err
 	}
 	if vmerr == vm.ErrInsufficientBalance {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -927,7 +934,7 @@ func opCallCodeProof(ctx ProofGenContext, currState, nextState *state.IntraState
 	osp.addStateProof(currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -935,7 +942,7 @@ func opCallCodeProof(ctx ProofGenContext, currState, nextState *state.IntraState
 	}
 	osp.addStackProof(7, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1026,7 +1033,7 @@ func opStopProof(ctx ProofGenContext, currState, nextState *state.IntraState, vm
 	osp.addOpCodeProof(ctx, currState)
 	// TODO: EIP-3541 invalid code check in London
 	if vmerr != nil && !IsStopTokenError(vmerr) {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1046,7 +1053,7 @@ func opReturnProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1055,7 +1062,7 @@ func opReturnProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp.addStackProof(2, currState)
 	// TODO: EIP-3541 invalid code check in London
 	if vmerr != nil && !IsStopTokenError(vmerr) {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1077,7 +1084,11 @@ func opReturnProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 			createdCode := currState.Memory.Data()[offset : offset+size]
 			currState.GlobalState.SetCode(currState.ContractAddress, createdCode)
 			currState.GlobalState.CommitForProof()
-		} else {
+		}
+	}
+	err := osp.addReturnProof(ctx, currState, nextState)
+	if currState.Depth > 1 {
+		if !currState.CallFlag.IsCreate() {
 			lastDepthState := currState.LastDepthState.(*state.IntraState)
 			err = osp.addMemoryWriteProof(currState.Out, currState.OutSize, lastDepthState, nextState)
 			if err != nil {
@@ -1085,7 +1096,6 @@ func opReturnProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 			}
 		}
 	}
-	err := osp.addReturnProof(ctx, currState, nextState)
 	if err != nil {
 		return nil, err
 	}
@@ -1098,7 +1108,7 @@ func opDelegateCallProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	osp.addStateProof(currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1106,7 +1116,7 @@ func opDelegateCallProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	}
 	osp.addStackProof(6, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1125,7 +1135,7 @@ func opCreate2Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1133,7 +1143,7 @@ func opCreate2Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	}
 	osp.addStackProof(4, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1143,7 +1153,7 @@ func opCreate2Proof(ctx ProofGenContext, currState, nextState *state.IntraState,
 		return nil, err
 	}
 	if vmerr == vm.ErrInsufficientBalance || vmerr == vm.ErrNonceUintOverflow || vmerr == vm.ErrContractAddressCollision {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1164,7 +1174,7 @@ func opStaticCallProof(ctx ProofGenContext, currState, nextState *state.IntraSta
 	osp.addStateProof(currState)
 	// If the stack validation fails or write protection or depth, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection || vmerr == vm.ErrDepth {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1172,7 +1182,7 @@ func opStaticCallProof(ctx ProofGenContext, currState, nextState *state.IntraSta
 	}
 	osp.addStackProof(6, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1191,7 +1201,7 @@ func opRevertProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1199,7 +1209,7 @@ func opRevertProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 	}
 	osp.addStackProof(2, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1217,7 +1227,7 @@ func opRevertProof(ctx ProofGenContext, currState, nextState *state.IntraState, 
 			return nil, err
 		}
 	}
-	err := osp.addRevertProof(ctx, currState, nextState)
+	err := osp.addRevertProof(ctx, currState, nextState, vm.ErrExecutionReverted)
 	if err != nil {
 		return nil, err
 	}
@@ -1229,7 +1239,7 @@ func opInvalidProof(ctx ProofGenContext, currState, nextState *state.IntraState,
 	osp.SetVerifierType(VerifierTypeInvalidOp)
 	osp.addStateProof(currState)
 	osp.addOpCodeProof(ctx, currState)
-	err := osp.addRevertProof(ctx, currState, nextState)
+	err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 	if err != nil {
 		return nil, err
 	}
@@ -1243,7 +1253,7 @@ func opSelfDestructProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	osp.addOpCodeProof(ctx, currState)
 	// If the stack validation fails or write protection, we don't need to provide stack proofs
 	if IsStackError(vmerr) || vmerr == vm.ErrWriteProtection {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}
@@ -1251,7 +1261,7 @@ func opSelfDestructProof(ctx ProofGenContext, currState, nextState *state.IntraS
 	}
 	osp.addStackProof(1, currState)
 	if vmerr == vm.ErrOutOfGas || vmerr == vm.ErrGasUintOverflow {
-		err := osp.addRevertProof(ctx, currState, nextState)
+		err := osp.addRevertProof(ctx, currState, nextState, vmerr)
 		if err != nil {
 			return nil, err
 		}

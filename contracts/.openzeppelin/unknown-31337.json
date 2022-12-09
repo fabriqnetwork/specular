@@ -233,7 +233,7 @@
             "label": "verifier",
             "offset": 0,
             "slot": "10",
-            "type": "t_contract(IVerifier)3183",
+            "type": "t_contract(IVerifier)3623",
             "contract": "RollupBase",
             "src": "src/Rollup.sol:47"
           },
@@ -319,7 +319,7 @@
             "label": "contract ISequencerInbox",
             "numberOfBytes": "20"
           },
-          "t_contract(IVerifier)3183": {
+          "t_contract(IVerifier)3623": {
             "label": "contract IVerifier",
             "numberOfBytes": "20"
           },
