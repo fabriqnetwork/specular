@@ -31,7 +31,7 @@ func New(elements []*uint256.Int) *MerkleTree {
 		return &MerkleTree{}
 	}
 	balancedLeafCount := roundUpToPowerOf2(uint64(len(elements)))
-	tree := make([]common.Hash, balancedLeafCount+uint64(len(elements)))
+	tree := make([]common.Hash, balancedLeafCount<<1)
 	for i := uint64(0); i < uint64(len(elements)); i++ {
 		tree[balancedLeafCount+i] = hashLeaf(elements[i])
 	}
