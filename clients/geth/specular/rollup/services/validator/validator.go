@@ -197,11 +197,12 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 	// Current agreed assertion, initalize to genesis assertion
 	// TODO: sync from L1 when restart
 	confirmedAssertion := &rollupTypes.Assertion{
-		ID:                new(big.Int),
-		VmHash:            genesisRoot,
-		CumulativeGasUsed: new(big.Int),
-		InboxSize:         new(big.Int),
-		Deadline:          new(big.Int),
+		ID:                    new(big.Int),
+		VmHash:                genesisRoot,
+		CumulativeGasUsed:     new(big.Int),
+		InboxSize:             new(big.Int),
+		Deadline:              new(big.Int),
+		PrevCumulativeGasUsed: new(big.Int),
 	}
 
 	isInChallenge := false
@@ -230,12 +231,18 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					txNum += int(ctx.NumTxs)
 				}
 			case ev := <-assertionEventCh:
+				if ev.AsserterAddr == common.Address(v.Config.Coinbase) {
+					// Create by our own for challenge
+					continue
+				}
 				// New assertion created on Rollup
 				assertion := &rollupTypes.Assertion{
-					ID:                ev.AssertionID,
-					VmHash:            ev.VmHash,
-					CumulativeGasUsed: ev.L2GasUsed,
-					InboxSize:         ev.InboxSize,
+					ID:                    ev.AssertionID,
+					VmHash:                ev.VmHash,
+					CumulativeGasUsed:     ev.L2GasUsed,
+					InboxSize:             ev.InboxSize,
+					StartBlock:            confirmedAssertion.EndBlock + 1,
+					PrevCumulativeGasUsed: new(big.Int).Set(confirmedAssertion.CumulativeGasUsed),
 				}
 				// Pop correct amount of pending blocks asserted
 				inboxSizeDiff := assertion.InboxSize.Uint64() - confirmedAssertion.InboxSize.Uint64()
@@ -253,6 +260,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				if inboxSizeDiff != 0 {
 					log.Crit("UNHANDELED: SequencerInbox overflow, validator state corrupted!")
 				}
+				assertion.EndBlock = assertion.StartBlock + uint64(len(blocksToCommit)) - 1
 				pendingBlocks = pendingBlocks[len(blocksToCommit):]
 				// Commit asserted blocks
 				targetVmHash, targetGasUsed, err := v.commitBlocks(blocksToCommit)
@@ -264,7 +272,6 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				targetGasUsed.Add(targetGasUsed, confirmedAssertion.CumulativeGasUsed)
 				if targetVmHash != assertion.VmHash || targetGasUsed.Cmp(assertion.CumulativeGasUsed) != 0 {
 					// Validation failed
-					// TODO: pause here and wait for challenge resolution
 					ourAssertion := &rollupTypes.Assertion{
 						VmHash:            targetVmHash,
 						InboxSize:         ev.InboxSize,
@@ -344,7 +351,7 @@ func (v *Validator) challengeLoop() {
 					continue
 				}
 				// If it's our turn
-				if responder != common.Address(v.Config.Coinbase) {
+				if responder == common.Address(v.Config.Coinbase) {
 					err := services.RespondBisection(v.BaseService, abi, challengeSession, ev, states, ctx.opponentAssertion.VmHash, false)
 					if err != nil {
 						// TODO: error handling
