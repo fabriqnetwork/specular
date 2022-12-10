@@ -13,8 +13,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     
     await verifier.deployed();
     console.log("Verifier Proxy:", verifier.address);
-    console.log("Verifier Implementation Address" ,await upgrades.erc1967.getImplementationAddress(verifier.address));
-    console.log("Verifier Admin Address" ,await upgrades.erc1967.getAdminAddress(verifier.address))    
+    console.log("Verifier Implementation Address", await upgrades.erc1967.getImplementationAddress(verifier.address));
+    console.log("Verifier Admin Address", await upgrades.erc1967.getAdminAddress(verifier.address))    
   
 }
 

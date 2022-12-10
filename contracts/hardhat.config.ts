@@ -8,10 +8,6 @@ import 'hardhat-abi-exporter';
 import 'hardhat-deploy';
 import '@openzeppelin/hardhat-upgrades';
 
-/**
- * @type import('hardhat/config').HardhatUserConfig
- */
-
 
 const mnemonic =
   process.env.MNEMONIC ??

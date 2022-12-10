@@ -10,7 +10,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const manifest = await Manifest.forNetwork(provider);
 
     const proxies = (await manifest.read()).proxies;
-    console.log(proxies);
 
     const sequencerInboxProxy = proxies[0];
     const verifierProxy = proxies[1];

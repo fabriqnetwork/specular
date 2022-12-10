@@ -13,8 +13,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     
     await inbox.deployed();
     console.log("inbox Proxy:", inbox.address);
-    console.log("inbox Implementation Address" ,await upgrades.erc1967.getImplementationAddress(inbox.address));
-    console.log("inbox Admin Address" ,await upgrades.erc1967.getAdminAddress(inbox.address))    
+    console.log("inbox Implementation Address", await upgrades.erc1967.getImplementationAddress(inbox.address));
+    console.log("inbox Admin Address", await upgrades.erc1967.getAdminAddress(inbox.address))    
   
 }
 
