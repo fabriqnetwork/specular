@@ -60,6 +60,17 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	return s, nil
 }
 
+// Removes tx from slice
+func removeTx(slice []*types.Transaction, elem *types.Transaction) []*types.Transaction {
+	for i := len(slice) - 1; i >= 0; i-- {
+		if slice[i].Hash() == elem.Hash() {
+			slice := append(slice[:i], slice[i+1:]...)
+			return slice
+		}
+	}
+	return slice
+}
+
 // This goroutine fetches txs from txpool and batches them
 func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
@@ -80,9 +91,6 @@ func (s *Sequencer) batchingLoop() {
 	if err != nil {
 		log.Crit("Failed to start batcher", "err", err)
 	}
-
-	// Track processed txs
-	processedTxs := make(map[common.Hash]bool)
 
 	// Loop over txns
 	for {
@@ -117,19 +125,34 @@ func (s *Sequencer) batchingLoop() {
 				if tx == nil {
 					break
 				}
-				if !processedTxs[tx.Hash()] {
+				prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
+				if err != nil {
+					sortedTxs.Pop()
+					continue
+				}
+				if prevTx != nil {
+					txs = removeTx(txs, prevTx)
+				} else {
 					txs = append(txs, tx)
 				}
 				sortedTxs.Pop()
 			}
-			// Filter already seen txs
-			for i := 0; i < len(txs); i++ {
-				currTx := txs[i]
-				if processedTxs[currTx.Hash()] {
-					txs = append(txs[:i], txs[i+1:]...)
+
+			// filter txs
+			for i := len(txs) - 1; i >= 0; i-- {
+				tx := txs[i]
+				prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
+				if err != nil {
+					log.Error("Filtering via GetTransaction(), this is err", "err", err)
+					continue
+				}
+				if prevTx != nil {
+					txs = removeTx(txs, prevTx)
 				}
 			}
+
 			if len(txs) == 0 {
+				timer.Reset(timeInterval)
 				break
 			}
 			err = batcher.CommitTransactions(txs)
@@ -144,7 +167,7 @@ func (s *Sequencer) batchingLoop() {
 			s.batchCh <- batch
 			timer.Reset(timeInterval)
 		case ev := <-txsCh:
-			// Batch txs based on tx events
+			// Batch txs in case of txEvent
 			var batchTxs []*types.Transaction
 			txs := make(map[common.Address]types.Transactions)
 			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
@@ -160,7 +183,6 @@ func (s *Sequencer) batchingLoop() {
 				}
 				batchTxs = append(batchTxs, tx)
 				sortedTxs.Pop()
-				processedTxs[tx.Hash()] = true
 			}
 			err = batcher.CommitTransactions(batchTxs)
 			if err != nil {
