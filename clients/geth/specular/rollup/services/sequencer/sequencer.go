@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -97,9 +98,13 @@ func (s *Sequencer) batchingLoop() {
 }
 
 // This goroutine sequences batches to L1 SequencerInbox and creates DAs
-// TODO: create assertions by timer
 func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
+
+	// Timer
+	var timeInterval = 10 * time.Second
+	var timer = time.NewTimer(timeInterval)
+	defer timer.Stop()
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
@@ -142,31 +147,47 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		}
 	}
 
+	// List of batches
+	var batchTxs []*rollupTypes.TxBatch
+
 	for {
 		select {
+		case <-timer.C:
+			if len(batchTxs) == 0 {
+				timer.Reset(timeInterval)
+				break
+			}
+			for i := 0; i < len(batchTxs); i++ {
+				currBatchTxs := batchTxs[i]
+				// Sequence batch to SequencerInbox
+				contexts, txLengths, txs, err := currBatchTxs.SerializeToArgs()
+				if err != nil {
+					log.Error("Can not serialize batch", "error", err)
+					continue
+				}
+				_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
+				if err != nil {
+					log.Error("Can not sequence batch", "error", err)
+					continue
+				}
+				// Update queued assertion to latest batch
+				queuedAssertion.VmHash = currBatchTxs.LastBlockRoot()
+				queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, currBatchTxs.GasUsed)
+				queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, currBatchTxs.InboxSize())
+				queuedAssertion.EndBlock = currBatchTxs.LastBlockNumber()
+				// If no assertion is pending, commit it
+				if pendingAssertion == nil {
+					commitAssertion()
+				}
+			}
+
+			// Clear batches
+			batchTxs = nil
+			timer.Reset(timeInterval)
 		case batch := <-s.batchCh:
 			// New batch from Batcher
-			log.Debug("Batch", "length", len(batch.Txs))
-			// Sequence batch to SequencerInbox
-			contexts, txLengths, txs, err := batch.SerializeToArgs()
-			if err != nil {
-				log.Error("Can not serialize batch", "error", err)
-				continue
-			}
-			_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
-			if err != nil {
-				log.Error("Can not sequence batch", "error", err)
-				continue
-			}
-			// Update queued assertion to latest batch
-			queuedAssertion.VmHash = batch.LastBlockRoot()
-			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
-			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
-			queuedAssertion.EndBlock = batch.LastBlockNumber()
-			// If no assertion is pending, commit it
-			if pendingAssertion == nil {
-				commitAssertion()
-			}
+			batchTxs = append(batchTxs, batch)
+			batch = nil
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
 			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
