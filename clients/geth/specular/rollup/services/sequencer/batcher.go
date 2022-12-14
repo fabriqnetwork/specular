@@ -153,9 +153,7 @@ func (b *Batcher) commitBlock() error {
 		logs = append(logs, receipt.Logs...)
 	}
 	// Write block to chain
-	// Do not emit headEvent, it will cause worker to try sealing even if it is
-	// not started
-	_, err := b.chain.WriteBlockAndSetHead(block, b.receipts, logs, b.state, false)
+	_, err := b.chain.WriteBlockAndSetHead(block, b.receipts, logs, b.state, true)
 	if err != nil {
 		return err
 	}
