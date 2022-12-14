@@ -433,7 +433,7 @@ func (s *Sequencer) challengeLoop() {
 }
 
 func (s *Sequencer) Start() error {
-	genesis := s.BaseService.Start()
+	genesis := s.BaseService.Start(true, true)
 
 	s.Wg.Add(4)
 	go s.batchingLoop()

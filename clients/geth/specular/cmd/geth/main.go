@@ -219,6 +219,7 @@ var (
 		specularUtils.RollupSequencerInboxAddrFlag,
 		specularUtils.RollupRollupAddrFlag,
 		specularUtils.RollupRollupStakeAmount,
+		specularUtils.RollupL1RollupGenesisBlock,
 	}
 	// <specular modification/>
 )
