@@ -97,14 +97,25 @@ func (s *Sequencer) batchingLoop() {
 	}
 }
 
-// This goroutine sequences batches to L1 SequencerInbox and creates DAs
+// Combines batches
+func combineBatches(slice []*rollupTypes.TxBatch) *rollupTypes.TxBatch {
+	var blocks []*types.Block
+
+	for i := 0; i <= len(slice)-1; i++ {
+		currBlocks := slice[i].Blocks
+		blocks = append(blocks, currBlocks...)
+	}
+	combinedBatch := rollupTypes.NewTxBatch(blocks, 0)
+	return combinedBatch
+}
+
 func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
 
 	// Timer
 	var timeInterval = 10 * time.Second
-	var timer = time.NewTimer(timeInterval)
-	defer timer.Stop()
+	var ticker = time.NewTicker(timeInterval)
+	defer ticker.Stop()
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
@@ -147,43 +158,37 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		}
 	}
 
-	// List of batches
 	var batchTxs []*rollupTypes.TxBatch
+	var combinedBatch *rollupTypes.TxBatch
 
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			if len(batchTxs) == 0 {
-				timer.Reset(timeInterval)
-				break
+				continue
 			}
-			for i := 0; i < len(batchTxs); i++ {
-				currBatchTxs := batchTxs[i]
-				// Sequence batch to SequencerInbox
-				contexts, txLengths, txs, err := currBatchTxs.SerializeToArgs()
-				if err != nil {
-					log.Error("Can not serialize batch", "error", err)
-					continue
-				}
-				_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
-				if err != nil {
-					log.Error("Can not sequence batch", "error", err)
-					continue
-				}
-				// Update queued assertion to latest batch
-				queuedAssertion.VmHash = currBatchTxs.LastBlockRoot()
-				queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, currBatchTxs.GasUsed)
-				queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, currBatchTxs.InboxSize())
-				queuedAssertion.EndBlock = currBatchTxs.LastBlockNumber()
-				// If no assertion is pending, commit it
-				if pendingAssertion == nil {
-					commitAssertion()
-				}
+			combinedBatch = combineBatches(batchTxs)
+			contexts, txLengths, txs, err := combinedBatch.SerializeToArgs()
+			if err != nil {
+				log.Error("Can not serialize batch", "error", err)
+				continue
 			}
-
-			// Clear batches
+			_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
+			if err != nil {
+				log.Error("Can not sequence batch", "error", err)
+				continue
+			}
+			// Update queued assertion to latest batch
+			queuedAssertion.VmHash = combinedBatch.LastBlockRoot()
+			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, combinedBatch.GasUsed)
+			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, combinedBatch.InboxSize())
+			queuedAssertion.EndBlock = combinedBatch.LastBlockNumber()
+			// If no assertion is pending, commit it
+			if pendingAssertion == nil {
+				commitAssertion()
+			}
 			batchTxs = nil
-			timer.Reset(timeInterval)
+			combinedBatch = nil
 		case batch := <-s.batchCh:
 			// New batch from Batcher
 			batchTxs = append(batchTxs, batch)
