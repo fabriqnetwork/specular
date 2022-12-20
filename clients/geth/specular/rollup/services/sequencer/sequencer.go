@@ -18,6 +18,8 @@ import (
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
+const timeInterval = 10 * time.Second
+
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
 	if err != nil {
@@ -112,8 +114,7 @@ func combineBatches(slice []*rollupTypes.TxBatch) *rollupTypes.TxBatch {
 func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
 
-	// Timer
-	var timeInterval = 10 * time.Second
+	// Ticker
 	var ticker = time.NewTicker(timeInterval)
 	defer ticker.Stop()
 
@@ -159,7 +160,6 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	}
 
 	var batchTxs []*rollupTypes.TxBatch
-	var combinedBatch *rollupTypes.TxBatch
 
 	for {
 		select {
@@ -167,7 +167,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			if len(batchTxs) == 0 {
 				continue
 			}
-			combinedBatch = combineBatches(batchTxs)
+			var combinedBatch *rollupTypes.TxBatch = combineBatches(batchTxs)
 			contexts, txLengths, txs, err := combinedBatch.SerializeToArgs()
 			if err != nil {
 				log.Error("Can not serialize batch", "error", err)
@@ -188,7 +188,6 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				commitAssertion()
 			}
 			batchTxs = nil
-			combinedBatch = nil
 		case batch := <-s.batchCh:
 			// New batch from Batcher
 			batchTxs = append(batchTxs, batch)
