@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -16,6 +17,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
+
+const timeInterval = 10 * time.Second
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
@@ -96,10 +99,24 @@ func (s *Sequencer) batchingLoop() {
 	}
 }
 
-// This goroutine sequences batches to L1 SequencerInbox and creates DAs
-// TODO: create assertions by timer
+// Combines batches
+func combineBatches(slice []*rollupTypes.TxBatch) *rollupTypes.TxBatch {
+	var blocks []*types.Block
+
+	for i := 0; i <= len(slice)-1; i++ {
+		currBlocks := slice[i].Blocks
+		blocks = append(blocks, currBlocks...)
+	}
+	combinedBatch := rollupTypes.NewTxBatch(blocks, 0)
+	return combinedBatch
+}
+
 func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
+
+	// Ticker
+	var ticker = time.NewTicker(timeInterval)
+	defer ticker.Stop()
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
@@ -142,13 +159,16 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		}
 	}
 
+	var batchTxs []*rollupTypes.TxBatch
+
 	for {
 		select {
-		case batch := <-s.batchCh:
-			// New batch from Batcher
-			log.Debug("Batch", "length", len(batch.Txs))
-			// Sequence batch to SequencerInbox
-			contexts, txLengths, txs, err := batch.SerializeToArgs()
+		case <-ticker.C:
+			if len(batchTxs) == 0 {
+				continue
+			}
+			var combinedBatch *rollupTypes.TxBatch = combineBatches(batchTxs)
+			contexts, txLengths, txs, err := combinedBatch.SerializeToArgs()
 			if err != nil {
 				log.Error("Can not serialize batch", "error", err)
 				continue
@@ -159,14 +179,19 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				continue
 			}
 			// Update queued assertion to latest batch
-			queuedAssertion.VmHash = batch.LastBlockRoot()
-			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
-			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
-			queuedAssertion.EndBlock = batch.LastBlockNumber()
+			queuedAssertion.VmHash = combinedBatch.LastBlockRoot()
+			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, combinedBatch.GasUsed)
+			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, combinedBatch.InboxSize())
+			queuedAssertion.EndBlock = combinedBatch.LastBlockNumber()
 			// If no assertion is pending, commit it
 			if pendingAssertion == nil {
 				commitAssertion()
 			}
+			batchTxs = nil
+		case batch := <-s.batchCh:
+			// New batch from Batcher
+			batchTxs = append(batchTxs, batch)
+			batch = nil
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
 			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
