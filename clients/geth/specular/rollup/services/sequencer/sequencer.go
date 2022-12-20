@@ -78,10 +78,9 @@ func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
 	defer close(s.batchCh)
 
-	// Timer
-	var timeInterval = 10 * time.Second
-	var timer = time.NewTimer(timeInterval)
-	defer timer.Stop()
+	// Ticker
+	var ticker = time.NewTicker(timeInterval)
+	defer ticker.Stop()
 
 	// Watch transactions in TxPool
 	txsCh := make(chan core.NewTxsEvent, 4096)
@@ -94,14 +93,17 @@ func (s *Sequencer) batchingLoop() {
 		log.Crit("Failed to start batcher", "err", err)
 	}
 
+	var batchTxs []*types.Transaction
+
 	// Loop over txns
 	for {
 		select {
-		case <-timer.C:
+		case <-ticker.C:
 			// Get pending txs - locals and remotes, sorted by price
 			var txs []*types.Transaction
 			var sortedTxs *types.TransactionsByPriceAndNonce
 			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+
 			pending := s.Eth.TxPool().Pending(true)
 			localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
 			for _, account := range s.Eth.TxPool().Locals() {
@@ -119,8 +121,7 @@ func (s *Sequencer) batchingLoop() {
 
 			// Batch txns
 			if sortedTxs == nil {
-				timer.Reset(timeInterval)
-				break
+				continue
 			}
 			for {
 				tx := sortedTxs.Peek()
@@ -129,35 +130,34 @@ func (s *Sequencer) batchingLoop() {
 				}
 				prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 				if err != nil {
+					log.Error("Failed to GetTransaction()", "error", err)
 					sortedTxs.Pop()
 					continue
 				}
 				if prevTx != nil {
-					txs = removeTx(txs, prevTx)
+					batchTxs = removeTx(batchTxs, prevTx)
 				} else {
-					txs = append(txs, tx)
+					batchTxs = append(batchTxs, tx)
 				}
 				sortedTxs.Pop()
 			}
 
-			// filter txs
-			for i := len(txs) - 1; i >= 0; i-- {
-				tx := txs[i]
+			// Filter txs
+			for i := len(batchTxs) - 1; i >= 0; i-- {
+				tx := batchTxs[i]
 				prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 				if err != nil {
-					log.Error("Filtering via GetTransaction(), this is err", "err", err)
-					continue
+					log.Error("Failed to GetTransaction()", "err", err)
 				}
 				if prevTx != nil {
-					txs = removeTx(txs, prevTx)
+					batchTxs = removeTx(batchTxs, prevTx)
 				}
 			}
 
-			if len(txs) == 0 {
-				timer.Reset(timeInterval)
-				break
+			if len(batchTxs) == 0 {
+				continue
 			}
-			err = batcher.CommitTransactions(txs)
+			err = batcher.CommitTransactions(batchTxs)
 			if err != nil {
 				log.Crit("Failed to commit transactions", "err", err)
 			}
@@ -167,10 +167,9 @@ func (s *Sequencer) batchingLoop() {
 			}
 			batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
 			s.batchCh <- batch
-			timer.Reset(timeInterval)
+			batchTxs = nil
 		case ev := <-txsCh:
 			// Batch txs in case of txEvent
-			var batchTxs []*types.Transaction
 			txs := make(map[common.Address]types.Transactions)
 			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
 			for _, tx := range ev.Txs {
@@ -186,21 +185,10 @@ func (s *Sequencer) batchingLoop() {
 				batchTxs = append(batchTxs, tx)
 				sortedTxs.Pop()
 			}
-			err = batcher.CommitTransactions(batchTxs)
-			if err != nil {
-				log.Crit("Failed to commit transactions", "err", err)
-			}
-			blocks, err := batcher.Batch()
-			if err != nil {
-				log.Crit("Failed to batch blocks", "err", err)
-			}
-			batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
-			s.batchCh <- batch
 		case <-s.Ctx.Done():
 			return
 		}
 	}
-
 }
 
 // Combines batches
