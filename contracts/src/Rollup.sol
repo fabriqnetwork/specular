@@ -91,7 +91,9 @@ contract Rollup is RollupBase {
         bytes32 _initialVMhash
     ) public initializer {
         // TODO: do we still need stake token now?
-        if (_owner == address(0) && _sequencerInbox == address(0) && _verifier == address(0)) {
+
+        // If any of addresses _owner, _sequencerInbox or _verifier is address(0), then revert.
+        if (_owner == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
         owner = _owner;
