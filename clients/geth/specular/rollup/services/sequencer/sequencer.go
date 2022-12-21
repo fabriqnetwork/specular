@@ -39,7 +39,7 @@ type challengeCtx struct {
 type Sequencer struct {
 	*services.BaseService
 
-	batchCh              chan *rollupTypes.TxBatch
+	blockCh              chan *types.Blocks
 	pendingAssertionCh   chan *rollupTypes.Assertion
 	confirmedIDCh        chan *big.Int
 	challengeCh          chan *challengeCtx
@@ -53,7 +53,7 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	}
 	s := &Sequencer{
 		BaseService:          base,
-		batchCh:              make(chan *rollupTypes.TxBatch, 4096),
+		blockCh:              make(chan *types.Blocks, 4096),
 		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
 		confirmedIDCh:        make(chan *big.Int, 4096),
 		challengeCh:          make(chan *challengeCtx),
@@ -67,7 +67,7 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 // TODO: batch txs by timer and directly querying txpool as worker does
 func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
-	defer close(s.batchCh)
+	defer close(s.blockCh)
 
 	// Watch transactions in TxPool
 	txsCh := make(chan core.NewTxsEvent, 4096)
@@ -91,8 +91,7 @@ func (s *Sequencer) batchingLoop() {
 			if err != nil {
 				log.Crit("Failed to batch blocks", "err", err)
 			}
-			batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
-			s.batchCh <- batch
+			s.blockCh <- &blocks
 		case <-s.Ctx.Done():
 			return
 		}
@@ -188,8 +187,9 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				commitAssertion()
 			}
 			batchTxs = nil
-		case batch := <-s.batchCh:
+		case blocks := <-s.blockCh:
 			// New batch from Batcher
+			batch := rollupTypes.NewTxBatch(*blocks, 0) // TODO: add max batch size
 			batchTxs = append(batchTxs, batch)
 			batch = nil
 		case ev := <-createdCh:
