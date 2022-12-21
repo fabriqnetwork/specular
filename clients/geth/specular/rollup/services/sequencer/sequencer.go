@@ -62,15 +62,70 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	return s, nil
 }
 
-// Removes tx from slice
-func removeTx(slice []*types.Transaction, elem *types.Transaction) []*types.Transaction {
+// Get tx index in batch
+func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int {
 	for i := len(slice) - 1; i >= 0; i-- {
 		if slice[i].Hash() == elem.Hash() {
-			slice := append(slice[:i], slice[i+1:]...)
-			return slice
+			return i
 		}
 	}
-	return slice
+	return -1
+}
+
+// Filters tx in batch if already exists or on chain else appends
+func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) []*types.Transaction {
+	// Check if tx in batch
+	txIndex := getTxIndexInBatch(batchTxs, tx)
+	if txIndex >= 0 {
+		// Remove if exists
+		batchTxs = append(batchTxs[:txIndex], batchTxs[txIndex+1:]...)
+	} else {
+		// Check if tx exists on chain
+		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
+		if err != nil {
+			log.Error("Checking GetTransaction, this is err", "error", err)
+			return batchTxs
+		}
+		if prevTx != nil {
+			// Remove prexTx if exists
+			txIndex = getTxIndexInBatch(batchTxs, tx)
+			if txIndex >= 0 {
+				batchTxs = append(batchTxs[:txIndex], batchTxs[txIndex+1:]...)
+			}
+		} else {
+			batchTxs = append(batchTxs, tx)
+		}
+	}
+	return batchTxs
+}
+
+// Process sorted txs
+func (s *Sequencer) processSortedTxs(sortedTxs *types.TransactionsByPriceAndNonce, batcher *Batcher, batchTxs []*types.Transaction) {
+	if sortedTxs == nil {
+		log.Info("processSortedTxs -> sortedTxs is nil")
+	}
+	for {
+		tx := sortedTxs.Peek()
+		if tx == nil {
+			break
+		}
+		// Check if tx in batchTxs
+		batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+		sortedTxs.Pop()
+	}
+	if len(batchTxs) == 0 {
+		return
+	}
+	err := batcher.CommitTransactions(batchTxs)
+	if err != nil {
+		log.Crit("Failed to commit transactions", "err", err)
+	}
+	blocks, err := batcher.Batch()
+	if err != nil {
+		log.Crit("Failed to batch blocks", "err", err)
+	}
+	batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
+	s.batchCh <- batch
 }
 
 // This goroutine fetches txs from txpool and batches them
@@ -114,60 +169,14 @@ func (s *Sequencer) batchingLoop() {
 			}
 			if len(localTxs) > 0 {
 				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
+				s.processSortedTxs(sortedTxs, batcher, batchTxs)
+				batchTxs = nil
 			}
 			if len(remoteTxs) > 0 {
 				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+				s.processSortedTxs(sortedTxs, batcher, batchTxs)
+				batchTxs = nil
 			}
-
-			// Batch txns
-			if sortedTxs == nil {
-				continue
-			}
-			for {
-				tx := sortedTxs.Peek()
-				if tx == nil {
-					break
-				}
-				prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
-				if err != nil {
-					log.Error("Failed to GetTransaction()", "error", err)
-					sortedTxs.Pop()
-					continue
-				}
-				if prevTx != nil {
-					batchTxs = removeTx(batchTxs, prevTx)
-				} else {
-					batchTxs = append(batchTxs, tx)
-				}
-				sortedTxs.Pop()
-			}
-
-			// Filter txs
-			for i := len(batchTxs) - 1; i >= 0; i-- {
-				tx := batchTxs[i]
-				prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
-				if err != nil {
-					log.Error("Failed to GetTransaction()", "err", err)
-				}
-				if prevTx != nil {
-					batchTxs = removeTx(batchTxs, prevTx)
-				}
-			}
-
-			if len(batchTxs) == 0 {
-				continue
-			}
-			err = batcher.CommitTransactions(batchTxs)
-			if err != nil {
-				log.Crit("Failed to commit transactions", "err", err)
-			}
-			blocks, err := batcher.Batch()
-			if err != nil {
-				log.Crit("Failed to batch blocks", "err", err)
-			}
-			batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
-			s.batchCh <- batch
-			batchTxs = nil
 		case ev := <-txsCh:
 			// Batch txs in case of txEvent
 			txs := make(map[common.Address]types.Transactions)
@@ -182,7 +191,7 @@ func (s *Sequencer) batchingLoop() {
 				if tx == nil {
 					break
 				}
-				batchTxs = append(batchTxs, tx)
+				batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
 				sortedTxs.Pop()
 			}
 		case <-s.Ctx.Done():
