@@ -18,7 +18,7 @@ import (
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
-var syncRange uint64 = 10000
+const syncRange uint64 = 10000
 
 // CommitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher

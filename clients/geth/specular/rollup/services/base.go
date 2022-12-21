@@ -103,6 +103,10 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *
 	return b, nil
 }
 
+// Start starts the rollup service
+// If cleanL1 is true, the service will only start from a celan L1 history
+// If stake is true, the service will try stake on start
+// Returns the genesis block
 func (b *BaseService) Start(cleanL1, stake bool) *types.Block {
 	// Check if we are at genesis
 	// TODO: if not, sync from L1
