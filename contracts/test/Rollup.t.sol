@@ -25,10 +25,11 @@ import {Utils} from "./utils/Utils.sol";
 import {MockToken} from "./utils/MockToken.sol";
 
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import "../src/ISequencerInbox.sol";
 
+import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
 
+import {Verifier} from "../src/challenge/verifier/Verifier.sol";
 import {Rollup} from "../src/Rollup.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 
@@ -41,7 +42,7 @@ contract BaseSetup is Test {
     address internal bob;
 
     address owner = makeAddr("Owner");
-    address verifier = makeAddr("Verifier");
+    Verifier verifier = new Verifier();
 
     IERC20 public stakeToken;
 
@@ -88,7 +89,7 @@ contract RollupTest is BaseSetup {
             Rollup.initialize.selector,
             address(0), // owner
             address(seqIn),
-            verifier,
+            address(verifier),
             address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
@@ -140,7 +141,7 @@ contract RollupTest is BaseSetup {
             Rollup.initialize.selector,
             owner, // owner
             address(0),
-            verifier,
+            address(verifier),
             address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
@@ -158,19 +159,50 @@ contract RollupTest is BaseSetup {
 
         rollup = Rollup(address(proxy));
     }
-}
 
-/**    
-function initialize(
-    address _owner,
-    address _sequencerInbox,
-    address _verifier,
-    address _stakeToken,
-    uint256 _confirmationPeriod,
-    uint256 _challengePeriod,
-    uint256 _minimumAssertionPeriod,
-    uint256 _maxGasPerAssertion,
-    uint256 _baseStakeAmount,
-    bytes32 _initialVMhash
-) public initializer { 
-*/
+    function test_initializeRollup_cannotBeCalledTwice() external {
+        Rollup _tempRollup = new Rollup();
+        
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount
+            bytes32("")
+        );
+        
+        address proxyAdmin = makeAddr("Proxy Admin");
+        
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(_tempRollup), 
+            proxyAdmin, 
+            initializingData
+        );
+
+        // Initialize is called here for the first time.
+        rollup = Rollup(address(proxy));
+
+        // Trying to call initialize for the second time
+        vm.expectRevert("Initializable: contract is already initialized");
+        vm.prank(alice);
+
+        rollup.initialize(
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount
+            bytes32("")
+        );
+    }
+}
