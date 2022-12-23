@@ -47,7 +47,7 @@ func (b *BaseService) CommitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 		header := &types.Header{
 			ParentHash: parent.Hash(),
 			Number:     new(big.Int).SetUint64(sblock.BlockNumber),
-			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem
+			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
 			Time:       sblock.Timestamp,
 			Coinbase:   b.Config.SequencerAddr,
 			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
