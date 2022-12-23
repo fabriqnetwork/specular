@@ -44,7 +44,7 @@ abstract contract RollupBase is IRollup, Initializable {
     IERC20 public stakeToken;
     ISequencerInbox public sequencerInbox;
     AssertionMap public override assertions;
-    IVerifier public verifier;
+    IVerifierEntry public verifier;
 
     struct Staker {
         bool isStaked;
@@ -99,7 +99,7 @@ contract Rollup is RollupBase {
         owner = _owner;
         sequencerInbox = ISequencerInbox(_sequencerInbox);
         stakeToken = IERC20(_stakeToken);
-        verifier = IVerifier(_verifier);
+        verifier = IVerifierEntry(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
         challengePeriod = _challengePeriod; // TODO: currently unused.

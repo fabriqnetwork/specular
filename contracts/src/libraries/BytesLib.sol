@@ -271,6 +271,21 @@ library BytesLib {
         return tempBytes;
     }
 
+    function toBytes32Pad(bytes memory _bytes, uint256 _start) internal pure returns (bytes32) {
+        bytes32 result;
+
+        assembly {
+            result := mload(add(add(_bytes, 0x20), _start))
+        }
+
+        if (_bytes.length < _start + 32) {
+            uint256 pad = 32 + _start - _bytes.length;
+            result = result >> pad << pad;
+        }
+
+        return result;
+    }
+
     function toAddress(bytes memory _bytes, uint256 _start) internal pure returns (address) {
         require(_bytes.length >= _start + 20, "toAddress_outOfBounds");
         address tempAddress;
