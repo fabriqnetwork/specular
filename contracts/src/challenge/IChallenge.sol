@@ -23,7 +23,7 @@
 pragma solidity ^0.8.0;
 
 import "../IDAProvider.sol";
-import "./verifier/IVerifier.sol";
+import "./verifier/IVerifierEntry.sol";
 
 interface IChallengeResultReceiver {
     /**

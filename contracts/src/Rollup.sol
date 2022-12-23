@@ -48,7 +48,7 @@ abstract contract RollupBase is
 
     address public vault;
     IDAProvider public daProvider;
-    IVerifier public verifier;
+    IVerifierEntry public verifier;
 
     struct AssertionState {
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
@@ -104,7 +104,7 @@ contract Rollup is RollupBase {
         }
         vault = _vault;
         daProvider = IDAProvider(_daProvider);
-        verifier = IVerifier(_verifier);
+        verifier = IVerifierEntry(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
         challengePeriod = _challengePeriod;

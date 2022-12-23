@@ -25,7 +25,7 @@ pragma solidity ^0.8.0;
 import "./IChallenge.sol";
 import "./ChallengeBase.sol";
 import "./ChallengeLib.sol";
-import "./verifier/IVerifier.sol";
+import "./verifier/IVerifierEntry.sol";
 import "../IDAProvider.sol";
 import "../libraries/DeserializationLib.sol";
 import "../libraries/Errors.sol";
@@ -67,7 +67,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     function initialize(
         address _defender,
         address _challenger,
-        IVerifier _verifier,
+        IVerifierEntry _verifier,
         IDAProvider _daProvider,
         IChallengeResultReceiver _resultReceiver,
         bytes32 _startStateHash,

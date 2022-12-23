@@ -20,15 +20,18 @@ pragma solidity ^0.8.0;
 
 import "./libraries/VerificationContext.sol";
 
-interface IVerifier {
+interface IVerifierEntry {
     /**
      * @notice Simulates and verifies execution of a single EVM step.
      * @param ctx Associated transaction and its context (already verified to be consistent).
+     * @param verifier The verifier to use.
      * @param currStateHash The state hash before the step.
      * @param encoded The one-step proof. TODO: describe format.
      */
-    function verifyOneStepProof(VerificationContext.Context memory ctx, bytes32 currStateHash, bytes calldata encoded)
-        external
-        pure
-        returns (bytes32);
+    function verifyOneStepProof(
+        VerificationContext.Context memory ctx,
+        uint8 verifier,
+        bytes32 currStateHash,
+        bytes calldata encoded
+    ) external view returns (bytes32);
 }

@@ -38,6 +38,16 @@ interface ISequencerInbox is IDAProvider {
 
     /// @dev Thrown when overflow occurs reading txBatch (likely due to malformed txLengths)
     error TxBatchDataOverflow();
+    
+    /**
+     * @notice Gets current sequencer address.
+     */
+    function sequencerAddress() external view returns (address);
+
+    /**
+     * @notice Gets inbox size (number of messages).
+     */
+    function getInboxSize() external view returns (uint256);
 
     /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.

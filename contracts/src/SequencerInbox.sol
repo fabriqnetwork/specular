@@ -35,7 +35,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
 
-    address public sequencerAddress;
+    address public override sequencerAddress;
 
     function initialize(address _sequencerAddress) public initializer {
         if (_sequencerAddress == address(0)) {
