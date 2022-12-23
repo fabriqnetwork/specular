@@ -24,7 +24,7 @@ pragma solidity ^0.8.0;
 
 import "./IChallenge.sol";
 import "./ChallengeLib.sol";
-import "./verifier/IVerifier.sol";
+import "./verifier/IVerifierEntry.sol";
 import "../IRollup.sol";
 
 contract Challenge is IChallenge {
@@ -53,7 +53,7 @@ contract Challenge is IChallenge {
 
     // Other contracts
     address internal resultReceiver;
-    IVerifier internal verifier;
+    IVerifierEntry internal verifier;
 
     // Challenge state
     address public defender;
@@ -100,7 +100,7 @@ contract Challenge is IChallenge {
     function initialize(
         address _defender,
         address _challenger,
-        IVerifier _verifier,
+        IVerifierEntry _verifier,
         address _resultReceiver,
         bytes32 _startStateHash,
         bytes32 _endStateHash
