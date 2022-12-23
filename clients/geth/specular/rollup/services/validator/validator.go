@@ -18,9 +18,9 @@ import (
 )
 
 type challengeCtx struct {
-	opponentAssertion  *rollupTypes.Assertion
-	ourAssertion       *rollupTypes.Assertion
-	confirmedAssertion *rollupTypes.Assertion
+	opponentAssertion      *rollupTypes.Assertion
+	ourAssertion           *rollupTypes.Assertion
+	lastValidatedAssertion *rollupTypes.Assertion
 }
 
 var errAssertionOverflowedInbox = fmt.Errorf("assertion overflowed inbox")
@@ -50,13 +50,13 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 }
 
 // This function will try to validate a pending assertion
-func (v *Validator) tryVaidateAssertion(confirmedAssertion, assertion *rollupTypes.Assertion) error {
+func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *rollupTypes.Assertion) error {
 	// Find asserted blocks in local blockchain
-	inboxSizeDiff := new(big.Int).Sub(assertion.InboxSize, confirmedAssertion.InboxSize)
+	inboxSizeDiff := new(big.Int).Sub(assertion.InboxSize, lastValidatedAssertion.InboxSize)
 	currentBlockNum := assertion.StartBlock
 	currentChainHeight := v.Chain.CurrentBlock().NumberU64()
 	var block *types.Block
-	targetGasUsed := new(big.Int).Set(confirmedAssertion.CumulativeGasUsed)
+	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
 		if currentBlockNum > currentChainHeight {
 			return errAssertionOverflowedInbox
@@ -83,9 +83,9 @@ func (v *Validator) tryVaidateAssertion(confirmedAssertion, assertion *rollupTyp
 			InboxSize:             assertion.InboxSize,
 			StartBlock:            assertion.StartBlock,
 			EndBlock:              assertion.EndBlock,
-			PrevCumulativeGasUsed: new(big.Int).Set(confirmedAssertion.CumulativeGasUsed),
+			PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
 		}
-		v.challengeCh <- &challengeCtx{assertion, ourAssertion, confirmedAssertion}
+		v.challengeCh <- &challengeCtx{assertion, ourAssertion, lastValidatedAssertion}
 		return errValidationFailed
 	}
 	// Validation succeeded, confirm assertion and advance stake
@@ -111,7 +111,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 
 	// Current agreed assertion, initalize to genesis assertion
 	// TODO: sync from L1 when restart
-	confirmedAssertion := &rollupTypes.Assertion{
+	lastValidatedAssertion := &rollupTypes.Assertion{
 		ID:                    new(big.Int),
 		VmHash:                genesisRoot,
 		CumulativeGasUsed:     new(big.Int),
@@ -126,7 +126,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 
 	validateCurrentAssertion := func() error {
 		// Validate current assertion
-		err := v.tryVaidateAssertion(confirmedAssertion, currentAssertion)
+		err := v.tryValidateAssertion(lastValidatedAssertion, currentAssertion)
 		if err != nil {
 			switch {
 			case errors.Is(err, errValidationFailed):
@@ -138,7 +138,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			return err
 		}
 		// Validation success, get next pending assertion
-		confirmedAssertion = currentAssertion
+		lastValidatedAssertion = currentAssertion
 		currentAssertion = nil
 		return nil
 	}
@@ -150,7 +150,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			case ourAssertion := <-v.challengeResoutionCh:
 				log.Info("challenge finished")
 				isInChallenge = false
-				confirmedAssertion = ourAssertion
+				lastValidatedAssertion = ourAssertion
 				currentAssertion = nil
 				// Try to validate all pending assertion
 				for currentAssertion != nil {
@@ -183,8 +183,8 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					VmHash:                ev.VmHash,
 					CumulativeGasUsed:     ev.L2GasUsed,
 					InboxSize:             ev.InboxSize,
-					StartBlock:            confirmedAssertion.EndBlock + 1,
-					PrevCumulativeGasUsed: new(big.Int).Set(confirmedAssertion.CumulativeGasUsed),
+					StartBlock:            lastValidatedAssertion.EndBlock + 1,
+					PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
 				}
 				if currentAssertion != nil {
 					// TODO: handle concurrent assertions
@@ -308,8 +308,8 @@ func (v *Validator) challengeLoop() {
 					ctx.ourAssertion.VmHash,
 					ctx.ourAssertion.InboxSize,
 					ctx.ourAssertion.CumulativeGasUsed,
-					ctx.confirmedAssertion.VmHash,
-					ctx.confirmedAssertion.CumulativeGasUsed,
+					ctx.lastValidatedAssertion.VmHash,
+					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if err != nil {
 					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
