@@ -61,7 +61,9 @@ abstract contract RollupBase is IRollup, Initializable {
 
 contract Rollup is RollupBase {
     modifier stakedOnly() {
-        require(isStaked(msg.sender));
+        if (!isStaked(msg.sender)) {
+            revert NotStaked();
+        }
         _;
     }
 
@@ -88,7 +90,12 @@ contract Rollup is RollupBase {
         uint256 _baseStakeAmount,
         bytes32 _initialVMhash
     ) public initializer {
-        require(_owner != address(0) && _sequencerInbox != address(0) && _verifier != address(0), "ZERO_ADDRESS");
+        // TODO: do we still need stake token now?
+
+        // If any of addresses _owner, _sequencerInbox or _verifier is address(0), then revert.
+        if (_owner == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
+            revert ZeroAddress();
+        }
         owner = _owner;
         sequencerInbox = ISequencerInbox(_sequencerInbox);
         stakeToken = IERC20(_stakeToken);
@@ -135,7 +142,9 @@ contract Rollup is RollupBase {
         if (isStaked(msg.sender)) {
             stakers[msg.sender].amountStaked += msg.value;
         } else {
-            require(msg.value >= baseStakeAmount, "INSUFFICIENT_STAKE");
+            if (msg.value < baseStakeAmount) {
+                revert InsufficientStake();
+            }
             stakers[msg.sender] = Staker(true, msg.value, 0, address(0));
             numStakers++;
             stakeOnAssertion(msg.sender, lastConfirmedAssertionID);
@@ -147,12 +156,16 @@ contract Rollup is RollupBase {
         requireStaked(msg.sender);
         // Require that staker is staked on a confirmed assertion.
         Staker storage staker = stakers[msg.sender];
-        require(staker.assertionID <= lastConfirmedAssertionID, "STAKED_ON_UNCONFIRMED_ASSERTION");
-        require(stakeAmount <= staker.amountStaked - currentRequiredStake(), "INSUFFICIENT_FUNDS");
+        if (staker.assertionID > lastConfirmedAssertionID) {
+            revert StakedOnUnconfirmedAssertion();
+        }
+        if (stakeAmount > staker.amountStaked - currentRequiredStake()) {
+            revert InsufficientStake();
+        }
         staker.amountStaked -= stakeAmount;
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
         (bool success,) = msg.sender.call{value: stakeAmount}("");
-        require(success, "TRANSFER_FAILED");
+        if (!success) revert TransferFailed();
     }
 
     // WARNING: this function is vulnerable to reentrancy attack!
@@ -161,19 +174,25 @@ contract Rollup is RollupBase {
         requireStaked(stakerAddress);
         // Require that staker is staked on a confirmed assertion.
         Staker storage staker = stakers[stakerAddress];
-        require(staker.assertionID <= lastConfirmedAssertionID, "STAKED_ON_UNCONFIRMED_ASSERTION");
+        if (staker.assertionID > lastConfirmedAssertionID) {
+            revert StakedOnUnconfirmedAssertion();
+        }
         deleteStaker(stakerAddress);
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
         (bool success,) = stakerAddress.call{value: staker.amountStaked}("");
-        require(success, "TRANSFER_FAILED");
+        if (!success) revert TransferFailed();
     }
 
     /// @inheritdoc IRollup
     function advanceStake(uint256 assertionID) external override stakedOnly {
         Staker storage staker = stakers[msg.sender];
-        require(assertionID > staker.assertionID && assertionID <= lastCreatedAssertionID, "ASSERTION_OUT_OF_RANGE");
+        if (assertionID <= staker.assertionID && assertionID > lastCreatedAssertionID) {
+            revert AssertionOutOfRange();
+        }
         // TODO: allow arbitrary descendant of current staked assertionID, not just child.
-        require(staker.assertionID == assertions.getParentID(assertionID), "PARENT_ASSERTION_UNSTAKED");
+        if (staker.assertionID != assertions.getParentID(assertionID)) {
+            revert ParentAssertionUnstaked();
+        }
         stakeOnAssertion(msg.sender, assertionID);
     }
 
@@ -182,7 +201,7 @@ contract Rollup is RollupBase {
         uint256 withdrawableFund = withdrawableFunds[msg.sender];
         withdrawableFunds[msg.sender] = 0;
         (bool success,) = msg.sender.call{value: withdrawableFund}("");
-        require(success, "TRANSFER_FAILED");
+        if (!success) revert TransferFailed();
     }
 
     /// @inheritdoc IRollup
@@ -199,18 +218,28 @@ contract Rollup is RollupBase {
 
         uint256 parentID = stakers[msg.sender].assertionID;
         // Require that enough time has passed since the last assertion.
-        require(block.number - assertions.getProposalTime(parentID) >= minimumAssertionPeriod, "TIME_DELTA");
+        if (block.number - assertions.getProposalTime(parentID) < minimumAssertionPeriod) {
+            revert MinimumAssertionPeriodNotPassed();
+        }
         // TODO: require(..., TOO_SMALL);
         uint256 assertionGasUsed = l2GasUsed - prevL2GasUsed;
         // Require that the L2 gas used by the assertion is less than the limit.
         // TODO: arbitrum uses: timeSinceLastNode.mul(avmGasSpeedLimitPerBlock).mul(4) ?
-        require(assertionGasUsed <= maxGasPerAssertion, "TOO_LARGE");
+        if (assertionGasUsed > maxGasPerAssertion) {
+            revert MaxGasLimitExceeded();
+        }
         // Require integrity of startState.
-        require(RollupLib.stateHash(startState) == assertions.getStateHash(parentID), "PREV_STATE_HASH");
+        if (RollupLib.stateHash(startState) != assertions.getStateHash(parentID)) {
+            revert PreviousStateHash();
+        }
         // Require that the assertion at least includes one transaction
-        require(inboxSize > assertions.getInboxSize(parentID), "NO_TXN");
+        if (inboxSize <= assertions.getInboxSize(parentID)) {
+            revert EmptyAssertion();
+        }
         // Require that the assertion doesn't read past the end of the current inbox.
-        require(inboxSize <= sequencerInbox.getInboxSize(), "INBOX_PAST_END");
+        if (inboxSize > sequencerInbox.getInboxSize()) {
+            revert InboxReadLimitExceeded();
+        }
 
         // Initialize assertion.
         lastCreatedAssertionID++;
@@ -231,12 +260,20 @@ contract Rollup is RollupBase {
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 challengerAssertionID = assertionIDs[1];
         // Require IDs ordered and in-range.
-        require(defenderAssertionID < challengerAssertionID, "WRONG_ORDER");
-        require(challengerAssertionID <= lastCreatedAssertionID, "NOT_PROPOSED");
-        require(lastConfirmedAssertionID < defenderAssertionID, "ALREADY_RESOLVED");
+        if (defenderAssertionID >= challengerAssertionID) {
+            revert WrongOrder();
+        }
+        if (challengerAssertionID > lastCreatedAssertionID) {
+            revert UnproposedAssertion();
+        }
+        if (lastConfirmedAssertionID >= defenderAssertionID) {
+            revert AssertionAlreadyResolved();
+        }
         // Require that players have attested to sibling assertions.
         uint256 parentID = assertions.getParentID(defenderAssertionID);
-        require(parentID == assertions.getParentID(challengerAssertionID), "DIFF_PARENT");
+        if (parentID != assertions.getParentID(challengerAssertionID)) {
+            revert DifferentParent();
+        }
 
         // Require that neither player is currently engaged in a challenge.
         address defender = players[0];
@@ -266,25 +303,30 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function confirmFirstUnresolvedAssertion() external override {
-        require(lastResolvedAssertionID < lastCreatedAssertionID, "NO_UNRESOLVED");
+        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
+            revert NoUnresolvedAssertion();
+        }
 
         // (1) there is at least one staker, and
-        require(numStakers > 0, "NO_STAKERS");
+        if (numStakers <= 0) revert NoStaker();
 
         uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
         // (2) challenge period has passed
-        require(block.number >= assertions.getDeadline(lastUnresolvedID), "BEFORE_DEADLINE");
+        if (block.number < assertions.getDeadline(lastUnresolvedID)) {
+            revert ChallengePeriodPending();
+        }
         // (3) predecessor has been confirmed
-        require(assertions.getParentID(lastUnresolvedID) == lastConfirmedAssertionID, "INVALID_PARENT");
+        if (assertions.getParentID(lastUnresolvedID) != lastConfirmedAssertionID) {
+            revert InvalidParent();
+        }
 
         // Remove old zombies
         // removeOldZombies();
 
         // (4) all stakers are staked on the block.
-        require(
-            assertions.getNumStakers(lastUnresolvedID) == countStakedZombies(lastUnresolvedID) + numStakers,
-            "NOT_ALL_STAKED"
-        );
+        if (assertions.getNumStakers(lastUnresolvedID) != countStakedZombies(lastUnresolvedID) + numStakers) {
+            revert NotAllStaked();
+        }
 
         // Confirm assertion.
         // assertions.deleteAssertion(lastConfirmedAssertionID);
@@ -295,7 +337,9 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function rejectFirstUnresolvedAssertion(address stakerAddress) external override {
-        require(lastResolvedAssertionID < lastCreatedAssertionID, "NO_UNRESOLVED");
+        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
+            revert NoUnresolvedAssertion();
+        }
 
         uint256 firstUnresolvedAssertionID = lastResolvedAssertionID + 1;
 
@@ -312,23 +356,29 @@ contract Rollup is RollupBase {
         //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
         if (assertions.getParentID(firstUnresolvedAssertionID) == lastConfirmedAssertionID) {
             // 1a. challenge period has passed.
-            require(block.number >= assertions.getDeadline(firstUnresolvedAssertionID), "BEFORE_DEADLINE");
+            if (block.number < assertions.getDeadline(firstUnresolvedAssertionID)) {
+                revert ChallengePeriodPending();
+            }
 
             // 1b. at least one staker exists (on a sibling)
             // - stakerAddress is indeed a staker
             requireStaked(stakerAddress);
             // - staker's assertion can't be a ancestor of firstUnresolved (because staker's assertion is also unresolved)
-            require(stakers[stakerAddress].assertionID >= firstUnresolvedAssertionID, "ASSERTION_ALREADY_RESOLVED");
+            if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
+                revert AssertionAlreadyResolved();
+            }
             // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
-            require(!assertions.isStaker(firstUnresolvedAssertionID, stakerAddress), "STAKER_STAKED_ON_TARGET");
+            if (assertions.isStaker(firstUnresolvedAssertionID, stakerAddress)) {
+                revert StakerStakedOnTarget();
+            }
             // If a staker is staked on an assertion that is neither an ancestor nor a descendant of firstUnresolved, it must be a sibling, QED
 
             // 1c. no staker is staked on this assertion
             // removeOldZombies();
-            require(
-                assertions.getNumStakers(firstUnresolvedAssertionID) == countStakedZombies(firstUnresolvedAssertionID),
-                "HAS_STAKERS"
-            );
+            if (assertions.getNumStakers(firstUnresolvedAssertionID) != countStakedZombies(firstUnresolvedAssertionID))
+            {
+                revert StakersPresent();
+            }
         }
 
         // Reject assertion.
@@ -339,7 +389,10 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function completeChallenge(address winner, address loser) external override {
-        require(msg.sender == getChallenge(winner, loser), "WRONG_SENDER");
+        address challenge = getChallenge(winner, loser);
+        if (msg.sender != challenge) {
+            revert NotChallenge(msg.sender, challenge);
+        }
 
         uint256 remainingLoserStake = stakers[loser].amountStaked;
         uint256 winnerStake = stakers[winner].amountStaked;
@@ -347,7 +400,7 @@ contract Rollup is RollupBase {
             // If loser has a higher stake than the winner, refund the difference.
             // Loser gets deleted anyways, so maybe unnecessary to set amountStaked.
             stakers[loser].amountStaked = winnerStake;
-            withdrawableFunds[loser] += (winnerStake - remainingLoserStake);
+            withdrawableFunds[loser] += winnerStake - remainingLoserStake;
             remainingLoserStake = winnerStake;
         }
         // Reward the winner with half the remaining stake
@@ -355,7 +408,7 @@ contract Rollup is RollupBase {
         stakers[winner].amountStaked += amountWon; // why +stake instead of +withdrawable?
         stakers[winner].currentChallenge = address(0);
         // Credit the other half to the owner address
-        withdrawableFunds[owner] += (remainingLoserStake - amountWon);
+        withdrawableFunds[owner] += remainingLoserStake - amountWon;
         // Turning loser into zombie renders the loser's remaining stake inaccessible.
         uint256 assertionID = stakers[loser].assertionID;
         deleteStaker(loser);
@@ -392,8 +445,12 @@ contract Rollup is RollupBase {
         Staker storage staker1 = stakers[staker1Address];
         Staker storage staker2 = stakers[staker2Address];
         address challenge = staker1.currentChallenge;
-        require(challenge != address(0), "NO_CHALLENGE");
-        require(challenge == staker2.currentChallenge, "DIFF_IN_CHALLENGE");
+        if (challenge == address(0)) {
+            revert NotInChallenge();
+        }
+        if (challenge != staker2.currentChallenge) {
+            revert InDifferentChallenge(challenge, staker2.currentChallenge);
+        }
         return challenge;
     }
 
@@ -437,11 +494,15 @@ contract Rollup is RollupBase {
     // ************
 
     function requireStaked(address stakerAddress) private view {
-        require(isStaked(stakerAddress), "NOT_STAKED");
+        if (!isStaked(stakerAddress)) {
+            revert NotStaked();
+        }
     }
 
     function requireUnchallengedStaker(address stakerAddress) private view {
         requireStaked(stakerAddress);
-        require(stakers[stakerAddress].currentChallenge == address(0), "IN_CHALLENGE");
+        if (stakers[stakerAddress].currentChallenge != address(0)) {
+            revert ChallengedStaker();
+        }
     }
 }

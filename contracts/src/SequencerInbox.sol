@@ -25,6 +25,7 @@ pragma solidity ^0.8.0;
 // import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
+import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable {
@@ -38,7 +39,9 @@ contract SequencerInbox is ISequencerInbox, Initializable {
     address public sequencerAddress;
 
     function initialize(address _sequencerAddress) public initializer {
-        require(_sequencerAddress != address(0), "ZERO_ADDRESS");
+        if (_sequencerAddress == address(0)) {
+            revert ZeroAddress();
+        }
         sequencerAddress = _sequencerAddress;
     }
 
@@ -55,7 +58,9 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         external
         override
     {
-        require(msg.sender == sequencerAddress, "INVALID_SEQUENCER");
+        if (msg.sender != sequencerAddress) {
+            revert NotSequencer(msg.sender, sequencerAddress);
+        }
 
         uint256 start = inboxSize;
         uint256 numTxs = inboxSize;
@@ -90,7 +95,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             numProcessedTxs += numCtxTxs;
         }
 
-        require(numTxs > inboxSize, EMPTY_BATCH);
+        if (numTxs <= inboxSize) revert EmptyBatch();
         inboxSize = numTxs;
         accumulators.push(runningAccumulator);
 
@@ -139,6 +144,8 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             numTxs++;
         }
 
-        require(acc == accumulators[batchNum], "INCORRECT_ACC_OR_BATCH_NUM");
+        if (acc != accumulators[batchNum]) {
+            revert IncorrectAccOrBatch();
+        }
     }
 }
