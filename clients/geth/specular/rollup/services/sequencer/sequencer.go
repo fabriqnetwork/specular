@@ -94,16 +94,18 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 func (s *Sequencer) processSortedTxs(sortedTxs *types.TransactionsByPriceAndNonce, batcher *Batcher, batchTxs []*types.Transaction) {
 	if sortedTxs == nil {
 		log.Info("processSortedTxs -> sortedTxs is nil")
-	}
-	for {
-		tx := sortedTxs.Peek()
-		if tx == nil {
-			break
+	} else {
+		for {
+			tx := sortedTxs.Peek()
+			if tx == nil {
+				break
+			}
+			// Check if tx in batchTxs
+			batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+			sortedTxs.Pop()
 		}
-		// Check if tx in batchTxs
-		batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
-		sortedTxs.Pop()
 	}
+
 	if len(batchTxs) == 0 {
 		return
 	}
@@ -152,24 +154,42 @@ func (s *Sequencer) batchingLoop() {
 
 			pending := s.Eth.TxPool().Pending(true)
 			localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
-			combinedTxs := make(map[common.Address]types.Transactions)
 			for _, account := range s.Eth.TxPool().Locals() {
 				if txs = remoteTxs[account]; len(txs) > 0 {
 					delete(remoteTxs, account)
 					localTxs[account] = txs
 				}
 			}
-			for account, txs := range localTxs {
-				combinedTxs[account] = txs
-			}
-			for account, txs := range remoteTxs {
-				combinedTxs[account] = txs
-			}
-			if len(combinedTxs) > 0 {
+			if len(localTxs) > 0 {
 				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
-				s.processSortedTxs(sortedTxs, batcher, batchTxs)
-				batchTxs = nil
+				if sortedTxs != nil {
+					for {
+						tx := sortedTxs.Peek()
+						if tx == nil {
+							break
+						}
+						batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+						sortedTxs.Pop()
+					}
+				}
+
 			}
+			if len(remoteTxs) > 0 {
+				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+				if sortedTxs != nil {
+					for {
+						tx := sortedTxs.Peek()
+						if tx == nil {
+							break
+						}
+						batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+						sortedTxs.Pop()
+					}
+				}
+			}
+
+			s.processSortedTxs(sortedTxs, batcher, batchTxs)
+			batchTxs = nil
 		case ev := <-txsCh:
 			// Batch txs in case of txEvent
 			txs := make(map[common.Address]types.Transactions)
