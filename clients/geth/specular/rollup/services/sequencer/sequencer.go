@@ -72,27 +72,18 @@ func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int 
 	return -1
 }
 
-// Filters tx in batch if already exists or on chain else appends
+// Appends tx to batch if not already exists in batch or on chain
 func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) []*types.Transaction {
 	// Check if tx in batch
 	txIndex := getTxIndexInBatch(batchTxs, tx)
-	if txIndex >= 0 {
-		// Remove if exists
-		batchTxs = append(batchTxs[:txIndex], batchTxs[txIndex+1:]...)
-	} else {
+	if txIndex <= 0 {
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
 			log.Error("Checking GetTransaction, this is err", "error", err)
 			return batchTxs
 		}
-		if prevTx != nil {
-			// Remove prexTx if exists
-			txIndex = getTxIndexInBatch(batchTxs, tx)
-			if txIndex >= 0 {
-				batchTxs = append(batchTxs[:txIndex], batchTxs[txIndex+1:]...)
-			}
-		} else {
+		if prevTx == nil {
 			batchTxs = append(batchTxs, tx)
 		}
 	}
@@ -161,19 +152,21 @@ func (s *Sequencer) batchingLoop() {
 
 			pending := s.Eth.TxPool().Pending(true)
 			localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+			combinedTxs := make(map[common.Address]types.Transactions)
 			for _, account := range s.Eth.TxPool().Locals() {
 				if txs = remoteTxs[account]; len(txs) > 0 {
 					delete(remoteTxs, account)
 					localTxs[account] = txs
 				}
 			}
-			if len(localTxs) > 0 {
-				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
-				s.processSortedTxs(sortedTxs, batcher, batchTxs)
-				batchTxs = nil
+			for account, txs := range localTxs {
+				combinedTxs[account] = txs
 			}
-			if len(remoteTxs) > 0 {
-				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+			for account, txs := range remoteTxs {
+				combinedTxs[account] = txs
+			}
+			if len(combinedTxs) > 0 {
+				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
 				s.processSortedTxs(sortedTxs, batcher, batchTxs)
 				batchTxs = nil
 			}
