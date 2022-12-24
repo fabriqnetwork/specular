@@ -100,7 +100,7 @@ func (s *Sequencer) sendBatch(batcher *Batcher) {
 	s.batchCh <- batch
 }
 
-// Add sorted txs to batch
+// Add sorted txs to batch and commit txs
 func (s *Sequencer) addSortedTxsToBatch(batcher *Batcher, sortedTxs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
 	if sortedTxs != nil {
 		for {
@@ -112,32 +112,14 @@ func (s *Sequencer) addSortedTxsToBatch(batcher *Batcher, sortedTxs *types.Trans
 			sortedTxs.Pop()
 		}
 	}
-	return batchTxs
-}
-
-// Process sorted txs and commit batchTxs
-func (s *Sequencer) processSortedTxs(sortedTxs *types.TransactionsByPriceAndNonce, batcher *Batcher, batchTxs []*types.Transaction) {
-	if sortedTxs == nil {
-		log.Info("processSortedTxs -> sortedTxs is nil")
-	} else {
-		for {
-			tx := sortedTxs.Peek()
-			if tx == nil {
-				break
-			}
-			// Check if tx in batchTxs
-			batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
-			sortedTxs.Pop()
-		}
-	}
-
 	if len(batchTxs) == 0 {
-		return
+		return batchTxs
 	}
 	err := batcher.CommitTransactions(batchTxs)
 	if err != nil {
 		log.Crit("Failed to commit transactions", "err", err)
 	}
+	return batchTxs
 }
 
 // This goroutine fetches txs from txpool and batches them
@@ -181,12 +163,10 @@ func (s *Sequencer) batchingLoop() {
 			if len(localTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
 				batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
-				s.processSortedTxs(sortedTxs, batcher, batchTxs)
 			}
 			if len(remoteTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
 				batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
-				s.processSortedTxs(sortedTxs, batcher, batchTxs)
 			}
 			if len(batchTxs) > 0 {
 				s.sendBatch(batcher)
@@ -201,14 +181,7 @@ func (s *Sequencer) batchingLoop() {
 				txs[acc] = append(txs[acc], tx)
 			}
 			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
-			for {
-				tx := sortedTxs.Peek()
-				if tx == nil {
-					break
-				}
-				batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
-				sortedTxs.Pop()
-			}
+			batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
 		case <-s.Ctx.Done():
 			return
 		}
