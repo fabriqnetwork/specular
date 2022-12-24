@@ -248,10 +248,16 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	}
 
 	var batchTxs []*rollupTypes.TxBatch
+	var batchBlocks []*types.Block
 
 	for {
 		select {
 		case <-ticker.C:
+			if batchBlocks == nil {
+				break
+			}
+			batch := rollupTypes.NewTxBatch(batchBlocks, 0)
+			batchTxs = append(batchTxs, batch)
 			if len(batchTxs) == 0 {
 				continue
 			}
@@ -276,11 +282,12 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				commitAssertion()
 			}
 			batchTxs = nil
+			batchBlocks = nil
 		case blocks := <-s.blockCh:
-			// New batch from Batcher
-			batch := rollupTypes.NewTxBatch(*blocks, 0) // TODO: add max batch size
-			batchTxs = append(batchTxs, batch)
-			batch = nil
+			// Add blocks
+			if blocks != nil {
+				batchBlocks = append(batchBlocks, blocks...)
+			}
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
 			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
