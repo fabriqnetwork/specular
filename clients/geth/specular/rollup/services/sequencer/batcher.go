@@ -183,16 +183,6 @@ func (b *Batcher) startNewBlock() error {
 	}
 	state, err := b.chain.StateAt(parent.Root())
 	if err != nil {
-		// Note since the sealing block can be created upon the arbitrary parent
-		// block, but the state of parent block may already be pruned, so the necessary
-		// state recovery is needed here in the future.
-		//
-		// The maximum acceptable reorg depth can be limited by the finalised block
-		// somehow. TODO(rjl493456442) fix the hard-coded number here later.
-		state, err = b.eth.StateAtBlock(parent, 1024, nil, false, false)
-		log.Warn("Recovered mining state", "root", parent.Root(), "err", err)
-	}
-	if err != nil {
 		return err
 	}
 	state.StartPrefetcher("sequencer")

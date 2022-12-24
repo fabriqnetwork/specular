@@ -1,18 +1,16 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
@@ -20,18 +18,20 @@ import (
 )
 
 type challengeCtx struct {
-	opponentAssertion  *rollupTypes.Assertion
-	ourAssertion       *rollupTypes.Assertion
-	confirmedAssertion *rollupTypes.Assertion
+	opponentAssertion      *rollupTypes.Assertion
+	ourAssertion           *rollupTypes.Assertion
+	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-// TODO: abstract the common field/init to a base service
+var errAssertionOverflowedInbox = fmt.Errorf("assertion overflowed inbox")
+var errValidationFailed = fmt.Errorf("validation failed")
+
 type Validator struct {
 	*services.BaseService
 
-	batchCh              chan *rollupTypes.TxBatch
+	newBatchCh           chan struct{}
 	challengeCh          chan *challengeCtx
-	challengeResoutionCh chan struct{}
+	challengeResoutionCh chan *rollupTypes.Assertion
 }
 
 // TODO: this shares a lot of code with sequencer
@@ -42,141 +42,58 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	}
 	v := &Validator{
 		BaseService:          base,
-		batchCh:              make(chan *rollupTypes.TxBatch, 4096),
+		newBatchCh:           make(chan struct{}, 4096),
 		challengeCh:          make(chan *challengeCtx),
-		challengeResoutionCh: make(chan struct{}),
+		challengeResoutionCh: make(chan *rollupTypes.Assertion),
 	}
 	return v, nil
 }
 
-// commitBlocks executes and commits sequenced blocks to local blockchain
-// It returns the afterwards state hash and total gas used for these blocks
-// TODO: this function shares a lot of codes with Batcher
-// TODO: use StateProcessor::Process() instead
-func (v *Validator) commitBlocks(blocks []*rollupTypes.SequenceBlock) (common.Hash, *big.Int, error) {
-	var targetVmHash common.Hash
-	targetGasUsed := new(big.Int)
-	chainConfig := v.Chain.Config()
-	parent := v.Chain.CurrentBlock()
-	if parent == nil {
-		return common.Hash{}, nil, fmt.Errorf("missing parent")
+// This function will try to validate a pending assertion
+func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *rollupTypes.Assertion) error {
+	// Find asserted blocks in local blockchain
+	inboxSizeDiff := new(big.Int).Sub(assertion.InboxSize, lastValidatedAssertion.InboxSize)
+	currentBlockNum := assertion.StartBlock
+	currentChainHeight := v.Chain.CurrentBlock().NumberU64()
+	var block *types.Block
+	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
+	for inboxSizeDiff.Cmp(common.Big0) > 0 {
+		if currentBlockNum > currentChainHeight {
+			return errAssertionOverflowedInbox
+		}
+		block = v.Chain.GetBlockByNumber(currentBlockNum)
+		if block == nil {
+			return errAssertionOverflowedInbox
+		}
+		numTxs := uint64(len(block.Transactions()))
+		if numTxs > inboxSizeDiff.Uint64() {
+			log.Crit("UNHANDELED: Assertion created in the middle of block, validator state corrupted!")
+		}
+		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(block.GasUsed()))
+		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
+		currentBlockNum++
 	}
-	num := parent.Number()
-	if num.Uint64() != blocks[0].BlockNumber-1 {
-		return common.Hash{}, nil, fmt.Errorf("validator unsynced")
+	assertion.EndBlock = currentBlockNum - 1
+	targetVmHash := block.Root()
+	if targetVmHash != assertion.VmHash || targetGasUsed.Cmp(assertion.CumulativeGasUsed) != 0 {
+		// Validation failed
+		ourAssertion := &rollupTypes.Assertion{
+			VmHash:                targetVmHash,
+			CumulativeGasUsed:     targetGasUsed,
+			InboxSize:             assertion.InboxSize,
+			StartBlock:            assertion.StartBlock,
+			EndBlock:              assertion.EndBlock,
+			PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
+		}
+		v.challengeCh <- &challengeCtx{assertion, ourAssertion, lastValidatedAssertion}
+		return errValidationFailed
 	}
-	state, err := v.Chain.StateAt(parent.Root())
-	// TODO: in newest version of geth, below codes are removed
+	// Validation succeeded, confirm assertion and advance stake
+	_, err := v.Rollup.AdvanceStake(assertion.ID)
 	if err != nil {
-		// Note since the sealing block can be created upon the arbitrary parent
-		// block, but the state of parent block may already be pruned, so the necessary
-		// state recovery is needed here in the future.
-		//
-		// The maximum acceptable reorg depth can be limited by the finalised block
-		// somehow. TODO(rjl493456442) fix the hard-coded number here later.
-		state, err = v.Eth.StateAtBlock(parent, 1024, nil, false, false)
-		log.Warn("Recovered mining state", "root", parent.Root(), "err", err)
+		log.Crit("UNHANDELED: Can't advance stake, validator state corrupted", "err", err)
 	}
-	if err != nil {
-		return common.Hash{}, nil, err
-	}
-	state.StartPrefetcher("validator")
-	defer state.StopPrefetcher()
-
-	for _, sblock := range blocks {
-		header := &types.Header{
-			ParentHash: parent.Hash(),
-			Number:     new(big.Int).SetUint64(sblock.BlockNumber),
-			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem
-			Time:       sblock.Timestamp,
-			Coinbase:   v.Config.SequencerAddr,
-			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
-		}
-		gasPool := new(core.GasPool).AddGas(header.GasLimit)
-		var receipts []*types.Receipt
-		for idx, tx := range sblock.Txs {
-			state.Prepare(tx.Hash(), idx)
-			receipt, err := core.ApplyTransaction(chainConfig, v.Chain, &v.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *v.Chain.GetVMConfig())
-			if err != nil {
-				return common.Hash{}, nil, err
-			}
-			receipts = append(receipts, receipt)
-		}
-		// Finalize header
-		header.Root = state.IntermediateRoot(v.Chain.Config().IsEIP158(header.Number))
-		header.UncleHash = types.CalcUncleHash(nil)
-		// Assemble block
-		block := types.NewBlock(header, sblock.Txs, nil, receipts, trie.NewStackTrie(nil))
-		hash := block.Hash()
-		// Finalize receipts and logs
-		var logs []*types.Log
-		for i, receipt := range receipts {
-			// Add block location fields
-			receipt.BlockHash = hash
-			receipt.BlockNumber = block.Number()
-			receipt.TransactionIndex = uint(i)
-
-			// Update the block hash in all logs since it is now available and not when the
-			// receipt/log of individual transactions were created.
-			for _, log := range receipt.Logs {
-				log.BlockHash = hash
-			}
-			logs = append(logs, receipt.Logs...)
-		}
-		_, err := v.Chain.WriteBlockAndSetHead(block, receipts, logs, state, true)
-		if err != nil {
-			return common.Hash{}, nil, err
-		}
-		targetVmHash = header.Root
-		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(header.GasUsed))
-	}
-	return targetVmHash, targetGasUsed, nil
-}
-
-// This goroutine synchronizes sequenced transactions from L1 SequencerInbox
-func (v *Validator) collectingLoop() {
-	defer v.Wg.Done()
-
-	abi, err := bindings.ISequencerInboxMetaData.GetAbi()
-	if err != nil {
-		log.Crit("Failed to get ISequencerInbox ABI", "err", err)
-	}
-
-	// Listen to TxBatchAppendEvent
-	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended, 4096)
-	batchEventSub, err := v.Inbox.Contract.WatchTxBatchAppended(&bind.WatchOpts{Context: v.Ctx}, batchEventCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer batchEventSub.Unsubscribe()
-
-	for {
-		// if challenge, pause
-		select {
-		case ev := <-batchEventCh:
-			// New appendTxBatch call
-			tx, _, err := v.L1.TransactionByHash(v.Ctx, ev.Raw.TxHash)
-			if err != nil {
-				log.Error("Failed to get tx batch data", "error", err)
-				continue
-			}
-			// Decode input from abi
-			decoded, err := abi.Methods["appendTxBatch"].Inputs.Unpack(tx.Data()[4:])
-			if err != nil {
-				log.Error("Failed to decode tx batch data", "error", err)
-				continue
-			}
-			// Construct batch
-			batch, err := rollupTypes.TxBatchFromDecoded(decoded)
-			if err != nil {
-				log.Error("Failed to decode tx batch data", "error", err)
-				continue
-			}
-			v.batchCh <- batch
-		case <-v.Ctx.Done():
-			return
-		}
-	}
+	return nil
 }
 
 // This goroutine validates the assertion posted to L1 Rollup, advances
@@ -192,11 +109,9 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 	}
 	defer assertionEventSub.Unsubscribe()
 
-	// Sequenced blocks collected from SequencerInbox
-	var pendingBlocks []*rollupTypes.SequenceBlock
 	// Current agreed assertion, initalize to genesis assertion
 	// TODO: sync from L1 when restart
-	confirmedAssertion := &rollupTypes.Assertion{
+	lastValidatedAssertion := &rollupTypes.Assertion{
 		ID:                    new(big.Int),
 		VmHash:                genesisRoot,
 		CumulativeGasUsed:     new(big.Int),
@@ -204,31 +119,58 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 		Deadline:              new(big.Int),
 		PrevCumulativeGasUsed: new(big.Int),
 	}
+	// The next assertion to be validated
+	var currentAssertion *rollupTypes.Assertion
 
 	isInChallenge := false
+
+	validateCurrentAssertion := func() error {
+		// Validate current assertion
+		err := v.tryValidateAssertion(lastValidatedAssertion, currentAssertion)
+		if err != nil {
+			switch {
+			case errors.Is(err, errValidationFailed):
+				// Validation failed, challenge
+				isInChallenge = true
+			case errors.Is(err, errAssertionOverflowedInbox):
+				// Assertion overflowed inbox, wait for next block
+			}
+			return err
+		}
+		// Validation success, get next pending assertion
+		lastValidatedAssertion = currentAssertion
+		currentAssertion = nil
+		return nil
+	}
 
 	for {
 		if isInChallenge {
 			// Wait for the challenge resolution
 			select {
-			case <-v.challengeResoutionCh:
+			case ourAssertion := <-v.challengeResoutionCh:
 				log.Info("challenge finished")
 				isInChallenge = false
+				lastValidatedAssertion = ourAssertion
+				currentAssertion = nil
+				// Try to validate all pending assertion
+				for currentAssertion != nil {
+					err := validateCurrentAssertion()
+					if err != nil {
+						break
+					}
+				}
 			case <-v.Ctx.Done():
 				return
 			}
 		} else {
 			select {
-			case batch := <-v.batchCh:
-				// New batch collected from SequencerInbox, split it into blocks
-				txNum := 0
-				for _, ctx := range batch.Contexts {
-					block := &rollupTypes.SequenceBlock{
-						SequenceContext: ctx,
-						Txs:             batch.Txs[txNum : txNum+int(ctx.NumTxs)],
+			case <-v.newBatchCh:
+				// New block committed, try to validate all pending assertion
+				for currentAssertion != nil {
+					err := validateCurrentAssertion()
+					if err != nil {
+						break
 					}
-					pendingBlocks = append(pendingBlocks, block)
-					txNum += int(ctx.NumTxs)
 				}
 			case ev := <-assertionEventCh:
 				if ev.AsserterAddr == common.Address(v.Config.Coinbase) {
@@ -241,52 +183,16 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					VmHash:                ev.VmHash,
 					CumulativeGasUsed:     ev.L2GasUsed,
 					InboxSize:             ev.InboxSize,
-					StartBlock:            confirmedAssertion.EndBlock + 1,
-					PrevCumulativeGasUsed: new(big.Int).Set(confirmedAssertion.CumulativeGasUsed),
+					StartBlock:            lastValidatedAssertion.EndBlock + 1,
+					PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
 				}
-				// Pop correct amount of pending blocks asserted
-				inboxSizeDiff := assertion.InboxSize.Uint64() - confirmedAssertion.InboxSize.Uint64()
-				var blocksToCommit []*rollupTypes.SequenceBlock
-				for _, block := range pendingBlocks {
-					if block.NumTxs > inboxSizeDiff {
-						log.Crit("UNHANDELED: Assertion created in the middle of block, validator state corrupted!")
-					}
-					inboxSizeDiff -= block.NumTxs
-					blocksToCommit = append(blocksToCommit, block)
-					if inboxSizeDiff == 0 {
-						break
-					}
+				if currentAssertion != nil {
+					// TODO: handle concurrent assertions
+					log.Crit("UNHANDELED: concurrent assertion")
+					continue
 				}
-				if inboxSizeDiff != 0 {
-					log.Crit("UNHANDELED: SequencerInbox overflow, validator state corrupted!")
-				}
-				assertion.EndBlock = assertion.StartBlock + uint64(len(blocksToCommit)) - 1
-				pendingBlocks = pendingBlocks[len(blocksToCommit):]
-				// Commit asserted blocks
-				targetVmHash, targetGasUsed, err := v.commitBlocks(blocksToCommit)
-				if err != nil {
-					// strange error, TODO: rewind
-					log.Crit("UNHANDELED: Can't execute sequence blocks, validator state corrupted", "err", err)
-				}
-				// Check result vm hash and gas
-				targetGasUsed.Add(targetGasUsed, confirmedAssertion.CumulativeGasUsed)
-				if targetVmHash != assertion.VmHash || targetGasUsed.Cmp(assertion.CumulativeGasUsed) != 0 {
-					// Validation failed
-					ourAssertion := &rollupTypes.Assertion{
-						VmHash:            targetVmHash,
-						InboxSize:         ev.InboxSize,
-						CumulativeGasUsed: targetGasUsed,
-					}
-					v.challengeCh <- &challengeCtx{assertion, ourAssertion, confirmedAssertion}
-					isInChallenge = true
-				} else {
-					// Validation succeeded, confirm assertion and advance stake
-					_, err = v.Rollup.AdvanceStake(ev.AssertionID)
-					if err != nil {
-						log.Crit("UNHANDELED: Can't advance stake, validator state corrupted", "err", err)
-					}
-					confirmedAssertion = assertion
-				}
+				currentAssertion = assertion
+				validateCurrentAssertion()
 			case <-v.Ctx.Done():
 				return
 			}
@@ -389,7 +295,7 @@ func (v *Validator) challengeLoop() {
 				challengeCompletedSub.Unsubscribe()
 				states = []*proof.ExecutionState{}
 				inChallenge = false
-				v.challengeResoutionCh <- struct{}{}
+				v.challengeResoutionCh <- ctx.ourAssertion
 			case <-v.Ctx.Done():
 				bisectedSub.Unsubscribe()
 				challengeCompletedSub.Unsubscribe()
@@ -402,8 +308,8 @@ func (v *Validator) challengeLoop() {
 					ctx.ourAssertion.VmHash,
 					ctx.ourAssertion.InboxSize,
 					ctx.ourAssertion.CumulativeGasUsed,
-					ctx.confirmedAssertion.VmHash,
-					ctx.confirmedAssertion.CumulativeGasUsed,
+					ctx.lastValidatedAssertion.VmHash,
+					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if err != nil {
 					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
@@ -475,10 +381,10 @@ func (v *Validator) challengeLoop() {
 }
 
 func (v *Validator) Start() error {
-	genesis := v.BaseService.Start()
+	genesis := v.BaseService.Start(true, true)
 
 	v.Wg.Add(3)
-	go v.collectingLoop()
+	go v.SyncLoop(v.newBatchCh)
 	go v.validationLoop(genesis.Root())
 	go v.challengeLoop()
 	log.Info("Validator started")
