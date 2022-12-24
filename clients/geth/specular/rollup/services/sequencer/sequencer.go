@@ -90,7 +90,7 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 	return batchTxs
 }
 
-// Send batch
+// Send batch to `s.batchCh`
 func (s *Sequencer) sendBatch(batcher *Batcher) {
 	blocks, err := batcher.Batch()
 	if err != nil {
@@ -101,15 +101,15 @@ func (s *Sequencer) sendBatch(batcher *Batcher) {
 }
 
 // Add sorted txs to batch and commit txs
-func (s *Sequencer) addSortedTxsToBatch(batcher *Batcher, sortedTxs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
-	if sortedTxs != nil {
+func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
+	if txs != nil {
 		for {
-			tx := sortedTxs.Peek()
+			tx := txs.Peek()
 			if tx == nil {
 				break
 			}
 			batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
-			sortedTxs.Pop()
+			txs.Pop()
 		}
 	}
 	if len(batchTxs) == 0 {
@@ -162,11 +162,11 @@ func (s *Sequencer) batchingLoop() {
 			}
 			if len(localTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
-				batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
+				batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 			}
 			if len(remoteTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
-				batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
+				batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 			}
 			if len(batchTxs) > 0 {
 				s.sendBatch(batcher)
@@ -181,7 +181,7 @@ func (s *Sequencer) batchingLoop() {
 				txs[acc] = append(txs[acc], tx)
 			}
 			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
-			batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
+			batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 		case <-s.Ctx.Done():
 			return
 		}
