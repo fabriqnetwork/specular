@@ -187,18 +187,6 @@ func (s *Sequencer) batchingLoop() {
 	}
 }
 
-// Combines batches
-func combineBatches(slice []*rollupTypes.TxBatch) *rollupTypes.TxBatch {
-	var blocks []*types.Block
-
-	for i := 0; i <= len(slice)-1; i++ {
-		currBlocks := slice[i].Blocks
-		blocks = append(blocks, currBlocks...)
-	}
-	combinedBatch := rollupTypes.NewTxBatch(blocks, 0)
-	return combinedBatch
-}
-
 func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
 
@@ -247,22 +235,17 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		}
 	}
 
-	var batchTxs []*rollupTypes.TxBatch
-	var batchBlocks []*types.Block
+	// Blocks from the batchingLoop that will be sent to the inbox in the next tick
+	var batchBlocks types.Blocks
 
 	for {
 		select {
 		case <-ticker.C:
-			if batchBlocks == nil {
-				break
-			}
-			batch := rollupTypes.NewTxBatch(batchBlocks, 0)
-			batchTxs = append(batchTxs, batch)
-			if len(batchTxs) == 0 {
+			if len(batchBlocks) == 0 {
 				continue
 			}
-			var combinedBatch *rollupTypes.TxBatch = combineBatches(batchTxs)
-			contexts, txLengths, txs, err := combinedBatch.SerializeToArgs()
+			batch := rollupTypes.NewTxBatch(batchBlocks, 0) // TODO: handle max batch size
+			contexts, txLengths, txs, err := batch.SerializeToArgs()
 			if err != nil {
 				log.Error("Can not serialize batch", "error", err)
 				continue
@@ -273,21 +256,18 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				continue
 			}
 			// Update queued assertion to latest batch
-			queuedAssertion.VmHash = combinedBatch.LastBlockRoot()
-			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, combinedBatch.GasUsed)
-			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, combinedBatch.InboxSize())
-			queuedAssertion.EndBlock = combinedBatch.LastBlockNumber()
+			queuedAssertion.VmHash = batch.LastBlockRoot()
+			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
+			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
+			queuedAssertion.EndBlock = batch.LastBlockNumber()
 			// If no assertion is pending, commit it
 			if pendingAssertion == nil {
 				commitAssertion()
 			}
-			batchTxs = nil
 			batchBlocks = nil
 		case blocks := <-s.blockCh:
 			// Add blocks
-			if blocks != nil {
-				batchBlocks = append(batchBlocks, blocks...)
-			}
+			batchBlocks = append(batchBlocks, blocks...)
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
 			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
