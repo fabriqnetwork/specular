@@ -62,37 +62,126 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	return s, nil
 }
 
+// Get tx index in batch
+func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int {
+	for i := len(slice) - 1; i >= 0; i-- {
+		if slice[i].Hash() == elem.Hash() {
+			return i
+		}
+	}
+	return -1
+}
+
+// Appends tx to batch if not already exists in batch or on chain
+func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) []*types.Transaction {
+	// Check if tx in batch
+	txIndex := getTxIndexInBatch(batchTxs, tx)
+	if txIndex <= 0 {
+		// Check if tx exists on chain
+		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
+		if err != nil {
+			log.Error("Checking GetTransaction, this is err", "error", err)
+			return batchTxs
+		}
+		if prevTx == nil {
+			batchTxs = append(batchTxs, tx)
+		}
+	}
+	return batchTxs
+}
+
+// Send batch to `s.batchCh`
+func (s *Sequencer) sendBatch(batcher *Batcher) {
+	blocks, err := batcher.Batch()
+	if err != nil {
+		log.Crit("Failed to batch blocks", "err", err)
+	}
+	batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
+	s.batchCh <- batch
+}
+
+// Add sorted txs to batch and commit txs
+func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
+	if txs != nil {
+		for {
+			tx := txs.Peek()
+			if tx == nil {
+				break
+			}
+			batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+			txs.Pop()
+		}
+	}
+	if len(batchTxs) == 0 {
+		return batchTxs
+	}
+	err := batcher.CommitTransactions(batchTxs)
+	if err != nil {
+		log.Crit("Failed to commit transactions", "err", err)
+	}
+	return batchTxs
+}
+
 // This goroutine fetches txs from txpool and batches them
-// TODO: fetching txs through sub is unstable
-// TODO: batch txs by timer and directly querying txpool as worker does
 func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
 	defer close(s.batchCh)
+
+	// Ticker
+	var ticker = time.NewTicker(timeInterval)
+	defer ticker.Stop()
 
 	// Watch transactions in TxPool
 	txsCh := make(chan core.NewTxsEvent, 4096)
 	txsSub := s.Eth.TxPool().SubscribeNewTxsEvent(txsCh)
 	defer txsSub.Unsubscribe()
 
+	// Process txns via batcher
 	batcher, err := NewBatcher(s.Config.Coinbase, s.Eth)
 	if err != nil {
 		log.Crit("Failed to start batcher", "err", err)
 	}
 
+	var batchTxs []*types.Transaction
+
+	// Loop over txns
 	for {
 		select {
+		case <-ticker.C:
+			// Get pending txs - locals and remotes, sorted by price
+			var txs []*types.Transaction
+			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+
+			pending := s.Eth.TxPool().Pending(true)
+			localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+			for _, account := range s.Eth.TxPool().Locals() {
+				if txs = remoteTxs[account]; len(txs) > 0 {
+					delete(remoteTxs, account)
+					localTxs[account] = txs
+				}
+			}
+			if len(localTxs) > 0 {
+				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
+				batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+			}
+			if len(remoteTxs) > 0 {
+				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+				batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+			}
+			if len(batchTxs) > 0 {
+				s.sendBatch(batcher)
+			}
+			batchTxs = nil
 		case ev := <-txsCh:
-			// New transactions from TxPool
-			err = batcher.CommitTransactions(ev.Txs)
-			if err != nil {
-				log.Crit("Failed to commit transactions", "err", err)
+			// Batch txs in case of txEvent
+			txs := make(map[common.Address]types.Transactions)
+			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+			for _, tx := range ev.Txs {
+				acc, _ := types.Sender(signer, tx)
+				txs[acc] = append(txs[acc], tx)
 			}
-			blocks, err := batcher.Batch()
-			if err != nil {
-				log.Crit("Failed to batch blocks", "err", err)
-			}
-			batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
-			s.batchCh <- batch
+			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
+			batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 		case <-s.Ctx.Done():
 			return
 		}
