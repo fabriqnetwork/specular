@@ -90,7 +90,32 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 	return batchTxs
 }
 
-// Process sorted txs
+// Send batch
+func (s *Sequencer) sendBatch(batcher *Batcher) {
+	blocks, err := batcher.Batch()
+	if err != nil {
+		log.Crit("Failed to batch blocks", "err", err)
+	}
+	batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
+	s.batchCh <- batch
+}
+
+// Add sorted txs to batch
+func (s *Sequencer) addSortedTxsToBatch(batcher *Batcher, sortedTxs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
+	if sortedTxs != nil {
+		for {
+			tx := sortedTxs.Peek()
+			if tx == nil {
+				break
+			}
+			batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+			sortedTxs.Pop()
+		}
+	}
+	return batchTxs
+}
+
+// Process sorted txs and commit batchTxs
 func (s *Sequencer) processSortedTxs(sortedTxs *types.TransactionsByPriceAndNonce, batcher *Batcher, batchTxs []*types.Transaction) {
 	if sortedTxs == nil {
 		log.Info("processSortedTxs -> sortedTxs is nil")
@@ -113,12 +138,6 @@ func (s *Sequencer) processSortedTxs(sortedTxs *types.TransactionsByPriceAndNonc
 	if err != nil {
 		log.Crit("Failed to commit transactions", "err", err)
 	}
-	blocks, err := batcher.Batch()
-	if err != nil {
-		log.Crit("Failed to batch blocks", "err", err)
-	}
-	batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
-	s.batchCh <- batch
 }
 
 // This goroutine fetches txs from txpool and batches them
@@ -149,7 +168,6 @@ func (s *Sequencer) batchingLoop() {
 		case <-ticker.C:
 			// Get pending txs - locals and remotes, sorted by price
 			var txs []*types.Transaction
-			var sortedTxs *types.TransactionsByPriceAndNonce
 			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
 
 			pending := s.Eth.TxPool().Pending(true)
@@ -161,34 +179,18 @@ func (s *Sequencer) batchingLoop() {
 				}
 			}
 			if len(localTxs) > 0 {
-				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
-				if sortedTxs != nil {
-					for {
-						tx := sortedTxs.Peek()
-						if tx == nil {
-							break
-						}
-						batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
-						sortedTxs.Pop()
-					}
-				}
-
+				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
+				batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
+				s.processSortedTxs(sortedTxs, batcher, batchTxs)
 			}
 			if len(remoteTxs) > 0 {
-				sortedTxs = types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
-				if sortedTxs != nil {
-					for {
-						tx := sortedTxs.Peek()
-						if tx == nil {
-							break
-						}
-						batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
-						sortedTxs.Pop()
-					}
-				}
+				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+				batchTxs = s.addSortedTxsToBatch(batcher, sortedTxs, batchTxs, signer)
+				s.processSortedTxs(sortedTxs, batcher, batchTxs)
 			}
-
-			s.processSortedTxs(sortedTxs, batcher, batchTxs)
+			if len(batchTxs) > 0 {
+				s.sendBatch(batcher)
+			}
 			batchTxs = nil
 		case ev := <-txsCh:
 			// Batch txs in case of txEvent
