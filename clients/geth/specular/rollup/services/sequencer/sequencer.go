@@ -39,7 +39,7 @@ type challengeCtx struct {
 type Sequencer struct {
 	*services.BaseService
 
-	batchCh              chan *rollupTypes.TxBatch
+	blockCh              chan types.Blocks
 	pendingAssertionCh   chan *rollupTypes.Assertion
 	confirmedIDCh        chan *big.Int
 	challengeCh          chan *challengeCtx
@@ -53,7 +53,7 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	}
 	s := &Sequencer{
 		BaseService:          base,
-		batchCh:              make(chan *rollupTypes.TxBatch, 4096),
+		blockCh:              make(chan types.Blocks, 4096),
 		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
 		confirmedIDCh:        make(chan *big.Int, 4096),
 		challengeCh:          make(chan *challengeCtx),
@@ -96,8 +96,7 @@ func (s *Sequencer) sendBatch(batcher *Batcher) {
 	if err != nil {
 		log.Crit("Failed to batch blocks", "err", err)
 	}
-	batch := rollupTypes.NewTxBatch(blocks, 0) // TODO: add max batch size
-	s.batchCh <- batch
+	s.blockCh <- blocks
 }
 
 // Add sorted txs to batch and commit txs
@@ -125,7 +124,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 // This goroutine fetches txs from txpool and batches them
 func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
-	defer close(s.batchCh)
+	defer close(s.blockCh)
 
 	// Ticker
 	var ticker = time.NewTicker(timeInterval)
@@ -188,18 +187,6 @@ func (s *Sequencer) batchingLoop() {
 	}
 }
 
-// Combines batches
-func combineBatches(slice []*rollupTypes.TxBatch) *rollupTypes.TxBatch {
-	var blocks []*types.Block
-
-	for i := 0; i <= len(slice)-1; i++ {
-		currBlocks := slice[i].Blocks
-		blocks = append(blocks, currBlocks...)
-	}
-	combinedBatch := rollupTypes.NewTxBatch(blocks, 0)
-	return combinedBatch
-}
-
 func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
 
@@ -248,16 +235,17 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		}
 	}
 
-	var batchTxs []*rollupTypes.TxBatch
+	// Blocks from the batchingLoop that will be sent to the inbox in the next tick
+	var batchBlocks types.Blocks
 
 	for {
 		select {
 		case <-ticker.C:
-			if len(batchTxs) == 0 {
+			if len(batchBlocks) == 0 {
 				continue
 			}
-			var combinedBatch *rollupTypes.TxBatch = combineBatches(batchTxs)
-			contexts, txLengths, txs, err := combinedBatch.SerializeToArgs()
+			batch := rollupTypes.NewTxBatch(batchBlocks, 0) // TODO: handle max batch size
+			contexts, txLengths, txs, err := batch.SerializeToArgs()
 			if err != nil {
 				log.Error("Can not serialize batch", "error", err)
 				continue
@@ -268,19 +256,18 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				continue
 			}
 			// Update queued assertion to latest batch
-			queuedAssertion.VmHash = combinedBatch.LastBlockRoot()
-			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, combinedBatch.GasUsed)
-			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, combinedBatch.InboxSize())
-			queuedAssertion.EndBlock = combinedBatch.LastBlockNumber()
+			queuedAssertion.VmHash = batch.LastBlockRoot()
+			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
+			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
+			queuedAssertion.EndBlock = batch.LastBlockNumber()
 			// If no assertion is pending, commit it
 			if pendingAssertion == nil {
 				commitAssertion()
 			}
-			batchTxs = nil
-		case batch := <-s.batchCh:
-			// New batch from Batcher
-			batchTxs = append(batchTxs, batch)
-			batch = nil
+			batchBlocks = nil
+		case blocks := <-s.blockCh:
+			// Add blocks
+			batchBlocks = append(batchBlocks, blocks...)
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
 			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
