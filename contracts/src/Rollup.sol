@@ -424,6 +424,7 @@ contract Rollup is RollupBase {
     function stakeOnAssertion(address stakerAddress, uint256 assertionID) private {
         stakers[stakerAddress].assertionID = assertionID;
         assertions.stakeOnAssertion(assertionID, stakerAddress);
+        emit StakerStaked(stakerAddress, assertionID);
     }
 
     /**
