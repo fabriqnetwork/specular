@@ -27,11 +27,11 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	if ks == nil {
 		log.Crit("Failed to register the Rollup service: keystore not found")
 	}
-	chainID := big.NewInt(int64(cfg.L1ChainID))
 	json, err := ks.Export(accounts.Account{Address: cfg.Coinbase}, cfg.Passphrase, "")
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)
 	}
+	chainID := big.NewInt(int64(cfg.L1ChainID))
 	auth, err := bind.NewTransactorWithChainID(bytes.NewReader(json), cfg.Passphrase, chainID)
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)

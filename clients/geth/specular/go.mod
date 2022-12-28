@@ -18,6 +18,7 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	github.com/urfave/cli/v2 v2.10.2
+	github.com/golang/mock v1.6.0
 )
 
 require (

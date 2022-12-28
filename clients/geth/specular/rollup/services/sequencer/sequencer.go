@@ -21,7 +21,7 @@ import (
 const timeInterval = 10 * time.Second
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
-	sequencer, err := New(eth, proofBackend, cfg, auth)
+	sequencer, err := NewSequencer(eth, proofBackend, cfg, auth)
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)
 	}
@@ -46,7 +46,7 @@ type Sequencer struct {
 	challengeResoutionCh chan struct{}
 }
 
-func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Sequencer, error) {
+func NewSequencer(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Sequencer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, cfg, auth)
 	if err != nil {
 		return nil, err
@@ -559,9 +559,10 @@ func (s *Sequencer) Start() error {
 }
 
 func (s *Sequencer) Stop() error {
-	log.Info("Sequencer stopped")
+	log.Info("Stopping sequencer...")
 	s.Cancel()
 	s.Wg.Wait()
+	log.Info("Sequencer stopped.")
 	return nil
 }
 

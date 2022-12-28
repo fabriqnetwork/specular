@@ -3,4 +3,4 @@
 
 cd contracts 
 npm run lint:fix
-git add .
+git add -u
