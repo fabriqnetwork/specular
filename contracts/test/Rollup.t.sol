@@ -397,8 +397,6 @@ contract RollupTest is BaseSetup {
     function test_stake_increaseStake() external {
         _initializeRollup("baseStakeAmount", 1000);
 
-        uint256 initialStakers = rollup.numStakers();
-
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalanceInitial = alice.balance;
         uint256 bobBalance = bob.balance;
@@ -411,6 +409,8 @@ contract RollupTest is BaseSetup {
 
         vm.prank(alice);
         rollup.stake{value: aliceBalanceInitial}();
+
+        uint256 initialStakers = rollup.numStakers();
 
         uint256 amountStaked;
         uint256 assertionID;
@@ -437,6 +437,8 @@ contract RollupTest is BaseSetup {
         vm.prank(alice);
         rollup.stake{value: alice.balance}();
 
+        uint256 finalStakers = rollup.numStakers();
+
         uint256 amountStakedFinal;
         uint256 assertionIDFinal;
         address challengeAddressFinal;
@@ -447,6 +449,25 @@ contract RollupTest is BaseSetup {
         assertEq(challengeAddress, challengeAddressFinal, "Challenge Address should not change with more staking");
         assertEq(assertionID, assertionIDFinal, "Challenge Address should not change with more staking");
         assertEq(amountStakedFinal, (amountStaked + bobBalance), "Additional stake not updated correctly");
+        assertEq(initialStakers, finalStakers, "Number of stakers should not increase");
+    }
+
+    ////////////////
+    // Unstaking
+    ///////////////
+
+    function test_unstake_asANonStaker(uint randomAmount) external {
+        _initializeRollup("", 0);
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        // Since Alice is not staked, function unstake should also revert
+        vm.expectRevert(IRollup.NotStaked.selector);
+        vm.prank(alice);
+
+        rollup.unstake(randomAmount);
     }
 
     /////////////////////////
