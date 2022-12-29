@@ -31,6 +31,7 @@ import "../src/libraries/Errors.sol";
 
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
 import {Rollup} from "../src/Rollup.sol";
+import {AssertionMap} from "../src/AssertionMap.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 
 contract BaseSetup is Test {
@@ -72,6 +73,7 @@ contract RollupTest is BaseSetup {
     SequencerInbox private seqIn;
     Rollup private rollup;
     uint256 randomNonce;
+    AssertionMap rollupAssertion;
 
     function setUp() public virtual override {
         BaseSetup.setUp();
@@ -305,6 +307,15 @@ contract RollupTest is BaseSetup {
             baseStakeAmount,
             "Rollup.initialize failed to update confirmationPeriod value correctly"
         );
+
+        // Make sure an assertion was created
+        rollupAssertion = rollup.assertions();
+
+        uint256 rollupAssertionParentID = rollupAssertion.getParentID(0);
+        assertEq(rollupAssertionParentID, 0);
+
+        // AssertionMap was created by the correct rollup address
+        assertEq(rollupAssertion.rollupAddress(), address(rollup));
     }
 
     /////////////////////////
