@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
@@ -103,19 +102,18 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *
 	return b, nil
 }
 
-// Start starts the rollup service
-// If cleanL1 is true, the service will only start from a clean L1 history
-// If stake is true, the service will try to stake on start
-// Returns the genesis block
-func (b *BaseService) Start(cleanL1, stake bool) *types.Block {
+// Starts the rollup service.
+// If cleanL1 is true, the service will only start from a clean L1 history.
+// If stake is true, the service will ensure the service is already staked or will stake.
+func (b *BaseService) Start(cleanL1, stake bool) error {
 	// Check if we are at genesis
 	// TODO: if not, sync from L1
-	genesis := b.Eth.BlockChain().CurrentBlock()
-	if genesis.NumberU64() != 0 {
+	currentBlock := b.Eth.BlockChain().CurrentBlock()
+	if currentBlock.NumberU64() != 0 {
 		log.Crit("Rollup service can only start from clean history")
 	}
-	log.Info("Genesis root", "root", genesis.Root())
-
+	log.Info("Genesis root", "root", currentBlock.Root())
+	// TODO: handle existing L1.
 	if cleanL1 {
 		inboxSize, err := b.Inbox.GetInboxSize()
 		if err != nil {
@@ -125,16 +123,20 @@ func (b *BaseService) Start(cleanL1, stake bool) *types.Block {
 			log.Crit("Rollup service can only start from genesis")
 		}
 	}
-
+	// Ensure node is staked.
 	if stake {
-		// Initial staking
-		// TODO: sync L1 staking status
-		stakeOpts := b.Rollup.TransactOpts
-		stakeOpts.Value = big.NewInt(int64(b.Config.RollupStakeAmount))
-		_, err := b.Rollup.Contract.Stake(&stakeOpts)
+		isStaked, err := b.Rollup.Contract.IsStaked(&bind.CallOpts{Pending: true, Context: b.Ctx}, b.TransactOpts.From)
 		if err != nil {
-			log.Crit("Failed to stake", "err", err)
+			return err
+		}
+		if !isStaked {
+			stakeOpts := b.Rollup.TransactOpts
+			stakeOpts.Value = big.NewInt(int64(b.Config.RollupStakeAmount))
+			_, err := b.Rollup.Contract.Stake(&stakeOpts)
+			if err != nil {
+				return err
+			}
 		}
 	}
-	return genesis
+	return nil
 }

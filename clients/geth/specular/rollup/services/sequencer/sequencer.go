@@ -534,11 +534,12 @@ func (s *Sequencer) challengeLoop() {
 }
 
 func (s *Sequencer) Start() error {
-	genesis := s.BaseService.Start(true, true)
-
+	if err := s.BaseService.Start(true, true); err != nil {
+		return err
+	}
 	s.Wg.Add(4)
 	go s.batchingLoop()
-	go s.sequencingLoop(genesis.Root())
+	go s.sequencingLoop(s.Eth.BlockChain().CurrentBlock().Root())
 	go s.confirmationLoop()
 	go s.challengeLoop()
 	log.Info("Sequencer started")

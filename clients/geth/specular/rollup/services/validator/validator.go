@@ -96,9 +96,8 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	return nil
 }
 
-// This goroutine validates the assertion posted to L1 Rollup, advances
-// stake if validated, or challenges if not
-func (v *Validator) validationLoop(genesisRoot common.Hash) {
+// This goroutine validates the assertion posted to L1 Rollup, advances stake if validated, or challenges if not.
+func (v *Validator) validationLoop(lastValidatedAssertion *rollupTypes.Assertion) {
 	defer v.Wg.Done()
 
 	// Listen to AssertionCreated event
@@ -110,15 +109,6 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 	defer assertionEventSub.Unsubscribe()
 
 	// Current agreed assertion, initalize to genesis assertion
-	// TODO: sync from L1 when restart
-	lastValidatedAssertion := &rollupTypes.Assertion{
-		ID:                    new(big.Int),
-		VmHash:                genesisRoot,
-		CumulativeGasUsed:     new(big.Int),
-		InboxSize:             new(big.Int),
-		Deadline:              new(big.Int),
-		PrevCumulativeGasUsed: new(big.Int),
-	}
 	// The next assertion to be validated
 	var currentAssertion *rollupTypes.Assertion
 
@@ -381,24 +371,75 @@ func (v *Validator) challengeLoop() {
 }
 
 func (v *Validator) Start() error {
-	genesis := v.BaseService.Start(true, true)
-
+	log.Info("Starting validator...")
+	err := v.BaseService.Start(true, true)
+	if err != nil {
+		return err
+	}
+	lastValidatedAssertion, err := v.getLastValidatedAssertion()
+	if err != nil {
+		return err
+	}
 	v.Wg.Add(3)
 	go v.SyncLoop(v.newBatchCh)
-	go v.validationLoop(genesis.Root())
+	go v.validationLoop(lastValidatedAssertion)
 	go v.challengeLoop()
-	log.Info("Validator started")
+	log.Info("Validator started.")
 	return nil
 }
 
 func (v *Validator) Stop() error {
-	log.Info("Validator stopped")
+	log.Info("Stopping validator...")
 	v.Cancel()
 	v.Wg.Wait()
+	log.Info("Validator stopped.")
 	return nil
 }
 
 func (v *Validator) APIs() []rpc.API {
 	// TODO: validator APIs
 	return []rpc.API{}
+}
+
+func (v *Validator) getLastValidatedAssertion() (*rollupTypes.Assertion, error) {
+	// TODO: set FilterOpts.Start
+	iter, err := v.Rollup.Contract.FilterStakerStaked(&bind.FilterOpts{Context: v.Ctx}, []common.Address{v.TransactOpts.From})
+	if err != nil {
+		return nil, err
+	}
+	lastValidatedAssertionID := common.Big1
+	for iter.Next() {
+		// Note: this should always be true if the iterator iterates in time order.
+		if lastValidatedAssertionID.Cmp(iter.Event.AssertionID) == 1 {
+			lastValidatedAssertionID = iter.Event.AssertionID
+		}
+	}
+	if iter.Error() != nil {
+		return nil, iter.Error()
+	}
+	return v.getAssertion(lastValidatedAssertionID)
+}
+
+func (v *Validator) getAssertion(assertionID *big.Int) (*rollupTypes.Assertion, error) {
+	if assertionID.Cmp(common.Big1) == 0 {
+		return &rollupTypes.Assertion{
+			ID:                    assertionID,
+			VmHash:                v.Eth.BlockChain().CurrentBlock().Root(),
+			CumulativeGasUsed:     new(big.Int),
+			InboxSize:             new(big.Int),
+			Deadline:              new(big.Int),
+			PrevCumulativeGasUsed: new(big.Int),
+		}, nil
+	} else {
+		assertion, err := v.AssertionMap.Assertions(assertionID)
+		if err != nil {
+			return nil, err
+		}
+		return &rollupTypes.Assertion{
+			ID: assertionID,
+			// VmHash: assertion.vmHash(), // TODO change contract
+			InboxSize: assertion.InboxSize,
+			Deadline:  assertion.Deadline,
+		}, nil
+	}
 }

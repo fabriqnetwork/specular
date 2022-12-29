@@ -35,7 +35,7 @@ interface IRollup {
 
     event AssertionRejected(uint256 assertionID);
 
-    event StakerStaked(address stakerAddr, uint256 assertionID);
+    event StakerStaked(address indexed stakerAddr, uint256 assertionID);
 
     /// @dev Thrown when address that have not staked any token calls a only-staked function
     error NotStaked();
