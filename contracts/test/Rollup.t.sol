@@ -394,6 +394,61 @@ contract RollupTest is BaseSetup {
         assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
     }
 
+    function test_stake_increaseStake() external {
+        _initializeRollup("baseStakeAmount", 1000);
+
+        uint256 initialStakers = rollup.numStakers();
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalanceInitial = alice.balance;
+        uint256 bobBalance = bob.balance;
+
+        /*
+            emit log_named_uint("BSA", minimumAmount);
+        */
+
+        assertGt(aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
+
+        vm.prank(alice);
+        rollup.stake{value: aliceBalanceInitial}();
+
+        uint256 amountStaked;
+        uint256 assertionID;
+        address challengeAddress;        
+        
+        // isStaked should return true for Alice now
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(isAliceStaked);
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+
+        uint256 aliceBalanceFinal = alice.balance;
+
+        assertEq(alice.balance, 0, "Alice should not have any balance left");
+        assertGt(bob.balance, 0, "Bob should have a non-zero native currency balance");
+
+        vm.prank(bob);
+        (bool sent, bytes memory data) = alice.call{value: bob.balance}("");
+        require(sent, "Failed to send Ether");
+
+        assertEq((aliceBalanceInitial - aliceBalanceFinal), bobBalance, "Tokens transferred successfully");
+
+        vm.prank(alice);
+        rollup.stake{value: alice.balance}();
+
+        uint256 amountStakedFinal;
+        uint256 assertionIDFinal;
+        address challengeAddressFinal;
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStakedFinal, assertionIDFinal, challengeAddressFinal) = rollup.stakers(alice);
+
+        assertEq(challengeAddress, challengeAddressFinal, "Challenge Address should not change with more staking");
+        assertEq(assertionID, assertionIDFinal, "Challenge Address should not change with more staking");
+        assertEq(amountStakedFinal, (amountStaked + bobBalance), "Additional stake not updated correctly");
+    }
+
     /////////////////////////
     // Auxillary Functions
     /////////////////////////
