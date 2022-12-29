@@ -326,7 +326,7 @@ contract RollupTest is BaseSetup {
     ///////////////
 
     function test_stake_isStaked() external {
-        _initializeRollup();
+        _initializeRollup("", 0);
 
         // Alice has not staked yet and therefore, this function should return `false`
         bool isAliceStaked = rollup.isStaked(alice);
@@ -334,12 +334,14 @@ contract RollupTest is BaseSetup {
     }
 
     function test_stake_insufficentAmountStaking() external {
-        _initializeRollup();
+        _initializeRollup("", 0);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
 
-        emit log_named_uint("BSA", minimumAmount);
+        /*
+            emit log_named_uint("BSA", minimumAmount);
+        */
 
         if (aliceBalance > minimumAmount) {
             aliceBalance = minimumAmount / 10;
@@ -349,6 +351,36 @@ contract RollupTest is BaseSetup {
 
         vm.prank(alice);
         rollup.stake{value: aliceBalance}();
+
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+    }
+
+    function test_stake_sufficientAmountStakingAndNumStakersIncrement() external {
+        _initializeRollup("baseStakeAmount", 1000);
+
+        uint256 initialStakers = rollup.numStakers();
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        /*
+            emit log_named_uint("BSA", minimumAmount);
+        */
+
+        assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
+
+        vm.prank(alice);
+        rollup.stake{value: aliceBalance}();
+
+        uint256 finalStakers = rollup.numStakers();
+
+        assertEq(alice.balance, 0, "Alice should not have any balance left");
+        assertEq(finalStakers, (initialStakers + 1), "Number of stakers should increase by 1");
+
+        // isStaked should return true for Alice now
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(isAliceStaked);
     }
 
     /////////////////////////
@@ -360,7 +392,7 @@ contract RollupTest is BaseSetup {
         return uint256(keccak256(abi.encodePacked(block.timestamp, randomNonce)));
     }
 
-    function _initializeRollup() internal {
+    function _initializeRollup(string memory paramName, uint256 param) internal {
         Rollup _tempRollup = new Rollup();
 
         uint256 confirmationPeriod = _generateRandomUint();
@@ -368,6 +400,10 @@ contract RollupTest is BaseSetup {
         uint256 minimumAssertionPeriod = _generateRandomUint();
         uint256 maxGasPerAssertion = _generateRandomUint();
         uint256 baseStakeAmount = _generateRandomUint();
+
+        if (keccak256(abi.encode(paramName)) == keccak256(abi.encode("baseStakeAmount"))) {
+            baseStakeAmount = param;
+        }
 
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
