@@ -7,7 +7,7 @@ install: bindings geth
 bindings:
 	go generate ./...
 
-geth:
+geth: bindings
 	go build -o $(GOBIN)/geth ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
