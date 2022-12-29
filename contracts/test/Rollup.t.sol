@@ -405,7 +405,9 @@ contract RollupTest is BaseSetup {
             emit log_named_uint("BSA", minimumAmount);
         */
 
-        assertGt(aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
+        assertGt(
+            aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test"
+        );
 
         vm.prank(alice);
         rollup.stake{value: aliceBalanceInitial}();
@@ -414,8 +416,8 @@ contract RollupTest is BaseSetup {
 
         uint256 amountStaked;
         uint256 assertionID;
-        address challengeAddress;        
-        
+        address challengeAddress;
+
         // isStaked should return true for Alice now
         bool isAliceStaked = rollup.isStaked(alice);
         assertTrue(isAliceStaked);
@@ -443,7 +445,7 @@ contract RollupTest is BaseSetup {
         uint256 assertionIDFinal;
         address challengeAddressFinal;
 
-        // stakers mapping gets updated
+        // stakers mapping gets updated (only the relevant values)
         (isAliceStaked, amountStakedFinal, assertionIDFinal, challengeAddressFinal) = rollup.stakers(alice);
 
         assertEq(challengeAddress, challengeAddressFinal, "Challenge Address should not change with more staking");
@@ -456,7 +458,7 @@ contract RollupTest is BaseSetup {
     // Unstaking
     ///////////////
 
-    function test_unstake_asANonStaker(uint randomAmount) external {
+    function test_unstake_asANonStaker(uint256 randomAmount) external {
         _initializeRollup("", 0);
 
         // Alice has not staked yet and therefore, this function should return `false`
