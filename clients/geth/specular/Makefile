@@ -1,8 +1,13 @@
-.PHONY: geth
+.PHONY: geth bindings install
 
 GOBIN = ./build/bin
 
-geth:
+install: bindings geth
+
+bindings:
+	go generate ./...
+
+geth: bindings
 	go build -o $(GOBIN)/geth ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."

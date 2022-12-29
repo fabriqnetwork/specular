@@ -1,15 +1,9 @@
 # Specular Client
 
-## Generate L1 contract bindings
-
-```sh
-go generate ./...
-```
-
 ## Build
 
 ```sh
-make geth
+make install
 ```
 
 ## Running a local network

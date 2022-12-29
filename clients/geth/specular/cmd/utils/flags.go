@@ -76,6 +76,11 @@ var (
 		Usage: "The contract address of L1 rollup",
 		Value: "",
 	}
+	RollupL1RollupGenesisBlock = &cli.Uint64Flag{
+		Name:  "rollup.l1-rollup-genesis-block",
+		Usage: "The block number of L1 rollup genesis block to sync from",
+		Value: 0,
+	}
 	RollupRollupStakeAmount = &cli.Uint64Flag{
 		Name:  "rollup.rollup-stake-amount",
 		Usage: "Required staking amount",
@@ -129,15 +134,16 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
 		utils.Fatalf("Failed to register the Rollup service: coinbase account locked")
 	}
 	cfg := &rollup.Config{
-		Node:               ctx.String(RollupNodeFlag.Name),
-		Coinbase:           common.HexToAddress(ctx.String(RollupCoinBaseFlag.Name)),
-		Passphrase:         passphrase,
-		L1Endpoint:         ctx.String(RollupL1EndpointFlag.Name),
-		L1ChainID:          ctx.Uint64(RollupL1ChainIDFlag.Name),
-		SequencerAddr:      common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name)),
-		SequencerInboxAddr: common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
-		RollupAddr:         common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
-		RollupStakeAmount:  ctx.Uint64(RollupRollupStakeAmount.Name),
+		Node:                 ctx.String(RollupNodeFlag.Name),
+		Coinbase:             common.HexToAddress(ctx.String(RollupCoinBaseFlag.Name)),
+		Passphrase:           passphrase,
+		L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
+		L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
+		SequencerAddr:        common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name)),
+		SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
+		RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
+		L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlock.Name),
+		RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmount.Name),
 	}
 	return cfg
 }
