@@ -30,7 +30,7 @@ var (
 
 // AssertionMapMetaData contains all meta data concerning the AssertionMap contract.
 var AssertionMapMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_rollupAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"assertions\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"stateHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"inboxSize\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parent\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"proposalTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numStakers\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"stateHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"inboxSize\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parentID\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"}],\"name\":\"createAssertion\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"deleteAssertion\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getDeadline\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getNumStakers\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getParentID\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getProposalTime\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getStateHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"stakerAddress\",\"type\":\"address\"}],\"name\":\"isStaker\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rollupAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"stakerAddress\",\"type\":\"address\"}],\"name\":\"stakeOnAssertion\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[{\"internalType\":\"address\",\"name\":\"_rollupAddress\",\"type\":\"address\"}],\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"inputs\":[],\"name\":\"ChildInboxSizeMismatch\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"address\",\"name\":\"sender\",\"type\":\"address\"},{\"internalType\":\"address\",\"name\":\"rollup\",\"type\":\"address\"}],\"name\":\"NotRollup\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"SiblingStateHashExists\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ZeroAddress\",\"type\":\"error\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"assertions\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"stateHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"inboxSize\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parent\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"proposalTime\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"numStakers\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"childInboxSize\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"},{\"internalType\":\"bytes32\",\"name\":\"stateHash\",\"type\":\"bytes32\"},{\"internalType\":\"uint256\",\"name\":\"inboxSize\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"parentID\",\"type\":\"uint256\"},{\"internalType\":\"uint256\",\"name\":\"deadline\",\"type\":\"uint256\"}],\"name\":\"createAssertion\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"deleteAssertion\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getDeadline\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getNumStakers\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getParentID\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getProposalTime\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"}],\"name\":\"getStateHash\",\"outputs\":[{\"internalType\":\"bytes32\",\"name\":\"\",\"type\":\"bytes32\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"stakerAddress\",\"type\":\"address\"}],\"name\":\"isStaker\",\"outputs\":[{\"internalType\":\"bool\",\"name\":\"\",\"type\":\"bool\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"rollupAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"uint256\",\"name\":\"assertionID\",\"type\":\"uint256\"},{\"internalType\":\"address\",\"name\":\"stakerAddress\",\"type\":\"address\"}],\"name\":\"stakeOnAssertion\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]",
 }
 
 // AssertionMapABI is the input ABI used to generate the binding from.
@@ -181,25 +181,27 @@ func (_AssertionMap *AssertionMapTransactorRaw) Transact(opts *bind.TransactOpts
 
 // Assertions is a free data retrieval call binding the contract method 0x524232f6.
 //
-// Solidity: function assertions(uint256 ) view returns(bytes32 stateHash, uint256 inboxSize, uint256 parent, uint256 deadline, uint256 proposalTime, uint256 numStakers)
+// Solidity: function assertions(uint256 ) view returns(bytes32 stateHash, uint256 inboxSize, uint256 parent, uint256 deadline, uint256 proposalTime, uint256 numStakers, uint256 childInboxSize)
 func (_AssertionMap *AssertionMapCaller) Assertions(opts *bind.CallOpts, arg0 *big.Int) (struct {
-	StateHash    [32]byte
-	InboxSize    *big.Int
-	Parent       *big.Int
-	Deadline     *big.Int
-	ProposalTime *big.Int
-	NumStakers   *big.Int
+	StateHash      [32]byte
+	InboxSize      *big.Int
+	Parent         *big.Int
+	Deadline       *big.Int
+	ProposalTime   *big.Int
+	NumStakers     *big.Int
+	ChildInboxSize *big.Int
 }, error) {
 	var out []interface{}
 	err := _AssertionMap.contract.Call(opts, &out, "assertions", arg0)
 
 	outstruct := new(struct {
-		StateHash    [32]byte
-		InboxSize    *big.Int
-		Parent       *big.Int
-		Deadline     *big.Int
-		ProposalTime *big.Int
-		NumStakers   *big.Int
+		StateHash      [32]byte
+		InboxSize      *big.Int
+		Parent         *big.Int
+		Deadline       *big.Int
+		ProposalTime   *big.Int
+		NumStakers     *big.Int
+		ChildInboxSize *big.Int
 	})
 	if err != nil {
 		return *outstruct, err
@@ -211,6 +213,7 @@ func (_AssertionMap *AssertionMapCaller) Assertions(opts *bind.CallOpts, arg0 *b
 	outstruct.Deadline = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
 	outstruct.ProposalTime = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
 	outstruct.NumStakers = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
+	outstruct.ChildInboxSize = *abi.ConvertType(out[6], new(*big.Int)).(**big.Int)
 
 	return *outstruct, err
 
@@ -218,28 +221,30 @@ func (_AssertionMap *AssertionMapCaller) Assertions(opts *bind.CallOpts, arg0 *b
 
 // Assertions is a free data retrieval call binding the contract method 0x524232f6.
 //
-// Solidity: function assertions(uint256 ) view returns(bytes32 stateHash, uint256 inboxSize, uint256 parent, uint256 deadline, uint256 proposalTime, uint256 numStakers)
+// Solidity: function assertions(uint256 ) view returns(bytes32 stateHash, uint256 inboxSize, uint256 parent, uint256 deadline, uint256 proposalTime, uint256 numStakers, uint256 childInboxSize)
 func (_AssertionMap *AssertionMapSession) Assertions(arg0 *big.Int) (struct {
-	StateHash    [32]byte
-	InboxSize    *big.Int
-	Parent       *big.Int
-	Deadline     *big.Int
-	ProposalTime *big.Int
-	NumStakers   *big.Int
+	StateHash      [32]byte
+	InboxSize      *big.Int
+	Parent         *big.Int
+	Deadline       *big.Int
+	ProposalTime   *big.Int
+	NumStakers     *big.Int
+	ChildInboxSize *big.Int
 }, error) {
 	return _AssertionMap.Contract.Assertions(&_AssertionMap.CallOpts, arg0)
 }
 
 // Assertions is a free data retrieval call binding the contract method 0x524232f6.
 //
-// Solidity: function assertions(uint256 ) view returns(bytes32 stateHash, uint256 inboxSize, uint256 parent, uint256 deadline, uint256 proposalTime, uint256 numStakers)
+// Solidity: function assertions(uint256 ) view returns(bytes32 stateHash, uint256 inboxSize, uint256 parent, uint256 deadline, uint256 proposalTime, uint256 numStakers, uint256 childInboxSize)
 func (_AssertionMap *AssertionMapCallerSession) Assertions(arg0 *big.Int) (struct {
-	StateHash    [32]byte
-	InboxSize    *big.Int
-	Parent       *big.Int
-	Deadline     *big.Int
-	ProposalTime *big.Int
-	NumStakers   *big.Int
+	StateHash      [32]byte
+	InboxSize      *big.Int
+	Parent         *big.Int
+	Deadline       *big.Int
+	ProposalTime   *big.Int
+	NumStakers     *big.Int
+	ChildInboxSize *big.Int
 }, error) {
 	return _AssertionMap.Contract.Assertions(&_AssertionMap.CallOpts, arg0)
 }
