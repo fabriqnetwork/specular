@@ -71,6 +71,7 @@ contract BaseSetup is Test {
 contract RollupTest is BaseSetup {
     SequencerInbox private seqIn;
     Rollup private rollup;
+    uint256 randomNonce;
 
     function setUp() public virtual override {
         BaseSetup.setUp();
@@ -213,5 +214,105 @@ contract RollupTest is BaseSetup {
             0, //baseStakeAmount
             bytes32("")
         );
+    }
+
+    function test_initializeRollup_valuesAfterInit() external {
+        Rollup _tempRollup = new Rollup();
+
+        uint256 confirmationPeriod = _generateRandomUint();
+        uint256 challengePeriod = _generateRandomUint();
+        uint256 minimumAssertionPeriod = _generateRandomUint();
+        uint256 maxGasPerAssertion = _generateRandomUint();
+        uint256 baseStakeAmount = _generateRandomUint();
+
+        emit log_named_uint("confirmationPeriod", confirmationPeriod);
+        emit log_named_uint("CP", challengePeriod);
+        emit log_named_uint("BSA", baseStakeAmount);
+
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            confirmationPeriod, //confirmationPeriod
+            challengePeriod, //challengePeriod
+            minimumAssertionPeriod, // minimumAssertionPeriod
+            maxGasPerAssertion, // maxGasPerAssertion
+            baseStakeAmount, //baseStakeAmount
+            bytes32("")
+        );
+
+        address proxyAdmin = makeAddr("Proxy Admin");
+
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(_tempRollup), 
+            proxyAdmin, 
+            initializingData
+        );
+
+        // Initialize is called here for the first time.
+        rollup = Rollup(address(proxy));
+
+        // Putting in different scope to do away with the stack too deep error.
+        {
+            // Check if the value of the address owner was set correctly
+            address rollupOwner = rollup.owner();
+            assertEq(rollupOwner, owner, "Rollup.initialize failed to update owner correctly");
+
+            // Check if the value of SequencerInbox was set correctly
+            address rollupSeqIn = address(rollup.sequencerInbox());
+            assertEq(rollupSeqIn, address(seqIn), "Rollup.initialize failed to update Sequencer Inbox correctly");
+
+            // Check if the value of the stakeToken was set correctly
+            address rollupToken = address(rollup.stakeToken());
+            assertEq(rollupToken, address(stakeToken), "Rollup.initialize failed to update StakeToken value correctly");
+
+            // Check if the value of the verifier was set correctly
+            address rollupVerifier = address(rollup.verifier());
+            assertEq(rollupVerifier, address(verifier), "Rollup.initialize failed to update verifier value correctly");
+        }
+
+        // Check if the various durations and uint values were set correctly
+        uint256 rollupConfirmationPeriod = rollup.confirmationPeriod();
+        uint256 rollupChallengePeriod = rollup.challengePeriod();
+        uint256 rollupMinimumAssertionPeriod = rollup.minimumAssertionPeriod();
+        uint256 rollupMaxGasPerAssertion = rollup.maxGasPerAssertion();
+        uint256 rollupBaseStakeAmount = rollup.baseStakeAmount();
+
+        assertEq(
+            rollupConfirmationPeriod,
+            confirmationPeriod,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupChallengePeriod,
+            challengePeriod,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupMinimumAssertionPeriod,
+            minimumAssertionPeriod,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupMaxGasPerAssertion,
+            maxGasPerAssertion,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupBaseStakeAmount,
+            baseStakeAmount,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+    }
+
+    /////////////////////////
+    // Auxillary Functions
+    /////////////////////////
+
+    function _generateRandomUint() internal returns (uint256) {
+        ++randomNonce;
+        return uint256(keccak256(abi.encodePacked(block.timestamp, randomNonce)));
     }
 }
