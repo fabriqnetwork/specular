@@ -381,6 +381,17 @@ contract RollupTest is BaseSetup {
         // isStaked should return true for Alice now
         bool isAliceStaked = rollup.isStaked(alice);
         assertTrue(isAliceStaked);
+
+        uint256 amountStaked;
+        uint256 assertionID;
+        address challengeAddress;
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+
+        assertEq(amountStaked, aliceBalance, "amountStaked not updated properly");
+        assertEq(assertionID, rollup.lastConfirmedAssertionID(), "assertionID not updated properly");
+        assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
     }
 
     /////////////////////////
