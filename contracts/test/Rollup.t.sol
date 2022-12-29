@@ -23,6 +23,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 
 import {Utils} from "./utils/Utils.sol";
 import {MockToken} from "./utils/MockToken.sol";
+import {IRollup} from "../src/IRollup.sol";
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -227,9 +228,11 @@ contract RollupTest is BaseSetup {
         uint256 maxGasPerAssertion = _generateRandomUint();
         uint256 baseStakeAmount = _generateRandomUint();
 
-        emit log_named_uint("confirmationPeriod", confirmationPeriod);
-        emit log_named_uint("CP", challengePeriod);
-        emit log_named_uint("BSA", baseStakeAmount);
+        /*
+            emit log_named_uint("confirmationPeriod", confirmationPeriod);
+            emit log_named_uint("CP", challengePeriod);
+            emit log_named_uint("BSA", baseStakeAmount);
+        */
 
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
@@ -318,6 +321,36 @@ contract RollupTest is BaseSetup {
         assertEq(rollupAssertion.rollupAddress(), address(rollup));
     }
 
+    ////////////////
+    // Staking
+    ///////////////
+
+    function test_stake_isStaked() external {
+        _initializeRollup();
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+    }
+
+    function test_stake_insufficentAmountStaking() external {
+        _initializeRollup();
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        emit log_named_uint("BSA", minimumAmount);
+
+        if (aliceBalance > minimumAmount) {
+            aliceBalance = minimumAmount / 10;
+        }
+
+        vm.expectRevert(IRollup.InsufficientStake.selector);
+
+        vm.prank(alice);
+        rollup.stake{value: aliceBalance}();
+    }
+
     /////////////////////////
     // Auxillary Functions
     /////////////////////////
@@ -325,5 +358,40 @@ contract RollupTest is BaseSetup {
     function _generateRandomUint() internal returns (uint256) {
         ++randomNonce;
         return uint256(keccak256(abi.encodePacked(block.timestamp, randomNonce)));
+    }
+
+    function _initializeRollup() internal {
+        Rollup _tempRollup = new Rollup();
+
+        uint256 confirmationPeriod = _generateRandomUint();
+        uint256 challengePeriod = _generateRandomUint();
+        uint256 minimumAssertionPeriod = _generateRandomUint();
+        uint256 maxGasPerAssertion = _generateRandomUint();
+        uint256 baseStakeAmount = _generateRandomUint();
+
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            confirmationPeriod, //confirmationPeriod
+            challengePeriod, //challengePeriod
+            minimumAssertionPeriod, // minimumAssertionPeriod
+            maxGasPerAssertion, // maxGasPerAssertion
+            baseStakeAmount, //baseStakeAmount
+            bytes32("")
+        );
+
+        address proxyAdmin = makeAddr("Proxy Admin");
+
+        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
+            address(_tempRollup), 
+            proxyAdmin, 
+            initializingData
+        );
+
+        // Initialize is called here for the first time.
+        rollup = Rollup(address(proxy));
     }
 }
