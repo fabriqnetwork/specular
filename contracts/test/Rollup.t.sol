@@ -24,7 +24,7 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import {Utils} from "./utils/Utils.sol";
 import {MockToken} from "./utils/MockToken.sol";
 
-import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
@@ -71,7 +71,7 @@ contract BaseSetup is Test {
 contract RollupTest is BaseSetup {
     SequencerInbox private seqIn;
     Rollup private rollup;
-    
+
     function setUp() public virtual override {
         BaseSetup.setUp();
 
@@ -83,7 +83,7 @@ contract RollupTest is BaseSetup {
         seqIn = SequencerInbox(address(proxy));
     }
 
-    function testFail_initializeRollup_ownerAddressZero() external {
+    function test_initializeRollup_ownerAddressZero() external {
         Rollup _tempRollup = new Rollup();
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
@@ -98,6 +98,9 @@ contract RollupTest is BaseSetup {
             0, //baseStakeAmount
             bytes32("")
         );
+
+        vm.expectRevert(ZeroAddress.selector);
+
         address proxyAdmin = makeAddr("Proxy Admin");
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(_tempRollup), 
@@ -108,7 +111,7 @@ contract RollupTest is BaseSetup {
         rollup = Rollup(address(proxy));
     }
 
-    function testFail_initializeRollup_verifierAddressZero() external {
+    function test_initializeRollup_verifierAddressZero() external {
         emit log_named_address("Stake Token", address(stakeToken));
 
         Rollup _tempRollup = new Rollup();
@@ -125,6 +128,9 @@ contract RollupTest is BaseSetup {
             0, //baseStakeAmount
             bytes32("")
         );
+
+        vm.expectRevert(ZeroAddress.selector);
+
         address proxyAdmin = makeAddr("Proxy Admin");
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(_tempRollup), 
@@ -135,7 +141,7 @@ contract RollupTest is BaseSetup {
         rollup = Rollup(address(proxy));
     }
 
-    function testFail_initializeRollup_sequencerInboxAddressZero() external {
+    function test_initializeRollup_sequencerInboxAddressZero() external {
         Rollup _tempRollup = new Rollup();
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
@@ -150,6 +156,9 @@ contract RollupTest is BaseSetup {
             0, //baseStakeAmount
             bytes32("")
         );
+
+        vm.expectRevert(ZeroAddress.selector);
+
         address proxyAdmin = makeAddr("Proxy Admin");
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(_tempRollup), 
@@ -162,7 +171,7 @@ contract RollupTest is BaseSetup {
 
     function test_initializeRollup_cannotBeCalledTwice() external {
         Rollup _tempRollup = new Rollup();
-        
+
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
             owner, // owner
@@ -176,9 +185,9 @@ contract RollupTest is BaseSetup {
             0, //baseStakeAmount
             bytes32("")
         );
-        
+
         address proxyAdmin = makeAddr("Proxy Admin");
-        
+
         TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
             address(_tempRollup), 
             proxyAdmin, 
