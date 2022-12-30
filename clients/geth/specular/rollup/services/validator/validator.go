@@ -135,7 +135,8 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			case errors.Is(err, errAssertionOverflowedInbox):
 				// Assertion overflowed inbox, wait for next block
 			}
-			return err
+			// Either challenge or retry
+			return nil
 		}
 		// Validation success, get next pending assertion
 		lastValidatedAssertion = currentAssertion
@@ -156,7 +157,8 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				for currentAssertion != nil {
 					err := validateCurrentAssertion()
 					if err != nil {
-						break
+						// TODO: error handling instead of panic
+						log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
 					}
 				}
 			case <-v.Ctx.Done():
@@ -169,7 +171,8 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				for currentAssertion != nil {
 					err := validateCurrentAssertion()
 					if err != nil {
-						break
+						// TODO: error handling instead of panic
+						log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
 					}
 				}
 			case ev := <-assertionEventCh:
