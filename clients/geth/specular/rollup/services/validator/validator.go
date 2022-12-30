@@ -132,13 +132,15 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			case errors.Is(err, errValidationFailed):
 				// Validation failed, challenge
 				isInChallenge = true
+				return nil
 			case errors.Is(err, errAssertionOverflowedInbox):
 				// Assertion overflowed inbox, wait for next block
+				return nil
+			default:
+				return err
 			}
-			// Either challenge or retry
-			return nil
 		}
-		// Validation success, get next pending assertion
+		// Validation success, clean up
 		lastValidatedAssertion = currentAssertion
 		currentAssertion = nil
 		return nil
@@ -153,14 +155,6 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				isInChallenge = false
 				lastValidatedAssertion = ourAssertion
 				currentAssertion = nil
-				// Try to validate all pending assertion
-				for currentAssertion != nil {
-					err := validateCurrentAssertion()
-					if err != nil {
-						// TODO: error handling instead of panic
-						log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
-					}
-				}
 			case <-v.Ctx.Done():
 				return
 			}
@@ -168,7 +162,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			select {
 			case <-v.newBatchCh:
 				// New block committed, try to validate all pending assertion
-				for currentAssertion != nil {
+				if currentAssertion != nil {
 					err := validateCurrentAssertion()
 					if err != nil {
 						// TODO: error handling instead of panic
@@ -195,7 +189,11 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				currentAssertion = assertion
-				validateCurrentAssertion()
+				err := validateCurrentAssertion()
+				if err != nil {
+					// TODO: error handling instead of panic
+					log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
+				}
 			case <-v.Ctx.Done():
 				return
 			}
