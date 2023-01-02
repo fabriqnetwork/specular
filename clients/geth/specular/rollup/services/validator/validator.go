@@ -23,7 +23,7 @@ type challengeCtx struct {
 	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-var errAssertionOverflowedInbox = fmt.Errorf("assertion overflowed inbox")
+var errAssertionOverflowedLocalInbox = fmt.Errorf("assertion overflowed inbox")
 var errValidationFailed = fmt.Errorf("validation failed")
 
 type Validator struct {
@@ -59,11 +59,11 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
 		if currentBlockNum > currentChainHeight {
-			return errAssertionOverflowedInbox
+			return errAssertionOverflowedLocalInbox
 		}
 		block = v.Chain.GetBlockByNumber(currentBlockNum)
 		if block == nil {
-			return errAssertionOverflowedInbox
+			return errAssertionOverflowedLocalInbox
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
@@ -133,8 +133,9 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				// Validation failed, challenge
 				isInChallenge = true
 				return nil
-			case errors.Is(err, errAssertionOverflowedInbox):
-				// Assertion overflowed inbox, wait for next block
+			case errors.Is(err, errAssertionOverflowedLocalInbox):
+				// Assertion overflowed local inbox, wait for next batch event
+				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
 				return err
