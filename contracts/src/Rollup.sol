@@ -22,7 +22,6 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./challenge/Challenge.sol";
@@ -41,7 +40,6 @@ abstract contract RollupBase is IRollup, Initializable {
     uint256 public baseStakeAmount; // number of stake tokens
 
     address public owner;
-    IERC20 public stakeToken;
     ISequencerInbox public sequencerInbox;
     AssertionMap public override assertions;
     IVerifier public verifier;
@@ -82,23 +80,21 @@ contract Rollup is RollupBase {
         address _owner,
         address _sequencerInbox,
         address _verifier,
-        address _stakeToken,
         uint256 _confirmationPeriod,
         uint256 _challengePeriod,
         uint256 _minimumAssertionPeriod,
         uint256 _maxGasPerAssertion,
         uint256 _baseStakeAmount,
+        uint256 _initialAssertionID,
+        uint256 _initialInboxSize,
         bytes32 _initialVMhash
     ) public initializer {
-        // TODO: do we still need stake token now?
-
         // If any of addresses _owner, _sequencerInbox or _verifier is address(0), then revert.
         if (_owner == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
         owner = _owner;
         sequencerInbox = ISequencerInbox(_sequencerInbox);
-        stakeToken = IERC20(_stakeToken);
         verifier = IVerifier(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
@@ -107,12 +103,16 @@ contract Rollup is RollupBase {
         maxGasPerAssertion = _maxGasPerAssertion;
         baseStakeAmount = _baseStakeAmount;
 
+        lastResolvedAssertionID = _initialAssertionID;
+        lastConfirmedAssertionID = _initialAssertionID;
+        lastCreatedAssertionID = _initialAssertionID;
+
         assertions = new AssertionMap(address(this));
         assertions.createAssertion(
-            0, // assertionID
-            RollupLib.stateHash(RollupLib.ExecutionState(0, _initialVMhash)),
-            0, // inboxSize (genesis)
-            0, // parentID
+            _initialAssertionID, // assertionID
+            RollupLib.stateHash(RollupLib.ExecutionState(_initialAssertionID, _initialVMhash)),
+            _initialInboxSize, // inboxSize (genesis)
+            _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
     }
@@ -123,8 +123,15 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function isStaked(address addr) public view override returns (bool) {
-        return stakers[addr].isStaked;
+    function getAssertionID(address stakerAddress) external view override returns (uint256) {
+        requireStaked(stakerAddress);
+        return stakers[stakerAddress].assertionID;
+    }
+
+    /// @inheritdoc IRollup
+    function getCurrentChallenge(address stakerAddress) external view override returns (address) {
+        requireStaked(stakerAddress);
+        return stakers[stakerAddress].currentChallenge;
     }
 
     /// @inheritdoc IRollup
@@ -414,6 +421,10 @@ contract Rollup is RollupBase {
         deleteStaker(loser);
         // Track as zombie so we can account for it during assertion resolution.
         zombies.push(Zombie(loser, assertionID));
+    }
+
+    function isStaked(address addr) public view returns (bool) {
+        return stakers[addr].isStaked;
     }
 
     /**
