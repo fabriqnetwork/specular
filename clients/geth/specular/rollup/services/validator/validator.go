@@ -32,10 +32,11 @@ type Validator struct {
 	newBatchCh           chan struct{}
 	challengeCh          chan *challengeCtx
 	challengeResoutionCh chan *rollupTypes.Assertion
+	isIndexer            bool
 }
 
 // TODO: this shares a lot of code with sequencer
-func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Validator, error) {
+func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts, isIndexer bool) (*Validator, error) {
 	base, err := services.NewBaseService(eth, proofBackend, cfg, auth)
 	if err != nil {
 		return nil, err
@@ -45,6 +46,7 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 		newBatchCh:           make(chan struct{}, 4096),
 		challengeCh:          make(chan *challengeCtx),
 		challengeResoutionCh: make(chan *rollupTypes.Assertion),
+		isIndexer:            isIndexer,
 	}
 	return v, nil
 }
@@ -380,14 +382,35 @@ func (v *Validator) challengeLoop() {
 	}
 }
 
-func (v *Validator) Start() error {
-	genesis := v.BaseService.Start(true, true)
+func (i *Validator) newBatchConsumeLoop() {
+	defer i.Wg.Done()
+	for {
+		select {
+		case <-i.newBatchCh:
+			continue
+		case <-i.Ctx.Done():
+			return
+		}
+	}
+}
 
-	v.Wg.Add(3)
-	go v.SyncLoop(v.newBatchCh)
-	go v.validationLoop(genesis.Root())
-	go v.challengeLoop()
-	log.Info("Validator started")
+func (v *Validator) Start() error {
+	var genesis *types.Block
+	if v.isIndexer {
+		v.BaseService.Start(false, false)
+		v.Wg.Add(2)
+		go v.newBatchConsumeLoop()
+		go v.SyncLoop(v.newBatchCh)
+		log.Info("Indexer started")
+	} else {
+		genesis = v.BaseService.Start(true, true)
+		v.Wg.Add(3)
+		go v.SyncLoop(v.newBatchCh)
+		go v.validationLoop(genesis.Root())
+		go v.challengeLoop()
+		log.Info("Validator started")
+	}
+
 	return nil
 }
 

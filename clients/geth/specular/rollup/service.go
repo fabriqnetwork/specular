@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 )
@@ -43,7 +42,7 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	} else if cfg.Node == services.NODE_VALIDATOR {
 		validator.RegisterService(stack, eth, proofBackend, cfg, auth)
 	} else if cfg.Node == services.NODE_INDEXER {
-		indexer.RegisterService(stack, eth, proofBackend, cfg, auth)
+		validator.RegisterService(stack, eth, proofBackend, cfg, auth)
 	} else {
 		log.Crit("Failed to register the Rollup service: Node type unkown", "type", cfg.Node)
 	}

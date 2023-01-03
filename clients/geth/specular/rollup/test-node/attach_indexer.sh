@@ -1,2 +1,2 @@
 #!/bin/bash
-../../build/bin/geth --datadir ./data attach http://localhost:4021
+../../build/bin/geth --datadir ../../data attach http://localhost:4021
