@@ -579,9 +579,7 @@ contract RollupTest is BaseSetup {
             emit log_named_address("Rollup", address(rollup));
         */
 
-        if (amountToWithdraw >= (rollup.currentRequiredStake() + aliceAmountToStake)) {
-            amountToWithdraw = 1;
-        }
+        amountToWithdraw = _generateRandomUintInRange(1, (aliceAmountToStake - minimumAmount), amountToWithdraw);
 
         vm.prank(alice);
         rollup.unstake(amountToWithdraw);
@@ -591,19 +589,24 @@ contract RollupTest is BaseSetup {
         assertEq((aliceBalanceFinal - aliceBalanceInitial), amountToWithdraw, "Desired amount could not be withdrawn.");
     }
 
+    function checkRange(uint256 _lower, uint256 _upper, uint256 _random) external {
+        uint256 test = _generateRandomUintInRange(_lower, _upper, _random);
+
+        require(test >= _lower && test <= _upper, "Cheat didn't work as expected");
+        assertEq(uint256(2), uint256(2));
+    }
+
     /////////////////////////
     // Auxillary Functions
     /////////////////////////
 
+    // Change logic for this function.
     function _generateRandomUintInRange(uint256 _lower, uint256 _upper, uint256 randomUint)
         internal
         returns (uint256)
     {
-        if (randomUint >= _lower && randomUint <= _upper) {
-            return randomUint;
-        } else {
-            randomUint * (_upper - _lower) + _lower;
-        }
+        uint256 boundedUint = bound(randomUint, _lower, _upper);
+        return boundedUint;
     }
 
     function _initializeRollup(
