@@ -219,14 +219,14 @@ contract RollupTest is BaseSetup {
         );
     }
 
-    function test_initializeRollup_valuesAfterInit() external {
+    function test_initializeRollup_valuesAfterInit(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
         Rollup _tempRollup = new Rollup();
-
-        uint256 confirmationPeriod = _generateRandomUint();
-        uint256 challengePeriod = _generateRandomUint();
-        uint256 minimumAssertionPeriod = _generateRandomUint();
-        uint256 maxGasPerAssertion = _generateRandomUint();
-        uint256 baseStakeAmount = _generateRandomUint();
 
         /*
             emit log_named_uint("confirmationPeriod", confirmationPeriod);
@@ -325,16 +325,38 @@ contract RollupTest is BaseSetup {
     // Staking
     ///////////////
 
-    function test_stake_isStaked() external {
-        _initializeRollup("", 0);
+    function test_stake_isStaked(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "", 0, confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
+        );
 
         // Alice has not staked yet and therefore, this function should return `false`
         bool isAliceStaked = rollup.isStaked(alice);
         assertTrue(!isAliceStaked);
     }
 
-    function test_stake_insufficentAmountStaking() external {
-        _initializeRollup("", 0);
+    function test_stake_insufficentAmountStaking(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "baseStakeAmount",
+            type(uint256).max,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount
+        );
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -356,8 +378,22 @@ contract RollupTest is BaseSetup {
         assertTrue(!isAliceStaked);
     }
 
-    function test_stake_sufficientAmountStakingAndNumStakersIncrement() external {
-        _initializeRollup("baseStakeAmount", 1000);
+    function test_stake_sufficientAmountStakingAndNumStakersIncrement(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "baseStakeAmount",
+            1000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount
+        );
 
         uint256 initialStakers = rollup.numStakers();
 
@@ -394,8 +430,22 @@ contract RollupTest is BaseSetup {
         assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
     }
 
-    function test_stake_increaseStake() external {
-        _initializeRollup("baseStakeAmount", 1000);
+    function test_stake_increaseStake(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "baseStakeAmount",
+            1000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount
+        );
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalanceInitial = alice.balance;
@@ -458,8 +508,17 @@ contract RollupTest is BaseSetup {
     // Unstaking
     ///////////////
 
-    function test_unstake_asANonStaker(uint256 randomAmount) external {
-        _initializeRollup("", 0);
+    function test_unstake_asANonStaker(
+        uint256 randomAmount,
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "", 0, confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
+        );
 
         // Alice has not staked yet and therefore, this function should return `false`
         bool isAliceStaked = rollup.isStaked(alice);
@@ -472,23 +531,91 @@ contract RollupTest is BaseSetup {
         rollup.unstake(randomAmount);
     }
 
+    function test_unstake_positiveCase(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 amountToWithdraw
+    ) external {
+        _initializeRollup(
+            "baseStakeAmount",
+            100000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        emit log_named_uint("AB", aliceBalance);
+
+        // Let's stake something on behalf of Alice
+        uint256 aliceAmountToStake = minimumAmount * 10;
+
+        vm.prank(alice);
+        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+        // Calling the staking function as Alice
+        rollup.stake{value: aliceAmountToStake}();
+
+        // Now Alice should be staked
+        isAliceStaked = rollup.isStaked(alice);
+        assertTrue(isAliceStaked);
+
+        uint256 aliceBalanceInitial = alice.balance;
+
+        /*
+            emit log_named_address("MSGS" , msg.sender);
+            emit log_named_address("Alice", alice);
+            emit log_named_address("Rollup", address(rollup));
+        */
+
+        if (amountToWithdraw >= (rollup.currentRequiredStake() + aliceAmountToStake)) {
+            amountToWithdraw = 1;
+        }
+
+        vm.prank(alice);
+        rollup.unstake(amountToWithdraw);
+
+        uint256 aliceBalanceFinal = alice.balance;
+
+        assertEq((aliceBalanceFinal - aliceBalanceInitial), amountToWithdraw, "Desired amount could not be withdrawn.");
+    }
+
     /////////////////////////
     // Auxillary Functions
     /////////////////////////
 
-    function _generateRandomUint() internal returns (uint256) {
-        ++randomNonce;
-        return uint256(keccak256(abi.encodePacked(block.timestamp, randomNonce)));
+    function _generateRandomUintInRange(uint256 _lower, uint256 _upper, uint256 randomUint)
+        internal
+        returns (uint256)
+    {
+        if (randomUint >= _lower && randomUint <= _upper) {
+            return randomUint;
+        } else {
+            randomUint * (_upper - _lower) + _lower;
+        }
     }
 
-    function _initializeRollup(string memory paramName, uint256 param) internal {
+    function _initializeRollup(
+        string memory paramName,
+        uint256 param,
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) internal {
         Rollup _tempRollup = new Rollup();
-
-        uint256 confirmationPeriod = _generateRandomUint();
-        uint256 challengePeriod = _generateRandomUint();
-        uint256 minimumAssertionPeriod = _generateRandomUint();
-        uint256 maxGasPerAssertion = _generateRandomUint();
-        uint256 baseStakeAmount = _generateRandomUint();
 
         if (keccak256(abi.encode(paramName)) == keccak256(abi.encode("baseStakeAmount"))) {
             baseStakeAmount = param;
