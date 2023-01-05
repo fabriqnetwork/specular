@@ -589,6 +589,114 @@ contract RollupTest is BaseSetup {
         assertEq((aliceBalanceFinal - aliceBalanceInitial), amountToWithdraw, "Desired amount could not be withdrawn.");
     }
 
+    function test_unstake_moreThanStakedAmount(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 amountToWithdraw
+    ) external {
+        _initializeRollup(
+            "baseStakeAmount",
+            100000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        emit log_named_uint("AB", aliceBalance);
+
+        // Let's stake something on behalf of Alice
+        uint256 aliceAmountToStake = minimumAmount * 10;
+
+        vm.prank(alice);
+        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+        // Calling the staking function as Alice
+        rollup.stake{value: aliceAmountToStake}();
+
+        // Now Alice should be staked
+        isAliceStaked = rollup.isStaked(alice);
+        assertTrue(isAliceStaked);
+
+        /*
+            emit log_named_address("MSGS" , msg.sender);
+            emit log_named_address("Alice", alice);
+            emit log_named_address("Rollup", address(rollup));
+        */
+
+        amountToWithdraw =
+            _generateRandomUintInRange((aliceAmountToStake - minimumAmount) + 1, type(uint256).max, amountToWithdraw);
+
+        vm.expectRevert(IRollup.InsufficientStake.selector);
+        vm.prank(alice);
+        rollup.unstake(amountToWithdraw);
+    }
+
+    //////////////////////
+    // Remove Stake
+    /////////////////////
+
+    function test_removeStake_forNonStaker(
+        uint256 randomAmount,
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "", 0, confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        // Since Alice is not staked, function unstake should also revert
+        vm.expectRevert(IRollup.NotStaked.selector);
+        vm.prank(alice);
+
+        rollup.removeStake(address(alice));
+    }
+
+    function test_removeStake_forNonStaker_thirdPartyCall(
+        uint256 randomAmount,
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            "", 0, confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        // Since Alice is not staked, function unstake should also revert
+        vm.expectRevert(IRollup.NotStaked.selector);
+        vm.prank(bob);
+
+        rollup.removeStake(address(alice));
+    }
+
+    /////////////////////////
+    // Auxillary Functions
+    /////////////////////////
+
     function checkRange(uint256 _lower, uint256 _upper, uint256 _random) external {
         uint256 test = _generateRandomUintInRange(_lower, _upper, _random);
 
@@ -596,13 +704,9 @@ contract RollupTest is BaseSetup {
         assertEq(uint256(2), uint256(2));
     }
 
-    /////////////////////////
-    // Auxillary Functions
-    /////////////////////////
-
-    // Change logic for this function.
     function _generateRandomUintInRange(uint256 _lower, uint256 _upper, uint256 randomUint)
         internal
+        view
         returns (uint256)
     {
         uint256 boundedUint = bound(randomUint, _lower, _upper);
