@@ -28,7 +28,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     ];
 
     const Rollup = await ethers.getContractFactory('Rollup');
-    const rollup = await upgrades.deployProxy(Rollup, rollupArgs, {initializer: 'initialize', from: sequencer, timeout: 0});
+    const rollup = await upgrades.deployProxy(Rollup, rollupArgs, {initializer: 'initialize', from: sequencer, timeout: 0, kind: 'uups'});
 
     await rollup.deployed();
     console.log("Rollup Proxy:", rollup.address);
