@@ -43,7 +43,7 @@ contract EnvironmentalOpVerifier is IVerifier {
     function executeOneStepProof(VerificationContext.Context memory ctx, bytes32 currStateHash, bytes calldata encoded)
         public
         pure
-        returns (OneStepProof.StateProof memory endState)
+        returns (OneStepProof.StateProof memory)
     {
         uint64 offset = 0;
         // Decode state proof
@@ -86,6 +86,9 @@ contract EnvironmentalOpVerifier is IVerifier {
         } else if (opCode == 0x3a) {
             // GASPRICE
             verifyOpGASPRICE(ctx, offset, stateProof, encoded);
+        } else if (opCode == 0x3d) {
+            // RETURNDATASIZE
+            verifyOpRETURNDATASIZE(offset, stateProof, encoded);
         } else if (opCode == 0x40) {
             // BLOCKHASH
             verifyOpBLOCKHASH(offset, stateProof, encoded);
@@ -112,10 +115,12 @@ contract EnvironmentalOpVerifier is IVerifier {
         }
 
         // Obtain the opcode at new pc
-        if (codeProof.size > uint256(stateProof.pc)) {
-            stateProof.opCode = codeProof.getOpCodeAt(encoded, stateProof.pc);
-        } else {
-            stateProof.opCode = 0x00;
+        if (stateProof.depth > 0) {
+            if (codeProof.size > uint256(stateProof.pc)) {
+                stateProof.opCode = codeProof.getOpCodeAt(encoded, stateProof.pc);
+            } else {
+                stateProof.opCode = 0x00;
+            }
         }
         // Return the state hash after one-step execution
         return stateProof;
@@ -201,6 +206,13 @@ contract EnvironmentalOpVerifier is IVerifier {
         verifyOnePushOpcode(offset, stateProof, Params.G_BASE, ctx.getGasPrice(), encoded);
     }
 
+    function verifyOpRETURNDATASIZE(uint64 offset, OneStepProof.StateProof memory stateProof, bytes calldata encoded)
+        internal
+        pure
+    {
+        verifyOnePushOpcode(offset, stateProof, Params.G_BASE, uint256(stateProof.returnDataSize), encoded);
+    }
+
     function verifyOpBLOCKHASH(uint64 offset, OneStepProof.StateProof memory stateProof, bytes calldata encoded)
         internal
         pure
@@ -225,7 +237,8 @@ contract EnvironmentalOpVerifier is IVerifier {
         if (stateProof.blockNumber >= num || stateProof.blockNumber < num - Params.RECENT_BLOCK_HASHES_LENGTH) {
             bhash = 0x00;
         } else {
-            (offset, bhash) = VerifierHelper.decodeAndVerifyBlockHashProof(offset, encoded);
+            (offset, bhash) =
+                VerifierHelper.decodeAndVerifyBlockHashProof(offset, encoded, num, stateProof.blockHashRoot);
         }
 
         // Simulate pushing `bhash` to the stack

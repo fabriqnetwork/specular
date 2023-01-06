@@ -8,8 +8,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     
     console.log(sequencer);
 
-    const Verifier = await ethers.getContractFactory("Verifier");
-    const verifier = await upgrades.deployProxy(Verifier, [], {initializer: 'initialize', from : sequencer, timeout: 0});
+    const Verifier = await ethers.getContractFactory("VerifierEntry");
+    const verifier = await upgrades.deployProxy(Verifier, [], {initializer: 'initialize', from: sequencer, timeout: 0});
     
     await verifier.deployed();
     console.log("Verifier Proxy:", verifier.address);

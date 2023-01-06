@@ -24,18 +24,20 @@ import "../../../libraries/BytesLib.sol";
 import "../../../libraries/MerkleLib.sol";
 
 import "./MemoryLib.sol";
-import "./TransactionLib.sol";
+import "./EVMTypesLib.sol";
 
 library VerificationContext {
     using BytesLib for bytes;
+    using EVMTypesLib for EVMTypesLib.Transaction;
 
     struct Context {
         address coinbase;
         uint256 timestamp;
         uint256 number;
         address origin;
-        TransactionLib.Transaction transaction;
+        EVMTypesLib.Transaction transaction;
         bytes32 inputRoot;
+        bytes32 txHash;
     }
 
     function newContext(ISequencerInbox inbox, bytes calldata proof) internal view returns (Context memory ctx) {
@@ -48,7 +50,7 @@ library VerificationContext {
         (offset, ctx.timestamp) = DeserializationLib.deserializeUint256(proof, offset);
         (offset, txDataLength) = DeserializationLib.deserializeUint256(proof, offset);
         bytes memory txData = bytes(proof[offset:txDataLength]);
-        ctx.transaction = TransactionLib.Decode(txData);
+        ctx.transaction = EVMTypesLib.decodeTransaction(txData);
     }
 
     function getCoinbase(Context memory ctx) internal pure returns (address) {
@@ -109,5 +111,12 @@ library VerificationContext {
             ctx.inputRoot = MemoryLib.getMemoryRoot(ctx.transaction.data);
         }
         return ctx.inputRoot;
+    }
+
+    function getTxHash(Context memory ctx) internal pure returns (bytes32) {
+        if (ctx.txHash == 0x0) {
+            ctx.txHash = ctx.transaction.hashTransaction();
+        }
+        return ctx.transaction.hashTransaction();
     }
 }
