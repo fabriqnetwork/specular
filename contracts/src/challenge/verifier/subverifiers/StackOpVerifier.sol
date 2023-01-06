@@ -43,7 +43,7 @@ contract StackOpVerifier is IVerifier {
     function executeOneStepProof(VerificationContext.Context memory ctx, bytes32 currStateHash, bytes calldata encoded)
         public
         pure
-        returns (OneStepProof.StateProof memory endState)
+        returns (OneStepProof.StateProof memory)
     {
         uint64 offset = 0;
         // Decode state proof
@@ -175,10 +175,12 @@ contract StackOpVerifier is IVerifier {
         }
 
         // Obtain the opcode at new pc
-        if (codeProof.size > uint256(stateProof.pc)) {
-            stateProof.opCode = codeProof.getOpCodeAt(encoded, stateProof.pc);
-        } else {
-            stateProof.opCode = 0x00;
+        if (stateProof.depth > 0) {
+            if (codeProof.size > uint256(stateProof.pc)) {
+                stateProof.opCode = codeProof.getOpCodeAt(encoded, stateProof.pc);
+            } else {
+                stateProof.opCode = 0x00;
+            }
         }
         // Return the state hash after one-step execution
         return stateProof;

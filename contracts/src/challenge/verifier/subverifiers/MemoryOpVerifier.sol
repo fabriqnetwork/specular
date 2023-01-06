@@ -45,7 +45,7 @@ contract MemoryOpVerifier is IVerifier {
     function executeOneStepProof(VerificationContext.Context memory ctx, bytes32 currStateHash, bytes calldata encoded)
         public
         pure
-        returns (OneStepProof.StateProof memory endState)
+        returns (OneStepProof.StateProof memory)
     {
         uint64 offset = 0;
         // Decode state proof
@@ -99,10 +99,12 @@ contract MemoryOpVerifier is IVerifier {
         }
 
         // Obtain the opcode at new pc
-        if (codeProof.size > uint256(stateProof.pc)) {
-            stateProof.opCode = codeProof.getOpCodeAt(encoded, stateProof.pc);
-        } else {
-            stateProof.opCode = 0x00;
+        if (stateProof.depth > 0) {
+            if (codeProof.size > uint256(stateProof.pc)) {
+                stateProof.opCode = codeProof.getOpCodeAt(encoded, stateProof.pc);
+            } else {
+                stateProof.opCode = 0x00;
+            }
         }
         // Return the state hash after one-step execution
         return stateProof;
@@ -377,8 +379,7 @@ contract MemoryOpVerifier is IVerifier {
         internal
         pure
     {
-        uint8 opCode = stateProof.opCode;
-        uint8 topicNum = opCode - 0xa0;
+        uint8 topicNum = stateProof.opCode - 0xa0;
         if (stateProof.stackSize < 2 + topicNum) {
             VerifierHelper.verifyRevertByError(offset, stateProof, encoded);
             return;
@@ -402,7 +403,8 @@ contract MemoryOpVerifier is IVerifier {
         (offset, logProof) = OneStepProof.decodeLogProof(encoded, offset);
         require(logProof.hashLogProof() == stateProof.logAcc, "Bad LogProof");
 
-        stateProof.logAcc = VerifierHelper.updateAndHashLogProof(logProof, topicNum, stackProof.pops, readContent);
+        stateProof.logAcc =
+            VerifierHelper.updateAndHashLogProof(logProof, stateProof.contractAddress, stackProof.pops, readContent);
         stateProof.pc += 1;
         stateProof.stackHash = stackProof.stackHashAfterPops;
     }

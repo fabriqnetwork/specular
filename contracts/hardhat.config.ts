@@ -8,6 +8,9 @@ import 'hardhat-abi-exporter';
 import 'hardhat-deploy';
 import '@openzeppelin/hardhat-upgrades';
 
+import './tasks/deployVerifierDriver';
+import './tasks/generateOsp';
+import './tasks/verifyOsp';
 
 const mnemonic =
   process.env.MNEMONIC ??
@@ -81,6 +84,8 @@ const config: HardhatUserConfig = {
     gnosis: createConfig("gnosis"),
     hardhat: {
       gas: "auto",
+      allowUnlimitedContractSize: true, // TODO: Remove this when we reduce the size of the verifier contracts
+      blockGasLimit: 80000000, // TODO: Remove this when we reduce the size of the verifier contracts
       mining: {
         auto: true,
         interval: 5000,

@@ -827,11 +827,11 @@ func (osp *OneStepProof) addCallPostProof(ctx ProofGenContext, currState *state.
 			if value.Sign() != 0 && currState.Caller != address {
 				currState.GlobalState.SubBalance(currState.Caller, value.ToBig())
 				currState.GlobalState.CommitForProof()
+				err = osp.addAccountProof(currState, address)
+				if err != nil {
+					return err
+				}
 			}
-		}
-		err = osp.addAccountProof(currState, address)
-		if err != nil {
-			return err
 		}
 		// For opcode proof
 		osp.addCodeProof(currState, address)
