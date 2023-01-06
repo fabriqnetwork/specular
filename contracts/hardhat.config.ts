@@ -9,6 +9,10 @@ import "hardhat-deploy";
 import "@openzeppelin/hardhat-upgrades";
 import "@typechain/hardhat";
 
+import "./tasks/deployVerifierDriver";
+import "./tasks/generateOsp";
+import "./tasks/verifyOsp";
+
 const mnemonic =
   process.env.MNEMONIC ??
   "test test test test test test test test test test test junk";
@@ -143,6 +147,8 @@ const config: HardhatUserConfig = {
     specularDev: createConfig("specularDev"),
     hardhat: {
       gas: "auto",
+      allowUnlimitedContractSize: true, // TODO: Remove this when we reduce the size of the verifier contracts
+      blockGasLimit: 80000000, // TODO: Remove this when we reduce the size of the verifier contracts
       mining: {
         auto: true,
         interval: 5000,

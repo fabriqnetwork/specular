@@ -28,6 +28,7 @@ import "./IVerifierEntry.sol";
 
 contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
     IVerifier blockInitiationVerifier;
+    IVerifier blockFinalizationVerifier;
     IVerifier interTxVerifier;
     IVerifier stackOpVerifier;
     IVerifier environmentalOpVerifier;
@@ -48,6 +49,8 @@ contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
     function setVerifier(uint8 verifier, IVerifier impl) external onlyOwner {
         if (verifier == Params.V_BLOCK_INIT) {
             blockInitiationVerifier = impl;
+        } else if (verifier == Params.V_BLOCK_FINAL) {
+            blockFinalizationVerifier = impl;
         } else if (verifier == Params.V_INTER_TX) {
             interTxVerifier = impl;
         } else if (verifier == Params.V_STACK_OP) {
@@ -76,6 +79,8 @@ contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
         IVerifier impl;
         if (verifier == Params.V_BLOCK_INIT) {
             impl = blockInitiationVerifier;
+        } else if (verifier == Params.V_BLOCK_FINAL) {
+            impl = blockFinalizationVerifier;
         } else if (verifier == Params.V_INTER_TX) {
             impl = interTxVerifier;
         } else if (verifier == Params.V_STACK_OP) {
