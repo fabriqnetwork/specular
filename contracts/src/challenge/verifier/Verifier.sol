@@ -20,14 +20,21 @@ pragma solidity ^0.8.0;
 
 import "./IVerifier.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract Verifier is IVerifier, Initializable {
-    function initialize() public initializer {}
+contract Verifier is IVerifier, Initializable, UUPSUpgradeable, OwnableUpgradeable {
+    function initialize() public initializer {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     function verifyOneStepProof(IVerificationContext, bytes32, bytes calldata)
         external

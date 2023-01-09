@@ -24,6 +24,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
 import "./challenge/Challenge.sol";
 import "./challenge/ChallengeLib.sol";
@@ -32,7 +33,7 @@ import "./IRollup.sol";
 import "./RollupLib.sol";
 import "./ISequencerInbox.sol";
 
-abstract contract RollupBase is IRollup, Initializable {
+abstract contract RollupBase is IRollup, Initializable, UUPSUpgradeable {
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
     uint256 public challengePeriod; // number of L1 blocks
@@ -60,6 +61,13 @@ abstract contract RollupBase is IRollup, Initializable {
 }
 
 contract Rollup is RollupBase {
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert NotOwner();
+        }
+        _;
+    }
+
     modifier stakedOnly() {
         if (!isStaked(msg.sender)) {
             revert NotStaked();
@@ -115,12 +123,16 @@ contract Rollup is RollupBase {
             0, // parentID
             block.number // deadline (unchallengeable)
         );
+
+        __UUPSUpgradeable_init();
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IRollup
     function isStaked(address addr) public view override returns (bool) {
