@@ -3,7 +3,7 @@ SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
 cd $DATA_DIR
-../build/bin/geth \
+$GETH_SPECULAR_DIR/build/bin/geth \
     --datadir ./data_sequencer \
     --password ./password.txt \
     --http --http.addr '0.0.0.0' --http.port 4011 --http.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
