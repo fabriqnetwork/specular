@@ -177,16 +177,17 @@ contract Rollup is RollupBase {
         if (staker.assertionID > lastConfirmedAssertionID) {
             revert StakedOnUnconfirmedAssertion();
         }
+        uint256 stakedAmount = staker.amountStaked;
         deleteStaker(stakerAddress);
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
-        (bool success,) = stakerAddress.call{value: staker.amountStaked}("");
+        (bool success,) = stakerAddress.call{value: stakedAmount}("");
         if (!success) revert TransferFailed();
     }
 
     /// @inheritdoc IRollup
     function advanceStake(uint256 assertionID) external override stakedOnly {
         Staker storage staker = stakers[msg.sender];
-        if (assertionID <= staker.assertionID && assertionID > lastCreatedAssertionID) {
+        if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
         }
         // TODO: allow arbitrary descendant of current staked assertionID, not just child.
