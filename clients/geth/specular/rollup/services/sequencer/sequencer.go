@@ -39,9 +39,6 @@ type challengeCtx struct {
 type Sequencer struct {
 	*services.BaseService
 
-	blockCh              chan types.Blocks
-	pendingAssertionCh   chan *rollupTypes.Assertion
-	confirmedIDCh        chan *big.Int
 	challengeCh          chan *challengeCtx
 	challengeResoutionCh chan struct{}
 }
@@ -53,9 +50,6 @@ func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config,
 	}
 	s := &Sequencer{
 		BaseService:          base,
-		blockCh:              make(chan types.Blocks, 4096),
-		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
-		confirmedIDCh:        make(chan *big.Int, 4096),
 		challengeCh:          make(chan *challengeCtx),
 		challengeResoutionCh: make(chan struct{}),
 	}
@@ -96,7 +90,7 @@ func (s *Sequencer) sendBatch(batcher *Batcher) {
 	if err != nil {
 		log.Crit("Failed to batch blocks", "err", err)
 	}
-	s.blockCh <- blocks
+	s.BlockCh <- blocks
 }
 
 // Add sorted txs to batch and commit txs
@@ -124,7 +118,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 // This goroutine fetches txs from txpool and batches them
 func (s *Sequencer) batchingLoop() {
 	defer s.Wg.Done()
-	defer close(s.blockCh)
+	defer close(s.BlockCh)
 
 	// Ticker
 	var ticker = time.NewTicker(timeInterval)
@@ -181,124 +175,6 @@ func (s *Sequencer) batchingLoop() {
 			}
 			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
 			batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
-		case <-s.Ctx.Done():
-			return
-		}
-	}
-}
-
-func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
-	defer s.Wg.Done()
-
-	// Ticker
-	var ticker = time.NewTicker(timeInterval)
-	defer ticker.Stop()
-
-	// Watch AssertionCreated event
-	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	createdSub, err := s.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: s.Ctx}, createdCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer createdSub.Unsubscribe()
-
-	// Current confirmed assertion, initalize it to genesis
-	// TODO: sync from L1 Rollup
-	confirmedAssertion := &rollupTypes.Assertion{
-		ID:                    new(big.Int),
-		VmHash:                genesisRoot,
-		CumulativeGasUsed:     new(big.Int),
-		InboxSize:             new(big.Int),
-		Deadline:              new(big.Int),
-		PrevCumulativeGasUsed: new(big.Int),
-	}
-	// Assertion created and pending for confirmation
-	var pendingAssertion *rollupTypes.Assertion
-	// Assertion to be created on L1 Rollup
-	queuedAssertion := confirmedAssertion.Copy()
-	queuedAssertion.StartBlock = 1
-
-	// Create assertion on L1 Rollup
-	commitAssertion := func() {
-		pendingAssertion = queuedAssertion.Copy()
-		queuedAssertion.StartBlock = queuedAssertion.EndBlock + 1
-		queuedAssertion.PrevCumulativeGasUsed = new(big.Int).Set(queuedAssertion.CumulativeGasUsed)
-		_, err = s.Rollup.CreateAssertion(
-			pendingAssertion.VmHash,
-			pendingAssertion.InboxSize,
-			pendingAssertion.CumulativeGasUsed,
-			confirmedAssertion.VmHash,
-			confirmedAssertion.CumulativeGasUsed,
-		)
-		if err != nil {
-			log.Error("Can not create DA", "error", err)
-		}
-	}
-
-	// Blocks from the batchingLoop that will be sent to the inbox in the next tick
-	var batchBlocks types.Blocks
-
-	for {
-		select {
-		case <-ticker.C:
-			if len(batchBlocks) == 0 {
-				continue
-			}
-			batch := rollupTypes.NewTxBatch(batchBlocks, 0) // TODO: handle max batch size
-			contexts, txLengths, txs, err := batch.SerializeToArgs()
-			if err != nil {
-				log.Error("Can not serialize batch", "error", err)
-				continue
-			}
-			_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
-			if err != nil {
-				log.Error("Can not sequence batch", "error", err)
-				continue
-			}
-			// Update queued assertion to latest batch
-			queuedAssertion.VmHash = batch.LastBlockRoot()
-			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
-			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
-			queuedAssertion.EndBlock = batch.LastBlockNumber()
-			// If no assertion is pending, commit it
-			if pendingAssertion == nil {
-				commitAssertion()
-			}
-			batchBlocks = nil
-		case blocks := <-s.blockCh:
-			// Add blocks
-			batchBlocks = append(batchBlocks, blocks...)
-		case ev := <-createdCh:
-			// New assertion created on L1 Rollup
-			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
-				if ev.VmHash == pendingAssertion.VmHash {
-					// If assertion is created by us, get ID and deadline
-					pendingAssertion.ID = ev.AssertionID
-					pendingAssertion.Deadline, err = s.AssertionMap.GetDeadline(ev.AssertionID)
-					if err != nil {
-						log.Error("Can not get DA deadline", "error", err)
-						continue
-					}
-					// Send to confirmation goroutine to confirm it
-					s.pendingAssertionCh <- pendingAssertion
-				}
-			}
-		case id := <-s.confirmedIDCh:
-			// New assertion confirmed
-			if pendingAssertion.ID.Cmp(id) == 0 {
-				confirmedAssertion = pendingAssertion
-				if pendingAssertion.VmHash == queuedAssertion.VmHash {
-					// We are done here, waiting for new batches
-					pendingAssertion = nil
-				} else {
-					// Commit queued assertion
-					commitAssertion()
-				}
-			} else {
-				// TODO: decentralized sequencer
-				// TODO: rewind blockchain, sync from L1, reset states
-				log.Error("Confirmed ID is not current pending one", "get", id.String(), "expected", pendingAssertion.ID.String())
-			}
 		case <-s.Ctx.Done():
 			return
 		}
@@ -370,10 +246,10 @@ func (s *Sequencer) confirmationLoop() {
 				// New confirmed assertion
 				if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
 					// Notify sequencing goroutine
-					s.confirmedIDCh <- pendingAssertion.ID
+					s.ConfirmedIDCh <- pendingAssertion.ID
 					pendingConfirmed = true
 				}
-			case newPendingAssertion := <-s.pendingAssertionCh:
+			case newPendingAssertion := <-s.PendingAssertionCh:
 				// New assertion created by sequencing goroutine
 				if !pendingConfirmed {
 					// TODO: support multiple pending assertion
@@ -538,7 +414,7 @@ func (s *Sequencer) Start() error {
 
 	s.Wg.Add(4)
 	go s.batchingLoop()
-	go s.sequencingLoop(genesis.Root())
+	go s.CreateDA(genesis.Root())
 	go s.confirmationLoop()
 	go s.challengeLoop()
 	log.Info("Sequencer started")
