@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -399,140 +398,6 @@ func (s *Sequencer) confirmationLoop() {
 	}
 }
 
-func (s *Sequencer) challengeLoop() {
-	defer s.Wg.Done()
-
-	abi, err := bindings.IChallengeMetaData.GetAbi()
-	if err != nil {
-		log.Crit("Failed to get IChallenge ABI", "err", err)
-	}
-
-	// Watch L1 blockchain for challenge timeout
-	headCh := make(chan *types.Header, 4096)
-	headSub, err := s.L1.SubscribeNewHead(s.Ctx, headCh)
-	if err != nil {
-		log.Crit("Failed to watch l1 chain head", "err", err)
-	}
-	defer headSub.Unsubscribe()
-
-	var challengeSession *bindings.IChallengeSession
-	var states []*proof.ExecutionState
-
-	var bisectedCh chan *bindings.IChallengeBisected
-	var bisectedSub event.Subscription
-	var challengeCompletedCh chan *bindings.IChallengeChallengeCompleted
-	var challengeCompletedSub event.Subscription
-
-	inChallenge := false
-	var opponentTimeoutBlock uint64
-
-	for {
-		if inChallenge {
-			select {
-			case ev := <-bisectedCh:
-				// case get bisection, if is our turn
-				//   if in single step, submit proof
-				//   if multiple step, track current segment, update
-				responder, err := challengeSession.CurrentResponder()
-				if err != nil {
-					// TODO: error handling
-					log.Error("Can not get current responder", "error", err)
-					continue
-				}
-				if responder == common.Address(s.Config.Coinbase) {
-					// If it's our turn
-					err := services.RespondBisection(s.BaseService, abi, challengeSession, ev, states, common.Hash{}, false)
-					if err != nil {
-						// TODO: error handling
-						log.Error("Can not respond to bisection", "error", err)
-						continue
-					}
-				} else {
-					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
-					if err != nil {
-						// TODO: error handling
-						log.Error("Can not get current responder left time", "error", err)
-						continue
-					}
-					log.Info("[challenge] Opponent time left", "time", opponentTimeLeft)
-					opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
-				}
-			case header := <-headCh:
-				if opponentTimeoutBlock == 0 {
-					continue
-				}
-				// TODO: can we use >= here?
-				if header.Number.Uint64() > opponentTimeoutBlock {
-					_, err := challengeSession.Timeout()
-					if err != nil {
-						log.Error("Can not timeout opponent", "error", err)
-						continue
-						// TODO: wait some time before retry
-						// TODO: fix race condition
-					}
-				}
-			case ev := <-challengeCompletedCh:
-				// TODO: handle if we are not winner --> state corrupted
-				log.Info("[challenge] Challenge completed", "winner", ev.Winner)
-				bisectedSub.Unsubscribe()
-				challengeCompletedSub.Unsubscribe()
-				states = []*proof.ExecutionState{}
-				inChallenge = false
-				s.challengeResoutionCh <- struct{}{}
-			case <-s.Ctx.Done():
-				bisectedSub.Unsubscribe()
-				challengeCompletedSub.Unsubscribe()
-				return
-			}
-		} else {
-			select {
-			case ctx := <-s.challengeCh:
-				challenge, err := bindings.NewIChallenge(ctx.challengeAddr, s.L1)
-				if err != nil {
-					log.Crit("Failed to access ongoing challenge", "address", ctx.challengeAddr, "err", err)
-				}
-				challengeSession = &bindings.IChallengeSession{
-					Contract:     challenge,
-					CallOpts:     bind.CallOpts{Pending: true, Context: s.Ctx},
-					TransactOpts: *s.TransactOpts,
-				}
-				bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
-				bisectedSub, err = challenge.WatchBisected(&bind.WatchOpts{Context: s.Ctx}, bisectedCh)
-				if err != nil {
-					log.Crit("Failed to watch challenge event", "err", err)
-				}
-				challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
-				challengeCompletedSub, err = challenge.WatchChallengeCompleted(&bind.WatchOpts{Context: s.Ctx}, challengeCompletedCh)
-				if err != nil {
-					log.Crit("Failed to watch challenge event", "err", err)
-				}
-				log.Info("to generate state from", "start", ctx.assertion.StartBlock, "to", ctx.assertion.EndBlock)
-				log.Info("backend", "start", ctx.assertion.StartBlock, "to", ctx.assertion.EndBlock)
-				states, err = proof.GenerateStates(
-					s.ProofBackend,
-					s.Ctx,
-					ctx.assertion.PrevCumulativeGasUsed,
-					ctx.assertion.StartBlock,
-					ctx.assertion.EndBlock+1,
-					nil,
-				)
-				if err != nil {
-					log.Crit("Failed to generate states", "err", err)
-				}
-				_, err = challengeSession.InitializeChallengeLength(new(big.Int).SetUint64(uint64(len(states)) - 1))
-				if err != nil {
-					log.Crit("Failed to initialize challenge", "err", err)
-				}
-				inChallenge = true
-			case <-headCh:
-				continue // consume channel values
-			case <-s.Ctx.Done():
-				return
-			}
-		}
-	}
-}
-
 func (s *Sequencer) Start() error {
 	genesis := s.BaseService.Start(true, true)
 
@@ -540,7 +405,7 @@ func (s *Sequencer) Start() error {
 	go s.batchingLoop()
 	go s.sequencingLoop(genesis.Root())
 	go s.confirmationLoop()
-	go s.challengeLoop()
+	go s.BaseService.ChallengeLoop()
 	log.Info("Sequencer started")
 	return nil
 }

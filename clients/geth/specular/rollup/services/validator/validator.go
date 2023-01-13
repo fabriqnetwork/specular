@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
@@ -202,193 +201,13 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 	}
 }
 
-func (v *Validator) challengeLoop() {
-	defer v.Wg.Done()
-
-	abi, err := bindings.IChallengeMetaData.GetAbi()
-	if err != nil {
-		log.Crit("Failed to get IChallenge ABI", "err", err)
-	}
-
-	// Watch AssertionCreated event
-	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer createdSub.Unsubscribe()
-
-	challengedCh := make(chan *bindings.IRollupAssertionChallenged, 4096)
-	challengedSub, err := v.Rollup.Contract.WatchAssertionChallenged(&bind.WatchOpts{Context: v.Ctx}, challengedCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer challengedSub.Unsubscribe()
-
-	// Watch L1 blockchain for challenge timeout
-	headCh := make(chan *types.Header, 4096)
-	headSub, err := v.L1.SubscribeNewHead(v.Ctx, headCh)
-	if err != nil {
-		log.Crit("Failed to watch l1 chain head", "err", err)
-	}
-	defer headSub.Unsubscribe()
-
-	var challengeSession *bindings.IChallengeSession
-	var states []*proof.ExecutionState
-
-	var bisectedCh chan *bindings.IChallengeBisected
-	var bisectedSub event.Subscription
-	var challengeCompletedCh chan *bindings.IChallengeChallengeCompleted
-	var challengeCompletedSub event.Subscription
-
-	inChallenge := false
-	var ctx *challengeCtx
-	var opponentTimeoutBlock uint64
-
-	for {
-		if inChallenge {
-			select {
-			case ev := <-bisectedCh:
-				// case get bisection, if is our turn
-				//   if in single step, submit proof
-				//   if multiple step, track current segment, update
-				responder, err := challengeSession.CurrentResponder()
-				if err != nil {
-					// TODO: error handling
-					log.Error("Can not get current responder", "error", err)
-					continue
-				}
-				// If it's our turn
-				if responder == common.Address(v.Config.Coinbase) {
-					err := services.RespondBisection(v.BaseService, abi, challengeSession, ev, states, ctx.opponentAssertion.VmHash, false)
-					if err != nil {
-						// TODO: error handling
-						log.Error("Can not respond to bisection", "error", err)
-						continue
-					}
-				} else {
-					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
-					if err != nil {
-						// TODO: error handling
-						log.Error("Can not get current responder left time", "error", err)
-						continue
-					}
-					log.Info("[challenge] Opponent time left", "time", opponentTimeLeft)
-					opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
-				}
-			case header := <-headCh:
-				if opponentTimeoutBlock == 0 {
-					continue
-				}
-				// TODO: can we use >= here?
-				if header.Number.Uint64() > opponentTimeoutBlock {
-					_, err := challengeSession.Timeout()
-					if err != nil {
-						log.Error("Can not timeout opponent", "error", err)
-						continue
-						// TODO: wait some time before retry
-						// TODO: fix race condition
-					}
-				}
-			case ev := <-challengeCompletedCh:
-				// TODO: handle if we are not winner --> state corrupted
-				log.Info("[challenge] Challenge completed", "winner", ev.Winner)
-				bisectedSub.Unsubscribe()
-				challengeCompletedSub.Unsubscribe()
-				states = []*proof.ExecutionState{}
-				inChallenge = false
-				v.challengeResoutionCh <- ctx.ourAssertion
-			case <-v.Ctx.Done():
-				bisectedSub.Unsubscribe()
-				challengeCompletedSub.Unsubscribe()
-				return
-			}
-		} else {
-			select {
-			case ctx = <-v.challengeCh:
-				_, err = v.Rollup.CreateAssertion(
-					ctx.ourAssertion.VmHash,
-					ctx.ourAssertion.InboxSize,
-					ctx.ourAssertion.CumulativeGasUsed,
-					ctx.lastValidatedAssertion.VmHash,
-					ctx.lastValidatedAssertion.CumulativeGasUsed,
-				)
-				if err != nil {
-					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
-				}
-			case ev := <-createdCh:
-				if common.Address(ev.AsserterAddr) == v.Config.Coinbase {
-					if ev.VmHash == ctx.ourAssertion.VmHash {
-						_, err := v.Rollup.ChallengeAssertion(
-							[2]common.Address{
-								common.Address(v.Config.SequencerAddr),
-								common.Address(v.Config.Coinbase),
-							},
-							[2]*big.Int{
-								ctx.opponentAssertion.ID,
-								ev.AssertionID,
-							},
-						)
-						if err != nil {
-							log.Crit("UNHANDELED: Can't start challenge, validator state corrupted", "err", err)
-						}
-					}
-				}
-			case ev := <-challengedCh:
-				if ctx == nil {
-					continue
-				}
-				log.Info("validator saw challenge", "assertion id", ev.AssertionID, "expected id", ctx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
-				if ev.AssertionID.Cmp(ctx.opponentAssertion.ID) == 0 {
-					// start := ev.Raw.BlockNumber - 2
-					challenge, err := bindings.NewIChallenge(ev.ChallengeAddr, v.L1)
-					if err != nil {
-						log.Crit("Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
-					}
-					challengeSession = &bindings.IChallengeSession{
-						Contract:     challenge,
-						CallOpts:     bind.CallOpts{Pending: true, Context: v.Ctx},
-						TransactOpts: *v.TransactOpts,
-					}
-					bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
-					bisectedSub, err = challenge.WatchBisected(&bind.WatchOpts{Context: v.Ctx}, bisectedCh)
-					if err != nil {
-						log.Crit("Failed to watch challenge event", "err", err)
-					}
-					challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
-					challengeCompletedSub, err = challenge.WatchChallengeCompleted(&bind.WatchOpts{Context: v.Ctx}, challengeCompletedCh)
-					if err != nil {
-						log.Crit("Failed to watch challenge event", "err", err)
-					}
-					states, err = proof.GenerateStates(
-						v.ProofBackend,
-						v.Ctx,
-						ctx.opponentAssertion.PrevCumulativeGasUsed,
-						ctx.opponentAssertion.StartBlock,
-						ctx.opponentAssertion.EndBlock+1,
-						nil,
-					)
-					if err != nil {
-						log.Crit("Failed to generate states", "err", err)
-					}
-					inChallenge = true
-				}
-			case <-headCh:
-				continue // consume channel values
-			case <-v.Ctx.Done():
-				return
-			}
-		}
-	}
-}
-
 func (v *Validator) Start() error {
 	genesis := v.BaseService.Start(true, true)
 
 	v.Wg.Add(3)
 	go v.SyncLoop(v.newBatchCh)
 	go v.validationLoop(genesis.Root())
-	go v.challengeLoop()
+	go v.BaseService.ChallengeLoop()
 	log.Info("Validator started")
 	return nil
 }
