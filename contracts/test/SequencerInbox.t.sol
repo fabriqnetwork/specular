@@ -20,9 +20,7 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
 import "../src/ISequencerInbox.sol";
-
 import "../src/libraries/Errors.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";

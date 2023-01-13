@@ -141,19 +141,21 @@ contract Rollup is RollupBase {
     function stake() external payable override {
         if (isStaked(msg.sender)) {
             stakers[msg.sender].amountStaked += msg.value;
+
+            emit StakeIncreased(msg.sender, stakers[msg.sender].amountStaked);
         } else {
             if (msg.value < baseStakeAmount) {
                 revert InsufficientStake();
             }
             stakers[msg.sender] = Staker(true, msg.value, 0, address(0));
             numStakers++;
+
             stakeOnAssertion(msg.sender, lastConfirmedAssertionID);
         }
     }
 
     /// @inheritdoc IRollup
-    function unstake(uint256 stakeAmount) external override {
-        requireStaked(msg.sender);
+    function unstake(uint256 stakeAmount) external override stakedOnly {
         // Require that staker is staked on a confirmed assertion.
         Staker storage staker = stakers[msg.sender];
         if (staker.assertionID > lastConfirmedAssertionID) {
@@ -186,10 +188,11 @@ contract Rollup is RollupBase {
     /// @inheritdoc IRollup
     function advanceStake(uint256 assertionID) external override stakedOnly {
         Staker storage staker = stakers[msg.sender];
-        if (assertionID <= staker.assertionID && assertionID > lastCreatedAssertionID) {
+        if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
         }
         // TODO: allow arbitrary descendant of current staked assertionID, not just child.
+
         if (staker.assertionID != assertions.getParentID(assertionID)) {
             revert ParentAssertionUnstaked();
         }
