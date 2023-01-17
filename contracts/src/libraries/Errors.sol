@@ -33,5 +33,8 @@ error NotChallenge(address sender, address challenge);
 /// @param sequencer The sequencer address authorized to call this function
 error NotSequencer(address sender, address sequencer);
 
+/// @dev Thrown when sequencer tries to append an empty batch
+error EmptyBatch();
+
 /// @dev Thrown when function is called with a zero address argument
 error ZeroAddress();

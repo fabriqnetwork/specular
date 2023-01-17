@@ -28,9 +28,6 @@ interface ISequencerInbox {
     /// @dev Thrown when the given tx inlcusion proof has incorrect accumulator or batch no.
     error IncorrectAccOrBatch();
 
-    /// @dev Thrown when sequencer tries to append an empty batch
-    error EmptyBatch();
-
     /**
      * @notice Gets inbox size (number of messages).
      */
