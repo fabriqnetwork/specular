@@ -25,7 +25,7 @@ import "../src/libraries/Errors.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 
-contract BaseSetup is Test {
+contract SequencerBaseSetup is Test {
     Utils internal utils;
     address payable[] internal users;
 
@@ -48,11 +48,11 @@ contract BaseSetup is Test {
     }
 }
 
-contract SequencerInboxTest is BaseSetup {
+contract SequencerInboxTest is SequencerBaseSetup {
     SequencerInbox private seqIn;
 
     function setUp() public virtual override {
-        BaseSetup.setUp();
+        SequencerBaseSetup.setUp();
 
         SequencerInbox _impl = new SequencerInbox();
         bytes memory data = abi.encodeWithSelector(SequencerInbox.initialize.selector, sequencer);

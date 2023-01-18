@@ -31,7 +31,7 @@ import {Rollup} from "../src/Rollup.sol";
 import {AssertionMap} from "../src/AssertionMap.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 
-contract BaseSetup is Test {
+contract RollupBaseSetup is Test {
     Utils internal utils;
     address payable[] internal users;
 
@@ -66,14 +66,14 @@ contract BaseSetup is Test {
     }
 }
 
-contract RollupTest is BaseSetup {
+contract RollupTest is RollupBaseSetup {
     SequencerInbox private seqIn;
     Rollup private rollup;
     uint256 randomNonce;
     AssertionMap rollupAssertion;
 
     function setUp() public virtual override {
-        BaseSetup.setUp();
+        RollupBaseSetup.setUp();
 
         SequencerInbox _impl = new SequencerInbox();
         bytes memory data = abi.encodeWithSelector(SequencerInbox.initialize.selector, sequencer);
@@ -362,7 +362,7 @@ contract RollupTest is BaseSetup {
         vm.expectRevert(IRollup.InsufficientStake.selector);
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceBalance}();
 
         bool isAliceStaked = rollup.isStaked(alice);
@@ -390,7 +390,7 @@ contract RollupTest is BaseSetup {
         assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceBalance}();
 
         uint256 finalStakers = rollup.numStakers();
@@ -436,7 +436,7 @@ contract RollupTest is BaseSetup {
         );
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceBalanceInitial}();
 
         uint256 initialStakers = rollup.numStakers();
@@ -464,7 +464,7 @@ contract RollupTest is BaseSetup {
         assertEq((aliceBalanceInitial - aliceBalanceFinal), bobBalance, "Tokens transferred successfully");
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: alice.balance}();
 
         uint256 finalStakers = rollup.numStakers();
@@ -535,7 +535,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -586,7 +586,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -685,7 +685,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -794,7 +794,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -862,7 +862,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send
+        //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
