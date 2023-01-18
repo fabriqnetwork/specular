@@ -20,16 +20,12 @@ pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
-
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "../src/ISequencerInbox.sol";
+import "../src/libraries/Errors.sol";
 import {Utils} from "./utils/Utils.sol";
 import {MockToken} from "./utils/MockToken.sol";
 import {IRollup} from "../src/IRollup.sol";
-
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
-import "../src/ISequencerInbox.sol";
-import "../src/libraries/Errors.sol";
-
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
 import {Rollup} from "../src/Rollup.sol";
 import {AssertionMap} from "../src/AssertionMap.sol";
@@ -50,7 +46,7 @@ contract BaseSetup is Test {
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(6);
+        users = utils.createUsers(3);
 
         sequencer = users[0];
         vm.label(sequencer, "Sequencer");
