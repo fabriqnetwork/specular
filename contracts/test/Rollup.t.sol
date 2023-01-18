@@ -362,7 +362,7 @@ contract RollupTest is BaseSetup {
         vm.expectRevert(IRollup.InsufficientStake.selector);
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceBalance}();
 
         bool isAliceStaked = rollup.isStaked(alice);
@@ -390,7 +390,7 @@ contract RollupTest is BaseSetup {
         assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceBalance}();
 
         uint256 finalStakers = rollup.numStakers();
@@ -436,7 +436,7 @@ contract RollupTest is BaseSetup {
         );
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceBalanceInitial}();
 
         uint256 initialStakers = rollup.numStakers();
@@ -464,7 +464,7 @@ contract RollupTest is BaseSetup {
         assertEq((aliceBalanceInitial - aliceBalanceFinal), bobBalance, "Tokens transferred successfully");
 
         vm.prank(alice);
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: alice.balance}();
 
         uint256 finalStakers = rollup.numStakers();
@@ -535,7 +535,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -586,7 +586,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -685,7 +685,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -794,7 +794,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
@@ -862,7 +862,7 @@ contract RollupTest is BaseSetup {
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
         // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send per
+        //slither-disable-next-line arbitrary-send
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
