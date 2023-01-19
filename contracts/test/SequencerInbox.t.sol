@@ -26,9 +26,6 @@ import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 
 contract SequencerBaseSetup is Test {
-    Utils internal utils;
-    address payable[] internal users;
-
     address internal sequencer;
     address internal alice;
     address internal bob;

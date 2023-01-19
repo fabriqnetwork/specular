@@ -836,7 +836,7 @@ contract RollupTest is RollupBaseSetup {
         // rollup.advanceStake(assertionID);
     }
 
-    function test_advanceStake_positiveCase(
+    function test_advanceStake_illegalAssertionID(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -869,16 +869,9 @@ contract RollupTest is RollupBaseSetup {
         isAliceStaked = rollup.isStaked(alice);
         assertTrue(isAliceStaked);
 
-        uint256 aliceBalanceBeforeRemoveStake = alice.balance;
-
-        (,, uint256 stakerAssertionID,) = rollup.stakers(address(alice));
-
+        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
         vm.prank(alice);
         rollup.advanceStake(assertionID);
-
-        (,, uint256 stakerAssertionIDFinal,) = rollup.stakers(address(alice));
-
-        assertEq(stakerAssertionIDFinal, assertionID);
     }
 
     /////////////////////////
