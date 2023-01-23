@@ -738,6 +738,84 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isStakedAfterRemoveStake);
     }
 
+    function test_removeStake_fromUncorfirmedStake(
+        uint256 randomAmount,
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion
+    ) external {
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether);
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        emit log_named_uint("AB", aliceBalance);
+
+        // Let's stake something on behalf of Alice
+        uint256 aliceAmountToStake = minimumAmount * 10;
+
+        vm.prank(alice);
+        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+        // Calling the staking function as Alice
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceAmountToStake}();
+
+        // Now Alice should be staked
+        uint256 stakerAssertionID;
+
+        // stakers mapping gets updated
+        (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
+        assertTrue(isAliceStaked);
+
+        // Comparing lastConfirmedAssertionID and stakerAssertionID
+        emit log_named_uint("Last Confirmed Assertion ID", rollup.lastConfirmedAssertionID());
+        emit log_named_uint("Staker Assertion ID", stakerAssertionID);
+        emit log_named_uint("Last Created Assertion ID", rollup.lastCreatedAssertionID());
+
+        // Let's create a brand new assertion, so that the lastCreatedAssertionID goes up and we can successfully advance stake to the new ID after that
+
+        // To create a brand new assertion, we will need to call Rollup.createAssertion()
+        // To call Rollup.createAssertion(), we will need to pass in a param called uint256 inboxSize
+        // The crazy thing about inboxSize is that it needs to fulfill 2 require statements and to fulfill the 2nd one, the inboxSize from the SequencerInbox needs to be increased
+        // Normally that would have been done by calling SequencerInbox.appendTxBatch, but since we do not currently have the sample data required to execute SequencerInbox.appendTxBatch
+        // we will increase the size by calling a (dangerous) function to specifically increase the size of the inbox.
+
+        // THIS FUNCTION SHOULD ONLY BE USED FOR TESTING.
+
+        // Checking previous Sequencer Inbox Size
+        uint256 seqInboxSize = seqIn.getInboxSize();
+        emit log_named_uint("Sequencer Inbox Size", seqInboxSize);
+
+        // Increasing the sequencerInbox inboxSize
+        vm.prank(sequencer);
+        seqIn.dangerousIncreaseSequencerInboxSize(10);
+
+        emit log_named_uint("Changed Sequencer Inbox Size", seqIn.getInboxSize());
+
+        bytes32 mockVmHash;
+        uint256 mockInboxSize = 5; // Which is smaller than the previously set sequencerInboxSize with the function dangerousIncreaseSequencerInboxSize
+
+        // Need to figure out values of mockL2GasUsed so that the following condition is satisfied:
+        // if (assertionGasUsed > maxGasPerAssertion) {
+        //    revert MaxGasLimitExceeded();
+        // }
+        uint256 mockL2GasUsed;
+        bytes32 mockPrevVMHash;
+        uint256 mockPrevL2GasUsed;
+
+        vm.prank(alice);
+        //rollup.createAssertion();
+
+        // Advance stake of the staker
+        assertTrue(false);
+    }
+
     /////////////////////////
     // Advance Stake
     /////////////////////////

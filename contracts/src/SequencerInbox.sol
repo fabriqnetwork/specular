@@ -148,4 +148,21 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             revert IncorrectAccOrBatch();
         }
     }
+
+    /**
+     *
+     *     EXTREMELY DANGEROUS FUNCTIONS. DO NOT DEPLOY BEFORE DELETING THESE FUNCTIONS FROM CONTRACT     *********
+     *
+     */
+
+    function dangerousIncreaseSequencerInboxSize(uint256 newInboxSize) external returns (uint256) {
+        if (msg.sender != sequencerAddress) {
+            revert NotSequencer(msg.sender, sequencerAddress);
+        }
+
+        inboxSize = newInboxSize;
+
+        uint256 changedInboxSize = inboxSize;
+        return changedInboxSize;
+    }
 }
