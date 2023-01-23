@@ -765,9 +765,6 @@ contract RollupTest is RollupBaseSetup {
         rollup.advanceStake(assertionID);
     }
 
-    //////////////////////////////////////////////////////////////////////////////
-    // Test on-hold due to bug in Rollup contract (Rollup.advanceStake)
-    //////////////////////////////////////////////////////////////////////////////
     function test_advanceStake_calledWithRandomAssertionID(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
@@ -811,29 +808,10 @@ contract RollupTest is RollupBaseSetup {
             assertionID = lastCreatedAssertionID + 10;
         }
 
-        // The following lines of test are written to expect the rollup.advanceStake function to revert with the error IRollup.AssertionOutOfRange error,
-        // since the assertionID is generated randomly and checked so that it does not lie between the staker's assertionID and the last createdID.
-        // However, the test fails to revert since the function uses an `&&` operator to check these conditions rather than an `||` operator.
-        // Commenting out this test unless the bug in the Rollup contract is not fixed.
-        /**
-         * function advanceStake(uint256 assertionID) external override stakedOnly {
-         *             Staker storage staker = stakers[msg.sender];
-         *             // The below line has the bug.
-         *             if (assertionID <= staker.assertionID && assertionID > lastCreatedAssertionID) {
-         *                 revert AssertionOutOfRange();
-         *             }
-         *             // TODO: allow arbitrary descendant of current staked assertionID, not just child.
-         *             if (staker.assertionID != assertions.getParentID(assertionID)) {
-         *                 revert ParentAssertionUnstaked();
-         *             }
-         *             stakeOnAssertion(msg.sender, assertionID);
-         *         }
-         */
+        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
+        vm.prank(alice);
 
-        // vm.expectRevert(IRollup.AssertionOutOfRange.selector);
-        // vm.prank(alice);
-
-        // rollup.advanceStake(assertionID);
+        rollup.advanceStake(assertionID);
     }
 
     function test_advanceStake_illegalAssertionID(
