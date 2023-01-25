@@ -90,6 +90,9 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	}
 	// Validation succeeded, confirm assertion and advance stake
 	_, err := v.Rollup.AdvanceStake(assertion.ID)
+	if err.Is(err, core.ErrInsufficientFunds) {
+		log.Crit("Insufficient Funds to send Tx", "error", err)
+	}	
 	if err != nil {
 		log.Crit("UNHANDELED: Can't advance stake, validator state corrupted", "err", err)
 	}
@@ -313,6 +316,9 @@ func (v *Validator) challengeLoop() {
 					ctx.lastValidatedAssertion.VmHash,
 					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
+				if err.Is(err, core.ErrInsufficientFunds) {
+					log.Crit("Insufficient Funds to send Tx", "error", err)
+				}	
 				if err != nil {
 					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
 				}
@@ -329,6 +335,9 @@ func (v *Validator) challengeLoop() {
 								ev.AssertionID,
 							},
 						)
+						if err.Is(err, core.ErrInsufficientFunds) {
+							log.Crit("Insufficient Funds to send Tx", "error", err)
+						}	
 						if err != nil {
 							log.Crit("UNHANDELED: Can't start challenge, validator state corrupted", "err", err)
 						}
