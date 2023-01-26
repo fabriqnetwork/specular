@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -90,7 +91,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	}
 	// Validation succeeded, confirm assertion and advance stake
 	_, err := v.Rollup.AdvanceStake(assertion.ID)
-	if err.Is(err, core.ErrInsufficientFunds) {
+	if errors.Is(err, core.ErrInsufficientFunds) {
 		log.Crit("Insufficient Funds to send Tx", "error", err)
 	}	
 	if err != nil {
@@ -316,7 +317,7 @@ func (v *Validator) challengeLoop() {
 					ctx.lastValidatedAssertion.VmHash,
 					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
-				if err.Is(err, core.ErrInsufficientFunds) {
+				if errors.Is(err, core.ErrInsufficientFunds) {
 					log.Crit("Insufficient Funds to send Tx", "error", err)
 				}	
 				if err != nil {
@@ -335,7 +336,7 @@ func (v *Validator) challengeLoop() {
 								ev.AssertionID,
 							},
 						)
-						if err.Is(err, core.ErrInsufficientFunds) {
+						if errors.Is(err, core.ErrInsufficientFunds) {
 							log.Crit("Insufficient Funds to send Tx", "error", err)
 						}	
 						if err != nil {

@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	errors "errors"
 	"math/big"
 	"time"
 
@@ -230,7 +231,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			confirmedAssertion.VmHash,
 			confirmedAssertion.CumulativeGasUsed,
 		)
-		if err.Is(err, core.ErrInsufficientFunds) {
+		if errors.Is(err, core.ErrInsufficientFunds) {
 			log.Crit("Insufficient Funds to send Tx", "error", err)
 		}		
 		if err != nil {
@@ -254,7 +255,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				continue
 			}
 			_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
-			if err.Is(err, core.ErrInsufficientFunds) {
+			if errors.Is(err, core.ErrInsufficientFunds) {
 				log.Crit("Insufficient Funds to send Tx", "error", err)
 			}
 			if err != nil {
@@ -363,7 +364,7 @@ func (s *Sequencer) confirmationLoop() {
 					if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
 						// Confirmation period has past, confirm it
 						_, err := s.Rollup.ConfirmFirstUnresolvedAssertion()
-						if err.Is(err, core.ErrInsufficientFunds) {
+						if errors.Is(err, core.ErrInsufficientFunds) {
 							log.Crit("Insufficient Funds to send Tx", "error", err)
 						}
 						if err != nil {
