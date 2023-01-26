@@ -55,4 +55,7 @@ interface ISequencerInbox {
      * TODO: modify based on OSP format.
      */
     function verifyTxInclusion(bytes memory proof) external view;
+
+    // The batchInfo refers to the
+    // accBefore -> the recursive has up until a certain tx. h(h(h(tx1), tx2), tx3)
 }

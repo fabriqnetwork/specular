@@ -100,8 +100,9 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         accumulators.push(runningAccumulator);
 
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
-    }
+    } // -> hashchain of transactions
 
+    // proof -> what comes before the txn, the txn and then what comes after the txn
     function verifyTxInclusion(bytes memory proof) external view override {
         uint256 offset = 0;
 
@@ -154,7 +155,6 @@ contract SequencerInbox is ISequencerInbox, Initializable {
      *     EXTREMELY DANGEROUS FUNCTIONS. DO NOT DEPLOY BEFORE DELETING THESE FUNCTIONS FROM CONTRACT     *********
      *
      */
-
     function dangerousIncreaseSequencerInboxSize(uint256 newInboxSize) external returns (uint256) {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
@@ -166,3 +166,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         return changedInboxSize;
     }
 }
+/*
+context -> Metadata about which blocks the txn it belongs to
+txnBatch -> blob of transactions 
+each txnBatch is of 5 bytes and then the txnBatch is a repeating strings of 5 batches!!*/
