@@ -89,6 +89,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		return errValidationFailed
 	}
 	// Validation succeeded, confirm assertion and advance stake
+	// if assertion.ID
 	_, err := v.Rollup.AdvanceStake(assertion.ID)
 	if err != nil {
 		log.Crit("UNHANDELED: Can't advance stake, validator state corrupted", "err", err)
@@ -96,7 +97,8 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	return nil
 }
 
-// This goroutine validates the assertion posted to L1 Rollup, advances stake if validated, or challenges if not.
+// This function runs as a goroutine. It listens for and validates assertions posted to the L1 Rollup contract,
+// advances its stake if validated, and challenges if not.
 func (v *Validator) validationLoop(lastValidatedAssertion *rollupTypes.Assertion) {
 	defer v.Wg.Done()
 
@@ -372,7 +374,7 @@ func (v *Validator) challengeLoop() {
 
 func (v *Validator) Start() error {
 	log.Info("Starting validator...")
-	err := v.BaseService.Start(true, true)
+	err := v.BaseService.Start(true)
 	if err != nil {
 		return err
 	}
@@ -401,6 +403,7 @@ func (v *Validator) APIs() []rpc.API {
 	return []rpc.API{}
 }
 
+// Gets the last validated assertion.
 func (v *Validator) getLastValidatedAssertion() (*rollupTypes.Assertion, error) {
 	// TODO: set FilterOpts.Start
 	iter, err := v.Rollup.Contract.FilterStakerStaked(&bind.FilterOpts{Context: v.Ctx}, []common.Address{v.TransactOpts.From})

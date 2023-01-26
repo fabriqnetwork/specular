@@ -174,7 +174,7 @@ func (b *BaseService) SyncLoop(newBatchCh chan<- struct{}) {
 	if err != nil {
 		log.Crit("Failed to get L1 block head", "err", err)
 	}
-	// Sync inbox untill the current l1 block head
+	// Sync inbox until the current l1 block head
 	err = b.SyncInbox(currentBlock, l1BlockHead)
 	if err != nil {
 		log.Crit("Failed to sync inbox", "err", err)

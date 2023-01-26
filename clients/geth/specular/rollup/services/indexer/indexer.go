@@ -50,7 +50,7 @@ func (i *Indexer) newBatchConsumeLoop() {
 }
 
 func (i *Indexer) Start() error {
-	i.BaseService.Start(false, false)
+	i.BaseService.Start(false)
 
 	i.Wg.Add(2)
 	go i.newBatchConsumeLoop()

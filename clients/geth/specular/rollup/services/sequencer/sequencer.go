@@ -1,6 +1,7 @@
 package sequencer
 
 import (
+	"fmt"
 	"math/big"
 	"time"
 
@@ -534,8 +535,12 @@ func (s *Sequencer) challengeLoop() {
 }
 
 func (s *Sequencer) Start() error {
-	if err := s.BaseService.Start(true, true); err != nil {
-		return err
+	log.Info("Starting sequencer...")
+	if err := s.BaseService.Start(true); err != nil {
+		return fmt.Errorf("Failed to start sequencer: %w", err)
+	}
+	if _, err := s.BaseService.Stake(); err != nil {
+		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
 	s.Wg.Add(4)
 	go s.batchingLoop()
@@ -547,9 +552,10 @@ func (s *Sequencer) Start() error {
 }
 
 func (s *Sequencer) Stop() error {
-	log.Info("Sequencer stopped")
+	log.Info("Stopping sequencer...")
 	s.Cancel()
 	s.Wg.Wait()
+	log.Info("Sequencer stopped.")
 	return nil
 }
 
