@@ -22,6 +22,7 @@ import "forge-std/Test.sol";
 import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import "../src/libraries/Errors.sol";
+import {ISequencerInbox} from "../src/ISequencerInbox.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 
@@ -75,7 +76,7 @@ contract SequencerInboxTest is BaseSetup {
     }
 
     function test_RevertWhen_EmptyBatch() public {
-        vm.expectRevert(EmptyBatch.selector);
+        vm.expectRevert(ISequencerInbox.EmptyBatch.selector);
         vm.prank(sequencer);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
