@@ -15,7 +15,7 @@ In this example, all nodes operate honestly (no challenges are issued).
 ### L2 setup
 
 ```sh
-cd rollup/test-node
+cd sbin
 ./import_accounts.sh
 ./init.sh
 ```
@@ -29,14 +29,15 @@ See [here](https://github.com/SpecularL2/specular/tree/main/contracts) for more 
 ```sh
 # Terminal #1: start L1 node
 cd contracts
+yarn install
 npx hardhat node
 
 # Terminal #2: start sequencer
-cd clients/geth/specular/rollup/test-node
+cd clients/geth/specular/sbin
 ./start_sequencer.sh
 
 # Terminal #3: start validator
-cd clients/geth/specular/rollup/test-node
+cd clients/geth/specular/sbin
 ./start_validator.sh
 ```
 
