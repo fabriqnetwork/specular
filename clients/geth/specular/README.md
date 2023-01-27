@@ -15,10 +15,9 @@ In this example, all nodes operate honestly (no challenges are issued).
 ### L2 setup
 
 ```sh
-cd rollup
-mkdir test-node
-cp ../sbin/{configure.sh,import_accounts.sh,init.sh,start_sequencer.sh,start_validator.sh} ./test-node
-cp -r ../data ./
+cd sbin
+./import_accounts.sh
+./init.sh
 ```
 
 ### L1 local dev node installation
@@ -34,11 +33,11 @@ yarn install
 npx hardhat node
 
 # Terminal #2: start sequencer
-cd clients/geth/specular/rollup/test-node
+cd clients/geth/specular/sbin
 ./start_sequencer.sh
 
 # Terminal #3: start validator
-cd clients/geth/specular/rollup/test-node
+cd clients/geth/specular/sbin
 ./start_validator.sh
 ```
 
