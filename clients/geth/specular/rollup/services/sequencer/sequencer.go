@@ -126,7 +126,10 @@ func (s *Sequencer, err error) addTxsToBatchAndCommit(batcher *Batcher, txs *typ
 			if tx == nil {
 				break
 			}
-			batchTxs = s.modifyTxnsInBatch(batchTxs, tx)
+			batchTxs, err = s.modifyTxnsInBatch(batchTxs, tx)
+			if err != nil {
+				return nil, err
+			}
 			txs.Pop()
 		}
 	}
@@ -184,11 +187,17 @@ func (s *Sequencer, err error) batchingLoop() {
 			}
 			if len(localTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
-				batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if len(remoteTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
-				batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+				if err != nil {
+					return nil, err
+				}
 			}
 			if len(batchTxs) > 0 {
 				temp , err := s.sendBatch(batcher)
@@ -204,7 +213,10 @@ func (s *Sequencer, err error) batchingLoop() {
 				txs[acc] = append(txs[acc], tx)
 			}
 			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
-			batchTxs = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+			batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+			if err != nil {
+				return nil, err
+			}
 		case <-s.Ctx.Done():
 			return
 		}
