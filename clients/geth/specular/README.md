@@ -2,6 +2,7 @@
 
 ## Build
 
+First setup L1 and then follow following steps
 ```sh
 make install
 ```
