@@ -107,7 +107,7 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 }
 
 // Send batch to `s.batchCh`
-func (s *Sequencer, error) sendBatch(batcher *Batcher) {
+func (s *Sequencer,  err error) sendBatch(batcher *Batcher) {
 	blocks, err := batcher.Batch()
 	
 	if err != nil {
@@ -119,7 +119,7 @@ func (s *Sequencer, error) sendBatch(batcher *Batcher) {
 }
 
 // Add sorted txs to batch and commit txs
-func (s *Sequencer, error) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
+func (s *Sequencer, err error) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) []*types.Transaction {
 	if txs != nil {
 		for {
 			tx := txs.Peek()
@@ -143,7 +143,7 @@ func (s *Sequencer, error) addTxsToBatchAndCommit(batcher *Batcher, txs *types.T
 }
 
 // This goroutine fetches txs from txpool and batches them
-func (s *Sequencer, error) batchingLoop() {
+func (s *Sequencer, err error) batchingLoop() {
 	defer s.Wg.Done()
 	defer close(s.blockCh)
 
@@ -211,7 +211,7 @@ func (s *Sequencer, error) batchingLoop() {
 	}
 }
 
-func (s *Sequencer, error) sequencingLoop(genesisRoot common.Hash) {
+func (s *Sequencer, err error) sequencingLoop(genesisRoot common.Hash) {
 	defer s.Wg.Done()
 
 	// Ticker
@@ -340,7 +340,7 @@ func (s *Sequencer, error) sequencingLoop(genesisRoot common.Hash) {
 }
 
 // This goroutine tries to confirm created assertions
-func (s *Sequencer, error) confirmationLoop() {
+func (s *Sequencer, err error) confirmationLoop() {
 	defer s.Wg.Done()
 
 	// Watch AssertionConfirmed event
@@ -441,7 +441,7 @@ func (s *Sequencer, error) confirmationLoop() {
 	}
 }
 
-func (s *Sequencer, error) challengeLoop() {
+func (s *Sequencer, err error) challengeLoop() {
 	defer s.Wg.Done()
 
 	abi, err := bindings.IChallengeMetaData.GetAbi()
