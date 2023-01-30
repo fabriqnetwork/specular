@@ -404,9 +404,9 @@ func (s *Sequencer, err error) confirmationLoop() {
 							return nil, err
 						}
 						if err != nil {
-							log.Error("Failed to confirm DA", "error", err)
+							log.Crit("Failed to confirm DA", "err", err)
 							return nil, err
-							//log.Crit("Failed to confirm DA", "err", err)
+							//log.Error("Failed to confirm DA", "error", err)
 							// TODO: wait some time before retry
 							continue
 						}
