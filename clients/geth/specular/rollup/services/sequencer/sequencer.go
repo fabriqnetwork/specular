@@ -4,7 +4,6 @@ import (
 	errors "errors"
 	"math/big"
 	"time"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -22,19 +21,6 @@ import (
 
 const timeInterval = 10 * time.Second
 
-type CustomError struct {
-	Message string
-	Code int
-}
-
-func (c CustomError) Error() string {
-	return c.Message + " " + strconv.Itoa(c.Code)
-}
-/*
-101: Batch Error
-102: Rollup Error
-...
-*/
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
@@ -138,7 +124,6 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 	err := batcher.CommitTransactions(batchTxs)
 	if err != nil {
 		return nil, err
-		//return nil, CustomError{"Failed to commit transactions", 1}
 	}
 	return batchTxs, nil
 }
