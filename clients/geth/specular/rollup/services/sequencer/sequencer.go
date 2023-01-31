@@ -181,7 +181,10 @@ func (s *Sequencer) batchingLoop() {
 				}
 			}
 			if len(batchTxs) > 0 {
-				s.sendBatch(batcher)
+				err = s.sendBatch(batcher)
+				if err != nil {
+					log.Crit("Failed to send transaction to batch", "err", err)
+				} 
 			}
 			batchTxs = nil
 		case ev := <-txsCh:

@@ -156,6 +156,8 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			default:
 				return err
 			}
+		} else{
+			log.Crit("Vatidate Asserion Failed", "error", err)
 		}
 		// Validation success, clean up
 		lastValidatedAssertion = currentAssertion
