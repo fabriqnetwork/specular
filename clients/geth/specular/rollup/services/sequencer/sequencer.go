@@ -110,7 +110,6 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 func (s *Sequencer) sendBatch(batcher *Batcher) (error) {
 	blocks, err := batcher.Batch()
 	if err != nil {
-		log.Crit("Failed to batch blocks", "err", err)
 		return err
 	}
 	s.blockCh <- blocks
@@ -138,7 +137,6 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 	}
 	err := batcher.CommitTransactions(batchTxs)
 	if err != nil {
-		log.Crit("Failed to commit transactions", "err", err)
 		return nil, err
 		//return nil, CustomError{"Failed to commit transactions", 1}
 	}
