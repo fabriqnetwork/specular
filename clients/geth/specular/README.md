@@ -1,17 +1,17 @@
 # Specular Client
 
-## Build
-
-First setup L1 and then follow following steps
-```sh
-make install
-```
-
 ## Running a local network
 
 This guide will demonstrate how to set up a rollup network containing L2 sequencer validator nodes, running over a Hardhat L1 node---all on your local machine.
 After the 3 nodes are running, you can use MetaMask to send custom transactions to the sequencer, and see how transactions are executed on the L2 network, sequenced to the L1 network, and validated and confirmed.
 In this example, all nodes operate honestly (no challenges are issued).
+
+### Build
+
+First setup L1 and then follow following steps
+```sh
+make install
+```
 
 ### L2 setup
 

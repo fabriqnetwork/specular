@@ -2,6 +2,7 @@ package sequencer
 
 import (
 	errors "errors"
+	"fmt"
 	"math/big"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 )
 
 const timeInterval = 10 * time.Second
-
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
@@ -75,7 +75,7 @@ func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int 
 }
 
 // Appends tx to batch if not already exists in batch or on chain
-func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) ([]*types.Transaction, error)  {
+func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) ([]*types.Transaction, error) {
 	// Check if tx in batch
 	txIndex := getTxIndexInBatch(batchTxs, tx)
 	if txIndex <= 0 {
@@ -83,7 +83,7 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
 			log.Error("Checking GetTransaction, this is err", "error", err)
-			return batchTxs, err
+			return batchTxs, fmt.Errorf("Checking GetTransaction, this is err: %w", err)
 		}
 		if prevTx == nil {
 			batchTxs = append(batchTxs, tx)
@@ -93,10 +93,10 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 }
 
 // Send batch to `s.batchCh`
-func (s *Sequencer) sendBatch(batcher *Batcher) (error) {
+func (s *Sequencer) sendBatch(batcher *Batcher) error {
 	blocks, err := batcher.Batch()
 	if err != nil {
-		return err
+		return fmt.Errorf("Failed to batch blocks, err: %w", err)
 	}
 	s.blockCh <- blocks
 	return nil
@@ -105,13 +105,13 @@ func (s *Sequencer) sendBatch(batcher *Batcher) (error) {
 // Add sorted txs to batch and commit txs
 func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) ([]*types.Transaction, error) {
 	if txs != nil {
-		
+
 		for {
 			tx := txs.Peek()
 			if tx == nil {
 				break
 			}
-			batchTxs,err := s.modifyTxnsInBatch(batchTxs, tx)
+			batchTxs, err := s.modifyTxnsInBatch(batchTxs, tx)
 			if err != nil {
 				return batchTxs, err
 			}
@@ -123,7 +123,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 	}
 	err := batcher.CommitTransactions(batchTxs)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to commit transactions, err: %w", err)
 	}
 	return batchTxs, nil
 }
@@ -168,7 +168,7 @@ func (s *Sequencer) batchingLoop() {
 			}
 			if len(localTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
-				batchTxs,err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
+				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
 					log.Crit("Failed to add transaction to batch and commit", "err", err)
 				}
@@ -184,7 +184,7 @@ func (s *Sequencer) batchingLoop() {
 				err = s.sendBatch(batcher)
 				if err != nil {
 					log.Crit("Failed to send transaction to batch", "err", err)
-				} 
+				}
 			}
 			batchTxs = nil
 		case ev := <-txsCh:
@@ -251,7 +251,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		)
 		if errors.Is(err, core.ErrInsufficientFunds) {
 			log.Crit("Insufficient Funds to send Tx", "error", err)
-		}		
+		}
 		if err != nil {
 			log.Error("Can not create DA", "error", err)
 		}
@@ -560,7 +560,6 @@ func (s *Sequencer) challengeLoop() {
 		}
 	}
 }
-
 
 func (s *Sequencer) Start() error {
 	genesis := s.BaseService.Start(true, true)
