@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -23,7 +24,7 @@ type challengeCtx struct {
 	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-var errAssertionOverflowedInbox = fmt.Errorf("assertion overflowed inbox")
+var errAssertionOverflowedLocalInbox = fmt.Errorf("assertion overflowed inbox")
 var errValidationFailed = fmt.Errorf("validation failed")
 
 type Validator struct {
@@ -59,11 +60,11 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
 		if currentBlockNum > currentChainHeight {
-			return errAssertionOverflowedInbox
+			return errAssertionOverflowedLocalInbox
 		}
 		block = v.Chain.GetBlockByNumber(currentBlockNum)
 		if block == nil {
-			return errAssertionOverflowedInbox
+			return errAssertionOverflowedLocalInbox
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
@@ -90,6 +91,9 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	}
 	// Validation succeeded, confirm assertion and advance stake
 	_, err := v.Rollup.AdvanceStake(assertion.ID)
+	if errors.Is(err, core.ErrInsufficientFunds) {
+		log.Crit("Insufficient Funds to send Tx", "error", err)
+	}	
 	if err != nil {
 		log.Crit("UNHANDELED: Can't advance stake, validator state corrupted", "err", err)
 	}
@@ -132,12 +136,16 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			case errors.Is(err, errValidationFailed):
 				// Validation failed, challenge
 				isInChallenge = true
-			case errors.Is(err, errAssertionOverflowedInbox):
-				// Assertion overflowed inbox, wait for next block
+				return nil
+			case errors.Is(err, errAssertionOverflowedLocalInbox):
+				// Assertion overflowed local inbox, wait for next batch event
+				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
+				return nil
+			default:
+				return err
 			}
-			return err
 		}
-		// Validation success, get next pending assertion
+		// Validation success, clean up
 		lastValidatedAssertion = currentAssertion
 		currentAssertion = nil
 		return nil
@@ -152,13 +160,6 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				isInChallenge = false
 				lastValidatedAssertion = ourAssertion
 				currentAssertion = nil
-				// Try to validate all pending assertion
-				for currentAssertion != nil {
-					err := validateCurrentAssertion()
-					if err != nil {
-						break
-					}
-				}
 			case <-v.Ctx.Done():
 				return
 			}
@@ -166,10 +167,11 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			select {
 			case <-v.newBatchCh:
 				// New block committed, try to validate all pending assertion
-				for currentAssertion != nil {
+				if currentAssertion != nil {
 					err := validateCurrentAssertion()
 					if err != nil {
-						break
+						// TODO: error handling instead of panic
+						log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
 					}
 				}
 			case ev := <-assertionEventCh:
@@ -192,7 +194,11 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				currentAssertion = assertion
-				validateCurrentAssertion()
+				err := validateCurrentAssertion()
+				if err != nil {
+					// TODO: error handling instead of panic
+					log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
+				}
 			case <-v.Ctx.Done():
 				return
 			}
@@ -311,6 +317,9 @@ func (v *Validator) challengeLoop() {
 					ctx.lastValidatedAssertion.VmHash,
 					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
+				if errors.Is(err, core.ErrInsufficientFunds) {
+					log.Crit("Insufficient Funds to send Tx", "error", err)
+				}	
 				if err != nil {
 					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
 				}
@@ -327,6 +336,9 @@ func (v *Validator) challengeLoop() {
 								ev.AssertionID,
 							},
 						)
+						if errors.Is(err, core.ErrInsufficientFunds) {
+							log.Crit("Insufficient Funds to send Tx", "error", err)
+						}	
 						if err != nil {
 							log.Crit("UNHANDELED: Can't start challenge, validator state corrupted", "err", err)
 						}
