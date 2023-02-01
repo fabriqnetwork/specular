@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+
+FROM node:18-alpine3.16
+
+RUN apk add --no-cache git
+RUN apk add --no-cache python3 
+RUN apk add --no-cache make
+
+USER node
+WORKDIR /home/
+COPY --chown=node contracts .
+
+RUN yarn install 
+# --production && yarn cache clean
+RUN npx hardhat node
+
+EXPOSE 8080
+
+CMD ["yarn", "start"]
