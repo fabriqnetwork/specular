@@ -28,14 +28,37 @@ yarn install
 ## Run Tests
 
 ```sh
-npm run tests
+forge test
+```
+
+For increased levels of test output verbosity, increase the number of `v`s. For example:
+```sh
+forge test -v
+```
+or
+```sh
+forge test -vv
+```
+or
+```sh
+forge test -vvv
+```
+or
+```sh
+forge test -vvvv
 ```
 
 ## Run Lints
 
+This is not really required, as formatting happens everytime you commit to the repository.
+
 ```sh
-npm run lint:fix
+forge fmt .
 ```
+
+## Fuzz Runs
+
+To increase the number of runs for the fuzz tests written for testing `Rollup.t.sol`, `SequencerInbox.t.sol`, etc. head over to `foundry.toml` and under the `[fuzz]` section put your desired number of runs infront of `runs`.
 
 ## Local Slither Check
 
