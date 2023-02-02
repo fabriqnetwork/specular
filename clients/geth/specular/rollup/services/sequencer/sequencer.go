@@ -16,7 +16,6 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	rollup_mock "github.com/specularl2/specular/clients/geth/specular/rollup/services/mock"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
@@ -48,17 +47,6 @@ type Sequencer struct {
 	challengeResoutionCh chan struct{}
 }
 
-// Current Sequencer assumes no Berlin+London fork on L2
-type MockSequencer struct {
-	*services.MockBaseService
-
-	batchCh              chan *rollupTypes.TxBatch
-	pendingAssertionCh   chan *rollupTypes.Assertion
-	confirmedIDCh        chan *big.Int
-	challengeCh          chan *challengeCtx
-	challengeResoutionCh chan struct{}
-}
-
 func NewSequencer(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Sequencer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, cfg, auth)
 	if err != nil {
@@ -67,22 +55,6 @@ func NewSequencer(eth services.Backend, proofBackend proof.Backend, cfg *service
 	s := &Sequencer{
 		BaseService:          base,
 		blockCh:              make(chan types.Blocks, 4096),
-		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
-		confirmedIDCh:        make(chan *big.Int, 4096),
-		challengeCh:          make(chan *challengeCtx),
-		challengeResoutionCh: make(chan struct{}),
-	}
-	return s, nil
-}
-
-func NewMockSequencer(eth *rollup_mock.MockBackend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*MockSequencer, error) {
-	base, err := services.NewMockBaseService(eth, proofBackend, cfg, auth)
-	if err != nil {
-		return nil, err
-	}
-	s := &MockSequencer{
-		MockBaseService:      base,
-		batchCh:              make(chan *rollupTypes.TxBatch, 4096),
 		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
 		confirmedIDCh:        make(chan *big.Int, 4096),
 		challengeCh:          make(chan *challengeCtx),
@@ -261,7 +233,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 		)
 		if errors.Is(err, core.ErrInsufficientFunds) {
 			log.Crit("Insufficient Funds to send Tx", "error", err)
-		}		
+		}
 		if err != nil {
 			log.Error("Can not create DA", "error", err)
 		}
