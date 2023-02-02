@@ -194,6 +194,7 @@ contract Rollup is RollupBase {
         Staker storage staker = stakers[msg.sender];
         if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
+            // @audit
             // This condition is alright, however for the case assertionID == staker.assertionID, the error `AssertionOutOfRange` is misleading
             // Consider changing it to something like `AlreadyStaked`
         }
@@ -502,6 +503,8 @@ contract Rollup is RollupBase {
     }
 
     function newAssertionDeadline() private view returns (uint256) {
+        // @audit For a large enough value of `confirmationPeriod` this function will throw an error
+        // @audit-info Determine and implement some sort of maximum value for `confirmationPeriod`.
         // TODO: account for prev assertion, gas
         return block.number + confirmationPeriod;
     }

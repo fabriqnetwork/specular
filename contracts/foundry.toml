@@ -14,5 +14,5 @@ cache_path  = 'forge-cache'
 line_length = 120
 
 [fuzz]
-runs = 500
+runs = 1000
 # See more config options https://github.com/foundry-rs/foundry/tree/master/config
