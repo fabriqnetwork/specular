@@ -152,7 +152,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
 
     /**
      *
-     *     EXTREMELY DANGEROUS FUNCTIONS. DO NOT DEPLOY BEFORE DELETING THESE FUNCTIONS FROM CONTRACT     *********
+     *     EXTREMELY DANGEROUS FUNCTION(S). DO NOT DEPLOY BEFORE DELETING THESE FUNCTION(S) FROM CONTRACT     *********
      *
      */
     function dangerousIncreaseSequencerInboxSize(uint256 newInboxSize) external returns (uint256) {

@@ -97,4 +97,15 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256[] memory txLengths = new uint256[](1);
         seqIn.appendTxBatch(contexts, txLengths, "0x");
     }
+
+    /////////////////////////////
+    // appendTxBatch
+    /////////////////////////////
+    function test_appendTxBatch_positiveCase() public {
+        // function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
+        // To be able to call this function, we first need an array of `contexts`
+        // So, what is `contexts`? => Each context corresponds to a single "L2 block"
+        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        // Ok, so it means how many transactions were in that block, the l2 block.number and the l2 block.timestamp of that block
+    }
 }
