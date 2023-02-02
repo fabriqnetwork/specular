@@ -330,13 +330,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 aliceBalanceInitial = alice.balance;
         uint256 bobBalance = bob.balance;
 
-        assertGt(
-            aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test"
-        );
-
-        _stake(alice, aliceBalanceInitial);
-
-        uint256 initialStakers = rollup.numStakers();
 
         uint256 amountStaked;
         uint256 assertionID;
