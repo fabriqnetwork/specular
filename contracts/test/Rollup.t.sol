@@ -738,14 +738,12 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isStakedAfterRemoveStake);
     }
 
-    function test_removeStake_fromUncorfirmedStake(
-        uint256 randomAmount,
-        uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 minimumAssertionPeriod,
-        uint256 maxGasPerAssertion
-    ) external {
-        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether);
+    function test_advanceStake_positiveCase(uint256 randomAmount, uint256 confirmationPeriod, uint256 challengePeriod)
+        external
+    {
+        // Bounding it otherwise, function `newAssertionDeadline()` overflows
+        confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 500, 1 ether);
 
         // Alice has not staked yet and therefore, this function should return `false`
         bool isAliceStaked = rollup.isStaked(alice);
@@ -756,8 +754,15 @@ contract RollupTest is RollupBaseSetup {
 
         emit log_named_uint("AB", aliceBalance);
 
+        // Bob also wants to stake on this assertion
+        bool isBobStaked = rollup.isStaked(bob);
+        assertTrue(!isBobStaked);
+
+        uint256 bobBalance = bob.balance;
+
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
+        uint256 bobAmountToStake = minimumAmount * 10;
 
         vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
@@ -766,12 +771,22 @@ contract RollupTest is RollupBaseSetup {
         //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceAmountToStake}();
 
+        vm.prank(bob);
+        require(bobBalance >= bobAmountToStake, "Increase balance of Bob to proceed");
+
+        // slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: bobAmountToStake}();
+
         // Now Alice should be staked
         uint256 stakerAssertionID;
 
         // stakers mapping gets updated
         (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
+
+        // Bob should be marked as staked now
+        (isBobStaked,,,) = rollup.stakers(bob);
+        assertTrue(isBobStaked);
 
         // Comparing lastConfirmedAssertionID and stakerAssertionID
         emit log_named_uint("Last Confirmed Assertion ID", rollup.lastConfirmedAssertionID());
@@ -794,26 +809,98 @@ contract RollupTest is RollupBaseSetup {
 
         // Increasing the sequencerInbox inboxSize
         vm.prank(sequencer);
-        seqIn.dangerousIncreaseSequencerInboxSize(10);
+        seqIn.dangerousIncreaseSequencerInboxSize(10); // create helper function for SequencerInbox.appendTx
 
         emit log_named_uint("Changed Sequencer Inbox Size", seqIn.getInboxSize());
 
-        bytes32 mockVmHash;
+        bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 5; // Which is smaller than the previously set sequencerInboxSize with the function dangerousIncreaseSequencerInboxSize
 
         // Need to figure out values of mockL2GasUsed so that the following condition is satisfied:
         // if (assertionGasUsed > maxGasPerAssertion) {
         //    revert MaxGasLimitExceeded();
         // }
-        uint256 mockL2GasUsed;
-        bytes32 mockPrevVMHash;
-        uint256 mockPrevL2GasUsed;
+        // where, uint256 assertionGasUsed = l2GasUsed - prevL2GasUsed
+        uint256 mockL2GasUsed = 342;
+        bytes32 mockPrevVMHash = bytes32("");
+        uint256 mockPrevL2GasUsed = 0;
+
+        emit log_named_uint("BN-1", block.number);
+
+        /**
+         * This error is popping up. Let's figure out how to tackle this:
+         *         if (block.number - assertions.getProposalTime(parentID) < minimumAssertionPeriod) {
+         *             revert MinimumAssertionPeriodNotPassed();
+         *         }
+         */
+        // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
+        vm.warp(block.timestamp + 50 days);
+        vm.roll(block.number + (50 * 86400) / 20);
+
+        // The method to mock startState(prevL2GasUsed, prevVmHash) to be equal to assertions.getStateHash(parentId)
+        // is not known yet, so, let's assume they won't match and move forward.
+        // ^ The above problem is solved because coincidentally we are on the 0th assertionID and the values of creating that can
+        // be seen from the function `Rollup.initialize()`
+        /**
+         * assertions.createAssertion(
+         *             0, // assertionID
+         *             RollupLib.stateHash(RollupLib.ExecutionState(0, _initialVMhash)),
+         *             0, // inboxSize (genesis)
+         *             0, // parentID
+         *             block.number // deadline (unchallengeable)
+         *         );
+         */
+
+        /*
+            rollupAssertion = rollupAssertion = rollup.assertions();
+            uint256 proposalTime = rollupAssertion.getProposalTime(0);
+
+            emit log_named_uint("Proposal Time", proposalTime);
+            emit log_named_uint("BN-2", block.number);
+            emit log_named_uint("MAP", 1 days);
+        */
+
+        // Now getting this error:
+        /**
+         * if (assertionGasUsed > maxGasPerAssertion) {
+         *             revert MaxGasLimitExceeded();
+         *         }
+         * 
+         *         We've set maxGasPerAssertion as 500
+         * 
+         *         And, assertionGasUsed = l2GasUsed - prevL2GasUsed
+         */
+
+        assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
+        (, uint256 amountStakedInitial, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
+
+        assertEq(assertionIDInitial, 0);
 
         vm.prank(alice);
-        //rollup.createAssertion();
+        rollup.createAssertion(mockVmHash, mockInboxSize, mockL2GasUsed, mockPrevVMHash, mockPrevL2GasUsed);
+
+        // Now assuming that the last assertion was created successfully, the lastCreatedAssertionID should have bumped to 1.
+        assertEq(rollup.lastCreatedAssertionID(), 1, "LastCreatedAssertionID not updated correctly");
+
+        // The assertionID of alice should change after she called `createAssertion`
+        (, uint256 amountStakedFinal, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
+
+        assertEq(amountStakedInitial, amountStakedFinal);
+        assertEq(assertionIDFinal, 1);
 
         // Advance stake of the staker
-        assertTrue(false);
+        // Since Alice's stake was already advanced when she called createAssertion, her call to `rollup.advanceStake` should fail
+        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
+        vm.prank(alice);
+        rollup.advanceStake(1);
+
+        // Bob's call to `rollup.advanceStake` should succeed as he is still staked on the previous assertion
+        vm.prank(bob);
+        rollup.advanceStake(1);
+
+        (,, uint256 bobAssertionID,) = rollup.stakers(address(alice));
+
+        assertEq(bobAssertionID, 1);
     }
 
     /////////////////////////

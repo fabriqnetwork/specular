@@ -191,6 +191,8 @@ contract Rollup is RollupBase {
         Staker storage staker = stakers[msg.sender];
         if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
+            // This condition is alright, however for the case assertionID == staker.assertionID, the error `AssertionOutOfRange` is misleading
+            // Consider changing it to something like `AlreadyStaked`
         }
         // TODO: allow arbitrary descendant of current staked assertionID, not just child.
 
@@ -208,6 +210,9 @@ contract Rollup is RollupBase {
         if (!success) revert TransferFailed();
     }
 
+    event Debugger(string value);
+    event DebuggerValue(string name, uint256 value);
+
     /// @inheritdoc IRollup
     function createAssertion(
         bytes32 vmHash,
@@ -220,40 +225,74 @@ contract Rollup is RollupBase {
         RollupLib.ExecutionState memory startState = RollupLib.ExecutionState(prevL2GasUsed, prevVMHash);
         RollupLib.ExecutionState memory endState = RollupLib.ExecutionState(l2GasUsed, vmHash);
 
+        emit Debugger("1");
+
         uint256 parentID = stakers[msg.sender].assertionID;
         // Require that enough time has passed since the last assertion.
         if (block.number - assertions.getProposalTime(parentID) < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
         }
+
+        emit Debugger("2");
+
         // TODO: require(..., TOO_SMALL);
         uint256 assertionGasUsed = l2GasUsed - prevL2GasUsed;
         // Require that the L2 gas used by the assertion is less than the limit.
         // TODO: arbitrum uses: timeSinceLastNode.mul(avmGasSpeedLimitPerBlock).mul(4) ?
+
+        emit Debugger("3");
+
         if (assertionGasUsed > maxGasPerAssertion) {
             revert MaxGasLimitExceeded();
         }
+
+        emit Debugger("4");
+
         // Require integrity of startState.
         if (RollupLib.stateHash(startState) != assertions.getStateHash(parentID)) {
             revert PreviousStateHash();
         }
+
+        emit Debugger("5");
+
         // Require that the assertion at least includes one transaction
         if (inboxSize <= assertions.getInboxSize(parentID)) {
             revert EmptyAssertion();
         }
+
+        emit Debugger("6");
+
         // Require that the assertion doesn't read past the end of the current inbox.
         if (inboxSize > sequencerInbox.getInboxSize()) {
             revert InboxReadLimitExceeded();
         }
 
+        emit Debugger("7");
+
         // Initialize assertion.
         lastCreatedAssertionID++;
+
+        emit Debugger("8");
+
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, inboxSize, l2GasUsed);
+
+        emit Debugger("9");
+
+        emit DebuggerValue("lastCreatedAssertionID", lastCreatedAssertionID);
+        emit DebuggerValue("Inbox Size", inboxSize);
+        emit DebuggerValue("Assertion Deadline", newAssertionDeadline());
+        emit DebuggerValue("Parent ID", parentID);
+
         assertions.createAssertion(
             lastCreatedAssertionID, RollupLib.stateHash(endState), inboxSize, parentID, newAssertionDeadline()
         );
 
+        emit Debugger("10");
+
         // Update stake.
         stakeOnAssertion(msg.sender, lastCreatedAssertionID);
+
+        emit Debugger("11");
     }
 
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)

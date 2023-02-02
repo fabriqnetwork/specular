@@ -85,6 +85,8 @@ contract AssertionMap {
         return assertions[assertionID].stakers[stakerAddress];
     }
 
+    event DebuggerString(string value);
+
     function createAssertion(
         uint256 assertionID,
         bytes32 stateHash,
@@ -92,28 +94,47 @@ contract AssertionMap {
         uint256 parentID,
         uint256 deadline
     ) external rollupOnly {
+        emit DebuggerString("0");
+
         Assertion storage assertion = assertions[assertionID];
         Assertion storage parentAssertion = assertions[parentID];
         // Child assertions must have same inbox size
+
+        emit DebuggerString("1");
+
         uint256 parentChildInboxSize = parentAssertion.childInboxSize;
+
+        emit DebuggerString("2");
+
         if (parentChildInboxSize == 0) {
             parentAssertion.childInboxSize = inboxSize;
+            emit DebuggerString("3");
         } else {
+            emit DebuggerString("4");
             if (inboxSize != parentChildInboxSize) {
                 revert ChildInboxSizeMismatch();
             }
         }
 
+        emit DebuggerString("5");
+
         if (parentAssertion.childStateHashes[stateHash]) {
             revert SiblingStateHashExists();
         }
+
+        emit DebuggerString("6");
+
         parentAssertion.childStateHashes[stateHash] = true;
+
+        emit DebuggerString("7");
 
         assertion.stateHash = stateHash;
         assertion.inboxSize = inboxSize;
         assertion.parent = parentID;
         assertion.deadline = deadline;
         assertion.proposalTime = block.number;
+
+        emit DebuggerString("7");
     }
 
     function stakeOnAssertion(uint256 assertionID, address stakerAddress) external rollupOnly {
