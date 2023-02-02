@@ -705,37 +705,124 @@ contract RollupTest is RollupBaseSetup {
 
         uint256 aliceBalanceAfterRemoveStake = alice.balance;
 
-        /*
-            // emit log_named_uint("Initial Staked Amount", amountStakedInitial);
-            // emit log_named_uint("Final Staked Amount", amountStakedFinal);
-            // emit log_named_uint("Base Amount", 1 ether);
-            // emit log_named_uint("Alice Staked Amount", aliceAmountToStake);
-            // emit log_named_uint("Alice Balance Before", aliceBalanceBeforeRemoveStake);
-            // emit log_named_uint("Alice Balance After", aliceBalanceAfterRemoveStake);
-        */
-
-        // The below assertion will fail because of a bug in the Rollup contract. Until that is fixed, I'll just comment this assertion out.
-        /**
-         * function removeStake(address stakerAddress) external override {
-         *             requireStaked(stakerAddress);
-         *             // Require that staker is staked on a confirmed assertion.
-         *             Staker storage staker = stakers[stakerAddress];
-         *             if (staker.assertionID > lastConfirmedAssertionID) {
-         *                 revert StakedOnUnconfirmedAssertion();
-         *             }
-         *             deleteStaker(stakerAddress);
-         *             // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
-         *             (bool success,) = stakerAddress.call{value: staker.amountStaked}("");
-         *             if (!success) revert TransferFailed();
-         *         }
-         */
-        // Now what you'll notice in the second last line where the stake is being transferred to the staker, the value is kept as `staker.amountStaked`. However in the line above that
-        // the staker has been deleted and thus the value transferred will always be 0.
-        // Need to fix this critical bug.
-        //assertGt(aliceBalanceAfterRemoveStake, aliceBalanceBeforeRemoveStake);
-        // assertEq((aliceBalanceAfterRemoveStake - aliceBalanceBeforeRemoveStake), aliceAmountToStake);
+        assertGt(aliceBalanceAfterRemoveStake, aliceBalanceBeforeRemoveStake);
+        assertEq((aliceBalanceAfterRemoveStake - aliceBalanceBeforeRemoveStake), aliceAmountToStake);
 
         assertTrue(!isStakedAfterRemoveStake);
+    }
+
+    /////////////////////////
+    // Advance Stake
+    /////////////////////////
+
+    function test_advanceStake_calledByNonStaker(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 assertionID
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        // Since Alice is not staked, function advanceStake should also revert
+        vm.expectRevert(IRollup.NotStaked.selector);
+        vm.prank(alice);
+
+        rollup.advanceStake(assertionID);
+    }
+
+    function test_advanceStake_calledWithRandomAssertionID(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 assertionID
+    ) external {
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether);
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        emit log_named_uint("AB", aliceBalance);
+
+        // Let's stake something on behalf of Alice
+        uint256 aliceAmountToStake = minimumAmount * 10;
+
+        vm.prank(alice);
+        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+        // Calling the staking function as Alice
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceAmountToStake}();
+
+        // Now Alice should be staked
+        isAliceStaked = rollup.isStaked(alice);
+        assertTrue(isAliceStaked);
+
+        uint256 aliceBalanceBeforeRemoveStake = alice.balance;
+
+        (,, uint256 stakerAssertionID,) = rollup.stakers(address(alice));
+
+        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+
+        if (assertionID > stakerAssertionID && assertionID <= lastCreatedAssertionID) {
+            assertionID = lastCreatedAssertionID + 10;
+        }
+
+        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
+        vm.prank(alice);
+
+        rollup.advanceStake(assertionID);
+    }
+
+    function test_advanceStake_illegalAssertionID(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 assertionID
+    ) external {
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether);
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        emit log_named_uint("AB", aliceBalance);
+
+        // Let's stake something on behalf of Alice
+        uint256 aliceAmountToStake = minimumAmount * 10;
+
+        vm.prank(alice);
+        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+        // Calling the staking function as Alice
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceAmountToStake}();
+
+        // Now Alice should be staked
+        isAliceStaked = rollup.isStaked(alice);
+        assertTrue(isAliceStaked);
+
+        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
+        vm.prank(alice);
+        rollup.advanceStake(assertionID);
     }
 
     function test_advanceStake_positiveCase(uint256 randomAmount, uint256 confirmationPeriod, uint256 challengePeriod)
@@ -865,9 +952,9 @@ contract RollupTest is RollupBaseSetup {
          * if (assertionGasUsed > maxGasPerAssertion) {
          *             revert MaxGasLimitExceeded();
          *         }
-         * 
+         *
          *         We've set maxGasPerAssertion as 500
-         * 
+         *
          *         And, assertionGasUsed = l2GasUsed - prevL2GasUsed
          */
 
@@ -901,120 +988,6 @@ contract RollupTest is RollupBaseSetup {
         (,, uint256 bobAssertionID,) = rollup.stakers(address(alice));
 
         assertEq(bobAssertionID, 1);
-    }
-
-    /////////////////////////
-    // Advance Stake
-    /////////////////////////
-
-    function test_advanceStake_calledByNonStaker(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 minimumAssertionPeriod,
-        uint256 maxGasPerAssertion,
-        uint256 baseStakeAmount,
-        uint256 assertionID
-    ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
-        );
-
-        // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
-        assertTrue(!isAliceStaked);
-
-        // Since Alice is not staked, function advanceStake should also revert
-        vm.expectRevert(IRollup.NotStaked.selector);
-        vm.prank(alice);
-
-        rollup.advanceStake(assertionID);
-    }
-
-    function test_advanceStake_calledWithRandomAssertionID(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 minimumAssertionPeriod,
-        uint256 maxGasPerAssertion,
-        uint256 baseStakeAmount,
-        uint256 assertionID
-    ) external {
-        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether);
-
-        // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
-        assertTrue(!isAliceStaked);
-
-        uint256 minimumAmount = rollup.baseStakeAmount();
-        uint256 aliceBalance = alice.balance;
-
-        emit log_named_uint("AB", aliceBalance);
-
-        // Let's stake something on behalf of Alice
-        uint256 aliceAmountToStake = minimumAmount * 10;
-
-        vm.prank(alice);
-        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
-
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
-        assertTrue(isAliceStaked);
-
-        uint256 aliceBalanceBeforeRemoveStake = alice.balance;
-
-        (,, uint256 stakerAssertionID,) = rollup.stakers(address(alice));
-
-        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
-
-        if (assertionID > stakerAssertionID && assertionID <= lastCreatedAssertionID) {
-            assertionID = lastCreatedAssertionID + 10;
-        }
-
-        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
-        vm.prank(alice);
-
-        rollup.advanceStake(assertionID);
-    }
-
-    function test_advanceStake_illegalAssertionID(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 minimumAssertionPeriod,
-        uint256 maxGasPerAssertion,
-        uint256 baseStakeAmount,
-        uint256 assertionID
-    ) external {
-        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether);
-
-        // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
-        assertTrue(!isAliceStaked);
-
-        uint256 minimumAmount = rollup.baseStakeAmount();
-        uint256 aliceBalance = alice.balance;
-
-        emit log_named_uint("AB", aliceBalance);
-
-        // Let's stake something on behalf of Alice
-        uint256 aliceAmountToStake = minimumAmount * 10;
-
-        vm.prank(alice);
-        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
-
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
-        assertTrue(isAliceStaked);
-
-        vm.expectRevert(IRollup.AssertionOutOfRange.selector);
-        vm.prank(alice);
-        rollup.advanceStake(assertionID);
     }
 
     /////////////////////////
