@@ -169,14 +169,14 @@ func (s *Sequencer) batchingLoop() {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
 				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
-					log.Crit("Failed to add transaction to batch and commit", "err", err)
+					log.Crit("batchingLoop failed to process local txs", "err", err)
 				}
 			}
 			if len(remoteTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
 				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
-					log.Crit("Failed to add transaction to batch and commit", "err", err)
+					log.Crit("batchingLoop failed to process remote txs", "err", err)
 				}
 			}
 			if len(batchTxs) > 0 {
@@ -197,7 +197,7 @@ func (s *Sequencer) batchingLoop() {
 			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
 			batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 			if err != nil {
-				log.Crit("Failed to add transaction to batch and commit", "err", err)
+				log.Crit("Failed to process txsCh event ", "err", err)
 			}
 		case <-s.Ctx.Done():
 			return

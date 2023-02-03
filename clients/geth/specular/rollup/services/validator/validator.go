@@ -95,7 +95,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		return fmt.Errorf("Insufficient Funds to send Tx, err: %w", err)
 	}
 	if err != nil {
-		return fmt.Errorf("UNHANDELED: Can't advance stake, validator state corrupted, err: %w", err)
+		return fmt.Errorf("UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
 	}
 	return nil
 }
