@@ -68,7 +68,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
-			return fmt.Errorf("UNHANDELED: Assertion created in the middle of block, validator state corrupted!")
+			return fmt.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
 		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(block.GasUsed()))
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
@@ -171,7 +171,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					err := validateCurrentAssertion()
 					if err != nil {
 						// TODO: error handling instead of panic
-						log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
+						log.Crit("UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 					}
 				}
 			case ev := <-assertionEventCh:
@@ -190,14 +190,14 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				}
 				if currentAssertion != nil {
 					// TODO: handle concurrent assertions
-					log.Crit("UNHANDELED: concurrent assertion")
+					log.Crit("UNHANDLED: concurrent assertion")
 					continue
 				}
 				currentAssertion = assertion
 				err := validateCurrentAssertion()
 				if err != nil {
 					// TODO: error handling instead of panic
-					log.Crit("UNHANDELED: Can't validate assertion, validator state corrupted", "err", err)
+					log.Crit("UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 				}
 			case <-v.Ctx.Done():
 				return
@@ -321,7 +321,7 @@ func (v *Validator) challengeLoop() {
 					log.Crit("Insufficient Funds to send Tx", "error", err)
 				}
 				if err != nil {
-					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
+					log.Crit("UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
 				}
 			case ev := <-createdCh:
 				if common.Address(ev.AsserterAddr) == v.Config.Coinbase {
@@ -340,7 +340,7 @@ func (v *Validator) challengeLoop() {
 							log.Crit("Insufficient Funds to send Tx", "error", err)
 						}
 						if err != nil {
-							log.Crit("UNHANDELED: Can't start challenge, validator state corrupted", "err", err)
+							log.Crit("UNHANDLED: Can't start challenge, validator state corrupted", "err", err)
 						}
 					}
 				}

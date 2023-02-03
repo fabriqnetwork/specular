@@ -82,7 +82,7 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
-			return batchTxs, fmt.Errorf("Checking GetTransaction, this is err: %w", err)
+			return batchTxs, fmt.Errorf("Checking GetTransaction, err: %w", err)
 		}
 		if prevTx == nil {
 			batchTxs = append(batchTxs, tx)
