@@ -112,7 +112,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 			}
 			batchTxs, err := s.modifyTxnsInBatch(batchTxs, tx)
 			if err != nil {
-				return batchTxs, fmt.Errorf("Modify transaction in batch failed, this is err: %w", err)
+				return batchTxs, fmt.Errorf("Modifying batch failed, err: %w", err)
 			}
 			txs.Pop()
 		}
