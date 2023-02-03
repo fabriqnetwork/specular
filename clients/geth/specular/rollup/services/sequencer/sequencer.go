@@ -82,7 +82,6 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
-			log.Error("Checking GetTransaction, this is err", "error", err)
 			return batchTxs, fmt.Errorf("Checking GetTransaction, this is err: %w", err)
 		}
 		if prevTx == nil {
@@ -113,7 +112,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 			}
 			batchTxs, err := s.modifyTxnsInBatch(batchTxs, tx)
 			if err != nil {
-				return batchTxs, err
+				return batchTxs, fmt.Errorf("Modify transaction in batch failed, this is err: %w", err)
 			}
 			txs.Pop()
 		}
