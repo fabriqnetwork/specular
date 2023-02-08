@@ -97,36 +97,4 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256[] memory txLengths = new uint256[](1);
         seqIn.appendTxBatch(contexts, txLengths, "0x");
     }
-
-    /////////////////////////////
-    // appendTxBatch
-    /////////////////////////////
-    function test_appendTxBatch_positiveCase() public {
-        // function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
-        // To be able to call this function, we first need an array of `contexts`
-        // So, what is `contexts`? => Each context corresponds to a single "L2 block"
-        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-        // Ok, so it means number of transactions in block, the l2 block.number and the l2 block.timestamp of that block
-
-        // Let's create an array of contexts
-        uint256 numTxns = 3;
-        uint256 timeStamp1 = block.timestamp / 10;
-        uint256 timeStamp2 = block.timestamp / 5;
-        uint256 blockNumber1 = timestamp1 / 20;
-        uint256 blockNumber2 = timestamp2 / 20;
-
-        // Let's assume that we had 2 blocks and each had 3 transactions
-        uint256[6] memory contexts = [numTxns, blockNumber1, timeStamp1, numTxns, blockNumber2, timeStamp2];
-
-        assertTrue(false);
-    }
 }
-
-// These are two examples of RLP encoded transactions and they both have the same length... I think all RLP transactions have the same length as a property.
-// So, what does `txLengths` array comprise of?
-
-// Also, given different RLP encoded transactions in a batch, how do we calculate the txBatch thing?
-// Is it something like, keccak256(abi.encodePacked(tx1, tx2, tx3)) {for all blocks in one}?
-
-// 0xf876801888073bb609d9bc81b894830a495171034ebbd89c236e7a90e24a49d38a819108683d8cf929fd690df519ee3488640000802da071c72753fa2081067f338ca0799e952dc23ac341fe62ddfe3e598279d34931d4a01a9b35b3d886b0621bad6b1c922b997e2496691cb2b55130ec95f1b6a8ad6230
-// 0xf8768018880dae933732f365e894a4f21f9296a37bba080b93c2110487a230041ef79105f8dbf082345488ac3526185ce3640000802ea03a56c5c72c0859760e62ae6a1e089f53d0c47a595aa47afd0362b98b300d84b9a062dda585b52188a14b9cd31cae95fd0844cef83711240e4d633045c4ff70aa61
