@@ -31,23 +31,6 @@ yarn install
 forge test
 ```
 
-For increased levels of test output verbosity, increase the number of `v`s. For example:
-```sh
-forge test -v
-```
-or
-```sh
-forge test -vv
-```
-or
-```sh
-forge test -vvv
-```
-or
-```sh
-forge test -vvvv
-```
-
 ## Run Lints
 
 This is not really required, as formatting happens everytime you commit to the repository.
