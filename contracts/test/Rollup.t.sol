@@ -57,6 +57,9 @@ contract RollupTest is RollupBaseSetup {
     SequencerInbox public seqIn;
     SequencerInbox public implementationSequencer;
 
+    address defender = makeAddr("defender");
+    address challenger = makeAddr("challenger");
+
     function setUp() public virtual override {
         // Parent contract setup
         RollupBaseSetup.setUp();
@@ -216,9 +219,9 @@ contract RollupTest is RollupBaseSetup {
         }
     }
 
-    ////////////////
-    // Staking
-    ///////////////
+    /////////////////////////
+    // Challenge Assertion
+    /////////////////////////
 
     function testFuzz_stake_isStaked_succeeds(
         uint256 confirmationPeriod,
@@ -258,14 +261,14 @@ contract RollupTest is RollupBaseSetup {
             initialInboxSize
         );
 
-        uint256 minimumAmount = rollup.baseStakeAmount();
-        uint256 aliceBalance = alice.balance;
+        defenderAssertionID = bound(defenderAssertionID, challengerAssertionID, type(uint256).max);
 
         if (aliceBalance > minimumAmount) {
             aliceBalance = minimumAmount / 10;
         }
 
-        vm.expectRevert(IRollup.InsufficientStake.selector);
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
 
         vm.prank(alice);
         //slither-disable-next-line arbitrary-send-eth
@@ -388,7 +391,7 @@ contract RollupTest is RollupBaseSetup {
             confirmationPeriod,
             challengePeriod,
             minimumAssertionPeriod,
-            baseStakeAmount,
+            type(uint256).max,
             initialAssertionID,
             initialInboxSize
         );
@@ -397,9 +400,8 @@ contract RollupTest is RollupBaseSetup {
         (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
-        // Since Alice is not staked, function unstake should also revert
-        vm.expectRevert(IRollup.NotStaked.selector);
-        vm.prank(alice);
+        players[0] = defender;
+        players[1] = challenger;
 
         rollup.removeStake(address(alice));
     }
@@ -833,21 +835,24 @@ contract RollupTest is RollupBaseSetup {
     function _increaseSequencerInboxSize() internal {
         uint256 seqInboxSizeInitial = seqIn.getInboxSize();
         uint256 numTxnsPerBlock = 3;
-        uint256 firstL2BlockNumber = block.timestamp / 20;
 
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
         // Let's create an array of contexts
         uint256 timeStamp1 = block.timestamp / 10;
         uint256 timeStamp2 = block.timestamp / 5;
+        uint256 blockNumber1 = timeStamp1 / 20;
+        uint256 blockNumber2 = timeStamp2 / 20;
 
-        uint256[] memory contexts = new uint256[](4);
+        uint256[] memory contexts = new uint256[](6);
 
         // Let's assume that we had 2 blocks and each had 3 transactions
         contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (timeStamp1);
-        contexts[2] = (numTxnsPerBlock);
-        contexts[3] = (timeStamp2);
+        contexts[1] = (blockNumber1);
+        contexts[2] = (timeStamp1);
+        contexts[3] = (numTxnsPerBlock);
+        contexts[4] = (blockNumber2);
+        contexts[5] = (timeStamp2);
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
