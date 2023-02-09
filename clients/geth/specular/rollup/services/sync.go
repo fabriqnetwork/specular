@@ -159,7 +159,7 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 			if err != nil {
 				return fmt.Errorf("["+funcName()+"] Failed to convert batch event to sequence blocks, err: %w", err)
 			}
-			// Commit blocks to blockchain
+			// Commit blocks to blockchain 
 			err = b.CommitBlocks(blocks)
 			if err != nil {
 				return err
