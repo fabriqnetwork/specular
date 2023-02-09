@@ -72,8 +72,8 @@ contract RollupTest is RollupBaseSetup {
     uint256 randomNonce;
     AssertionMap rollupAssertion;
 
-    //address[2] players;
-    //uint256[2] assertionIDs;
+    address defender = makeAddr("defender");
+    address challenger = makeAddr("challenger");
 
     function setUp() public virtual override {
         RollupBaseSetup.setUp();
@@ -784,11 +784,9 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isStakedAfterRemoveStake);
     }
 
-    function test_removeStake_fromUnconfirmedAssertionID(
-        uint256 randomAmount,
-        uint256 confirmationPeriod,
-        uint256 challengePeriod
-    ) external {
+    function test_removeStake_fromUnconfirmedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod)
+        external
+    {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 500, 1 ether);
@@ -1145,8 +1143,37 @@ contract RollupTest is RollupBaseSetup {
 
         defenderAssertionID = bound(defenderAssertionID, challengerAssertionID, type(uint256).max);
 
-        address defender = makeAddr("defender");
-        address challenger = makeAddr("challenger");
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.WrongOrder.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
+
+    function test_challengeAssertion_unproposedAssertionID(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 defenderAssertionID,
+        uint256 challengerAssertionID
+    ) public {
+        // Initializing the rollup
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max
+        );
+
+        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+
+        challengerAssertionID = bound(challengerAssertionID, lastCreatedAssertionID + 1, type(uint256).max);
+        defenderAssertionID = bound(defenderAssertionID, 0, challengerAssertionID - 1);
 
         address[2] memory players;
         uint256[2] memory assertionIDs;
@@ -1157,12 +1184,88 @@ contract RollupTest is RollupBaseSetup {
         assertionIDs[0] = defenderAssertionID;
         assertionIDs[1] = challengerAssertionID;
 
-        emit log_named_uint("DAI", defenderAssertionID);
-        emit log_named_uint("CAI", challengerAssertionID);
-        emit log_named_address("D", defender);
-        emit log_named_address("C", challenger);
+        vm.expectRevert(IRollup.UnproposedAssertion.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
 
-        vm.expectRevert(IRollup.WrongOrder.selector);
+    function test_challengeAssertion_alreadyResolvedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod)
+        public
+    {
+        // Initializing the rollup
+        confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 500, 1 ether);
+
+        uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
+
+        // Let's increase the lastCreatedAssertionID
+        {
+            // Alice has not staked yet and therefore, this function should return `false`
+            bool isAliceStaked = rollup.isStaked(alice);
+            assertTrue(!isAliceStaked);
+
+            uint256 minimumAmount = rollup.baseStakeAmount();
+            uint256 aliceBalance = alice.balance;
+
+            // Let's stake something on behalf of Alice
+            uint256 aliceAmountToStake = minimumAmount * 10;
+
+            vm.prank(alice);
+            require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+            // Calling the staking function as Alice
+            //slither-disable-next-line arbitrary-send-eth
+            rollup.stake{value: aliceAmountToStake}();
+
+            // Now Alice should be staked
+            uint256 stakerAssertionID;
+
+            // stakers mapping gets updated
+            (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
+            assertTrue(isAliceStaked);
+
+            // Checking previous Sequencer Inbox Size
+            uint256 seqInboxSize = seqIn.getInboxSize();
+            emit log_named_uint("Sequencer Inbox Size", seqInboxSize);
+
+            _increaseSequencerInboxSize();
+
+            bytes32 mockVmHash = bytes32("");
+            uint256 mockInboxSize = 5;
+            uint256 mockL2GasUsed = 342;
+            bytes32 mockPrevVMHash = bytes32("");
+            uint256 mockPrevL2GasUsed = 0;
+
+            // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
+            vm.warp(block.timestamp + 50 days);
+            vm.roll(block.number + (50 * 86400) / 20);
+
+            assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
+            (,, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
+
+            assertEq(assertionIDInitial, 0);
+
+            vm.prank(alice);
+            rollup.createAssertion(mockVmHash, mockInboxSize, mockL2GasUsed, mockPrevVMHash, mockPrevL2GasUsed);
+
+            // The assertionID of alice should change after she called `createAssertion`
+            (,, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
+
+            assertEq(assertionIDFinal, 1); // Alice is now staked on assertionID = 1 instead of assertionID = 0.
+        }
+
+        uint256 defenderAssertionID = lastConfirmedAssertionID; //would be 0 in this case. cannot assign anything lower
+        uint256 challengerAssertionID = lastConfirmedAssertionID + 1; // that would mean 1
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.AssertionAlreadyResolved.selector);
         rollup.challengeAssertion(players, assertionIDs);
     }
 
