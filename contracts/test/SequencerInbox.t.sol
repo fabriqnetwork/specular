@@ -40,6 +40,31 @@ contract SequencerBaseSetup is Test {
 }
 
 contract SequencerInboxTest is SequencerBaseSetup {
+    ////////////////////////////////////
+    // Utility Function
+    ////////////////////////////////////
+
+    function createTxBatch() public pure returns (bytes memory) {
+        bytes memory tx1 =
+            "0xf87980830928028807db92dd3a67aec0943843c3ef2e5aeb50b18f70c05489cdf4ee02f265911d063fadb8051a25d767a4113cda640000802ea0940b36911fcb70d982f5ba1c919600acb86412d90a01186185ed960006864ba3a02bc5b5c686ca8593a69dc27961aecac49b4e9ea9cc374fdc981799bb09887a82";
+        bytes memory tx2 =
+            "0xf8798083092801880c5b572ca09a1ab094a43a08212ba8b14e3b1cf9ccaf854a40973511be9117ffc93897f5d9a601a3142ade1c640000802ea0c7f40eff33312a972b7e5eaa277345ae9c9be1afa70e991db798da24dfa03782a05ef4400508c80bf56e089d9458c6d49ba4fa21a97e0f2f164387994e57472ff0";
+        bytes memory tx3 =
+            "0xf87980830928018809431dd5a59585dc94f45d59c6e6fabb0e927ee496975e2ccdb47ed754911b3288a788f83591e788770843e3640000802ea0c6ae9f3f6c1de0de9c6b34016c75f052ffb740f214ca979f217b6b27c66cddaea03a8b4e8e270969d0b11afee29bd5a25c65b725da478604ba0d54b9f3b767c7df";
+        bytes memory tx4 =
+            "0xf879808309280188064606a4f40a2c8894f0f66416890155860c7763312c61c04ba0662cbc91085966cd6130788c6cfa6300af1fe40000802da06ce8941605db844d69d6435aaa17e8a318f7ffeaa1ddb1875a4dc43f5e5c5fc6a032a20d32ccf119686cc6b69ca5f61f92864a2d57e409cac48aa411ae55483e7a";
+        bytes memory tx5 =
+            "0xf8798083092801880b3bdd5e4cc2f2e49499b7d78a719bb1a7c42fd137029704b6cae4fa449104a412c41700122abf98c1f054d9e40000802da0a8ebcdc1d48d1b425d26f75c56095868fa79600cb28c5f57b3aef4090225576ea0472d2a86c00dfabda26fa6cdd8a4c4df394e762b7d8117346fff44371c8584bd";
+        bytes memory tx6 =
+            "0xf87980830928018809a25f73849892b894db16cfe9acc3b7da9e5aaace521483c50c43cfec910755f22d8ff7ee357f900c7f2bfee40000802ea0f08397648419c67baf8d8df16d13f86cc806ca429664e4fb0aba6425907a825fa06074c6910dc61bd6f73d7db1e4f0d1a3cf5bcecb29389e6b2260b4327487c643";
+
+        return bytes.concat(keccak256(abi.encode(tx1, tx2, tx3, tx4, tx5, tx6)));
+    }
+
+    /////////////////////////////////
+    // SequencerInbox Setup
+    /////////////////////////////////
+
     SequencerInbox private seqIn;
     SequencerInbox private seqIn2;
 
@@ -53,6 +78,10 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         seqIn = SequencerInbox(address(proxy));
     }
+
+    /////////////////////////////////
+    // SequencerInbox Tests
+    /////////////////////////////////
 
     function test_initializeSequencerInbox_withSequencerAddressZero() external {
         SequencerInbox _impl2 = new SequencerInbox();
@@ -96,5 +125,49 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
         seqIn.appendTxBatch(contexts, txLengths, "0x");
+    }
+
+    /////////////////////////////
+    // appendTxBatch
+    /////////////////////////////
+    function test_appendTxBatch_positiveCase() public {
+        uint256 inboxSizeInitial = seqIn.getInboxSize();
+
+        // Each context corresponds to a single "L2 block"
+        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        // Let's create an array of contexts
+        uint256 numTxns = 3;
+        uint256 timeStamp1 = block.timestamp / 10;
+        uint256 timeStamp2 = block.timestamp / 5;
+        uint256 blockNumber1 = timeStamp1 / 20;
+        uint256 blockNumber2 = timeStamp2 / 20;
+
+        uint256[] memory contexts = new uint256[](6);
+        uint256[] memory txLengths = new uint256[](6);
+
+        // Let's assume that we had 2 blocks and each had 3 transactions
+        contexts[0] = (numTxns);
+        contexts[1] = (blockNumber1);
+        contexts[2] = (timeStamp1);
+        contexts[3] = (numTxns);
+        contexts[4] = (blockNumber2);
+        contexts[5] = (timeStamp2);
+
+        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
+        for (uint256 i; i < 6; i++) {
+            txLengths[i] = (uint256(268));
+        }
+
+        // txBatch is defined as: Batch of RLP-encoded transactions
+        bytes memory txBatch = createTxBatch();
+
+        // Pranking as the sequencer and calling appendTxBatch
+        vm.prank(sequencer);
+        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+
+        uint256 inboxSizeFinal = seqIn.getInboxSize();
+
+        assertGt(inboxSizeFinal, inboxSizeInitial);
+        assertEq(inboxSizeFinal, uint256(6), "2 blocks of 3 txns each = 6 numTxns");
     }
 }
