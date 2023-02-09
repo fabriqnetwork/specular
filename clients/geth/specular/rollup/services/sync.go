@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"runtime"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -19,6 +21,13 @@ import (
 )
 
 const syncRange uint64 = 10000
+
+func funcName() string {
+    pc, _, _, _ := runtime.Caller(1)
+	nameFull := runtime.FuncForPC(pc).Name()    
+    splitInput := strings.Split(nameFull, "/")
+    return splitInput[len(splitInput)-1]
+}
 
 // CommitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
@@ -126,7 +135,7 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 	log.Info("Syncing inbox", "start", start, "end", end)
 	abi, err := bindings.ISequencerInboxMetaData.GetAbi()
 	if err != nil {
-		log.Crit("Failed to get ISequencerInbox ABI", "err", err)
+		return fmt.Errorf("["+funcName()+"] Failed to get ISequencerInbox ABI, err: %w", err)
 	}
 	currentBlock := start
 	for currentBlock < end {
@@ -142,13 +151,13 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 		}
 		logIterator, err := b.Inbox.Contract.FilterTxBatchAppended(opts)
 		if err != nil {
-			log.Crit("Failed to get TxBatchAppended event", "err", err)
+			return fmt.Errorf("["+funcName()+"] Failed to get TxBatchAppended event, err: %w", err)
 		}
 		for logIterator.Next() {
 			ev := logIterator.Event
 			blocks, err := batchEventToSequenceBlocks(b.L1, abi, ev)
 			if err != nil {
-				log.Crit("Failed to convert batch event to sequence blocks", "err", err)
+				return fmt.Errorf("["+funcName()+"] Failed to convert batch event to sequence blocks, err: %w", err)
 			}
 			// Commit blocks to blockchain
 			err = b.CommitBlocks(blocks)
@@ -157,7 +166,7 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 			}
 		}
 		if err := logIterator.Error(); err != nil {
-			log.Crit("Failed to get TxBatchAppended event", "err", err)
+			return fmt.Errorf("["+funcName()+"] Failed to get TxBatchAppended event, err: %w", err)
 		}
 		currentBlock = currentEpochEnd + 1
 	}

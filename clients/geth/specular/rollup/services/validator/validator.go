@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"runtime"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -33,6 +35,13 @@ type Validator struct {
 	newBatchCh           chan struct{}
 	challengeCh          chan *challengeCtx
 	challengeResoutionCh chan *rollupTypes.Assertion
+}
+
+func funcName() string {
+    pc, _, _, _ := runtime.Caller(1)
+	nameFull := runtime.FuncForPC(pc).Name()    
+    splitInput := strings.Split(nameFull, "/")
+    return splitInput[len(splitInput)-1]
 }
 
 // TODO: this shares a lot of code with sequencer
@@ -68,7 +77,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
-			return fmt.Errorf("[Validator: tryValidateAssertion] UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
+			return fmt.Errorf("["+funcName()+"] UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
 		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(block.GasUsed()))
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
@@ -92,10 +101,10 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// Validation succeeded, confirm assertion and advance stake
 	_, err := v.Rollup.AdvanceStake(assertion.ID)
 	if errors.Is(err, core.ErrInsufficientFunds) {
-		return fmt.Errorf("[Validator: tryValidateAssertion] Insufficient Funds to send Tx, err: %w", err)
+		return fmt.Errorf("["+funcName()+"] Insufficient Funds to send Tx, err: %w", err)
 	}
 	if err != nil {
-		return fmt.Errorf("[Validator: tryValidateAssertion] UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
+		return fmt.Errorf("["+funcName()+"] UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
 	}
 	return nil
 }
@@ -109,7 +118,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 	assertionEventCh := make(chan *bindings.IRollupAssertionCreated, 4096)
 	assertionEventSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, assertionEventCh)
 	if err != nil {
-		log.Crit("[Validator: validationLoop] Failed to watch rollup event", "err", err)
+		log.Crit("["+funcName()+"] Failed to watch rollup event", "err", err)
 	}
 	defer assertionEventSub.Unsubscribe()
 
@@ -139,7 +148,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				return nil
 			case errors.Is(err, errAssertionOverflowedLocalInbox):
 				// Assertion overflowed local inbox, wait for next batch event
-				log.Warn("[Validator: validationLoop] Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
+				log.Warn("["+funcName()+"] Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
 				return err
@@ -171,7 +180,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					err := validateCurrentAssertion()
 					if err != nil {
 						// TODO: error handling instead of panic
-						log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
+						log.Crit("["+funcName()+"] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 					}
 				}
 			case ev := <-assertionEventCh:
@@ -190,14 +199,14 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				}
 				if currentAssertion != nil {
 					// TODO: handle concurrent assertions
-					log.Crit("[Validator: validationLoop] UNHANDLED: concurrent assertion")
+					log.Crit("["+funcName()+"] UNHANDLED: concurrent assertion")
 					continue
 				}
 				currentAssertion = assertion
 				err := validateCurrentAssertion()
 				if err != nil {
 					// TODO: error handling instead of panic
-					log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
+					log.Crit("["+funcName()+"] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 				}
 			case <-v.Ctx.Done():
 				return
@@ -211,21 +220,21 @@ func (v *Validator) challengeLoop() {
 
 	abi, err := bindings.IChallengeMetaData.GetAbi()
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to get IChallenge ABI", "err", err)
+		log.Crit("["+funcName()+"] Failed to get IChallenge ABI", "err", err)
 	}
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
 	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh)
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
+		log.Crit("["+funcName()+"] Failed to watch rollup event", "err", err)
 	}
 	defer createdSub.Unsubscribe()
 
 	challengedCh := make(chan *bindings.IRollupAssertionChallenged, 4096)
 	challengedSub, err := v.Rollup.Contract.WatchAssertionChallenged(&bind.WatchOpts{Context: v.Ctx}, challengedCh)
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
+		log.Crit("["+funcName()+"] Failed to watch rollup event", "err", err)
 	}
 	defer challengedSub.Unsubscribe()
 
@@ -233,7 +242,7 @@ func (v *Validator) challengeLoop() {
 	headCh := make(chan *types.Header, 4096)
 	headSub, err := v.L1.SubscribeNewHead(v.Ctx, headCh)
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to watch l1 chain head", "err", err)
+		log.Crit("["+funcName()+"] Failed to watch l1 chain head", "err", err)
 	}
 	defer headSub.Unsubscribe()
 
@@ -259,7 +268,7 @@ func (v *Validator) challengeLoop() {
 				responder, err := challengeSession.CurrentResponder()
 				if err != nil {
 					// TODO: error handling
-					log.Error("[Validator: challengeLoop] Can not get current responder", "error", err)
+					log.Error("["+funcName()+"] Can not get current responder", "error", err)
 					continue
 				}
 				// If it's our turn
@@ -267,17 +276,17 @@ func (v *Validator) challengeLoop() {
 					err := services.RespondBisection(v.BaseService, abi, challengeSession, ev, states, ctx.opponentAssertion.VmHash, false)
 					if err != nil {
 						// TODO: error handling
-						log.Error("[Validator: challengeLoop] Can not respond to bisection", "error", err)
+						log.Error("["+funcName()+"] Can not respond to bisection", "error", err)
 						continue
 					}
 				} else {
 					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
 					if err != nil {
 						// TODO: error handling
-						log.Error("[Validator: challengeLoop] Can not get current responder left time", "error", err)
+						log.Error("["+funcName()+"] Can not get current responder left time", "error", err)
 						continue
 					}
-					log.Info("[Validator: challengeLoop] Opponent time left", "time", opponentTimeLeft)
+					log.Info("["+funcName()+"] Opponent time left", "time", opponentTimeLeft)
 					opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
 				}
 			case header := <-headCh:
@@ -288,7 +297,7 @@ func (v *Validator) challengeLoop() {
 				if header.Number.Uint64() > opponentTimeoutBlock {
 					_, err := challengeSession.Timeout()
 					if err != nil {
-						log.Error("[Validator: challengeLoop] Can not timeout opponent", "error", err)
+						log.Error("["+funcName()+"] Can not timeout opponent", "error", err)
 						continue
 						// TODO: wait some time before retry
 						// TODO: fix race condition
@@ -296,7 +305,7 @@ func (v *Validator) challengeLoop() {
 				}
 			case ev := <-challengeCompletedCh:
 				// TODO: handle if we are not winner --> state corrupted
-				log.Info("[Validator: challengeLoop] Challenge completed", "winner", ev.Winner)
+				log.Info("["+funcName()+"] Challenge completed", "winner", ev.Winner)
 				bisectedSub.Unsubscribe()
 				challengeCompletedSub.Unsubscribe()
 				states = []*proof.ExecutionState{}
@@ -318,10 +327,10 @@ func (v *Validator) challengeLoop() {
 					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if errors.Is(err, core.ErrInsufficientFunds) {
-					log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+					log.Crit("["+funcName()+"] Insufficient Funds to send Tx", "error", err)
 				}
 				if err != nil {
-					log.Crit("[Validator: challengeLoop] UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
+					log.Crit("["+funcName()+"] UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
 				}
 			case ev := <-createdCh:
 				if common.Address(ev.AsserterAddr) == v.Config.Coinbase {
@@ -337,10 +346,10 @@ func (v *Validator) challengeLoop() {
 							},
 						)
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+							log.Crit("["+funcName()+"] Insufficient Funds to send Tx", "error", err)
 						}
 						if err != nil {
-							log.Crit("[Validator: challengeLoop] UNHANDLED: Can't start challenge, validator state corrupted", "err", err)
+							log.Crit("["+funcName()+"] UNHANDLED: Can't start challenge, validator state corrupted", "err", err)
 						}
 					}
 				}
@@ -348,12 +357,12 @@ func (v *Validator) challengeLoop() {
 				if ctx == nil {
 					continue
 				}
-				log.Info("[Validator: challengeLoop] validator saw challenge", "assertion id", ev.AssertionID, "expected id", ctx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
+				log.Info("["+funcName()+"] validator saw challenge", "assertion id", ev.AssertionID, "expected id", ctx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
 				if ev.AssertionID.Cmp(ctx.opponentAssertion.ID) == 0 {
 					// start := ev.Raw.BlockNumber - 2
 					challenge, err := bindings.NewIChallenge(ev.ChallengeAddr, v.L1)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
+						log.Crit("["+funcName()+"] Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
 					}
 					challengeSession = &bindings.IChallengeSession{
 						Contract:     challenge,
@@ -363,12 +372,12 @@ func (v *Validator) challengeLoop() {
 					bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
 					bisectedSub, err = challenge.WatchBisected(&bind.WatchOpts{Context: v.Ctx}, bisectedCh)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to watch challenge event", "err", err)
+						log.Crit("["+funcName()+"] Failed to watch challenge event", "err", err)
 					}
 					challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
 					challengeCompletedSub, err = challenge.WatchChallengeCompleted(&bind.WatchOpts{Context: v.Ctx}, challengeCompletedCh)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to watch challenge event", "err", err)
+						log.Crit("["+funcName()+"] Failed to watch challenge event", "err", err)
 					}
 					states, err = proof.GenerateStates(
 						v.ProofBackend,
@@ -379,7 +388,7 @@ func (v *Validator) challengeLoop() {
 						nil,
 					)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to generate states", "err", err)
+						log.Crit("["+funcName()+"] Failed to generate states", "err", err)
 					}
 					inChallenge = true
 				}
@@ -404,7 +413,7 @@ func (v *Validator) Start() error {
 }
 
 func (v *Validator) Stop() error {
-	log.Info("[Validator] Validator stopped")
+	log.Info("Validator stopped")
 	v.Cancel()
 	v.Wg.Wait()
 	return nil
