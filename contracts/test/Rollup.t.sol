@@ -72,6 +72,9 @@ contract RollupTest is RollupBaseSetup {
     uint256 randomNonce;
     AssertionMap rollupAssertion;
 
+    //address[2] players;
+    //uint256[2] assertionIDs;
+
     function setUp() public virtual override {
         RollupBaseSetup.setUp();
 
@@ -1033,7 +1036,7 @@ contract RollupTest is RollupBaseSetup {
         emit log_named_uint("Changed Sequencer Inbox Size", seqIn.getInboxSize());
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 5; // Which is smaller than the previously set sequencerInboxSize with the function dangerousIncreaseSequencerInboxSize
+        uint256 mockInboxSize = 5; // Which is smaller than the previously set sequencerInboxSize with the function _increaseSequencerInboxSize
 
         // Need to figure out values of mockL2GasUsed so that the following condition is satisfied:
         // if (assertionGasUsed > maxGasPerAssertion) {
@@ -1120,6 +1123,47 @@ contract RollupTest is RollupBaseSetup {
         (,, uint256 bobAssertionID,) = rollup.stakers(address(alice));
 
         assertEq(bobAssertionID, 1);
+    }
+
+    /////////////////////////
+    // Challenge Assertion
+    /////////////////////////
+
+    function test_challengeAssertion_wrongOrderOfAssertionIDs(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount,
+        uint256 defenderAssertionID,
+        uint256 challengerAssertionID
+    ) public {
+        // Initializing the rollup
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max
+        );
+
+        defenderAssertionID = bound(defenderAssertionID, challengerAssertionID, type(uint256).max);
+
+        address defender = makeAddr("defender");
+        address challenger = makeAddr("challenger");
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        emit log_named_uint("DAI", defenderAssertionID);
+        emit log_named_uint("CAI", challengerAssertionID);
+        emit log_named_address("D", defender);
+        emit log_named_address("C", challenger);
+
+        vm.expectRevert(IRollup.WrongOrder.selector);
+        rollup.challengeAssertion(players, assertionIDs);
     }
 
     /////////////////////////
