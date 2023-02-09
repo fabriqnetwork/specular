@@ -23,7 +23,7 @@ func SubmitOneStepProof(
 ) error {
 	osp, err := proof.GenerateProof(proofBackend, ctx, state, nil)
 	if err != nil {
-		log.Crit("UNHANDELED: osp generation failed", "err", err)
+		log.Crit("UNHANDLED: osp generation failed", "err", err)
 	}
 	_, err = challengeSession.VerifyOneStepProof(
 		osp.Encode(),
@@ -69,7 +69,7 @@ func RespondBisection(
 		// Get initialized challenge length from event
 		steps := segLen
 		if steps != uint64(len(states)-1) {
-			log.Crit("UNHANDELED: currently not support diverge on steps")
+			log.Crit("UNHANDLED: currently not support diverge on steps")
 		}
 		prevBisection := [][32]byte{
 			states[0].Hash(),
@@ -88,7 +88,7 @@ func RespondBisection(
 				ev.ChallengedSegmentLength,
 			)
 			if err != nil {
-				log.Crit("UNHANDELED: osp failed")
+				log.Crit("UNHANDLED: osp failed")
 			}
 		} else {
 			// This assertion has multiple steps
@@ -109,7 +109,7 @@ func RespondBisection(
 			)
 			log.Info("BisectExecution", "bisection", bisection, "cidx", common.Big1, "psegStart", segStart, "psegLen", segLen, "prev", prevBisection)
 			if err != nil {
-				log.Crit("UNHANDELED: bisection excution failed", "err", err)
+				log.Crit("UNHANDLED: bisection excution failed", "err", err)
 			}
 		}
 		return nil
@@ -131,7 +131,7 @@ func RespondBisection(
 			ev.ChallengedSegmentLength,
 		)
 		if err != nil {
-			log.Crit("UNHANDELED: osp failed")
+			log.Crit("UNHANDLED: osp failed")
 		}
 	} else {
 		challengeIdx := uint64(1)
@@ -155,7 +155,7 @@ func RespondBisection(
 				ev.ChallengedSegmentLength,
 			)
 			if err != nil {
-				log.Crit("UNHANDELED: osp failed")
+				log.Crit("UNHANDLED: osp failed")
 			}
 		} else {
 			var newLen uint64 // New segment length
@@ -184,7 +184,7 @@ func RespondBisection(
 			)
 			log.Info("BisectExecution", "bisection", bisection, "cidx", challengeIdx, "psegStart", segStart, "psegLen", segLen, "prev", prevBisection)
 			if err != nil {
-				log.Crit("UNHANDELED: bisection excution failed", "err", err)
+				log.Crit("UNHANDLED: bisection excution failed", "err", err)
 			}
 		}
 	}
