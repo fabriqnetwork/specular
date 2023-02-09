@@ -21,6 +21,8 @@
  */
 
 pragma solidity ^0.8.0;
+
+// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
@@ -36,7 +38,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
 
     address public sequencerAddress;
 
-    function initialize(address _sequencerAddress) public virtual initializer {
+    function initialize(address _sequencerAddress) public initializer {
         if (_sequencerAddress == address(0)) {
             revert ZeroAddress();
         }
