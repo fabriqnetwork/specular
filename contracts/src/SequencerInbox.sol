@@ -21,15 +21,12 @@
  */
 
 pragma solidity ^0.8.0;
-
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable {
-    string private constant EMPTY_BATCH = "EMPTY_BATCH";
 
     // Total number of transactions
     uint256 private inboxSize;
