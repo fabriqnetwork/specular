@@ -275,14 +275,12 @@ func (v *Validator) challengeLoop() {
 				if responder == common.Address(v.Config.Coinbase) {
 					err := services.RespondBisection(v.BaseService, abi, challengeSession, ev, states, ctx.opponentAssertion.VmHash, false)
 					if err != nil {
-						// TODO: error handling
 						log.Error("["+funcName()+"] Can not respond to bisection", "error", err)
 						continue
 					}
 				} else {
 					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
 					if err != nil {
-						// TODO: error handling
 						log.Error("["+funcName()+"] Can not get current responder left time", "error", err)
 						continue
 					}
@@ -413,7 +411,7 @@ func (v *Validator) Start() error {
 }
 
 func (v *Validator) Stop() error {
-	log.Info("Validator stopped")
+	log.Info("[Validator] Validator stopped")
 	v.Cancel()
 	v.Wg.Wait()
 	return nil

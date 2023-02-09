@@ -487,6 +487,7 @@ func (s *Sequencer) challengeLoop() {
 					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
 					if err != nil {
 						// TODO: error handling
+
 						log.Error("["+funcName()+"] Can not get current responder left time", "error", err)
 						continue
 					}
