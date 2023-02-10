@@ -400,7 +400,7 @@ contract Rollup is RollupBase {
             // If loser has a higher stake than the winner, refund the difference.
             // Loser gets deleted anyways, so maybe unnecessary to set amountStaked.
             stakers[loser].amountStaked = winnerStake;
-            withdrawableFunds[loser] += winnerStake - remainingLoserStake;
+            withdrawableFunds[loser] += remainingLoserStake - winnerStake;
             remainingLoserStake = winnerStake;
         }
         // Reward the winner with half the remaining stake
