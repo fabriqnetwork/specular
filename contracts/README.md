@@ -31,12 +31,6 @@ yarn install
 npm run tests
 ```
 
-## Run Lints
-
-```sh
-npm run lint:fix
-```
-
 ## Local Slither Check
 
 Install [`slither`](https://github.com/crytic/slither):
