@@ -13,5 +13,10 @@ jobs:
         with:
           submodules: 'true'
 
+      - uses: actions/setup-node@v3
+
+      - name: Install dependencies
+        run: yarn --ignore-scripts
+
       - name: Generate contracts Go bindings
         run: (cd ./clients/geth/specular && make)
