@@ -6,4 +6,4 @@ yarn lint-staged
 
 cd ../clients/geth/specular
 make install
-echo "Successfully generated go-bindings"
+echo "Successfully installed Specular"
