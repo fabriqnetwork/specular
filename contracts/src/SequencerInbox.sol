@@ -70,10 +70,12 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             runningAccumulator = accumulators[accumulators.length - 1];
         }
 
-        uint256 dataOffset;
+        uint256 initialDataOffset;
         assembly {
-            dataOffset := txBatch.offset
+            initialDataOffset := txBatch.offset
         }
+
+        uint256 dataOffset = initialDataOffset;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
             // TODO: consider adding L1 context.
@@ -90,6 +92,9 @@ contract SequencerInbox is ISequencerInbox, Initializable {
                 }
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
                 dataOffset += txLength;
+                if ((dataOffset - initialDataOffset) > txBatch.length) {
+                    revert TxDataOverflow();
+                }
                 numTxs++;
             }
             numProcessedTxs += numCtxTxs;
