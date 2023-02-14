@@ -31,6 +31,9 @@ interface ISequencerInbox {
     /// @dev Thrown when sequencer tries to append an empty batch
     error EmptyBatch();
 
+    /// @dev Thrown when overflow occurs reading txBatch (likely due to malformed txLengths)
+    error TxBatchDataOverflow();
+
     /**
      * @notice Gets inbox size (number of messages).
      */
