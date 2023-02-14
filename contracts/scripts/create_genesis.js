@@ -28,13 +28,17 @@ const createFaucetContractObject = () => {
     let storageSlots = [];
     let valueAtSlots = [];
 
+    // Storage Slot 0 stores the address of the owner
     storageSlots[0] = "0x0000000000000000000000000000000000000000000000000000000000000000";
+    // Storage Slot 1 stores the amountAllowed
     storageSlots[1] = "0x0000000000000000000000000000000000000000000000000000000000000001";
+
+    // Owner Address - 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
     valueAtSlots[0] = "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-    valueAtSlots[1] = "0x0000000000000000000000000000000000000000000000000de0b6b3a7640000"
+    // Amount Allowed - 0.01 ETH
+    valueAtSlots[1] = "0x000000000000000000000000000000000000000000000000002386f26fc10000"
     
     const faucetObject = createContractObject(faucetDeployedBytecode, faucetBalance, storageSlots, valueAtSlots);
-    console.log(faucetObject)
     return faucetObject;
 }
 
@@ -59,7 +63,8 @@ const main = () => {
         console.log("Setting out genesis path same as base genesis path");
         genesisPath = baseGenesisPath;
     }
-    
+
+    // Address the faucet will be deployed to - address(20)
     const faucetAddress = "0x0000000000000000000000000000000000000020";
     
     GenesisJson.alloc[faucetAddress.toString()] = createFaucetContractObject();
