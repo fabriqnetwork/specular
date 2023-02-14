@@ -59,18 +59,18 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
 
-        uint256 start = inboxSize;
         uint256 numTxs = inboxSize;
-        uint256 numProcessedTxs = 0;
         bytes32 runningAccumulator;
         if (accumulators.length > 0) {
             runningAccumulator = accumulators[accumulators.length - 1];
         }
 
-        uint256 dataOffset;
+        uint256 initialDataOffset;
         assembly {
-            dataOffset := txBatch.offset
+            initialDataOffset := txBatch.offset
         }
+
+        uint256 dataOffset = initialDataOffset;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
             // TODO: consider adding L1 context.
@@ -80,19 +80,22 @@ contract SequencerInbox is ISequencerInbox, Initializable {
 
             uint256 numCtxTxs = contexts[i];
             for (uint256 j = 0; j < numCtxTxs; j++) {
-                uint256 txLength = txLengths[numProcessedTxs];
+                uint256 txLength = txLengths[numTxs - inboxSize];
                 bytes32 txDataHash;
                 assembly {
                     txDataHash := keccak256(dataOffset, txLength)
                 }
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
                 dataOffset += txLength;
+                if (dataOffset - initialDataOffset > txBatch.length) {
+                    revert TxBatchDataOverflow();
+                }
                 numTxs++;
             }
-            numProcessedTxs += numCtxTxs;
         }
 
         if (numTxs <= inboxSize) revert EmptyBatch();
+        uint256 start = inboxSize;
         inboxSize = numTxs;
         accumulators.push(runningAccumulator);
 

@@ -1,5 +1,9 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-cd contracts 
+cd contracts
 yarn lint-staged
+
+cd ../clients/geth/specular
+make install
+echo "Successfully installed Specular"
