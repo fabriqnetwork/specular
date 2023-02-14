@@ -40,7 +40,6 @@ contract SequencerBaseSetup is Test {
 }
 
 contract SequencerInboxTest is SequencerBaseSetup {
-
     /////////////////////////////////
     // SequencerInbox Setup
     /////////////////////////////////
@@ -106,5 +105,4 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256[] memory txLengths = new uint256[](1);
         seqIn.appendTxBatch(contexts, txLengths, "0x");
     }
-    
 }
