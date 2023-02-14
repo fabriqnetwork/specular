@@ -1,0 +1,17 @@
+name: Bindings
+
+on: [push, pull_request]
+
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: checkout repo
+        uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+
+      - name: Generate contracts Go bindings
+        run: (cd ./clients/geth/specular && make)
