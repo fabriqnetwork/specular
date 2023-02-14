@@ -1,9 +1,8 @@
 const ethers = require('ethers');
 const fs = require('fs');
-const faucet = require("../artifacts/src/pre-deploy/Faucet.sol/Faucet.json");
-const genesisPath = "../../clients/geth/specular/data/genesis.json";
-const genesisJson = require(genesisPath);
+const FaucetJson = require("../artifacts/src/pre-deploy/Faucet.sol/Faucet.json");
 const assert = require("assert");
+let GenesisJson;
 
 const createContractObject = (deployedBytecode, contractBalance, storageSlots, valueAtSlots) => {
     
@@ -23,7 +22,7 @@ const createContractObject = (deployedBytecode, contractBalance, storageSlots, v
 }
 
 const createFaucetContractObject = () => {
-    const faucetDeployedBytecode = faucet.deployedBytecode;
+    const faucetDeployedBytecode = FaucetJson.deployedBytecode;
     const faucetBalance = ethers.BigNumber.from("10").pow(20);
     
     let storageSlots = [];
@@ -40,10 +39,31 @@ const createFaucetContractObject = () => {
 }
 
 const main = () => {
+
+    const inFlagIndex = process.argv.indexOf("--in");
+    let baseGenesisPath;
+    
+    if(inFlagIndex > -1) {
+        baseGenesisPath = process.argv[inFlagIndex+1];
+        GenesisJson = require(baseGenesisPath);
+    } else {
+        throw new Error("Please specify the base genesis path");
+    }
+
+    const outFlagIndex = process.argv.indexOf("--out");
+    let genesisPath;
+
+    if(outFlagIndex > -1) {
+        genesisPath = process.argv[outFlagIndex+1];
+    } else {
+        console.log("Setting out genesis path same as base genesis path");
+        genesisPath = baseGenesisPath;
+    }
+    
     const faucetAddress = "0x0000000000000000000000000000000000000020";
     
-    genesisJson.alloc[faucetAddress.toString()] = createFaucetContractObject();
-    fs.writeFileSync(genesisPath, JSON.stringify(genesisJson, null, 2));
+    GenesisJson.alloc[faucetAddress.toString()] = createFaucetContractObject();
+    fs.writeFileSync(genesisPath, JSON.stringify(GenesisJson, null, 2));
 
 }
 
