@@ -22,15 +22,12 @@
 
 pragma solidity ^0.8.0;
 
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable {
-    string private constant EMPTY_BATCH = "EMPTY_BATCH";
-
     // Total number of transactions
     uint256 private inboxSize;
     // accumulators[i] is an accumulator of transactions in txBatch i.
@@ -69,6 +66,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
         }
 
         uint256 initialDataOffset;
+        
         assembly {
             initialDataOffset := txBatch.offset
         }
@@ -91,7 +89,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
                 dataOffset += txLength;
                 if (dataOffset - initialDataOffset > txBatch.length) {
-                    revert TxDataOverflow();
+                    revert TxBatchDataOverflow();
                 }
                 numTxs++;
             }

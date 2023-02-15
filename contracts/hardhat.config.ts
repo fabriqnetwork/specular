@@ -29,7 +29,7 @@ function createConfig(network: string) {
 }
 
 function getNetworkAccounts(network: string) {
-  if (network === 'goerli') {
+  if (network === 'goerli' || network === 'chiado') {
     return !!SEQUENCER_PRIVATE_KEY ? [`0x${SEQUENCER_PRIVATE_KEY}`] : {mnemonic};
   } else {
     return { mnemonic }
@@ -45,6 +45,8 @@ function getNetworkURL(network: string) {
     return `https://sepolia.infura.io/v3/${INFURA_KEY}`;
   } else if (network === 'gnosis') {
     return "https://rpc.gnosischain.com/"
+  } else if (network === 'chiado') {
+    return 'https://rpc.chiadochain.net'
   }
 } 
 
@@ -71,6 +73,7 @@ const config: HardhatUserConfig = {
     sequencer: {
       default: 0,
       "goerli": SEQUENCER_ADDRESS,
+      "chiado": SEQUENCER_ADDRESS
     },
     validator: 1,
   },
@@ -79,6 +82,7 @@ const config: HardhatUserConfig = {
     sepolia: createConfig("sepolia"),
     goerli: createConfig("goerli"),
     gnosis: createConfig("gnosis"),
+    chiado: createConfig("chiado"),
     hardhat: {
       gas: "auto",
       mining: {
