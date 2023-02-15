@@ -90,7 +90,7 @@ contract SequencerInbox is ISequencerInbox, Initializable {
                 }
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
                 dataOffset += txLength;
-                if ((dataOffset - initialDataOffset) > txBatch.length) {
+                if (dataOffset - initialDataOffset > txBatch.length) {
                     revert TxDataOverflow();
                 }
                 numTxs++;
