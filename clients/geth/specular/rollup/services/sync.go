@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"math/big"
-	"runtime"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -17,17 +15,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/logs"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 const syncRange uint64 = 10000
-
-func funcName() string {
-    pc, _, _, _ := runtime.Caller(1)
-	nameFull := runtime.FuncForPC(pc).Name()    
-    splitInput := strings.Split(nameFull, "/")
-    return splitInput[len(splitInput)-1]
-}
 
 // CommitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
@@ -135,7 +127,7 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 	log.Info("Syncing inbox", "start", start, "end", end)
 	abi, err := bindings.ISequencerInboxMetaData.GetAbi()
 	if err != nil {
-		return fmt.Errorf("["+funcName()+"] Failed to get ISequencerInbox ABI, err: %w", err)
+		return fmt.Errorf("[%s] Failed to get ISequencerInbox ABI, err: %w", logs.GetFunctionDetail(), err)
 	}
 	currentBlock := start
 	for currentBlock < end {
@@ -151,22 +143,22 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 		}
 		logIterator, err := b.Inbox.Contract.FilterTxBatchAppended(opts)
 		if err != nil {
-			return fmt.Errorf("["+funcName()+"] Failed to get TxBatchAppended event, err: %w", err)
+			return fmt.Errorf("[%s] Failed to get TxBatchAppended event, err: %w", logs.GetFunctionDetail(), err)
 		}
 		for logIterator.Next() {
 			ev := logIterator.Event
 			blocks, err := batchEventToSequenceBlocks(b.L1, abi, ev)
 			if err != nil {
-				return fmt.Errorf("["+funcName()+"] Failed to convert batch event to sequence blocks, err: %w", err)
+				return fmt.Errorf("[%s] Failed to convert batch event to sequence blocks, err: %w", logs.GetFunctionDetail(), err)
 			}
-			// Commit blocks to blockchain 
+			// Commit blocks to blockchain
 			err = b.CommitBlocks(blocks)
 			if err != nil {
 				return err
 			}
 		}
 		if err := logIterator.Error(); err != nil {
-			return fmt.Errorf("["+funcName()+"] Failed to get TxBatchAppended event, err: %w", err)
+			return fmt.Errorf("[%s] Failed to get TxBatchAppended event, err: %w", logs.GetFunctionDetail(), err)
 		}
 		currentBlock = currentEpochEnd + 1
 	}
