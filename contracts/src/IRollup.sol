@@ -37,9 +37,6 @@ interface IRollup {
 
     event StakerStaked(address stakerAddr, uint256 assertionID);
 
-    /// @dev Thrown when caller is not the owner
-    error NotOwner();
-
     /// @dev Thrown when address that have not staked any token calls a only-staked function
     error NotStaked();
 
