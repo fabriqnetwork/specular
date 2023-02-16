@@ -42,9 +42,9 @@ contract Faucet is Ownable {
         require(block.timestamp > lockTime[_requestor], "Lock time has not expired.");
         require(address(this).balance > amountAllowed, "Not enough funds in faucet.");
 
+        lockTime[_requestor] = block.timestamp + 1 days;
         _requestor.transfer(amountAllowed);
 
-        lockTime[_requestor] = block.timestamp + 1 days;
         emit LogRequestFunds(_requestor, amountAllowed);
     }
 }
