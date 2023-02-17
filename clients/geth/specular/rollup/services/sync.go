@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -12,10 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/logs"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/customlog"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/customerror"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
@@ -31,11 +30,11 @@ func (b *BaseService) CommitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 	chainConfig := b.Chain.Config()
 	parent := b.Chain.CurrentBlock()
 	if parent == nil {
-		return fmt.Errorf("missing parent")
+		return customerror.Errorf("missing parent")
 	}
 	num := parent.Number()
 	if num.Uint64() != blocks[0].BlockNumber-1 {
-		return fmt.Errorf("rollup services unsynced")
+		return customerror.Errorf("rollup services unsynced")
 	}
 	state, err := b.Chain.StateAt(parent.Root())
 	if err != nil {
@@ -124,10 +123,10 @@ func batchEventToSequenceBlocks(l1 *ethclient.Client, abi *abi.ABI, ev *bindings
 
 // SyncInbox syncs inbox events in L1 block range [start, end)
 func (b *BaseService) SyncInbox(start, end uint64) error {
-	log.Info("Syncing inbox", "start", start, "end", end)
+	customlog.Info("Syncing inbox", "start", start, "end", end)
 	abi, err := bindings.ISequencerInboxMetaData.GetAbi()
 	if err != nil {
-		return fmt.Errorf("[%s] Failed to get ISequencerInbox ABI, err: %w", logs.GetFunctionDetail(), err)
+		return customerror.Errorf("Failed to get ISequencerInbox ABI, err: %w", err)
 	}
 	currentBlock := start
 	for currentBlock < end {
@@ -135,7 +134,7 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 		if currentEpochEnd >= end {
 			currentEpochEnd = end - 1
 		}
-		log.Info("Syncing inbox", "currentBlock", currentBlock, "epoch end", currentEpochEnd)
+		customlog.Info("Syncing inbox", "currentBlock", currentBlock, "epoch end", currentEpochEnd)
 		opts := &bind.FilterOpts{
 			Start:   currentBlock,
 			End:     &currentEpochEnd,
@@ -143,13 +142,13 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 		}
 		logIterator, err := b.Inbox.Contract.FilterTxBatchAppended(opts)
 		if err != nil {
-			return fmt.Errorf("[%s] Failed to get TxBatchAppended event, err: %w", logs.GetFunctionDetail(), err)
+			return customerror.Errorf("Failed to get TxBatchAppended event, err: %w", err)
 		}
 		for logIterator.Next() {
 			ev := logIterator.Event
 			blocks, err := batchEventToSequenceBlocks(b.L1, abi, ev)
 			if err != nil {
-				return fmt.Errorf("[%s] Failed to convert batch event to sequence blocks, err: %w", logs.GetFunctionDetail(), err)
+				return customerror.Errorf("Failed to convert batch event to sequence blocks, err: %w", err)
 			}
 			// Commit blocks to blockchain
 			err = b.CommitBlocks(blocks)
@@ -158,7 +157,7 @@ func (b *BaseService) SyncInbox(start, end uint64) error {
 			}
 		}
 		if err := logIterator.Error(); err != nil {
-			return fmt.Errorf("[%s] Failed to get TxBatchAppended event, err: %w", logs.GetFunctionDetail(), err)
+			return customerror.Errorf("Failed to get TxBatchAppended event, err: %w", err)
 		}
 		currentBlock = currentEpochEnd + 1
 	}
@@ -173,32 +172,32 @@ func (b *BaseService) SyncLoop(newBatchCh chan<- struct{}) {
 	// Get L1 block head
 	l1BlockHead, err := b.L1.BlockNumber(b.Ctx)
 	if err != nil {
-		log.Crit("Failed to get L1 block head", "err", err)
+		customlog.Crit("Failed to get L1 block head", "err", err)
 	}
 	// Sync inbox untill the current l1 block head
 	err = b.SyncInbox(currentBlock, l1BlockHead)
 	if err != nil {
-		log.Crit("Failed to sync inbox", "err", err)
+		customlog.Crit("Failed to sync inbox", "err", err)
 	}
 	currentBlock = l1BlockHead
 
 	abi, err := bindings.ISequencerInboxMetaData.GetAbi()
 	if err != nil {
-		log.Crit("Failed to get ISequencerInbox ABI", "err", err)
+		customlog.Crit("Failed to get ISequencerInbox ABI", "err", err)
 	}
 
 	// Listen to TxBatchAppendEvent
 	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended, 4096)
 	batchEventSub, err := b.Inbox.Contract.WatchTxBatchAppended(&bind.WatchOpts{Context: b.Ctx}, batchEventCh)
 	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
+		customlog.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer batchEventSub.Unsubscribe()
 
 	// Get L1 block head again and sync to it
 	l1BlockHead, err = b.L1.BlockNumber(b.Ctx)
 	if err != nil {
-		log.Crit("Failed to get L1 block head", "err", err)
+		customlog.Crit("Failed to get L1 block head", "err", err)
 	}
 
 	syncedCh := make(chan struct{})
@@ -208,7 +207,7 @@ func (b *BaseService) SyncLoop(newBatchCh chan<- struct{}) {
 		go func() {
 			err = b.SyncInbox(currentBlock, l1BlockHead)
 			if err != nil {
-				log.Crit("Failed to sync inbox", "err", err)
+				customlog.Crit("Failed to sync inbox", "err", err)
 			}
 			close(syncedCh)
 		}()
@@ -226,18 +225,18 @@ func (b *BaseService) SyncLoop(newBatchCh chan<- struct{}) {
 			// Commit pending blocks
 			err = b.CommitBlocks(pendingBlocks)
 			if err != nil {
-				log.Crit("Failed to commit blocks", "err", err)
+				customlog.Crit("Failed to commit blocks", "err", err)
 			}
 		case ev := <-batchEventCh:
 			blocks, err := batchEventToSequenceBlocks(b.L1, abi, ev)
 			if err != nil {
-				log.Crit("Failed to convert batch event to sequence blocks", "err", err)
+				customlog.Crit("Failed to convert batch event to sequence blocks", "err", err)
 			}
 			if synced {
 				// Commit blocks to blockchain
 				err = b.CommitBlocks(blocks)
 				if err != nil {
-					log.Crit("Failed to commit blocks", "err", err)
+					customlog.Crit("Failed to commit blocks", "err", err)
 				}
 				newBatchCh <- struct{}{}
 			} else {
