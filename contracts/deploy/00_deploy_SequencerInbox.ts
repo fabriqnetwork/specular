@@ -3,10 +3,11 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades } = hre;
-  const { deploy } = deployments;
-  const { sequencer } = await getNamedAccounts();
+  const { save } = deployments;
+  const { sequencer, deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
-  const Inbox = await ethers.getContractFactory("SequencerInbox");
+  const Inbox = await ethers.getContractFactory("SequencerInbox", deployer);
   const inbox = await upgrades.deployProxy(Inbox, [sequencer], {
     initializer: "initialize",
     from: sequencer,
@@ -24,6 +25,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "inbox Admin Address",
     await upgrades.erc1967.getAdminAddress(inbox.address)
   );
+
+  const artifact = await deployments.getExtendedArtifact("SequencerInbox");
+  const proxyDeployments = {
+    address: inbox.address,
+    ...artifact,
+  };
+  await save("SequencerInbox", proxyDeployments);
 };
 
 export default func;

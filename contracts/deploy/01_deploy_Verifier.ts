@@ -3,10 +3,11 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades } = hre;
-  const { deploy } = deployments;
-  const { sequencer } = await getNamedAccounts();
+  const { deploy, save } = deployments;
+  const { sequencer, deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
-  const Verifier = await ethers.getContractFactory("Verifier");
+  const Verifier = await ethers.getContractFactory("Verifier", deployer);
   const verifier = await upgrades.deployProxy(Verifier, [], {
     initializer: "initialize",
     from: sequencer,
@@ -24,6 +25,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "Verifier Admin Address",
     await upgrades.erc1967.getAdminAddress(verifier.address)
   );
+
+  const artifact = await deployments.getExtendedArtifact("Verifier");
+  const proxyDeployments = {
+    address: verifier.address,
+    ...artifact,
+  };
+  await save("Verifier", proxyDeployments);
 };
 
 export default func;
