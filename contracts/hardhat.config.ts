@@ -76,6 +76,7 @@ const config: HardhatUserConfig = {
       chiado: SEQUENCER_ADDRESS,
     },
     validator: 1,
+    deployer: 2,
   },
   networks: {
     mainnet: createConfig("mainnet"),
