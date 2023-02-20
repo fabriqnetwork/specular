@@ -26,8 +26,6 @@ contract AssertionMap {
 
     error SiblingStateHashExists();
 
-    error CreateAssertionBeforeConfirmedID();
-
     struct Assertion {
         bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
         uint256 inboxSize; // Inbox size this assertion advanced to
@@ -43,7 +41,6 @@ contract AssertionMap {
         mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
 
-    mapping(address => uint256) public latestAssertions;
     mapping(uint256 => Assertion) public assertions;
     address public rollupAddress;
 
@@ -93,10 +90,6 @@ contract AssertionMap {
         return assertions[assertionID].stakers[stakerAddress];
     }
 
-    function getLatestAssertionID(address stakerAddress) external view returns (uint256) {
-        return latestAssertions[stakerAddress];
-    }
-
     function createAssertion(
         uint256 assertionID,
         bytes32 stateHash,
@@ -119,11 +112,6 @@ contract AssertionMap {
 
         if (parentAssertion.childStateHashes[stateHash]) {
             revert SiblingStateHashExists();
-        }
-        if (assertionID > latestAssertions[tx.origin]) {
-            latestAssertions[tx.origin] = assertionID;
-        } else {
-            revert CreateAssertionBeforeConfirmedID();
         }
         parentAssertion.childStateHashes[stateHash] = true;
 

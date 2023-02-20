@@ -30,7 +30,7 @@ var (
 
 // ISequencerInboxMetaData contains all meta data concerning the ISequencerInbox contract.
 var ISequencerInboxMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"EmptyBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"IncorrectAccOrBatch\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"batchNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startTxNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endTxNumber\",\"type\":\"uint256\"}],\"name\":\"TxBatchAppended\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"contexts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"txLengths\",\"type\":\"uint256[]\"},{\"internalType\":\"bytes\",\"name\":\"txBatch\",\"type\":\"bytes\"}],\"name\":\"appendTxBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verifyTxInclusion\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"EmptyBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"IncorrectAccOrBatch\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"batchNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startTxNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endTxNumber\",\"type\":\"uint256\"}],\"name\":\"TxBatchAppended\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"contexts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"txLengths\",\"type\":\"uint256[]\"},{\"internalType\":\"bytes\",\"name\":\"txBatch\",\"type\":\"bytes\"}],\"name\":\"appendTxBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"sequencerAddress\",\"outputs\":[{\"internalType\":\"address\",\"name\":\"\",\"type\":\"address\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verifyTxInclusion\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 }
 
 // ISequencerInboxABI is the input ABI used to generate the binding from.
@@ -208,6 +208,37 @@ func (_ISequencerInbox *ISequencerInboxSession) GetInboxSize() (*big.Int, error)
 // Solidity: function getInboxSize() view returns(uint256)
 func (_ISequencerInbox *ISequencerInboxCallerSession) GetInboxSize() (*big.Int, error) {
 	return _ISequencerInbox.Contract.GetInboxSize(&_ISequencerInbox.CallOpts)
+}
+
+// SequencerAddress is a free data retrieval call binding the contract method 0x2cee6a6b.
+//
+// Solidity: function sequencerAddress() view returns(address)
+func (_ISequencerInbox *ISequencerInboxCaller) SequencerAddress(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _ISequencerInbox.contract.Call(opts, &out, "sequencerAddress")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// SequencerAddress is a free data retrieval call binding the contract method 0x2cee6a6b.
+//
+// Solidity: function sequencerAddress() view returns(address)
+func (_ISequencerInbox *ISequencerInboxSession) SequencerAddress() (common.Address, error) {
+	return _ISequencerInbox.Contract.SequencerAddress(&_ISequencerInbox.CallOpts)
+}
+
+// SequencerAddress is a free data retrieval call binding the contract method 0x2cee6a6b.
+//
+// Solidity: function sequencerAddress() view returns(address)
+func (_ISequencerInbox *ISequencerInboxCallerSession) SequencerAddress() (common.Address, error) {
+	return _ISequencerInbox.Contract.SequencerAddress(&_ISequencerInbox.CallOpts)
 }
 
 // VerifyTxInclusion is a free data retrieval call binding the contract method 0xe0faa15c.

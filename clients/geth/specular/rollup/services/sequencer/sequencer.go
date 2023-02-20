@@ -227,8 +227,6 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			pendingAssertion.VmHash,
 			pendingAssertion.InboxSize,
 			pendingAssertion.CumulativeGasUsed,
-			confirmedAssertion.VmHash,
-			confirmedAssertion.CumulativeGasUsed,
 		)
 		if err != nil {
 			log.Error("Can not create DA", "error", err)

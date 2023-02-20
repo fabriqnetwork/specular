@@ -310,8 +310,6 @@ func (v *Validator) challengeLoop() {
 					ctx.ourAssertion.VmHash,
 					ctx.ourAssertion.InboxSize,
 					ctx.ourAssertion.CumulativeGasUsed,
-					ctx.lastValidatedAssertion.VmHash,
-					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if err != nil {
 					log.Crit("UNHANDELED: Can't create assertion for challenge, validator state corrupted", "err", err)
