@@ -335,7 +335,7 @@ func (s *Sequencer) confirmationLoop() {
 
 	// Current pending assertion from sequencing goroutine
 	// TODO: watch multiple pending assertions
-	var pendingAssertion *rollupTypes.Assertion
+	pendingAssertion := new(rollupTypes.Assertion)
 	pendingConfirmationSent := true
 	pendingConfirmed := true
 
