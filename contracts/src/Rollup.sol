@@ -112,6 +112,7 @@ contract Rollup is RollupBase {
             0, // assertionID
             RollupLib.stateHash(RollupLib.ExecutionState(0, _initialVMhash)),
             0, // inboxSize (genesis)
+            0, // total gasUsed
             0, // parentID
             block.number // deadline (unchallengeable)
         );
@@ -205,15 +206,8 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(
-        bytes32 vmHash,
-        uint256 inboxSize,
-        uint256 l2GasUsed,
-        bytes32 prevVMHash,
-        uint256 prevL2GasUsed
-    ) external override stakedOnly {
+    function createAssertion(bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed) external override stakedOnly {
         // TODO: determine if inboxSize needs to be included.
-        RollupLib.ExecutionState memory startState = RollupLib.ExecutionState(prevL2GasUsed, prevVMHash);
         RollupLib.ExecutionState memory endState = RollupLib.ExecutionState(l2GasUsed, vmHash);
 
         uint256 parentID = stakers[msg.sender].assertionID;
@@ -222,15 +216,12 @@ contract Rollup is RollupBase {
             revert MinimumAssertionPeriodNotPassed();
         }
         // TODO: require(..., TOO_SMALL);
+        uint256 prevL2GasUsed = assertions.getGasUsed(parentID);
         uint256 assertionGasUsed = l2GasUsed - prevL2GasUsed;
         // Require that the L2 gas used by the assertion is less than the limit.
         // TODO: arbitrum uses: timeSinceLastNode.mul(avmGasSpeedLimitPerBlock).mul(4) ?
         if (assertionGasUsed > maxGasPerAssertion) {
             revert MaxGasLimitExceeded();
-        }
-        // Require integrity of startState.
-        if (RollupLib.stateHash(startState) != assertions.getStateHash(parentID)) {
-            revert PreviousStateHash();
         }
         // Require that the assertion at least includes one transaction
         if (inboxSize <= assertions.getInboxSize(parentID)) {
@@ -245,7 +236,12 @@ contract Rollup is RollupBase {
         lastCreatedAssertionID++;
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, inboxSize, l2GasUsed);
         assertions.createAssertion(
-            lastCreatedAssertionID, RollupLib.stateHash(endState), inboxSize, parentID, newAssertionDeadline()
+            lastCreatedAssertionID,
+            RollupLib.stateHash(endState),
+            inboxSize,
+            l2GasUsed,
+            parentID,
+            newAssertionDeadline()
         );
 
         // Update stake.

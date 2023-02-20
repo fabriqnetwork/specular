@@ -26,9 +26,12 @@ contract AssertionMap {
 
     error SiblingStateHashExists();
 
+    error CreateAssertionBeforeConfirmedID();
+
     struct Assertion {
         bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
         uint256 inboxSize; // Inbox size this assertion advanced to
+        uint256 gasUsed; // Total gas used for current assertion
         uint256 parent; // Parent assertion ID
         uint256 deadline; // Confirmation deadline (L1 block number)
         uint256 proposalTime; // L1 block number at which assertion was proposed
@@ -40,6 +43,7 @@ contract AssertionMap {
         mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
 
+    mapping(address => uint256) public latestAssertions;
     mapping(uint256 => Assertion) public assertions;
     address public rollupAddress;
 
@@ -65,6 +69,10 @@ contract AssertionMap {
         return assertions[assertionID].inboxSize;
     }
 
+    function getGasUsed(uint256 assertionID) external view returns (uint256) {
+        return assertions[assertionID].gasUsed;
+    }
+
     function getParentID(uint256 assertionID) external view returns (uint256) {
         return assertions[assertionID].parent;
     }
@@ -85,10 +93,15 @@ contract AssertionMap {
         return assertions[assertionID].stakers[stakerAddress];
     }
 
+    function getLatestAssertionID(address stakerAddress) external view returns (uint256) {
+        return latestAssertions[stakerAddress];
+    }
+
     function createAssertion(
         uint256 assertionID,
         bytes32 stateHash,
         uint256 inboxSize,
+        uint256 gasUsed,
         uint256 parentID,
         uint256 deadline
     ) external rollupOnly {
@@ -107,10 +120,16 @@ contract AssertionMap {
         if (parentAssertion.childStateHashes[stateHash]) {
             revert SiblingStateHashExists();
         }
+        if (assertionID > latestAssertions[tx.origin]) {
+            latestAssertions[tx.origin] = assertionID;
+        } else {
+            revert CreateAssertionBeforeConfirmedID();
+        }
         parentAssertion.childStateHashes[stateHash] = true;
 
         assertion.stateHash = stateHash;
         assertion.inboxSize = inboxSize;
+        assertion.gasUsed = gasUsed;
         assertion.parent = parentID;
         assertion.deadline = deadline;
         assertion.proposalTime = block.number;

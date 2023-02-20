@@ -174,16 +174,8 @@ interface IRollup {
      * @param vmHash New VM hash.
      * @param inboxSize Size of inbox corresponding to assertion (number of transactions).
      * @param l2GasUsed Total L2 gas used as of the end of this assertion's last transaction.
-     * @param prevVMHash Predecessor assertion VM hash (required because it does not get stored in the assertion).
-     * @param prevL2GasUsed Predecessor assertion L2 gas used (required because it does not get stored in the assertion).
      */
-    function createAssertion(
-        bytes32 vmHash,
-        uint256 inboxSize,
-        uint256 l2GasUsed,
-        bytes32 prevVMHash,
-        uint256 prevL2GasUsed
-    ) external;
+    function createAssertion(bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed) external;
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.
