@@ -236,15 +236,15 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // txBatch is defined as: Batch of RLP-encoded transactions
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
 
-        // Now, we want to trigger the `txnBatchDataOverflow`, so we want to disturn the values receieved in the txLengths array. 
-        for(uint i; i < numTxns; i++) {
+        // Now, we want to trigger the `txnBatchDataOverflow`, so we want to disturn the values receieved in the txLengths array.
+        for (uint256 i; i < numTxns; i++) {
             txLengths[i] = txLengths[i] + 1;
         }
 
         // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
         vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
         vm.prank(sequencer);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);  
+        seqIn.appendTxBatch(contexts, txLengths, txBatch);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////
