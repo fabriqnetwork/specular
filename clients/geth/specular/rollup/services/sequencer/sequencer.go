@@ -17,12 +17,13 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	rollup_mock "github.com/specularl2/specular/clients/geth/specular/rollup/types/mock"
 )
 
 const timeInterval = 10 * time.Second
 
-func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
-	sequencer, err := NewSequencer(eth, proofBackend, cfg, auth)
+func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts, mockedL1Client *rollup_mock.MockEthClient) {
+	sequencer, err := NewSequencer(eth, proofBackend, cfg, auth, mockedL1Client)
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)
 	}
@@ -47,8 +48,12 @@ type Sequencer struct {
 	challengeResoutionCh chan struct{}
 }
 
-func NewSequencer(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Sequencer, error) {
-	base, err := services.NewBaseService(eth, proofBackend, cfg, auth)
+// type mockL1Client struct {
+// 	expectedL1Endpoint string
+// }
+
+func NewSequencer(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts, mockedL1Client rollup_mock.MockEthClient) (*Sequencer, error) {
+	base, err := services.NewBaseService(eth, proofBackend, cfg, auth, mockedL1Client)
 	if err != nil {
 		return nil, err
 	}

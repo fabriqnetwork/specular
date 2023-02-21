@@ -22,4 +22,5 @@ type Config struct {
 	RollupAddr           common.Address // L1 Rollup contract address
 	L1RollupGenesisBlock uint64         // L1 Rollup genesis block
 	RollupStakeAmount    uint64         // Amount of stake
+	UseMockedL1Client    bool           // Use mocked L1 client
 }

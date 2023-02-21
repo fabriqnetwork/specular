@@ -11,65 +11,15 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	//"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/trie"
 	"github.com/golang/mock/gomock"
 	proof_mock "github.com/specularl2/specular/clients/geth/specular/proof/mock"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	//rollup_mock "github.com/specularl2/specular/clients/geth/specular/rollup/services/mock"
+	testing_mock "github.com/specularl2/specular/clients/geth/specular/rollup/services/testutils"
 )
-
-type mockBackend struct {
-	bc     *core.BlockChain
-	txPool *core.TxPool
-}
-
-func NewMockBackend(bc *core.BlockChain, txPool *core.TxPool) *mockBackend {
-	return &mockBackend{
-		bc:     bc,
-		txPool: txPool,
-	}
-}
-
-func (m *mockBackend) BlockChain() *core.BlockChain {
-	return m.bc
-}
-
-func (m *mockBackend) TxPool() *core.TxPool {
-	return m.txPool
-}
-
-func (m *mockBackend) StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error) {
-	return nil, nil
-}
-
-type testBlockChain struct {
-	statedb       *state.StateDB
-	gasLimit      uint64
-	chainHeadFeed *event.Feed
-}
-
-func (bc *testBlockChain) CurrentBlock() *types.Block {
-	return types.NewBlock(&types.Header{
-		GasLimit: bc.gasLimit,
-	}, nil, nil, nil, trie.NewStackTrie(nil))
-}
-
-func (bc *testBlockChain) GetBlock(hash common.Hash, number uint64) *types.Block {
-	return bc.CurrentBlock()
-}
-
-func (bc *testBlockChain) StateAt(common.Hash) (*state.StateDB, error) {
-	return bc.statedb, nil
-}
-
-func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent) event.Subscription {
-	return bc.chainHeadFeed.Subscribe(ch)
-}
 
 func mockValidator(t *testing.T, ctrl *gomock.Controller) *Validator {
 	cfg := &services.Config{
@@ -102,10 +52,10 @@ func mockValidator(t *testing.T, ctrl *gomock.Controller) *Validator {
 		t.Fatalf("can't create new chain %v", err)
 	}
 	statedb, _ := state.New(common.Hash{}, state.NewDatabase(chainDB), nil)
-	blockchain := &testBlockChain{statedb, 10000000, new(event.Feed)}
+	blockchain := &testing_mock.TestBlockChain{statedb, 10000000, new(event.Feed)}
 
 	pool := core.NewTxPool(core.DefaultTxPoolConfig, chainConfig, blockchain)
-	backend := NewMockBackend(bc, pool)
+	backend := testing_mock.NewMockBackend(bc, pool)
 
 	proofBackend := proof_mock.NewMockBackend(ctrl)
 
