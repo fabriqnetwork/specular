@@ -1,5 +1,5 @@
 {
-  "filter_paths": "(lib/|@openzeppelin|hardhat|src/libraries/BytesLib.sol, test/*.t.sol)",
+  "filter_paths": "(lib/|@openzeppelin|hardhat|src/libraries/BytesLib.sol|test/)",
   "solc_remaps": [
     "@ensdomains/=node_modules/@ensdomains/",
     "@openzeppelin/=node_modules/@openzeppelin/",
