@@ -110,7 +110,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
     // appendTxBatch
     /////////////////////////////
     function test_appendTxBatch_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
-        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 15.
+        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
         txnBlocks = bound(txnBlocks, 1, 10);
 
@@ -199,6 +199,52 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         uint256 expectedInboxSize = numTxns;
         assertEq(inboxSizeFinal, expectedInboxSize);
+    }
+
+    function test_appendTxBatch_revert_txBatchDataOverflow(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
+        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
+        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
+        txnBlocks = bound(txnBlocks, 1, 10);
+
+        // Each context corresponds to a single "L2 block"
+        uint256 numTxns = numTxnsPerBlock * txnBlocks;
+        uint256 numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+
+        // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
+        vm.warp(block.timestamp + (4 * txnBlocks));
+        uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
+            // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+
+        // Let's create an array of contexts
+        uint256[] memory contexts = new uint256[](numContextsArrEntries);
+        for (uint256 i; i < numContextsArrEntries; i += 3) {
+            // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
+            contexts[i] = numTxnsPerBlock;
+
+            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
+            contexts[i + 1] = txnBlockTimestamp / 20;
+
+            // Formula used for blockTimestamp: (current block.timestamp) / 5x
+            contexts[i + 2] = txnBlockTimestamp;
+
+            // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
+            // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
+            ++txnBlockTimestamp;
+        }
+
+        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
+        // txBatch is defined as: Batch of RLP-encoded transactions
+        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
+
+        // Now, we want to trigger the `txnBatchDataOverflow`, so we want to disturn the values receieved in the txLengths array. 
+        for(uint i; i < numTxns; i++) {
+            txLengths[i] = txLengths[i] + 1;
+        }
+
+        // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
+        vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
+        vm.prank(sequencer);
+        seqIn.appendTxBatch(contexts, txLengths, txBatch);  
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////
