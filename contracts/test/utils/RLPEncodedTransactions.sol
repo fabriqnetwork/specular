@@ -47,7 +47,6 @@ contract RLPEncodedTransactionsUtil is Test {
         bytes memory combinedNumTxnsBytes;
         uint256 rlpEncodedTxnIndex;
 
-
         for (uint256 i; i < numTxns; i++) {
             rlpEncodedTxnIndex = i % 10;
             combinedNumTxnsBytes = bytes.concat(combinedNumTxnsBytes, rlpEncodedTransactions[rlpEncodedTxnIndex]);

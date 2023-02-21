@@ -119,21 +119,21 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
         uint256 numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-        
+
         // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
         vm.warp(block.timestamp + (4 * txnBlocks));
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
-                                                                        // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+            // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
         for (uint256 i; i < numContextsArrEntries; i += 3) {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
-            
+
             // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
             contexts[i + 1] = txnBlockTimestamp / 20;
-            
+
             // Formula used for blockTimestamp: (current block.timestamp) / 5x
             contexts[i + 2] = txnBlockTimestamp;
 
