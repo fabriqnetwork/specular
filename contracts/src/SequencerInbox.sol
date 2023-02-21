@@ -72,7 +72,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         }
 
         uint256 initialDataOffset;
-        
+
         assembly {
             initialDataOffset := txBatch.offset
         }

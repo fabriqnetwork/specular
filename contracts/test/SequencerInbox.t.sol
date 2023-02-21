@@ -110,30 +110,30 @@ contract SequencerInboxTest is SequencerBaseSetup {
     // appendTxBatch
     /////////////////////////////
     function test_appendTxBatch_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
-        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 15. 
-        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30); 
+        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 15.
+        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
         txnBlocks = bound(txnBlocks, 1, 10);
 
         uint256 inboxSizeInitial = seqIn.getInboxSize();
-        
+
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
         uint256 numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-        
+
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for(uint i; i < numContextsArrEntries; ) {
-            if(i % 3 == 0) {
+        for (uint256 i; i < numContextsArrEntries;) {
+            if (i % 3 == 0) {
                 // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
                 contexts[i] = numTxnsPerBlock;
-            } else if(i % 3 == 1) {
+            } else if (i % 3 == 1) {
                 // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-                contexts[i] = (block.timestamp/(5 * ((i / 3) + 1))) / 20;
+                contexts[i] = (block.timestamp / (5 * ((i / 3) + 1))) / 20;
             } else {
                 // Formula used for blockTimestamp: (current block.timestamp) / 5x
-                contexts[i] = block.timestamp/(5 * ((i / 3) + 1));
+                contexts[i] = block.timestamp / (5 * ((i / 3) + 1));
             }
-            
+
             unchecked {
                 ++i;
             }
@@ -144,12 +144,12 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 initialGasUsageHelper = gasleft();
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
         uint256 finalGasUsageHelper = gasleft();
-        
+
         emit log_named_uint("Gas Usage in calling appendTxHelper", (initialGasUsageHelper - finalGasUsageHelper));
-        
+
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencer);
-        
+
         uint256 initialGasUsage = gasleft();
         seqIn.appendTxBatch(contexts, txLengths, txBatch);
         uint256 finalGasUsage = gasleft();
@@ -210,11 +210,11 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     /////////////////////////////////////////////////////////////////////////////////////////
     // TENTATIVE CODE CHANGE. TEST SUBJECT TO CHANGE BASED ON CHANGE IN CODE
-    // Probable change: `appendTxBatch` passes even with malformed `contexts` array  
+    // Probable change: `appendTxBatch` passes even with malformed `contexts` array
     /////////////////////////////////////////////////////////////////////////////////////////
     function test_appendTxBatch_incompleteDataInContextsArray(uint256 numTxnsPerBlock) public {
         // Since we are assuming that we will have two transaction blocks and we have a total of 300 sample transactions right now.
-        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 150); 
+        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 150);
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
         // Each context corresponds to a single "L2 block"
