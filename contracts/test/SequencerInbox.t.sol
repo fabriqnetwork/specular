@@ -119,47 +119,40 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
         uint256 numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        
+        // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
+        vm.warp(block.timestamp + (4 * txnBlocks));
+        uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
+                                                                        // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i; i < numContextsArrEntries;) {
-            if (i % 3 == 0) {
-                // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
-                contexts[i] = numTxnsPerBlock;
-            } else if (i % 3 == 1) {
-                // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-                contexts[i] = (block.timestamp / (5 * ((i / 3) + 1))) / 20;
-            } else {
-                // Formula used for blockTimestamp: (current block.timestamp) / 5x
-                contexts[i] = block.timestamp / (5 * ((i / 3) + 1));
-            }
+        for (uint256 i; i < numContextsArrEntries; i += 3) {
+            // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
+            contexts[i] = numTxnsPerBlock;
+            
+            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
+            contexts[i + 1] = txnBlockTimestamp / 20;
+            
+            // Formula used for blockTimestamp: (current block.timestamp) / 5x
+            contexts[i + 2] = txnBlockTimestamp;
 
-            unchecked {
-                ++i;
-            }
+            // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
+            // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
+            ++txnBlockTimestamp;
         }
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
-        uint256 initialGasUsageHelper = gasleft();
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
-        uint256 finalGasUsageHelper = gasleft();
-
-        emit log_named_uint("Gas Usage in calling appendTxHelper", (initialGasUsageHelper - finalGasUsageHelper));
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencer);
-
-        uint256 initialGasUsage = gasleft();
         seqIn.appendTxBatch(contexts, txLengths, txBatch);
-        uint256 finalGasUsage = gasleft();
-
-        emit log_named_uint("Gas usage in calling appendTxBatch", initialGasUsage - finalGasUsage);
-        emit log_named_uint("Gas left after appendTxBatch", gasleft());
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
-
         assertGt(inboxSizeFinal, inboxSizeInitial);
+
         uint256 expectedInboxSize = numTxns;
         assertEq(inboxSizeFinal, expectedInboxSize);
     }
