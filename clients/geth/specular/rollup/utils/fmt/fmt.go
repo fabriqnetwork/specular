@@ -14,12 +14,11 @@ type Error struct {
 
 func Errorf(format string, args ...interface{}) error {
 	pc, file, line, _ := runtime.Caller(2)
-	name := runtime.FuncForPC(pc).Name()
 	return &Error{
 		err: fmt.Errorf(format, args...),
 		file: file,
 		line: line,
-		name: name,
+		name: runtime.FuncForPC(pc).Name(),
 	}
 }
 
