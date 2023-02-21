@@ -15,8 +15,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/customlog"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/customerror"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
@@ -25,11 +25,11 @@ const timeInterval = 10 * time.Second
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
 	if err != nil {
-		customlog.Crit("[Sequencer: RegisterService] Failed to register the Rollup service", "err", err)
+		log.Crit("Failed to register the Rollup service", "err", err)
 	}
 	stack.RegisterLifecycle(sequencer)
 	// stack.RegisterAPIs(seq.APIs())
-	customlog.Info("[Sequencer: RegisterService] Sequencer registered")
+	log.Info("Sequencer registered")
 }
 
 type challengeCtx struct {
@@ -82,7 +82,7 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
-			return batchTxs, customerror.Errorf("[Sequencer: modifyTxnsInBatch] Checking GetTransaction, err: %w", err)
+			return batchTxs, fmt.Errorf("Checking GetTransaction, err: %w", err)
 		}
 		if prevTx == nil {
 			batchTxs = append(batchTxs, tx)
@@ -95,7 +95,7 @@ func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.T
 func (s *Sequencer) sendBatch(batcher *Batcher) error {
 	blocks, err := batcher.Batch()
 	if err != nil {
-		return customerror.Errorf("[Sequencer: sendBatch] Failed to batch blocks, err: %w", err)
+		return fmt.Errorf("Failed to batch blocks, err: %w", err)
 	}
 	s.blockCh <- blocks
 	return nil
@@ -112,7 +112,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 			}
 			batchTxs, err := s.modifyTxnsInBatch(batchTxs, tx)
 			if err != nil {
-				return batchTxs, customerror.Errorf("[Sequencer: addTxsToBatchAndCommit] Modifying batch failed, err: %w", err)
+				return batchTxs, fmt.Errorf("Modifying batch failed, err: %w", err)
 			}
 			txs.Pop()
 		}
@@ -122,7 +122,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.Transact
 	}
 	err := batcher.CommitTransactions(batchTxs)
 	if err != nil {
-		return nil, customerror.Errorf("[Sequencer: addTxsToBatchAndCommit] Failed to commit transactions, err: %w", err)
+		return nil, fmt.Errorf("Failed to commit transactions, err: %w", err)
 	}
 	return batchTxs, nil
 }
@@ -144,7 +144,7 @@ func (s *Sequencer) batchingLoop() {
 	// Process txns via batcher
 	batcher, err := NewBatcher(s.Config.Coinbase, s.Eth)
 	if err != nil {
-		customlog.Crit("[Sequencer: batchingLoop] Failed to start batcher", "err", err)
+		log.Crit("Failed to start batcher", "err", err)
 	}
 
 	var batchTxs []*types.Transaction
@@ -169,20 +169,20 @@ func (s *Sequencer) batchingLoop() {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
 				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
-					customlog.Crit("[Sequencer: batchingLoop] Failed to process local txs", "err", err)
+					log.Crit("Failed to process local txs", "err", err)
 				}
 			}
 			if len(remoteTxs) > 0 {
 				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
 				batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
-					customlog.Crit("[Sequencer: batchingLoop] Failed to process remote txs", "err", err)
+					log.Crit("Failed to process remote txs", "err", err)
 				}
 			}
 			if len(batchTxs) > 0 {
 				err = s.sendBatch(batcher)
 				if err != nil {
-					customlog.Crit("[Sequencer: batchingLoop] Failed to send transaction to batch", "err", err)
+					log.Crit("Failed to send transaction to batch", "err", err)
 				}
 			}
 			batchTxs = nil
@@ -197,7 +197,7 @@ func (s *Sequencer) batchingLoop() {
 			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
 			batchTxs, err = s.addTxsToBatchAndCommit(batcher, sortedTxs, batchTxs, signer)
 			if err != nil {
-				customlog.Crit("[Sequencer: batchingLoop] Failed to process txsCh event ", "err", err)
+				log.Crit("Failed to process txsCh event ", "err", err)
 			}
 		case <-s.Ctx.Done():
 			return
@@ -216,7 +216,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
 	createdSub, err := s.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: s.Ctx}, createdCh)
 	if err != nil {
-		customlog.Crit("[Sequencer: sequencingLoop] Failed to watch rollup event", "err", err)
+		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer createdSub.Unsubscribe()
 
@@ -249,10 +249,10 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			confirmedAssertion.CumulativeGasUsed,
 		)
 		if errors.Is(err, core.ErrInsufficientFunds) {
-			customlog.Crit("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+			log.Crit("Insufficient Funds to send Tx", "error", err)
 		}
 		if err != nil {
-			customlog.Error("[Sequencer: sequencingLoop] Can not create DA", "error", err)
+			log.Error("Can not create DA", "error", err)
 		}
 	}
 
@@ -268,15 +268,15 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			batch := rollupTypes.NewTxBatch(batchBlocks, 0) // TODO: handle max batch size
 			contexts, txLengths, txs, err := batch.SerializeToArgs()
 			if err != nil {
-				customlog.Error("[Sequencer: sequencingLoop] Can not serialize batch", "error", err)
+				log.Error("Can not serialize batch", "error", err)
 				continue
 			}
 			_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
 			if errors.Is(err, core.ErrInsufficientFunds) {
-				customlog.Crit("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+				log.Crit("Insufficient Funds to send Tx", "error", err)
 			}
 			if err != nil {
-				customlog.Error("[Sequencer: sequencingLoop] Can not sequence batch", "error", err)
+				log.Error("Can not sequence batch", "error", err)
 				continue
 			}
 			// Update queued assertion to latest batch
@@ -300,7 +300,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 					pendingAssertion.ID = ev.AssertionID
 					pendingAssertion.Deadline, err = s.AssertionMap.GetDeadline(ev.AssertionID)
 					if err != nil {
-						customlog.Error("[Sequencer: sequencingLoop] Can not get DA deadline", "error", err)
+						log.Error("Can not get DA deadline", "error", err)
 						continue
 					}
 					// Send to confirmation goroutine to confirm it
@@ -321,7 +321,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			} else {
 				// TODO: decentralized sequencer
 				// TODO: rewind blockchain, sync from L1, reset states
-				customlog.Error("[Sequencer: sequencingLoop] Confirmed ID is not current pending one", "get", id.String(), "expected", pendingAssertion.ID.String())
+				log.Error("Confirmed ID is not current pending one", "get", id.String(), "expected", pendingAssertion.ID.String())
 			}
 		case <-s.Ctx.Done():
 			return
@@ -337,7 +337,7 @@ func (s *Sequencer) confirmationLoop() {
 	confirmedCh := make(chan *bindings.IRollupAssertionConfirmed, 4096)
 	confirmedSub, err := s.Rollup.Contract.WatchAssertionConfirmed(&bind.WatchOpts{Context: s.Ctx}, confirmedCh)
 	if err != nil {
-		customlog.Crit("[Sequencer: confirmationLoop] Failed to watch rollup event", "err", err)
+		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer confirmedSub.Unsubscribe()
 
@@ -345,14 +345,14 @@ func (s *Sequencer) confirmationLoop() {
 	headCh := make(chan *types.Header, 4096)
 	headSub, err := s.L1.SubscribeNewHead(s.Ctx, headCh)
 	if err != nil {
-		customlog.Crit("[Sequencer: confirmationLoop] Failed to watch l1 chain head", "err", err)
+		log.Crit("Failed to watch l1 chain head", "err", err)
 	}
 	defer headSub.Unsubscribe()
 
 	challengedCh := make(chan *bindings.IRollupAssertionChallenged, 4096)
 	challengedSub, err := s.Rollup.Contract.WatchAssertionChallenged(&bind.WatchOpts{Context: s.Ctx}, challengedCh)
 	if err != nil {
-		customlog.Crit("[Sequencer: confirmationLoop] Failed to watch rollup event", "err", err)
+		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer challengedSub.Unsubscribe()
 	isInChallenge := false
@@ -368,7 +368,7 @@ func (s *Sequencer) confirmationLoop() {
 			// Waif for the challenge resolved
 			select {
 			case <-s.challengeResoutionCh:
-				customlog.Info("[Sequencer: confirmationLoop] challenge finished")
+				log.Info("challenge finished")
 				isInChallenge = false
 			case <-s.Ctx.Done():
 				return
@@ -382,11 +382,11 @@ func (s *Sequencer) confirmationLoop() {
 						// Confirmation period has past, confirm it
 						_, err := s.Rollup.ConfirmFirstUnresolvedAssertion()
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							customlog.Crit("[Sequencer: confirmationLoop] Insufficient Funds to send Tx", "error", err)
+							log.Crit("Insufficient Funds to send Tx", "error", err)
 						}
 						if err != nil {
-							// customlog.Error("Failed to confirm DA", "error", err)
-							customlog.Crit("[Sequencer: confirmationLoop] Failed to confirm DA", "err", err)
+							// log.Error("Failed to confirm DA", "error", err)
+							log.Crit("Failed to confirm DA", "err", err)
 							// TODO: wait some time before retry
 							continue
 						}
@@ -404,7 +404,7 @@ func (s *Sequencer) confirmationLoop() {
 				// New assertion created by sequencing goroutine
 				if !pendingConfirmed {
 					// TODO: support multiple pending assertion
-					customlog.Error("[Sequencer: confirmationLoop] Got another DA request before current is confirmed")
+					log.Error("Got another DA request before current is confirmed")
 					continue
 				}
 				pendingAssertion = newPendingAssertion.Copy()
@@ -431,14 +431,14 @@ func (s *Sequencer) challengeLoop() {
 
 	abi, err := bindings.IChallengeMetaData.GetAbi()
 	if err != nil {
-		customlog.Crit("[Sequencer: challengeLoop] Failed to get IChallenge ABI", "err", err)
+		log.Crit("Failed to get IChallenge ABI", "err", err)
 	}
 
 	// Watch L1 blockchain for challenge timeout
 	headCh := make(chan *types.Header, 4096)
 	headSub, err := s.L1.SubscribeNewHead(s.Ctx, headCh)
 	if err != nil {
-		customlog.Crit("[Sequencer: challengeLoop] Failed to watch l1 chain head", "err", err)
+		log.Crit("Failed to watch l1 chain head", "err", err)
 	}
 	defer headSub.Unsubscribe()
 
@@ -463,7 +463,7 @@ func (s *Sequencer) challengeLoop() {
 				responder, err := challengeSession.CurrentResponder()
 				if err != nil {
 					// TODO: error handling
-					customlog.Error("[Sequencer: challengeLoop] Can not get current responder", "error", err)
+					log.Error("Can not get current responder", "error", err)
 					continue
 				}
 				if responder == common.Address(s.Config.Coinbase) {
@@ -471,17 +471,17 @@ func (s *Sequencer) challengeLoop() {
 					err := services.RespondBisection(s.BaseService, abi, challengeSession, ev, states, common.Hash{}, false)
 					if err != nil {
 						// TODO: error handling
-						customlog.Error("[Sequencer: challengeLoop] Can not respond to bisection", "error", err)
+						log.Error("Can not respond to bisection", "error", err)
 						continue
 					}
 				} else {
 					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
 					if err != nil {
 						// TODO: error handling
-						customlog.Error("[Sequencer: challengeLoop] Can not get current responder left time", "error", err)
+						log.Error("Can not get current responder left time", "error", err)
 						continue
 					}
-					customlog.Info("[Sequencer: challengeLoop] Opponent time left", "time", opponentTimeLeft)
+					log.Info("Opponent time left", "time", opponentTimeLeft)
 					opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
 				}
 			case header := <-headCh:
@@ -492,7 +492,7 @@ func (s *Sequencer) challengeLoop() {
 				if header.Number.Uint64() > opponentTimeoutBlock {
 					_, err := challengeSession.Timeout()
 					if err != nil {
-						customlog.Error("[Sequencer: challengeLoop] Can not timeout opponent", "error", err)
+						log.Error("Can not timeout opponent", "error", err)
 						continue
 						// TODO: wait some time before retry
 						// TODO: fix race condition
@@ -500,7 +500,7 @@ func (s *Sequencer) challengeLoop() {
 				}
 			case ev := <-challengeCompletedCh:
 				// TODO: handle if we are not winner --> state corrupted
-				customlog.Info("[[Sequencer: challengeLoop] Challenge completed", "winner", ev.Winner)
+				log.Info("[Challenge completed", "winner", ev.Winner)
 				bisectedSub.Unsubscribe()
 				challengeCompletedSub.Unsubscribe()
 				states = []*proof.ExecutionState{}
@@ -516,7 +516,7 @@ func (s *Sequencer) challengeLoop() {
 			case ctx := <-s.challengeCh:
 				challenge, err := bindings.NewIChallenge(ctx.challengeAddr, s.L1)
 				if err != nil {
-					customlog.Crit("[Sequencer: challengeLoop] Failed to access ongoing challenge", "address", ctx.challengeAddr, "err", err)
+					log.Crit("Failed to access ongoing challenge", "address", ctx.challengeAddr, "err", err)
 				}
 				challengeSession = &bindings.IChallengeSession{
 					Contract:     challenge,
@@ -526,15 +526,15 @@ func (s *Sequencer) challengeLoop() {
 				bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
 				bisectedSub, err = challenge.WatchBisected(&bind.WatchOpts{Context: s.Ctx}, bisectedCh)
 				if err != nil {
-					customlog.Crit("[Sequencer: challengeLoop] Failed to watch challenge event", "err", err)
+					log.Crit("Failed to watch challenge event", "err", err)
 				}
 				challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
 				challengeCompletedSub, err = challenge.WatchChallengeCompleted(&bind.WatchOpts{Context: s.Ctx}, challengeCompletedCh)
 				if err != nil {
-					customlog.Crit("[Sequencer: challengeLoop] Failed to watch challenge event", "err", err)
+					log.Crit("Failed to watch challenge event", "err", err)
 				}
-				customlog.Info("[Sequencer: challengeLoop] to generate state from", "start", ctx.assertion.StartBlock, "to", ctx.assertion.EndBlock)
-				customlog.Info("[Sequencer: challengeLoop] backend", "start", ctx.assertion.StartBlock, "to", ctx.assertion.EndBlock)
+				log.Info("to generate state from", "start", ctx.assertion.StartBlock, "to", ctx.assertion.EndBlock)
+				log.Info("backend", "start", ctx.assertion.StartBlock, "to", ctx.assertion.EndBlock)
 				states, err = proof.GenerateStates(
 					s.ProofBackend,
 					s.Ctx,
@@ -544,11 +544,11 @@ func (s *Sequencer) challengeLoop() {
 					nil,
 				)
 				if err != nil {
-					customlog.Crit("[Sequencer: challengeLoop] Failed to generate states", "err", err)
+					log.Crit("Failed to generate states", "err", err)
 				}
 				_, err = challengeSession.InitializeChallengeLength(new(big.Int).SetUint64(uint64(len(states)) - 1))
 				if err != nil {
-					customlog.Crit("[Sequencer: challengeLoop] Failed to initialize challenge", "err", err)
+					log.Crit("Failed to initialize challenge", "err", err)
 				}
 				inChallenge = true
 			case <-headCh:
@@ -568,12 +568,12 @@ func (s *Sequencer) Start() error {
 	go s.sequencingLoop(genesis.Root())
 	go s.confirmationLoop()
 	go s.challengeLoop()
-	customlog.Info("Sequencer started")
+	log.Info("Sequencer started")
 	return nil
 }
 
 func (s *Sequencer) Stop() error {
-	customlog.Info("Sequencer stopped")
+	log.Info("Sequencer stopped")
 	s.Cancel()
 	s.Wg.Wait()
 	return nil
