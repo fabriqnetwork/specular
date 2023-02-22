@@ -4,9 +4,6 @@ SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
 cd $DATA_DIR
 
-echo "This is DATA_DIR: $DATA_DIR"
-echo "This is GETH_DIR: $GETH_DIR"
-
 $GETH_SPECULAR_DIR/build/bin/geth \
     --datadir ./data_sequencer \
     --password ./password.txt \
