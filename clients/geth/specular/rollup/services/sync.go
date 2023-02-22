@@ -13,9 +13,9 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
 const syncRange uint64 = 10000

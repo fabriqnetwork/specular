@@ -3,20 +3,22 @@ package fmt
 import (
 	"fmt"
 	"runtime"
+
+	"github.com/go-errors/errors"
 )
 
 type Error struct {
-	err error
+	err  string
 	file string
 	line int
 	name string
 }
 
-func Errorf(format string, args ...interface{}) error {
-	pc, file, line, _ := runtime.Caller(2)
+func Errorf(format string, args ...interface{}) *Error {
+	pc, file, line, _ := runtime.Caller(1)
 	fn := runtime.FuncForPC(pc)
 	return &Error{
-		err: fmt.Errorf(format, args...),
+		err:  errors.Errorf(format, args...).ErrorStack(),
 		file: file,
 		line: line,
 		name: fn.Name(),
@@ -24,5 +26,5 @@ func Errorf(format string, args ...interface{}) error {
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s | %s:%d (%s)", e.err.Error(),e.file, e.line, e.name)
+	return fmt.Sprintf("%s | %s:%d (%s)", e.err, e.file, e.line, e.name)
 }
