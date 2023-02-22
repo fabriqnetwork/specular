@@ -3,6 +3,7 @@ SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
 cd $DATA_DIR
+
 $GETH_SPECULAR_DIR/build/bin/geth \
     --datadir ./data_sequencer \
     --password ./password.txt \
@@ -14,6 +15,6 @@ $GETH_SPECULAR_DIR/build/bin/geth \
     --rollup.coinbase=f39fd6e51aad88f6f4ce6ab8827279cfffb92266 \
     --rollup.l1endpoint 'ws://localhost:8545' \
     --rollup.l1chainid 31337 \
-    --rollup.sequencer-inbox-addr '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0' \
-    --rollup.rollup-addr '0x0165878A594ca255338adfa4d48449f69242Eb8F' \
+    --rollup.sequencer-inbox-addr '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' \
+    --rollup.rollup-addr '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' \
     --rollup.rollup-stake-amount 100
