@@ -51,7 +51,7 @@ Currently, the sequencer and validator must start in a clean environment; i.e. y
 
 To restart the L1 node, use `Ctrl-C` to stop the current running one and run `npx hardhat node` again.
 
-To reinitialize L2 node, under `rollup/test-node` directory, run `./clean.sh && ./init.sh`.
+To reinitialize L2 node, under `sbin` directory, run `./clean.sh && ./init.sh`.
 
 Do not forget to reset MetaMask account if you have sent some transactions on L2 (see below for more details).
 
@@ -59,7 +59,7 @@ Do not forget to reset MetaMask account if you have sent some transactions on L2
 
 **Configuration**
 
-1. Go to `test-node/keys`, import the sequencer and validator keys to MetaMask.
+1. Go to `data/keys`, import the sequencer and validator keys to MetaMask.
 Both accounts are pre-funded with 10 ETH each on L2 network, and you can use them to send transactions. Note: on L2, these two accounts are just normal accounts; not to be confused with the sequencer/validator roles on L1 (the addresses are just being reused).
 2. In `Settings -> Networks`, create a new network called `L2` which connects to the sequencer.
 The sequencer node should be running while creating the network.

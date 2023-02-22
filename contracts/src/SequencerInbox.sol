@@ -22,15 +22,14 @@
 
 pragma solidity ^0.8.0;
 
-// import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract SequencerInbox is ISequencerInbox, Initializable {
-    string private constant EMPTY_BATCH = "EMPTY_BATCH";
-
+contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Total number of transactions
     uint256 private inboxSize;
     // accumulators[i] is an accumulator of transactions in txBatch i.
@@ -43,12 +42,16 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             revert ZeroAddress();
         }
         sequencerAddress = _sequencerAddress;
+        __Ownable_init();
+        __UUPSUpgradeable_init();
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     function getInboxSize() external view override returns (uint256) {
         return inboxSize;
@@ -62,18 +65,18 @@ contract SequencerInbox is ISequencerInbox, Initializable {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
 
-        uint256 start = inboxSize;
         uint256 numTxs = inboxSize;
-        uint256 numProcessedTxs = 0;
         bytes32 runningAccumulator;
         if (accumulators.length > 0) {
             runningAccumulator = accumulators[accumulators.length - 1];
         }
 
-        uint256 dataOffset;
+        uint256 initialDataOffset;
         assembly {
-            dataOffset := txBatch.offset
+            initialDataOffset := txBatch.offset
         }
+
+        uint256 dataOffset = initialDataOffset;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
             // TODO: consider adding L1 context.
@@ -83,19 +86,22 @@ contract SequencerInbox is ISequencerInbox, Initializable {
 
             uint256 numCtxTxs = contexts[i];
             for (uint256 j = 0; j < numCtxTxs; j++) {
-                uint256 txLength = txLengths[numProcessedTxs];
+                uint256 txLength = txLengths[numTxs - inboxSize];
                 bytes32 txDataHash;
                 assembly {
                     txDataHash := keccak256(dataOffset, txLength)
                 }
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
                 dataOffset += txLength;
+                if (dataOffset - initialDataOffset > txBatch.length) {
+                    revert TxBatchDataOverflow();
+                }
                 numTxs++;
             }
-            numProcessedTxs += numCtxTxs;
         }
 
         if (numTxs <= inboxSize) revert EmptyBatch();
+        uint256 start = inboxSize;
         inboxSize = numTxs;
         accumulators.push(runningAccumulator);
 

@@ -78,7 +78,7 @@ func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int 
 func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) ([]*types.Transaction, error) {
 	// Check if tx in batch
 	txIndex := getTxIndexInBatch(batchTxs, tx)
-	if txIndex <= 0 {
+	if txIndex < 0 {
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
@@ -104,13 +104,13 @@ func (s *Sequencer) sendBatch(batcher *Batcher) error {
 // Add sorted txs to batch and commit txs
 func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) ([]*types.Transaction, error) {
 	if txs != nil {
-
 		for {
 			tx := txs.Peek()
 			if tx == nil {
 				break
 			}
-			batchTxs, err := s.modifyTxnsInBatch(batchTxs, tx)
+			var err error
+			batchTxs, err = s.modifyTxnsInBatch(batchTxs, tx)
 			if err != nil {
 				return batchTxs, fmt.Errorf("Modifying batch failed, err: %w", err)
 			}

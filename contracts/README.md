@@ -28,14 +28,10 @@ yarn install
 ## Run Tests
 
 ```sh
-npm run tests
+forge test
 ```
 
-## Run Lints
-
-```sh
-npm run lint:fix
-```
+The number of fuzz test runs can be configured in `foundry.toml`, under the `[fuzz]` section with parameter `runs`.
 
 ## Local Slither Check
 
