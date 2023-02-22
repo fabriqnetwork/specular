@@ -1,21 +1,32 @@
-const ethers = require("ethers");
-const fs = require("fs");
-const FaucetJson = require("../artifacts/src/pre-deploy/Faucet.sol/Faucet.json");
-const assert = require("assert");
+// const ethers = require("ethers");
+// const fs = require("fs");
+// const FaucetJson = require("../artifacts/src/pre-deploy/Faucet.sol/Faucet.json");
+// const assert = require("assert");
+// let GenesisJson;
+import { BigNumber, ethers } from "ethers";
+import fs from "fs";
+import FaucetJson from "../artifacts/src/pre-deploy/Faucet.sol/Faucet.json";
+import assert from "assert";
 let GenesisJson;
 
+interface contractObject {
+  code: string;
+  balance: string;
+  storage: any;
+}
+
 const createContractObject = (
-  deployedBytecode,
-  contractBalance,
-  storageSlots,
-  valueAtSlots
-) => {
+  deployedBytecode: string,
+  contractBalance: BigNumber,
+  storageSlots: Array<string>,
+  valueAtSlots: Array<string>
+): contractObject => {
   assert(
     storageSlots.length == valueAtSlots.length,
     "incorrect storage-values array lengths"
   );
 
-  let storageSlotsObj = {};
+  const storageSlotsObj: any = {};
   for (let i = 0; i < storageSlots.length; i++) {
     storageSlotsObj[storageSlots[i].toString()] = valueAtSlots[i];
   }
@@ -28,12 +39,12 @@ const createContractObject = (
   return contractObject;
 };
 
-const createFaucetContractObject = () => {
+const createFaucetContractObject = (): contractObject => {
   const faucetDeployedBytecode = FaucetJson.deployedBytecode;
   const faucetBalance = ethers.BigNumber.from("10").pow(20);
 
-  let storageSlots = [];
-  let valueAtSlots = [];
+  const storageSlots = [];
+  const valueAtSlots = [];
 
   // Storage Slot 0 stores the address of the owner
   storageSlots[0] =
