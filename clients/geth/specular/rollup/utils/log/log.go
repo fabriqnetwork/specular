@@ -7,19 +7,19 @@ import (
 )
 
 func Error(msg string, args ...interface{}) {
-	log.Error(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail(), nil)
+	log.Error(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
 }
 
 func Warn(msg string, args ...interface{}) {
-	log.Warn(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail(), nil)
+	log.Warn(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
 }
 
 func Crit(msg string, args ...interface{}) {
-	log.Crit(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail(), nil)
+	log.Crit(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
 }
 
 func Info(msg string, args ...interface{}) {
-	log.Info(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail(), nil)
+	log.Info(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
 }
 
 func getFunctionDetail() string {
