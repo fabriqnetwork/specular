@@ -8,23 +8,23 @@ import (
 )
 
 type Error struct {
-	err  string
+	err  *errors.Error
 	file string
 	line int
-	name string
+	fn   *runtime.Func
 }
 
 func Errorf(format string, args ...interface{}) *Error {
 	pc, file, line, _ := runtime.Caller(1)
 	fn := runtime.FuncForPC(pc)
 	return &Error{
-		err:  errors.Errorf(format, args...).ErrorStack(),
+		err:  errors.Errorf(format, args...),
 		file: file,
 		line: line,
-		name: fn.Name(),
+		fn:   fn,
 	}
 }
 
 func (e *Error) Error() string {
-	return fmt.Sprintf("%s | %s:%d (%s)", e.err, e.file, e.line, e.name)
+	return fmt.Sprintf("%s | %s:%d (%s)", e.err.ErrorStack(), e.file, e.line, e.fn.Name())
 }
