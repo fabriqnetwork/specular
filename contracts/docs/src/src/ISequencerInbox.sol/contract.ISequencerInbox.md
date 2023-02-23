@@ -1,5 +1,5 @@
 # ISequencerInbox
-[Git Source](https://github.com/SpecularL2/specular/blob/559c78f8b09496c7f5c8f6e0b0262bee5e41d9a4/src/ISequencerInbox.sol)
+[Git Source](https://github.com/SpecularL2/specular/blob/c54213cfb14aca9d44e839341f672dd978834f68/src/ISequencerInbox.sol)
 
 
 ## Functions
