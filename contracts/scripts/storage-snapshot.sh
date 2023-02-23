@@ -9,8 +9,6 @@ then
     exit
 fi
 
-echo "$PWD"
-
 contracts=(
   ../src/AssertionMap.sol:AssertionMap
   ../src/Rollup.sol:Rollup
