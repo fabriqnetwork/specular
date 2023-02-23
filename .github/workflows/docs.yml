@@ -34,7 +34,7 @@ jobs:
       - name: Run forge doc
         run: forge doc --build --out docs
 
-      - uses: actions/upload-artifact@3
+      - uses: actions/upload-artifact@v3
         with:
            name: uploading docs
            path: docs
