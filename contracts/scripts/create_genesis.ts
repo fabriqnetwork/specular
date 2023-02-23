@@ -1,8 +1,3 @@
-// const ethers = require("ethers");
-// const fs = require("fs");
-// const FaucetJson = require("../artifacts/src/pre-deploy/Faucet.sol/Faucet.json");
-// const assert = require("assert");
-// let GenesisJson;
 import { BigNumber, ethers } from "ethers";
 import fs from "fs";
 import FaucetJson from "../artifacts/src/pre-deploy/Faucet.sol/Faucet.json";
