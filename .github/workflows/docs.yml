@@ -32,11 +32,11 @@ jobs:
         run: forge install
 
       - name: Run forge doc
-        run: forge doc --build --out docs
+        run: forge doc --out ./docs
 
       - uses: actions/upload-artifact@v3
         with:
            name: uploading docs
-           path: docs
+           path: ./docs
 
 
