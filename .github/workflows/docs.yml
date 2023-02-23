@@ -33,13 +33,13 @@ jobs:
 
       - name: Run forge doc
         run: |
-          mkdir -p ./docs/test_folder
-          echo "$PWD"   >  ./docs/test_folder/path.txt
-          forge doc > ./docs
+          mkdir -p /docs/test_folder
+          echo "$PWD"   >  /docs/test_folder/path.txt
+          forge doc > /docs
 
       - uses: actions/upload-artifact@v3
         with:
            name: uploading docs
-           path: ./docs
+           path: /docs
 
 
