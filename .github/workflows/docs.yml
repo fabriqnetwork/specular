@@ -40,6 +40,14 @@ jobs:
       - name: Run forge doc
         run: forge doc
 
+      - uses: actions/setup-node@v3
+
+      - name: Install dependencies
+        run: yarn --ignore-scripts
+
+      - name: Run Prettier
+        run: prettier --write doc
+
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
             commit_message: Doc Generation
