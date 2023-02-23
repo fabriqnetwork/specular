@@ -1,0 +1,92 @@
+=======================
+👁👁 STORAGE LAYOUT snapshot 👁👁
+=======================
+
+=======================
+➡ ../src/AssertionMap.sol:AssertionMap
+=======================
+
+| Name          | Type                                              | Slot | Offset | Bytes | Contract                          |
+|---------------|---------------------------------------------------|------|--------|-------|-----------------------------------|
+| assertions    | mapping(uint256 => struct AssertionMap.Assertion) | 0    | 0      | 32    | src/AssertionMap.sol:AssertionMap |
+| rollupAddress | address                                           | 1    | 0      | 20    | src/AssertionMap.sol:AssertionMap |
+
+=======================
+➡ ../src/Rollup.sol:Rollup
+=======================
+
+| Name                     | Type                                         | Slot | Offset | Bytes | Contract              |
+|--------------------------|----------------------------------------------|------|--------|-------|-----------------------|
+| _initialized             | uint8                                        | 0    | 0      | 1     | src/Rollup.sol:Rollup |
+| _initializing            | bool                                         | 0    | 1      | 1     | src/Rollup.sol:Rollup |
+| __gap                    | uint256[50]                                  | 1    | 0      | 1600  | src/Rollup.sol:Rollup |
+| __gap                    | uint256[50]                                  | 51   | 0      | 1600  | src/Rollup.sol:Rollup |
+| __gap                    | uint256[50]                                  | 101  | 0      | 1600  | src/Rollup.sol:Rollup |
+| _owner                   | address                                      | 151  | 0      | 20    | src/Rollup.sol:Rollup |
+| __gap                    | uint256[49]                                  | 152  | 0      | 1568  | src/Rollup.sol:Rollup |
+| confirmationPeriod       | uint256                                      | 201  | 0      | 32    | src/Rollup.sol:Rollup |
+| challengePeriod          | uint256                                      | 202  | 0      | 32    | src/Rollup.sol:Rollup |
+| minimumAssertionPeriod   | uint256                                      | 203  | 0      | 32    | src/Rollup.sol:Rollup |
+| maxGasPerAssertion       | uint256                                      | 204  | 0      | 32    | src/Rollup.sol:Rollup |
+| baseStakeAmount          | uint256                                      | 205  | 0      | 32    | src/Rollup.sol:Rollup |
+| vault                    | address                                      | 206  | 0      | 20    | src/Rollup.sol:Rollup |
+| stakeToken               | contract IERC20                              | 207  | 0      | 20    | src/Rollup.sol:Rollup |
+| sequencerInbox           | contract ISequencerInbox                     | 208  | 0      | 20    | src/Rollup.sol:Rollup |
+| assertions               | contract AssertionMap                        | 209  | 0      | 20    | src/Rollup.sol:Rollup |
+| verifier                 | contract IVerifier                           | 210  | 0      | 20    | src/Rollup.sol:Rollup |
+| lastResolvedAssertionID  | uint256                                      | 211  | 0      | 32    | src/Rollup.sol:Rollup |
+| lastConfirmedAssertionID | uint256                                      | 212  | 0      | 32    | src/Rollup.sol:Rollup |
+| lastCreatedAssertionID   | uint256                                      | 213  | 0      | 32    | src/Rollup.sol:Rollup |
+| numStakers               | uint256                                      | 214  | 0      | 32    | src/Rollup.sol:Rollup |
+| stakers                  | mapping(address => struct RollupBase.Staker) | 215  | 0      | 32    | src/Rollup.sol:Rollup |
+| withdrawableFunds        | mapping(address => uint256)                  | 216  | 0      | 32    | src/Rollup.sol:Rollup |
+| zombies                  | struct RollupBase.Zombie[]                   | 217  | 0      | 32    | src/Rollup.sol:Rollup |
+
+=======================
+➡ ../src/SequencerInbox.sol:SequencerInbox
+=======================
+
+| Name             | Type        | Slot | Offset | Bytes | Contract                              |
+|------------------|-------------|------|--------|-------|---------------------------------------|
+| _initialized     | uint8       | 0    | 0      | 1     | src/SequencerInbox.sol:SequencerInbox |
+| _initializing    | bool        | 0    | 1      | 1     | src/SequencerInbox.sol:SequencerInbox |
+| __gap            | uint256[50] | 1    | 0      | 1600  | src/SequencerInbox.sol:SequencerInbox |
+| __gap            | uint256[50] | 51   | 0      | 1600  | src/SequencerInbox.sol:SequencerInbox |
+| __gap            | uint256[50] | 101  | 0      | 1600  | src/SequencerInbox.sol:SequencerInbox |
+| _owner           | address     | 151  | 0      | 20    | src/SequencerInbox.sol:SequencerInbox |
+| __gap            | uint256[49] | 152  | 0      | 1568  | src/SequencerInbox.sol:SequencerInbox |
+| inboxSize        | uint256     | 201  | 0      | 32    | src/SequencerInbox.sol:SequencerInbox |
+| accumulators     | bytes32[]   | 202  | 0      | 32    | src/SequencerInbox.sol:SequencerInbox |
+| sequencerAddress | address     | 203  | 0      | 20    | src/SequencerInbox.sol:SequencerInbox |
+
+=======================
+➡ ../src/challenge/Challenge.sol:Challenge
+=======================
+
+| Name               | Type                | Slot | Offset | Bytes | Contract                              |
+|--------------------|---------------------|------|--------|-------|---------------------------------------|
+| resultReceiver     | address             | 0    | 0      | 20    | src/challenge/Challenge.sol:Challenge |
+| verifier           | contract IVerifier  | 1    | 0      | 20    | src/challenge/Challenge.sol:Challenge |
+| defender           | address             | 2    | 0      | 20    | src/challenge/Challenge.sol:Challenge |
+| challenger         | address             | 3    | 0      | 20    | src/challenge/Challenge.sol:Challenge |
+| lastMoveBlock      | uint256             | 4    | 0      | 32    | src/challenge/Challenge.sol:Challenge |
+| defenderTimeLeft   | uint256             | 5    | 0      | 32    | src/challenge/Challenge.sol:Challenge |
+| challengerTimeLeft | uint256             | 6    | 0      | 32    | src/challenge/Challenge.sol:Challenge |
+| turn               | enum Challenge.Turn | 7    | 0      | 1     | src/challenge/Challenge.sol:Challenge |
+| bisectionHash      | bytes32             | 8    | 0      | 32    | src/challenge/Challenge.sol:Challenge |
+| startStateHash     | bytes32             | 9    | 0      | 32    | src/challenge/Challenge.sol:Challenge |
+| endStateHash       | bytes32             | 10   | 0      | 32    | src/challenge/Challenge.sol:Challenge |
+
+=======================
+➡ ../src/challenge/verifier/Verifier.sol:Verifier
+=======================
+
+| Name          | Type        | Slot | Offset | Bytes | Contract                                     |
+|---------------|-------------|------|--------|-------|----------------------------------------------|
+| _initialized  | uint8       | 0    | 0      | 1     | src/challenge/verifier/Verifier.sol:Verifier |
+| _initializing | bool        | 0    | 1      | 1     | src/challenge/verifier/Verifier.sol:Verifier |
+| __gap         | uint256[50] | 1    | 0      | 1600  | src/challenge/verifier/Verifier.sol:Verifier |
+| __gap         | uint256[50] | 51   | 0      | 1600  | src/challenge/verifier/Verifier.sol:Verifier |
+| __gap         | uint256[50] | 101  | 0      | 1600  | src/challenge/verifier/Verifier.sol:Verifier |
+| _owner        | address     | 151  | 0      | 20    | src/challenge/verifier/Verifier.sol:Verifier |
+| __gap         | uint256[49] | 152  | 0      | 1568  | src/challenge/verifier/Verifier.sol:Verifier |
