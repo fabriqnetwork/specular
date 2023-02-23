@@ -92,7 +92,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// Validation succeeded, confirm assertion and advance stake
 	_, err := v.Rollup.AdvanceStake(assertion.ID)
 	if errors.Is(err, core.ErrInsufficientFunds) {
-		return fmt.Errorf("[Validator: tryValidateAssertion] Insufficient Funds to send Tx, err: %w", err)
+		return err
 	}
 	if err != nil {
 		return fmt.Errorf("[Validator: tryValidateAssertion] UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
@@ -140,6 +140,9 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			case errors.Is(err, errAssertionOverflowedLocalInbox):
 				// Assertion overflowed local inbox, wait for next batch event
 				log.Warn("[Validator: validationLoop] Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
+				return nil
+			case errors.Is(err, core.ErrInsufficientFunds):
+				log.Error("Insufficient Funds to send Tx, err: %w", err)
 				return nil
 			default:
 				return err
@@ -318,7 +321,8 @@ func (v *Validator) challengeLoop() {
 					ctx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if errors.Is(err, core.ErrInsufficientFunds) {
-					log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+					log.Error("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+					continue
 				}
 				if err != nil {
 					log.Crit("[Validator: challengeLoop] UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
@@ -337,7 +341,8 @@ func (v *Validator) challengeLoop() {
 							},
 						)
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+							log.Error("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+							continue
 						}
 						if err != nil {
 							log.Crit("[Validator: challengeLoop] UNHANDLED: Can't start challenge, validator state corrupted", "err", err)

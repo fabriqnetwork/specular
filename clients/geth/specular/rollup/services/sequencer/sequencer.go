@@ -249,7 +249,7 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			confirmedAssertion.CumulativeGasUsed,
 		)
 		if errors.Is(err, core.ErrInsufficientFunds) {
-			log.Crit("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+			log.Error("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
 		}
 		if err != nil {
 			log.Error("[Sequencer: sequencingLoop] Can not create DA", "error", err)
@@ -273,7 +273,8 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 			}
 			_, err = s.Inbox.AppendTxBatch(contexts, txLengths, txs)
 			if errors.Is(err, core.ErrInsufficientFunds) {
-				log.Crit("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+				log.Error("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+				continue
 			}
 			if err != nil {
 				log.Error("[Sequencer: sequencingLoop] Can not sequence batch", "error", err)
@@ -382,7 +383,8 @@ func (s *Sequencer) confirmationLoop() {
 						// Confirmation period has past, confirm it
 						_, err := s.Rollup.ConfirmFirstUnresolvedAssertion()
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Crit("[Sequencer: confirmationLoop] Insufficient Funds to send Tx", "error", err)
+							log.Error("[Sequencer: confirmationLoop] Insufficient Funds to send Tx", "error", err)
+							continue
 						}
 						if err != nil {
 							// log.Error("Failed to confirm DA", "error", err)
