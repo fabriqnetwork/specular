@@ -16,6 +16,12 @@ jobs:
     needs: pre_job
     if: ${{ needs.pre_job.outputs.should_skip != 'true' }}
     runs-on: ubuntu-latest
+
+    permissions:
+      # Give the default GITHUB_TOKEN write permission to commit and push the
+      # added or changed files to the repository.
+      contents: write
+
     defaults:
       run:
         working-directory: contracts
@@ -35,11 +41,13 @@ jobs:
         run: |
           sudo mkdir -p /docs/test_folder
           sudo echo "$PWD"   >  /docs/test_folder/path.txt
-          forge doc > /docs
+          forge doc
 
-      - uses: actions/upload-artifact@v3
+      - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-           name: uploading docs
-           path: /docs
+            commit_message: Doc Generation
+
+
+
 
 
