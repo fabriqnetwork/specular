@@ -33,7 +33,7 @@ jobs:
 
       - name: Run forge doc
         run: |
-          mkdir -p /docs/test_folder
+          sudo mkdir -p /docs/test_folder
           echo "$PWD"   >  /docs/test_folder/path.txt
           forge doc > /docs
 
