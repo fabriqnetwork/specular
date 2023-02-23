@@ -10,7 +10,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const Inbox = await ethers.getContractFactory("SequencerInbox", deployer);
   const inbox = await upgrades.deployProxy(Inbox, [sequencer], {
     initializer: "initialize",
-    from: sequencer,
     timeout: 0,
     kind: "uups",
   });
