@@ -34,7 +34,7 @@ jobs:
       - name: Run forge doc
         run: |
           sudo mkdir -p /docs/test_folder
-          echo "$PWD"   >  /docs/test_folder/path.txt
+          sudo echo "$PWD"   >  /docs/test_folder/path.txt
           forge doc > /docs
 
       - uses: actions/upload-artifact@v3
