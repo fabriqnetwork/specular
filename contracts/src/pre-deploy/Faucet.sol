@@ -21,30 +21,32 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Faucet is Ownable {
+    // amountAllowed is initialized in the genesis.json
+    // amountAllowed is set to 0.01 ETH
     uint256 public amountAllowed;
 
-    event LogDepositReceived(address, uint256);
-    event LogRequestFunds(address, uint256);
-
     mapping(address => uint256) public lockTime;
+
+    event DepositReceived(address, uint256);
+    event RequestFunds(address, uint256);
 
     constructor() payable {}
 
     receive() external payable {
-        emit LogDepositReceived(msg.sender, msg.value);
+        emit DepositReceived(msg.sender, msg.value);
     }
 
     function retrieve() external onlyOwner {
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function requestFunds(address payable _requestor) public payable onlyOwner {
-        require(block.timestamp > lockTime[_requestor], "Lock time has not expired.");
+    function requestFunds(address payable requestor) public payable onlyOwner {
+        require(block.timestamp > lockTime[requestor], "Lock time has not expired.");
         require(address(this).balance > amountAllowed, "Not enough funds in faucet.");
 
-        lockTime[_requestor] = block.timestamp + 1 days;
-        _requestor.transfer(amountAllowed);
+        lockTime[requestor] = block.timestamp + 1 days;
+        requestor.transfer(amountAllowed);
 
-        emit LogRequestFunds(_requestor, amountAllowed);
+        emit RequestFunds(requestor, amountAllowed);
     }
 }
