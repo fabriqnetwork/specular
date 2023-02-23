@@ -38,10 +38,7 @@ jobs:
         run: forge install
 
       - name: Run forge doc
-        run: |
-          sudo mkdir -p /docs/test_folder
-          sudo echo "$PWD"   >  /docs/test_folder/path.txt
-          forge doc
+        run: forge doc
 
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
