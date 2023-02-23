@@ -3,6 +3,7 @@ name: Docs
 on: [push, pull_request]
 
 jobs:
+
   pre_job:
     runs-on: ubuntu-latest
     outputs:
@@ -38,6 +39,20 @@ jobs:
       - name: Run forge doc
         run: forge doc
 
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+            commit_message: Doc Generation
+
+  prettify:
+    needs: docs
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: contracts/doc
+
+    steps:
+
       - uses: actions/setup-node@v3
 
       - name: Install dependencies
@@ -45,13 +60,9 @@ jobs:
 
       - name: Run Prettier
         run: |
+          echo "$PWD"
           cd doc
           yarn prettier --write .
-
-
-      - uses: stefanzweifel/git-auto-commit-action@v4
-        with:
-            commit_message: Doc Generation
 
 
 
