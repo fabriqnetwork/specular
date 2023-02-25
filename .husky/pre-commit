@@ -6,8 +6,7 @@ yarn lint-staged
 
 GO_DIRECTORY="../clients/geth/specular"
 if git diff --cached --quiet -- "$GO_DIRECTORY"; then
-    echo "No Changes Found in $GO_DIRECTORY"
-    echo "Skipping Specular Installation"
+    echo "No Changes Found in $GO_DIRECTORY, skipping `make install`"
 else
     echo "Changes found in $GO_DIRECTORY"
     cd ../clients/geth/specular
