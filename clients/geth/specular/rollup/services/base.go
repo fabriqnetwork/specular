@@ -83,17 +83,13 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 	if err != nil {
 		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
 	}
-	// start, l1BlockHead
 	opts := bind.FilterOpts{Start: start, End: &l1BlockHead, Context: ctx}
 	eventsIter, err := b.L1Client.FilterTxBatchAppendedEvents(&opts)
 	if err != nil {
 		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
 	}
-	blocks, err := b.processEvents(ctx, eventsIter)
+	err = b.processTxBatchAppendedEvents(ctx, eventsIter)
 	if err != nil {
-		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
-	}
-	if err := b.commitBlocks(blocks); err != nil {
 		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
 	}
 	return l1BlockHead, nil
@@ -112,13 +108,9 @@ func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) 
 	for {
 		select {
 		case ev := <-batchEventCh:
-			blocks, err := b.processEvent(ctx, ev)
+			err := b.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
 				log.Crit("Failed to process event", "err", err)
-			}
-			// Commit blocks to blockchain
-			if err = b.commitBlocks(blocks); err != nil {
-				log.Crit("Failed to commit blocks", "err", err)
 			}
 			if newBatchCh != nil {
 				newBatchCh <- struct{}{}
@@ -129,44 +121,43 @@ func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) 
 	}
 }
 
-func (b *BaseService) processEvents(
+func (b *BaseService) processTxBatchAppendedEvents(
 	ctx context.Context,
 	eventsIter *bindings.ISequencerInboxTxBatchAppendedIterator,
-) ([]*rollupTypes.SequenceBlock, error) {
-	blocks := make([]*rollupTypes.SequenceBlock, 0)
+) error {
 	for eventsIter.Next() {
-		eventBlocks, err := b.processEvent(ctx, eventsIter.Event)
+		err := b.processTxBatchAppendedEvent(ctx, eventsIter.Event)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to process event, err: %w", err)
+			return fmt.Errorf("Failed to process event, err: %w", err)
 		}
-		blocks = append(blocks, eventBlocks...)
 	}
 	if err := eventsIter.Error(); err != nil {
-		return nil, fmt.Errorf("Failed to iterate through events, err: %w", err)
+		return fmt.Errorf("Failed to iterate through events, err: %w", err)
 	}
-	return blocks, nil
+	return nil
 }
 
-// Reads tx data associated with batch event and returns corresponding list of L2 blocks.
-func (b *BaseService) processEvent(
+// Reads tx data associated with batch event and commits as blocks on L2.
+func (b *BaseService) processTxBatchAppendedEvent(
 	ctx context.Context,
 	ev *bindings.ISequencerInboxTxBatchAppended,
-) ([]*rollupTypes.SequenceBlock, error) {
+) error {
 	tx, _, err := b.L1Client.TransactionByHash(ctx, ev.Raw.TxHash)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
+		return fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
 	}
 	// Decode input to appendTxBatch transaction.
 	decoded, err := b.L1Client.DecodeAppendTxBatchInput(tx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
+		return fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
 	}
 	// Construct batch. TODO: decode into blocks directly.
 	batch, err := rollupTypes.TxBatchFromDecoded(decoded)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
+		return fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
 	}
-	return batch.SplitToBlocks(), nil
+	b.commitBlocks(batch.SplitToBlocks())
+	return nil
 }
 
 // commitBlocks executes and commits sequenced blocks to local blockchain
