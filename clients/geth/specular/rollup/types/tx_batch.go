@@ -20,6 +20,13 @@ type TxBatch struct {
 	GasUsed  *big.Int
 }
 
+// SequenceBlock represents a block sequenced to L1 sequencer inbox
+// Used by validators to reconstruct L2 chain from L1 data.
+type SequenceBlock struct {
+	SequenceContext
+	Txs types.Transactions
+}
+
 // SequenceContext is the relavent context of each block sequenced to L1 sequncer inbox
 type SequenceContext struct {
 	NumTxs      uint64
@@ -75,6 +82,21 @@ func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, []byte, error) {
 		txLengths = append(txLengths, big.NewInt(int64(buf.Len()-curLen)))
 	}
 	return contexts, txLengths, buf.Bytes(), nil
+}
+
+// Splits batch into blocks
+func (b *TxBatch) SplitToBlocks() []*SequenceBlock {
+	txNum := 0
+	blocks := make([]*SequenceBlock, 0, len(b.Contexts))
+	for _, ctx := range b.Contexts {
+		block := &SequenceBlock{
+			SequenceContext: ctx,
+			Txs:             b.Txs[txNum : txNum+int(ctx.NumTxs)],
+		}
+		blocks = append(blocks, block)
+		txNum += int(ctx.NumTxs)
+	}
+	return blocks
 }
 
 func writeContext(w *bytes.Buffer, ctx *SequenceContext) error {
@@ -143,11 +165,4 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 		Txs:      txs,
 	}
 	return batch, nil
-}
-
-// SequenceBlock is a block sequenced to L1 sequencer inbox
-// It is used by validators to reconstruct L2 chain from L1 activities
-type SequenceBlock struct {
-	SequenceContext
-	Txs types.Transactions
 }

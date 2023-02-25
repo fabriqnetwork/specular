@@ -4,17 +4,17 @@ import (
 	"context"
 	"math/big"
 
-	l1abi "github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 )
 
 func SubmitOneStepProof(
-	challengeSession *bindings.IChallengeSession,
-	proofBackend proof.Backend,
 	ctx context.Context,
+	proofBackend proof.Backend,
+	l1Client client.L1BridgeClient,
 	state *proof.ExecutionState,
 	challengedStepIndex *big.Int,
 	prevBisection [][32]byte,
@@ -25,7 +25,7 @@ func SubmitOneStepProof(
 	if err != nil {
 		log.Crit("UNHANDLED: osp generation failed", "err", err)
 	}
-	_, err = challengeSession.VerifyOneStepProof(
+	_, err = l1Client.VerifyOneStepProof(
 		osp.Encode(),
 		challengedStepIndex,
 		prevBisection,
@@ -40,28 +40,28 @@ func SubmitOneStepProof(
 }
 
 func RespondBisection(
-	b *BaseService,
-	abi *l1abi.ABI,
-	challengeSession *bindings.IChallengeSession,
+	ctx context.Context,
+	proofBackend proof.Backend,
+	l1Client client.L1BridgeClient,
 	ev *bindings.IChallengeBisected,
 	states []*proof.ExecutionState,
 	opponentEndStateHash common.Hash,
-	isSequencer bool,
+	isDefender bool,
 ) error {
 	// Get bisection info from event
 	segStart := ev.ChallengedSegmentStart.Uint64()
 	segLen := ev.ChallengedSegmentLength.Uint64()
 	// Get previous bisections from call data
-	tx, _, err := b.L1.TransactionByHash(b.Ctx, ev.Raw.TxHash)
+	tx, _, err := l1Client.TransactionByHash(ctx, ev.Raw.TxHash)
 	if err != nil {
 		// TODO: error handling
 		log.Error("Failed to get challenge data", "error", err)
 		return nil
 	}
-	decoded, err := abi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
+	decoded, err := l1Client.DecodeBisectExecutionInput(tx)
 	if err != nil {
-		if isSequencer {
-			// Sequencer always start first
+		if isDefender {
+			// Defender always starts first
 			log.Error("Failed to decode bisection data", "error", err)
 			return nil
 		}
@@ -78,9 +78,9 @@ func RespondBisection(
 		if segLen == 1 {
 			// This assertion only has one step
 			err = SubmitOneStepProof(
-				challengeSession,
-				b.ProofBackend,
-				b.Ctx,
+				ctx,
+				proofBackend,
+				l1Client,
 				states[0],
 				common.Big1,
 				prevBisection,
@@ -100,7 +100,7 @@ func RespondBisection(
 				midState,
 				endState,
 			}
-			_, err := challengeSession.BisectExecution(
+			_, err := l1Client.BisectExecution(
 				bisection,
 				common.Big1,
 				prevBisection,
@@ -121,9 +121,9 @@ func RespondBisection(
 	if segLen == 1 {
 		// We've reached one step
 		err = SubmitOneStepProof(
-			challengeSession,
-			b.ProofBackend,
-			b.Ctx,
+			ctx,
+			proofBackend,
+			l1Client,
 			states[segStart],
 			common.Big1,
 			prevBisection,
@@ -145,9 +145,9 @@ func RespondBisection(
 				stateIndex = segStart + segLen/2
 			}
 			err = SubmitOneStepProof(
-				challengeSession,
-				b.ProofBackend,
-				b.Ctx,
+				ctx,
+				proofBackend,
+				l1Client,
 				states[stateIndex],
 				new(big.Int).SetUint64(challengeIdx),
 				prevBisection,
@@ -175,7 +175,7 @@ func RespondBisection(
 					endState,
 				}
 			}
-			_, err := challengeSession.BisectExecution(
+			_, err := l1Client.BisectExecution(
 				bisection,
 				new(big.Int).SetUint64(challengeIdx),
 				prevBisection,

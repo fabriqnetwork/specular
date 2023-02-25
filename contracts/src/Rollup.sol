@@ -221,6 +221,11 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
+    function isStaked(address addr) public view override returns (bool) {
+        return stakers[addr].isStaked;
+    }
+
+    /// @inheritdoc IRollup
     function withdraw() external override {
         uint256 withdrawableFund = withdrawableFunds[msg.sender];
         withdrawableFunds[msg.sender] = 0;
@@ -438,10 +443,6 @@ contract Rollup is RollupBase {
         deleteStaker(loser);
         // Track as zombie so we can account for it during assertion resolution.
         zombies.push(Zombie(loser, assertionID));
-    }
-
-    function isStaked(address addr) public view returns (bool) {
-        return stakers[addr].isStaked;
     }
 
     /**

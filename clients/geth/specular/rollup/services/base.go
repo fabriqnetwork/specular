@@ -9,10 +9,14 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 type BaseService struct {
@@ -21,121 +25,216 @@ type BaseService struct {
 	Eth          Backend
 	ProofBackend proof.Backend
 	Chain        *core.BlockChain
-	L1           *ethclient.Client
-	TransactOpts *bind.TransactOpts
-	Inbox        *bindings.ISequencerInboxSession
-	Rollup       *bindings.IRollupSession
-	AssertionMap *bindings.AssertionMapCallerSession
+	L1Client     client.L1BridgeClient
 
-	Ctx    context.Context
 	Cancel context.CancelFunc
 	Wg     sync.WaitGroup
 }
 
-func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *bind.TransactOpts) (*BaseService, error) {
+func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
 	if eth == nil {
 		return nil, fmt.Errorf("can not use light client with rollup")
 	}
-	ctx, cancel := context.WithCancel(context.Background())
-	l1, err := ethclient.DialContext(ctx, cfg.L1Endpoint)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	callOpts := bind.CallOpts{
-		Pending: true,
-		Context: ctx,
-	}
-	transactOpts := bind.TransactOpts{
-		From:     auth.From,
-		Signer:   auth.Signer,
-		GasPrice: big.NewInt(800000000),
-		Context:  ctx,
-	}
-	inbox, err := bindings.NewISequencerInbox(common.Address(cfg.SequencerInboxAddr), l1)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	inboxSession := &bindings.ISequencerInboxSession{
-		Contract:     inbox,
-		CallOpts:     callOpts,
-		TransactOpts: transactOpts,
-	}
-	rollup, err := bindings.NewIRollup(common.Address(cfg.RollupAddr), l1)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	rollupSession := &bindings.IRollupSession{
-		Contract:     rollup,
-		CallOpts:     callOpts,
-		TransactOpts: transactOpts,
-	}
-	assertionMapAddr, err := rollupSession.Assertions()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	assertionMap, err := bindings.NewAssertionMapCaller(assertionMapAddr, l1)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	assertionMapSession := &bindings.AssertionMapCallerSession{
-		Contract: assertionMap,
-		CallOpts: callOpts,
-	}
-	b := &BaseService{
+	return &BaseService{
 		Config:       cfg,
 		Eth:          eth,
 		ProofBackend: proofBackend,
-		L1:           l1,
-		TransactOpts: &transactOpts,
-		Inbox:        inboxSession,
-		Rollup:       rollupSession,
-		AssertionMap: assertionMapSession,
-		Ctx:          ctx,
-		Cancel:       cancel,
-	}
-	b.Chain = eth.BlockChain()
-	return b, nil
+		L1Client:     l1Client,
+		Chain:        eth.BlockChain(),
+	}, nil
 }
 
 // Starts the rollup service.
-// If cleanL1 is true, the service will only start from a clean L1 history.
-// If stake is true, the service will ensure the service is already staked or will stake.
-func (b *BaseService) Start(cleanL1, stake bool) error {
+func (b *BaseService) Start() (context.Context, error) {
+	ctx, cancel := context.WithCancel(context.Background())
+	b.Cancel = cancel
 	// Check if we are at genesis
-	// TODO: if not, sync from L1
-	currentBlock := b.Eth.BlockChain().CurrentBlock()
-	if currentBlock.NumberU64() != 0 {
-		log.Crit("Rollup service can only start from clean history")
+	if b.Eth.BlockChain().CurrentBlock().NumberU64() != 0 {
+		return nil, fmt.Errorf("Rollup service can only start from clean history")
 	}
-	log.Info("Genesis root", "root", currentBlock.Root())
-	// TODO: handle existing L1.
-	if cleanL1 {
-		inboxSize, err := b.Inbox.GetInboxSize()
-		if err != nil {
-			log.Crit("Failed to get initial inbox size", "err", err)
-		}
-		if inboxSize.Cmp(common.Big0) != 0 {
-			log.Crit("Rollup service can only start from genesis")
+	return ctx, nil
+}
+
+func (b *BaseService) Stop() error {
+	log.Info("Stopping service...")
+	b.Cancel()
+	b.Wg.Wait()
+	log.Info("Service stopped.")
+	return nil
+}
+
+func (b *BaseService) Stake(ctx context.Context) error {
+	isStaked, err := b.L1Client.IsStaked(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to stake, err: %w", err)
+	}
+	if !isStaked {
+		err = b.L1Client.Stake(big.NewInt(int64(b.Config.RollupStakeAmount)))
+	}
+	if err != nil {
+		return fmt.Errorf("Failed to stake, err: %w", err)
+	}
+	return nil
+}
+
+// Sync to current L1 block head and commit blocks.
+func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (uint64, error) {
+	l1BlockHead, err := b.L1Client.BlockNumber(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
+	}
+	// start, l1BlockHead
+	opts := bind.FilterOpts{Start: start, End: &l1BlockHead, Context: ctx}
+	eventsIter, err := b.L1Client.FilterTxBatchAppendedEvents(&opts)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
+	}
+	blocks, err := b.processEvents(ctx, eventsIter)
+	if err != nil {
+		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
+	}
+	if err := b.commitBlocks(blocks); err != nil {
+		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
+	}
+	return l1BlockHead, nil
+}
+
+func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) {
+	defer b.Wg.Done()
+	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended)
+	opts := bind.WatchOpts{Start: &b.Config.L1RollupGenesisBlock, Context: ctx}
+	batchEventSub, err := b.L1Client.WatchTxBatchAppended(&opts, batchEventCh)
+	if err != nil {
+		log.Crit("Failed to watch rollup event", "err", err)
+	}
+	defer batchEventSub.Unsubscribe()
+	// Process TxBatchAppended events.
+	for {
+		select {
+		case ev := <-batchEventCh:
+			blocks, err := b.processEvent(ctx, ev)
+			if err != nil {
+				log.Crit("Failed to process event", "err", err)
+			}
+			// Commit blocks to blockchain
+			if err = b.commitBlocks(blocks); err != nil {
+				log.Crit("Failed to commit blocks", "err", err)
+			}
+			if newBatchCh != nil {
+				newBatchCh <- struct{}{}
+			}
+		case <-ctx.Done():
+			return
 		}
 	}
-	// Ensure node is staked.
-	if stake {
-		isStaked, err := b.Rollup.Contract.IsStaked(&bind.CallOpts{Pending: true, Context: b.Ctx}, b.TransactOpts.From)
+}
+
+func (b *BaseService) processEvents(
+	ctx context.Context,
+	eventsIter *bindings.ISequencerInboxTxBatchAppendedIterator,
+) ([]*rollupTypes.SequenceBlock, error) {
+	blocks := make([]*rollupTypes.SequenceBlock, 0)
+	for eventsIter.Next() {
+		eventBlocks, err := b.processEvent(ctx, eventsIter.Event)
 		if err != nil {
-			return err
+			return nil, fmt.Errorf("Failed to process event, err: %w", err)
 		}
-		if !isStaked {
-			stakeOpts := b.Rollup.TransactOpts
-			stakeOpts.Value = big.NewInt(int64(b.Config.RollupStakeAmount))
-			_, err := b.Rollup.Contract.Stake(&stakeOpts)
+		blocks = append(blocks, eventBlocks...)
+	}
+	if err := eventsIter.Error(); err != nil {
+		return nil, fmt.Errorf("Failed to iterate through events, err: %w", err)
+	}
+	return blocks, nil
+}
+
+// Reads tx data associated with batch event and returns corresponding list of L2 blocks.
+func (b *BaseService) processEvent(
+	ctx context.Context,
+	ev *bindings.ISequencerInboxTxBatchAppended,
+) ([]*rollupTypes.SequenceBlock, error) {
+	tx, _, err := b.L1Client.TransactionByHash(ctx, ev.Raw.TxHash)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
+	}
+	// Decode input to appendTxBatch transaction.
+	decoded, err := b.L1Client.DecodeAppendTxBatchInput(tx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
+	}
+	// Construct batch. TODO: decode into blocks directly.
+	batch, err := rollupTypes.TxBatchFromDecoded(decoded)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
+	}
+	return batch.SplitToBlocks(), nil
+}
+
+// commitBlocks executes and commits sequenced blocks to local blockchain
+// TODO: this function shares a lot of codes with Batcher
+// TODO: use StateProcessor::Process() instead
+func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
+	if len(blocks) == 0 {
+		return nil
+	}
+	chainConfig := b.Chain.Config()
+	parent := b.Chain.CurrentBlock()
+	if parent == nil {
+		return fmt.Errorf("missing parent")
+	}
+	num := parent.Number()
+	if num.Uint64() != blocks[0].BlockNumber-1 {
+		return fmt.Errorf("rollup services unsynced")
+	}
+	state, err := b.Chain.StateAt(parent.Root())
+	if err != nil {
+		return err
+	}
+	state.StartPrefetcher("rollup")
+	defer state.StopPrefetcher()
+
+	for _, sblock := range blocks {
+		header := &types.Header{
+			ParentHash: parent.Hash(),
+			Number:     new(big.Int).SetUint64(sblock.BlockNumber),
+			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
+			Time:       sblock.Timestamp,
+			Coinbase:   b.Config.SequencerAddr,
+			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
+		}
+		gasPool := new(core.GasPool).AddGas(header.GasLimit)
+		var receipts []*types.Receipt
+		for idx, tx := range sblock.Txs {
+			state.Prepare(tx.Hash(), idx)
+			receipt, err := core.ApplyTransaction(chainConfig, b.Chain, &b.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *b.Chain.GetVMConfig())
 			if err != nil {
 				return err
 			}
+			receipts = append(receipts, receipt)
+		}
+		// Finalize header
+		header.Root = state.IntermediateRoot(b.Chain.Config().IsEIP158(header.Number))
+		header.UncleHash = types.CalcUncleHash(nil)
+		// Assemble block
+		block := types.NewBlock(header, sblock.Txs, nil, receipts, trie.NewStackTrie(nil))
+		hash := block.Hash()
+		// Finalize receipts and logs
+		var logs []*types.Log
+		for i, receipt := range receipts {
+			// Add block location fields
+			receipt.BlockHash = hash
+			receipt.BlockNumber = block.Number()
+			receipt.TransactionIndex = uint(i)
+
+			// Update the block hash in all logs since it is now available and not when the
+			// receipt/log of individual transactions were created.
+			for _, log := range receipt.Logs {
+				log.BlockHash = hash
+			}
+			logs = append(logs, receipt.Logs...)
+		}
+		_, err := b.Chain.WriteBlockAndSetHead(block, receipts, logs, state, true)
+		if err != nil {
+			return err
 		}
 	}
 	return nil

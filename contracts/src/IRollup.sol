@@ -166,6 +166,12 @@ interface IRollup {
     function advanceStake(uint256 assertionID) external;
 
     /**
+     * @param addr Address to check staking status for.
+     * @return True if addr is staked, False otherwise.
+     */
+    function isStaked(address addr) external view returns (bool);
+
+    /**
      * @notice Withdraws all of msg.sender's withdrawable funds.
      */
     function withdraw() external;
