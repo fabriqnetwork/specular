@@ -4,20 +4,19 @@ import { Manifest } from "@openzeppelin/upgrades-core";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
-  const { deploy } = deployments;
-  const { sequencer } = await getNamedAccounts();
+  const { save } = deployments;
+  const { sequencer, deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
   const { provider } = network;
-  const manifest = await Manifest.forNetwork(provider);
 
-  const proxies = (await manifest.read()).proxies;
-
-  const sequencerInboxProxy = proxies[0];
-  const verifierProxy = proxies[1];
+  const sequencerInboxProxyAddress = (await deployments.get("SequencerInbox"))
+    .address;
+  const verifierProxyAddress = (await deployments.get("Verifier")).address;
 
   const rollupArgs = [
     sequencer, // address _vault
-    sequencerInboxProxy.address, // address _sequencerInbox
-    verifierProxy.address, // address _verifier
+    sequencerInboxProxyAddress, // address _sequencerInbox
+    verifierProxyAddress, // address _verifier
     "0x0000000000000000000000000000000000000000", // address _stakeToken
     5, // uint256 _confirmationPeriod
     0, // uint256 _challengePeriod
@@ -27,10 +26,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "0x744c19d2e8593c97867b3b6a3588f51cd9dbc5010a395cf199be4bbb353848b8", // bytes32 _initialVMhash
   ];
 
-  const Rollup = await ethers.getContractFactory("Rollup");
+  const Rollup = await ethers.getContractFactory("Rollup", deployer);
   const rollup = await upgrades.deployProxy(Rollup, rollupArgs, {
     initializer: "initialize",
-    from: sequencer,
     timeout: 0,
     kind: "uups",
   });
@@ -45,6 +43,13 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "Rollup Admin Address",
     await upgrades.erc1967.getAdminAddress(rollup.address)
   );
+
+  const artifact = await deployments.getExtendedArtifact("Rollup");
+  const proxyDeployments = {
+    address: rollup.address,
+    ...artifact,
+  };
+  await save("Rollup", proxyDeployments);
 };
 
 export default func;
