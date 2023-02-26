@@ -97,17 +97,33 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 
 func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) {
 	defer b.Wg.Done()
+	// Sync to current L1 block head. Can't use WatchOpts.Start,
+	// due to github.com/ethereum/go-ethereum/issues/15063
+	endBlock, err := b.SyncL2ChainToL1Head(ctx, b.Config.L1RollupGenesisBlock)
+	if err != nil {
+		log.Crit("Failed initial inbox sync", "err", err)
+	}
+
 	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended)
-	opts := bind.WatchOpts{Start: &b.Config.L1RollupGenesisBlock, Context: ctx}
+	opts := bind.WatchOpts{Context: ctx}
 	batchEventSub, err := b.L1Client.WatchTxBatchAppended(&opts, batchEventCh)
 	if err != nil {
 		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer batchEventSub.Unsubscribe()
+	// Sync again to ensure we don't miss events.
+	endBlock, err = b.SyncL2ChainToL1Head(ctx, endBlock)
+	if err != nil {
+		log.Crit("Failed initial inbox sync", "err", err)
+	}
 	// Process TxBatchAppended events.
 	for {
 		select {
 		case ev := <-batchEventCh:
+			// Avoid processing duplicate events.
+			if ev.Raw.BlockNumber <= endBlock {
+				continue
+			}
 			err := b.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
 				log.Crit("Failed to process event", "err", err)

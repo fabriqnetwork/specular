@@ -230,7 +230,6 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 	}
 	defer headSub.Unsubscribe()
 
-	var challengeSession *bindings.IChallengeSession
 	var states []*proof.ExecutionState
 
 	var bisectedCh chan *bindings.IChallengeBisected
@@ -249,7 +248,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				// case get bisection, if is our turn
 				//   if in single step, submit proof
 				//   if multiple step, track current segment, update
-				responder, err := challengeSession.CurrentResponder()
+				responder, err := v.L1Client.CurrentChallengeResponder()
 				if err != nil {
 					// TODO: error handling
 					log.Error("[Validator: challengeLoop] Can not get current responder", "error", err)
@@ -264,7 +263,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 						continue
 					}
 				} else {
-					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
+					opponentTimeLeft, err := v.L1Client.CurrentChallengeResponderTimeLeft()
 					if err != nil {
 						// TODO: error handling
 						log.Error("[Validator: challengeLoop] Can not get current responder left time", "error", err)
@@ -279,7 +278,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				}
 				// TODO: can we use >= here?
 				if header.Number.Uint64() > opponentTimeoutBlock {
-					_, err := challengeSession.Timeout()
+					_, err := v.L1Client.TimeoutChallenge()
 					if err != nil {
 						log.Error("[Validator: challengeLoop] Can not timeout opponent", "error", err)
 						continue
@@ -404,9 +403,10 @@ func (v *Validator) APIs() []rpc.API {
 
 // Gets the last validated assertion.
 func (v *Validator) getLastValidatedAssertion(ctx context.Context) (*rollupTypes.Assertion, error) {
-	assertionID, err := v.L1Client.GetLastValidatedAssertionID(ctx, v.Config.L1RollupGenesisBlock)
+	opts := bind.FilterOpts{Start: v.Config.L1RollupGenesisBlock, Context: ctx}
+	assertionID, err := v.L1Client.GetLastValidatedAssertionID(&opts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get ID of last validated assertion, err: %w", err)
 	}
-	return v.L1Client.GetAssertion(assertionID)
+	return v.L1Client.GetAssertion(&opts, assertionID)
 }

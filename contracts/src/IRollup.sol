@@ -26,7 +26,7 @@ import "./AssertionMap.sol";
 
 interface IRollup {
     event AssertionCreated(
-        uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
+        uint256 indexed assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
     );
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);

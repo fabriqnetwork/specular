@@ -45,10 +45,10 @@ type L1BridgeClient interface {
 	WatchAssertionChallenged(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionChallenged) (event.Subscription, error)
 	WatchAssertionConfirmed(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionConfirmed) (event.Subscription, error)
 	WatchAssertionRejected(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionRejected) (event.Subscription, error)
-	GetLastValidatedAssertionID(ctx context.Context, start uint64) (*big.Int, error)
+	GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error)
 	ConfirmFirstUnresolvedAssertion() (*types.Transaction, error)
 	// AssertionMap.sol
-	GetAssertion(assertionID *big.Int) (*rollupTypes.Assertion, error)
+	GetAssertion(opts *bind.FilterOpts, assertionID *big.Int) (*rollupTypes.Assertion, error)
 	GetDeadline(assertionID *big.Int) (*big.Int, error)
 	// IChallenge.sol
 	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
@@ -239,7 +239,7 @@ func (c *EthBridgeClient) WatchAssertionCreated(
 	opts *bind.WatchOpts,
 	sink chan<- *bindings.IRollupAssertionCreated,
 ) (event.Subscription, error) {
-	return c.rollup.Contract.WatchAssertionCreated(opts, sink)
+	return c.rollup.Contract.WatchAssertionCreated(opts, sink, nil)
 }
 
 func (c *EthBridgeClient) WatchAssertionChallenged(
@@ -263,14 +263,13 @@ func (c *EthBridgeClient) WatchAssertionRejected(
 	return c.rollup.Contract.WatchAssertionRejected(opts, sink)
 }
 
-// Returns the last assertion ID that was validated by the staker.
-func (c *EthBridgeClient) GetLastValidatedAssertionID(ctx context.Context, start uint64) (*big.Int, error) {
-	filterOpts := bind.FilterOpts{Start: start, Context: ctx}
-	iter, err := c.rollup.Contract.FilterStakerStaked(&filterOpts, []common.Address{c.transactOpts.From})
+// Returns the last assertion ID that was validated.
+func (c *EthBridgeClient) GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error) {
+	iter, err := c.rollup.Contract.FilterStakerStaked(opts, []common.Address{c.transactOpts.From})
 	if err != nil {
 		return nil, err
 	}
-	lastValidatedAssertionID := common.Big1
+	lastValidatedAssertionID := common.Big0
 	for iter.Next() {
 		// Note: this should always be true if the iterator iterates in time order.
 		if lastValidatedAssertionID.Cmp(iter.Event.AssertionID) == 1 {
@@ -279,6 +278,9 @@ func (c *EthBridgeClient) GetLastValidatedAssertionID(ctx context.Context, start
 	}
 	if iter.Error() != nil {
 		return nil, fmt.Errorf("Failed to iterate through validated assertion IDs, err: %w", iter.Error())
+	}
+	if lastValidatedAssertionID.Cmp(common.Big0) == 0 {
+		return nil, fmt.Errorf("No validated assertion IDs found")
 	}
 	return lastValidatedAssertionID, nil
 }
@@ -291,16 +293,24 @@ func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Ad
 	return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
 }
 
-func (c *EthBridgeClient) GetAssertion(assertionID *big.Int) (*rollupTypes.Assertion, error) {
-	assertion, err := c.assertionMap.Assertions(assertionID)
+func (c *EthBridgeClient) GetAssertion(opts *bind.FilterOpts, assertionID *big.Int) (*rollupTypes.Assertion, error) {
+	iter, err := c.rollup.Contract.FilterAssertionCreated(opts, []*big.Int{assertionID})
 	if err != nil {
 		return nil, err
 	}
+	iter.Next()
+	if iter.Error() != nil {
+		return nil, fmt.Errorf("Failed to iterate through assertion IDs, err: %w", iter.Error())
+	}
+	assertionEvent := iter.Event
+	if iter.Next() {
+		return nil, fmt.Errorf("More than one AssertionCreated event found for ID %s", assertionID)
+	}
 	return &rollupTypes.Assertion{
-		ID: assertionID,
-		// VmHash: assertion.vmHash(), // TODO change contract
-		InboxSize: assertion.InboxSize,
-		Deadline:  assertion.Deadline,
+		ID:                assertionID,
+		VmHash:            assertionEvent.VmHash,
+		CumulativeGasUsed: assertionEvent.L2GasUsed,
+		InboxSize:         assertionEvent.InboxSize,
 	}, nil
 }
 
