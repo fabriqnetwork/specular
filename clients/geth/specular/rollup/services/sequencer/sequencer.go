@@ -20,7 +20,7 @@ import (
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
-const timeInterval = 10 * time.Second
+const timeInterval = 3 * time.Second
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
@@ -78,11 +78,11 @@ func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int 
 func (s *Sequencer) modifyTxnsInBatch(batchTxs []*types.Transaction, tx *types.Transaction) ([]*types.Transaction, error) {
 	// Check if tx in batch
 	txIndex := getTxIndexInBatch(batchTxs, tx)
-	if txIndex <= 0 {
+	if txIndex < 0 {
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(s.Ctx, tx.Hash())
 		if err != nil {
-			return batchTxs, fmt.Errorf("[Sequencer: modifyTxnsInBatch] Checking GetTransaction, err: %w", err)
+			return nil, fmt.Errorf("[Sequencer: modifyTxnsInBatch] Checking GetTransaction, err: %w", err)
 		}
 		if prevTx == nil {
 			batchTxs = append(batchTxs, tx)
@@ -104,15 +104,15 @@ func (s *Sequencer) sendBatch(batcher *Batcher) error {
 // Add sorted txs to batch and commit txs
 func (s *Sequencer) addTxsToBatchAndCommit(batcher *Batcher, txs *types.TransactionsByPriceAndNonce, batchTxs []*types.Transaction, signer types.Signer) ([]*types.Transaction, error) {
 	if txs != nil {
-
 		for {
 			tx := txs.Peek()
 			if tx == nil {
 				break
 			}
-			batchTxs, err := s.modifyTxnsInBatch(batchTxs, tx)
+			var err error
+			batchTxs, err = s.modifyTxnsInBatch(batchTxs, tx)
 			if err != nil {
-				return batchTxs, fmt.Errorf("[Sequencer: addTxsToBatchAndCommit] Modifying batch failed, err: %w", err)
+				return nil, fmt.Errorf("[Sequencer: addTxsToBatchAndCommit] Modifying batch failed, err: %w", err)
 			}
 			txs.Pop()
 		}

@@ -9,6 +9,7 @@ $GETH_SPECULAR_DIR/build/bin/geth \
     --http --http.addr '0.0.0.0' --http.port 4021 --http.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
     --ws --ws.addr '0.0.0.0' --ws.port 4022 --ws.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
     --http.corsdomain '*' --ws.origins '*' \
+    --http.vhosts '*' \
     --gcmode=archive \
     --networkid 13527 \
     --port 30305 \
@@ -17,7 +18,8 @@ $GETH_SPECULAR_DIR/build/bin/geth \
     --rollup.coinbase=f39fd6e51aad88f6f4ce6ab8827279cfffb92266 \
     --rollup.l1endpoint 'ws://localhost:8545' \
     --rollup.l1chainid 31337 \
-    --rollup.sequencer-inbox-addr '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0' \
-    --rollup.rollup-addr '0x0165878A594ca255338adfa4d48449f69242Eb8F' \
+    --rollup.sequencer-addr '0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266' \
+    --rollup.sequencer-inbox-addr '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' \
+    --rollup.rollup-addr '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' \
     --rollup.rollup-stake-amount 100 \
     --rollup.l1-rollup-genesis-block 0

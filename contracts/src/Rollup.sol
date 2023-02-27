@@ -24,6 +24,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "./challenge/Challenge.sol";
 import "./challenge/ChallengeLib.sol";
@@ -32,7 +34,7 @@ import "./IRollup.sol";
 import "./RollupLib.sol";
 import "./ISequencerInbox.sol";
 
-abstract contract RollupBase is IRollup, Initializable {
+abstract contract RollupBase is IRollup, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
     uint256 public challengePeriod; // number of L1 blocks
@@ -40,7 +42,7 @@ abstract contract RollupBase is IRollup, Initializable {
     uint256 public maxGasPerAssertion; // L2 gas
     uint256 public baseStakeAmount; // number of stake tokens
 
-    address public owner;
+    address public vault;
     IERC20 public stakeToken;
     ISequencerInbox public sequencerInbox;
     AssertionMap public override assertions;
@@ -56,6 +58,11 @@ abstract contract RollupBase is IRollup, Initializable {
     struct Zombie {
         address stakerAddress;
         uint256 lastAssertionID;
+    }
+
+    function __RollupBase_init() internal onlyInitializing {
+        __Ownable_init();
+        __UUPSUpgradeable_init();
     }
 }
 
@@ -79,7 +86,7 @@ contract Rollup is RollupBase {
     Zombie[] public zombies; // stores stakers that lost a challenge
 
     function initialize(
-        address _owner,
+        address _vault,
         address _sequencerInbox,
         address _verifier,
         address _stakeToken,
@@ -92,11 +99,11 @@ contract Rollup is RollupBase {
     ) public initializer {
         // TODO: do we still need stake token now?
 
-        // If any of addresses _owner, _sequencerInbox or _verifier is address(0), then revert.
-        if (_owner == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
+        // If any of addresses _vault, _sequencerInbox or _verifier is address(0), then revert.
+        if (_vault == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
-        owner = _owner;
+        vault = _vault;
         sequencerInbox = ISequencerInbox(_sequencerInbox);
         stakeToken = IERC20(_stakeToken);
         verifier = IVerifier(_verifier);
@@ -115,12 +122,16 @@ contract Rollup is RollupBase {
             0, // parentID
             block.number // deadline (unchallengeable)
         );
+
+        __RollupBase_init();
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IRollup
     function isStaked(address addr) public view override returns (bool) {
@@ -404,15 +415,15 @@ contract Rollup is RollupBase {
             // If loser has a higher stake than the winner, refund the difference.
             // Loser gets deleted anyways, so maybe unnecessary to set amountStaked.
             stakers[loser].amountStaked = winnerStake;
-            withdrawableFunds[loser] += winnerStake - remainingLoserStake;
+            withdrawableFunds[loser] += remainingLoserStake - winnerStake;
             remainingLoserStake = winnerStake;
         }
         // Reward the winner with half the remaining stake
         uint256 amountWon = remainingLoserStake / 2;
         stakers[winner].amountStaked += amountWon; // why +stake instead of +withdrawable?
         stakers[winner].currentChallenge = address(0);
-        // Credit the other half to the owner address
-        withdrawableFunds[owner] += remainingLoserStake - amountWon;
+        // Credit the other half to the vault address
+        withdrawableFunds[vault] += remainingLoserStake - amountWon;
         // Turning loser into zombie renders the loser's remaining stake inaccessible.
         uint256 assertionID = stakers[loser].assertionID;
         deleteStaker(loser);

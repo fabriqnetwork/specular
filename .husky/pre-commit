@@ -1,6 +1,15 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-cd contracts 
-npm run lint:fix
-git add .
+cd contracts
+yarn lint-staged
+
+GO_DIRECTORY="../clients/geth/specular"
+if git diff --cached --quiet -- "$GO_DIRECTORY"; then
+    echo "No Changes Found in $GO_DIRECTORY, skipping `make install`"
+else
+    echo "Changes found in $GO_DIRECTORY"
+    cd ../clients/geth/specular
+    make install
+    echo "Successfully ran `make install`"
+fi
