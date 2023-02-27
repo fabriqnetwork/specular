@@ -22,11 +22,9 @@
 
 pragma solidity ^0.8.0;
 
-import "./AssertionMap.sol";
-
 interface IRollup {
     event AssertionCreated(
-        uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
+        uint256 indexed assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
     );
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
@@ -35,7 +33,15 @@ interface IRollup {
 
     event AssertionRejected(uint256 assertionID);
 
-    event StakerStaked(address stakerAddr, uint256 assertionID);
+    event StakerStaked(address indexed stakerAddr, uint256 assertionID);
+
+    // TODO: Include errors thrown in function documentation.
+
+    /// @dev Thrown when assertion creation requested with invalid inbox size.
+    error InvalidInboxSize();
+
+    /// @dev Thrown when assertion is a duplicate of an existing one.
+    error DuplicateAssertion();
 
     /// @dev Thrown when address that have not staked any token calls a only-staked function
     error NotStaked();
@@ -114,13 +120,18 @@ interface IRollup {
     /// @dev Thrown when there are zero stakers
     error NoStaker();
 
-    function assertions() external view returns (AssertionMap);
+    struct Staker {
+        bool isStaked;
+        uint256 amountStaked;
+        uint256 assertionID; // latest staked assertion ID
+        address currentChallenge; // address(0) if none
+    }
 
     /**
-     * @param addr User address.
+     * @param addr Staker address.
      * @return True if address is staked, else False.
      */
-    function isStaked(address addr) external view returns (bool);
+    function getStaker(address addr) external view returns (Staker memory);
 
     /**
      * @return The current required stake amount.
