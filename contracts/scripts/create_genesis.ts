@@ -70,7 +70,8 @@ const main = () => {
 
   if (inFlagIndex > -1) {
     baseGenesisPath = process.argv[inFlagIndex + 1];
-    GenesisJson = require(baseGenesisPath);
+    GenesisJson = JSON.parse(fs.readFileSync(baseGenesisPath, "utf-8"));
+    // GenesisJson = require(baseGenesisPath);
   } else {
     throw new Error("Please specify the base genesis path");
   }
