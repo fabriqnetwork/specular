@@ -46,23 +46,15 @@ abstract contract RollupBase is IRollup, Initializable, UUPSUpgradeable, Ownable
     ISequencerInbox public sequencerInbox;
     IVerifier public verifier;
 
+    struct AssertionState {
+        bool test;
+        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
+        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
+    }
+
     struct Zombie {
         address stakerAddress;
         uint256 lastAssertionID;
-    }
-
-    struct Assertion {
-        bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
-        uint256 inboxSize; // Inbox size this assertion advanced to
-        uint256 parent; // Parent assertion ID
-        uint256 deadline; // Dispute deadline (L1 block number)
-        uint256 proposalTime; // L1 block number at which assertion was proposed
-        // Staking state
-        uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
-        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
-        // Child state
-        uint256 childInboxSize; // child assertion inbox state
-        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
 
     function __RollupBase_init() internal onlyInitializing {
@@ -84,6 +76,7 @@ contract Rollup is RollupBase {
     uint256 public lastConfirmedAssertionID;
     uint256 public lastCreatedAssertionID;
     mapping(uint256 => Assertion) public assertions;
+    mapping(uint256 => AssertionState) private assertionState;
 
     // Staking state
     uint256 public numStakers; // current total number of stakers
@@ -153,6 +146,14 @@ contract Rollup is RollupBase {
     /// @inheritdoc IRollup
     function getStaker(address addr) external view override returns (Staker memory) {
         return stakers[addr];
+    }
+
+    function getAssertion(uint256 assertionID) external view override returns (Assertion memory) {
+        return assertions[assertionID];
+    }
+
+    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view returns (bool) {
+        return assertionState[assertionID].stakers[stakerAddress];
     }
 
     /// @inheritdoc IRollup
@@ -266,7 +267,7 @@ contract Rollup is RollupBase {
 
         // Initialize assertion.
         lastCreatedAssertionID++;
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, inboxSize, l2GasUsed);
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, l2GasUsed);
         createAssertion(
             lastCreatedAssertionID, RollupLib.stateHash(endState), inboxSize, parentID, newAssertionDeadline()
         );
@@ -392,8 +393,9 @@ contract Rollup is RollupBase {
             if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
                 revert AssertionAlreadyResolved();
             }
+            AssertionState storage firstUnresolvedAssertionState = assertionState[firstUnresolvedAssertionID];
             // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
-            if (firstUnresolvedAssertion.stakers[stakerAddress]) {
+            if (firstUnresolvedAssertionState.stakers[stakerAddress]) {
                 revert StakerStakedOnTarget();
             }
             // If a staker is staked on an assertion that is neither an ancestor nor a descendant of firstUnresolved, it must be a sibling, QED
@@ -452,9 +454,8 @@ contract Rollup is RollupBase {
      */
     function stakeOnAssertion(address stakerAddress, uint256 assertionID) private {
         stakers[stakerAddress].assertionID = assertionID;
-        Assertion storage assertion = assertions[assertionID];
-        assertion.stakers[stakerAddress] = true;
-        assertion.numStakers++;
+        assertions[assertionID].numStakers++;
+        assertionState[assertionID].stakers[stakerAddress] = true;
         emit StakerStaked(stakerAddress, assertionID);
     }
 
@@ -468,24 +469,27 @@ contract Rollup is RollupBase {
         uint256 parentID,
         uint256 deadline
     ) private {
-        Assertion storage assertion = assertions[assertionID];
         Assertion storage parentAssertion = assertions[parentID];
+        AssertionState storage parentAssertionState = assertionState[parentID];
         // Child assertions must have same inbox size
         uint256 parentChildInboxSize = parentAssertion.childInboxSize;
         if (parentChildInboxSize == 0) {
             parentAssertion.childInboxSize = inboxSize;
         } else if (inboxSize != parentChildInboxSize) {
             revert InvalidInboxSize();
-        } else if (parentAssertion.childStateHashes[stateHash]) {
+        } else if (parentAssertionState.childStateHashes[stateHash]) {
             revert DuplicateAssertion();
         }
-        parentAssertion.childStateHashes[stateHash] = true;
-
-        assertion.stateHash = stateHash;
-        assertion.inboxSize = inboxSize;
-        assertion.parent = parentID;
-        assertion.deadline = deadline;
-        assertion.proposalTime = block.number;
+        parentAssertionState.childStateHashes[stateHash] = true;
+        assertions[assertionID] = Assertion(
+            stateHash,
+            inboxSize,
+            parentID,
+            deadline,
+            block.number, // proposal time
+            0, // numStakers
+            0 // childInboxSize
+        );
     }
 
     /**
@@ -544,7 +548,7 @@ contract Rollup is RollupBase {
     function countStakedZombies(uint256 assertionID) private view returns (uint256) {
         uint256 numStakedZombies = 0;
         for (uint256 i = 0; i < zombies.length; i++) {
-            if (assertions[assertionID].stakers[zombies[i].stakerAddress]) {
+            if (assertionState[assertionID].stakers[zombies[i].stakerAddress]) {
                 numStakedZombies++;
             }
         }
