@@ -51,7 +51,10 @@ func connectL1(ctx context.Context, endpoint string) (*ethclient.Client, error) 
 		l1, err = ethclient.DialContext(ctx, endpoint)
 		return err
 	}, retryOpts...)
-	return l1, err
+	if err != nil {
+		return nil, fmt.Errorf("failed toconnect to L1: %w", err)
+	}
+	return l1, nil
 }
 
 func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *bind.TransactOpts) (*BaseService, error) {
