@@ -107,7 +107,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 
 	// Listen to AssertionCreated event
 	assertionEventCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	assertionEventSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, assertionEventCh)
+	assertionEventSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, assertionEventCh, nil)
 	if err != nil {
 		log.Crit("[Validator: validationLoop] Failed to watch rollup event", "err", err)
 	}
@@ -144,7 +144,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			default:
 				return err
 			}
-		} 
+		}
 		// Validation success, clean up
 		lastValidatedAssertion = currentAssertion
 		currentAssertion = nil
@@ -216,7 +216,7 @@ func (v *Validator) challengeLoop() {
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh)
+	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh, nil)
 	if err != nil {
 		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
 	}
