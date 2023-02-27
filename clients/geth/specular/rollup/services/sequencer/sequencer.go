@@ -20,7 +20,7 @@ import (
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
-const timeInterval = 10 * time.Second
+const timeInterval = 3 * time.Second
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)

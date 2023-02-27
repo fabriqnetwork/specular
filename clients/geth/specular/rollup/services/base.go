@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
@@ -33,12 +35,34 @@ type BaseService struct {
 	Wg     sync.WaitGroup
 }
 
+func connectL1(ctx context.Context, endpoint string) (*ethclient.Client, error) {
+	var l1 *ethclient.Client
+	var err error
+	retryOpts := []retry.Option{
+		retry.Context(ctx),
+		retry.Attempts(3),
+		retry.Delay(5 * time.Second),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(n uint, err error) {
+			log.Error("Failed to connect to L1", "endpoint", endpoint, "attempt", n, "err", err)
+		}),
+	}
+	err = retry.Do(func() error {
+		l1, err = ethclient.DialContext(ctx, endpoint)
+		return err
+	}, retryOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed toconnect to L1: %w", err)
+	}
+	return l1, nil
+}
+
 func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *bind.TransactOpts) (*BaseService, error) {
 	if eth == nil {
 		return nil, fmt.Errorf("can not use light client with rollup")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	l1, err := ethclient.DialContext(ctx, cfg.L1Endpoint)
+	l1, err := connectL1(ctx, cfg.L1Endpoint)
 	if err != nil {
 		cancel()
 		return nil, err
