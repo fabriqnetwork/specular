@@ -4,10 +4,10 @@ GOBIN = ./build/bin
 
 install: bindings geth
 
-compile-contracts:
+contracts:
 	./sbin/compile_contracts.sh
 
-bindings: compile-contracts
+bindings: contracts
 	go generate ./...
 
 geth: bindings

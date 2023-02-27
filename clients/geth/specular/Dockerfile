@@ -1,3 +1,4 @@
+# Compile contracts for binding generation
 FROM node:16-alpine3.17 as contracts-builder
 
 RUN apk add --no-cache make git
@@ -5,9 +6,9 @@ RUN apk add --no-cache make git
 COPY . /specular
 
 WORKDIR /specular/clients/geth/specular
-RUN make compile-contracts
+RUN make contracts
 
-
+# Build geth binary
 FROM golang:1.19-alpine3.17 as geth-builder
 
 RUN apk add --no-cache make gcc musl-dev linux-headers git
@@ -17,8 +18,8 @@ COPY --from=contracts-builder /specular /specular
 WORKDIR /specular/clients/geth/specular
 RUN make geth-docker
 
-
-FROM alpine:3.17 as specular
+# Specular geth image
+FROM alpine:3.17
 
 WORKDIR /specular
 
