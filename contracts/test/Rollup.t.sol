@@ -245,8 +245,8 @@ contract RollupTest is RollupBaseSetup {
     //     address proxyAdmin = makeAddr("Proxy Admin");
 
     //     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-    //         address(_tempRollup), 
-    //         proxyAdmin, 
+    //         address(_tempRollup),
+    //         proxyAdmin,
     //         initializingData
     //     );
 
@@ -1287,7 +1287,7 @@ contract RollupTest is RollupBaseSetup {
     // This function increases the inbox size by 6
     function _increaseSequencerInboxSize() internal {
         uint256 numTxnsPerBlock = 3;
-        
+
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
         // Let's create an array of contexts
