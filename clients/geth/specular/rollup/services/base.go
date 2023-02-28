@@ -28,7 +28,6 @@ type BaseService struct {
 	TransactOpts *bind.TransactOpts
 	Inbox        *bindings.ISequencerInboxSession
 	Rollup       *bindings.IRollupSession
-	AssertionMap *bindings.AssertionMapCallerSession
 
 	Ctx    context.Context
 	Cancel context.CancelFunc
@@ -97,20 +96,6 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *
 		CallOpts:     callOpts,
 		TransactOpts: transactOpts,
 	}
-	assertionMapAddr, err := rollupSession.Assertions()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	assertionMap, err := bindings.NewAssertionMapCaller(assertionMapAddr, l1)
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-	assertionMapSession := &bindings.AssertionMapCallerSession{
-		Contract: assertionMap,
-		CallOpts: callOpts,
-	}
 	b := &BaseService{
 		Config:       cfg,
 		Eth:          eth,
@@ -119,7 +104,6 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, cfg *Config, auth *
 		TransactOpts: &transactOpts,
 		Inbox:        inboxSession,
 		Rollup:       rollupSession,
-		AssertionMap: assertionMapSession,
 		Ctx:          ctx,
 		Cancel:       cancel,
 	}
