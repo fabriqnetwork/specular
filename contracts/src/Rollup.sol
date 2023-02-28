@@ -276,7 +276,10 @@ contract Rollup is RollupBase {
     }
 
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
-        external override returns (address) {
+        external
+        override
+        returns (address)
+    {
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 challengerAssertionID = assertionIDs[1];
         // Require IDs ordered and in-range.
@@ -398,8 +401,7 @@ contract Rollup is RollupBase {
 
             // 1c. no staker is staked on this assertion
             // removeOldZombies();
-            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID))
-            {
+            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID)) {
                 revert StakersPresent();
             }
         }
