@@ -1,20 +1,25 @@
-name: Layer2
+name: test-L2
 
 on: [push, pull_request]
 
 jobs:
-  build:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: skip_content_newer
+  testL2:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     steps:
-      - name: checkout repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: 'true'
-
-      - name: Skip build if duplicate
-        uses: fkirc/skip-duplicate-actions@master
-        with:
-          concurrent_skipping: same_content_newer
 
       - uses: actions/setup-node@v3
 
