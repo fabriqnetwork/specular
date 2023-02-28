@@ -233,16 +233,16 @@ func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Ad
 	return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
 }
 
-// Returns the last assertion ID that was validated.
+// Returns the last assertion ID that was validated *by us*.
 func (c *EthBridgeClient) GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error) {
-	iter, err := c.rollup.Contract.FilterStakerStaked(opts, []common.Address{c.transactOpts.From})
+	iter, err := c.rollup.Contract.FilterStakerStaked(opts)
 	if err != nil {
 		return nil, err
 	}
 	lastValidatedAssertionID := common.Big0
 	for iter.Next() {
-		// Note: this should always be true if the iterator iterates in time order.
-		if lastValidatedAssertionID.Cmp(iter.Event.AssertionID) == 1 {
+		// Note: the second condition should always hold true if the iterator iterates in time order.
+		if iter.Event.StakerAddr == c.transactOpts.From && lastValidatedAssertionID.Cmp(iter.Event.AssertionID) == 1 {
 			lastValidatedAssertionID = iter.Event.AssertionID
 		}
 	}
