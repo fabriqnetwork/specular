@@ -23,9 +23,7 @@
 pragma solidity ^0.8.0;
 
 interface IRollup {
-    event AssertionCreated(
-        uint256 indexed assertionID, address asserterAddr, bytes32 vmHash, uint256 l2GasUsed
-    );
+    event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 l2GasUsed);
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
 
@@ -33,7 +31,7 @@ interface IRollup {
 
     event AssertionRejected(uint256 assertionID);
 
-    event StakerStaked(address indexed stakerAddr, uint256 assertionID);
+    event StakerStaked(address stakerAddr, uint256 assertionID);
 
     // TODO: Include errors thrown in function documentation.
 

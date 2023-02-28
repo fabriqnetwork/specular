@@ -47,7 +47,6 @@ abstract contract RollupBase is IRollup, Initializable, UUPSUpgradeable, Ownable
     IVerifier public verifier;
 
     struct AssertionState {
-        bool test;
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
         mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
@@ -75,8 +74,8 @@ contract Rollup is RollupBase {
     uint256 public lastResolvedAssertionID;
     uint256 public lastConfirmedAssertionID;
     uint256 public lastCreatedAssertionID;
-    mapping(uint256 => Assertion) public assertions;
-    mapping(uint256 => AssertionState) private assertionState;
+    mapping(uint256 => Assertion) public assertions; // mapping from assertionID to assertion
+    mapping(uint256 => AssertionState) private assertionState; // mapping from assertionID to assertion state
 
     // Staking state
     uint256 public numStakers; // current total number of stakers
@@ -277,10 +276,7 @@ contract Rollup is RollupBase {
     }
 
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
-        external
-        override
-        returns (address)
-    {
+        external override returns (address) {
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 challengerAssertionID = assertionIDs[1];
         // Require IDs ordered and in-range.

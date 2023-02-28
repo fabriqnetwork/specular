@@ -107,7 +107,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 
 	// Listen to AssertionCreated event
 	assertionEventCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	assertionEventSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, assertionEventCh, nil)
+	assertionEventSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, assertionEventCh)
 	if err != nil {
 		log.Crit("[Validator: validationLoop] Failed to watch rollup event", "err", err)
 	}
@@ -180,11 +180,15 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				// New assertion created on Rollup
+				assertionFromRollup, err := v.Rollup.GetAssertion(ev.AssertionID)
+				if err != nil {
+					log.Crit("Could not get DA", "error", err)
+				}
 				assertion := &rollupTypes.Assertion{
 					ID:                    ev.AssertionID,
 					VmHash:                ev.VmHash,
 					CumulativeGasUsed:     ev.L2GasUsed,
-					InboxSize:             ev.InboxSize,
+					InboxSize:             assertionFromRollup.InboxSize,
 					StartBlock:            lastValidatedAssertion.EndBlock + 1,
 					PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
 				}
@@ -194,7 +198,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				currentAssertion = assertion
-				err := validateCurrentAssertion()
+				err = validateCurrentAssertion()
 				if err != nil {
 					// TODO: error handling instead of panic
 					log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
@@ -216,7 +220,7 @@ func (v *Validator) challengeLoop() {
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh, nil)
+	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh)
 	if err != nil {
 		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
 	}
