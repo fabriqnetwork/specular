@@ -20,7 +20,7 @@ import (
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
-const timeInterval = 10 * time.Second
+const timeInterval = 3 * time.Second
 
 func RegisterService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) {
 	sequencer, err := New(eth, proofBackend, cfg, auth)
@@ -298,11 +298,12 @@ func (s *Sequencer) sequencingLoop(genesisRoot common.Hash) {
 				if ev.VmHash == pendingAssertion.VmHash {
 					// If assertion is created by us, get ID and deadline
 					pendingAssertion.ID = ev.AssertionID
-					pendingAssertion.Deadline, err = s.AssertionMap.GetDeadline(ev.AssertionID)
+					assertionFromRollup, err := s.Rollup.GetAssertion(ev.AssertionID)
 					if err != nil {
-						log.Error("Can not get DA deadline", "error", err)
+						log.Error("Could not get DA", "error", err)
 						continue
 					}
+					pendingAssertion.Deadline = assertionFromRollup.Deadline
 					// Send to confirmation goroutine to confirm it
 					s.pendingAssertionCh <- pendingAssertion
 				}

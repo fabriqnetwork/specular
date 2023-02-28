@@ -144,7 +144,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 			default:
 				return err
 			}
-		} 
+		}
 		// Validation success, clean up
 		lastValidatedAssertion = currentAssertion
 		currentAssertion = nil
@@ -180,11 +180,15 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				// New assertion created on Rollup
+				assertionFromRollup, err := v.Rollup.GetAssertion(ev.AssertionID)
+				if err != nil {
+					log.Crit("Could not get DA", "error", err)
+				}
 				assertion := &rollupTypes.Assertion{
 					ID:                    ev.AssertionID,
 					VmHash:                ev.VmHash,
 					CumulativeGasUsed:     ev.L2GasUsed,
-					InboxSize:             ev.InboxSize,
+					InboxSize:             assertionFromRollup.InboxSize,
 					StartBlock:            lastValidatedAssertion.EndBlock + 1,
 					PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
 				}
@@ -194,7 +198,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				currentAssertion = assertion
-				err := validateCurrentAssertion()
+				err = validateCurrentAssertion()
 				if err != nil {
 					// TODO: error handling instead of panic
 					log.Crit("UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)

@@ -5,6 +5,7 @@ go 1.19
 replace github.com/ethereum/go-ethereum => ../go-ethereum
 
 require (
+	github.com/avast/retry-go/v4 v4.3.3
 	github.com/cespare/cp v0.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/docker v1.6.2
