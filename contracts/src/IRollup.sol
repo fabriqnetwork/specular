@@ -22,12 +22,8 @@
 
 pragma solidity ^0.8.0;
 
-import "./AssertionMap.sol";
-
 interface IRollup {
-    event AssertionCreated(
-        uint256 indexed assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
-    );
+    event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 l2GasUsed);
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
 
@@ -36,6 +32,14 @@ interface IRollup {
     event AssertionRejected(uint256 assertionID);
 
     event StakerStaked(address indexed stakerAddr, uint256 assertionID);
+
+    // TODO: Include errors thrown in function documentation.
+
+    /// @dev Thrown when assertion creation requested with invalid inbox size.
+    error InvalidInboxSize();
+
+    /// @dev Thrown when assertion is a duplicate of an existing one.
+    error DuplicateAssertion();
 
     /// @dev Thrown when address that have not staked any token calls a only-staked function
     error NotStaked();
@@ -114,19 +118,36 @@ interface IRollup {
     /// @dev Thrown when there are zero stakers
     error NoStaker();
 
-    function assertions() external view returns (AssertionMap);
+    struct Staker {
+        bool isStaked;
+        uint256 amountStaked;
+        uint256 assertionID; // latest staked assertion ID
+        address currentChallenge; // address(0) if none
+    }
+
+    struct Assertion {
+        bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
+        uint256 inboxSize; // Inbox size this assertion advanced to
+        uint256 parent; // Parent assertion ID
+        uint256 deadline; // Dispute deadline (L1 block number)
+        uint256 proposalTime; // L1 block number at which assertion was proposed
+        // Staking state
+        uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
+        // Child state
+        uint256 childInboxSize; // child assertion inbox state
+    }
 
     /**
-     * @notice Gets the ID of the assertion staker is currently staked on.
-     * @param stakerAddress Address of staker.
+     * @param addr Staker address.
+     * @return Staker corresponding to address.
      */
-    function getAssertionID(address stakerAddress) external view returns (uint256);
+    function getStaker(address addr) external view returns (Staker memory);
 
     /**
-     * @notice Gets the challenge the staker is currently engaged in.
-     * @param stakerAddress Address of staker.
+     * @param assertionID Assertion ID.
+     * @return Assertion corresponding to ID.
      */
-    function getCurrentChallenge(address stakerAddress) external view returns (address);
+    function getAssertion(uint256 assertionID) external view returns (Assertion memory);
 
     /**
      * @return The current required stake amount.
@@ -164,12 +185,6 @@ interface IRollup {
      * TODO: generalize to arbitrary descendants.
      */
     function advanceStake(uint256 assertionID) external;
-
-    /**
-     * @param addr Address to check staking status for.
-     * @return True if addr is staked, False otherwise.
-     */
-    function isStaked(address addr) external view returns (bool);
 
     /**
      * @notice Withdraws all of msg.sender's withdrawable funds.

@@ -64,11 +64,11 @@ func (b *BaseService) Stop() error {
 }
 
 func (b *BaseService) Stake(ctx context.Context) error {
-	isStaked, err := b.L1Client.IsStaked(ctx)
+	staker, err := b.L1Client.GetStaker()
 	if err != nil {
-		return fmt.Errorf("Failed to stake, err: %w", err)
+		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
 	}
-	if !isStaked {
+	if !staker.IsStaked {
 		err = b.L1Client.Stake(big.NewInt(int64(b.Config.RollupStakeAmount)))
 	}
 	if err != nil {

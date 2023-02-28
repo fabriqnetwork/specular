@@ -178,11 +178,15 @@ func (v *Validator) validationLoop(ctx context.Context) {
 					continue
 				}
 				// New assertion created on Rollup
+				assertionFromRollup, err := v.L1Client.GetAssertion(ev.AssertionID)
+				if err != nil {
+					log.Crit("Could not get DA", "error", err)
+				}
 				assertion := &rollupTypes.Assertion{
 					ID:                    ev.AssertionID,
 					VmHash:                ev.VmHash,
 					CumulativeGasUsed:     ev.L2GasUsed,
-					InboxSize:             ev.InboxSize,
+					InboxSize:             assertionFromRollup.InboxSize,
 					StartBlock:            lastValidatedAssertion.EndBlock + 1,
 					PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
 				}
@@ -192,7 +196,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 					continue
 				}
 				currentAssertion = assertion
-				err := validateCurrentAssertion()
+				err = validateCurrentAssertion()
 				if err != nil {
 					// TODO: error handling instead of panic
 					log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
@@ -408,5 +412,21 @@ func (v *Validator) getLastValidatedAssertion(ctx context.Context) (*rollupTypes
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get ID of last validated assertion, err: %w", err)
 	}
-	return v.L1Client.GetAssertion(&opts, assertionID)
+	lastValidatedAssertion, err := v.L1Client.GetAssertion(assertionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
+	}
+	opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
+	lastValidatedAssertionCreatedEvent, err := v.L1Client.FilterAssertionCreated(&opts, assertionID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+	}
+	// TODO: set StartBlock, EndBlock if necessary (or remove from this struct).
+	return &rollupTypes.Assertion{
+		ID:                assertionID,
+		VmHash:            lastValidatedAssertionCreatedEvent.VmHash,
+		CumulativeGasUsed: lastValidatedAssertionCreatedEvent.L2GasUsed,
+		InboxSize:         lastValidatedAssertion.InboxSize,
+		Deadline:          lastValidatedAssertion.Deadline,
+	}, nil
 }

@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -14,7 +16,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 const syncRange uint64 = 10000
@@ -30,8 +31,8 @@ type L1BridgeClient interface {
 	FilterTxBatchAppendedEvents(opts *bind.FilterOpts) (*bindings.ISequencerInboxTxBatchAppendedIterator, error)
 	DecodeAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error)
 	// IRollup.sol
-	IsStaked(context.Context) (bool, error)
 	Stake(amount *big.Int) error
+	GetStaker() (bindings.IRollupStaker, error)
 	AdvanceStake(assertionID *big.Int) (*types.Transaction, error)
 	CreateAssertion(
 		vmHash [32]byte,
@@ -41,15 +42,15 @@ type L1BridgeClient interface {
 		prevL2GasUsed *big.Int,
 	) (*types.Transaction, error)
 	ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error)
+	ConfirmFirstUnresolvedAssertion() (*types.Transaction, error)
+	RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error)
+	GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error)
+	GetAssertion(assertionID *big.Int) (bindings.IRollupAssertion, error)
 	WatchAssertionCreated(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionCreated) (event.Subscription, error)
 	WatchAssertionChallenged(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionChallenged) (event.Subscription, error)
 	WatchAssertionConfirmed(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionConfirmed) (event.Subscription, error)
 	WatchAssertionRejected(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionRejected) (event.Subscription, error)
-	GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error)
-	ConfirmFirstUnresolvedAssertion() (*types.Transaction, error)
-	// AssertionMap.sol
-	GetAssertion(opts *bind.FilterOpts, assertionID *big.Int) (*rollupTypes.Assertion, error)
-	GetDeadline(assertionID *big.Int) (*big.Int, error)
+	FilterAssertionCreated(opts *bind.FilterOpts, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error)
 	// IChallenge.sol
 	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
 	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
@@ -76,6 +77,7 @@ type L1BridgeClient interface {
 }
 
 // Basically a shim for `ethclient.Client` and `bindings`.
+// TODO: acquire lock in all methods to support concurrent access
 type EthBridgeClient struct {
 	client       *ethclient.Client
 	transactOpts *bind.TransactOpts
@@ -84,8 +86,6 @@ type EthBridgeClient struct {
 	inbox    *bindings.ISequencerInboxSession
 	// IRollup.sol
 	rollup *bindings.IRollupSession
-	// AssertionMap.sol
-	assertionMap *bindings.AssertionMapCallerSession
 	// IChallenge.sol
 	// `challenge` initialized separately through `InitNewChallengeSession`
 	challengeAbi *abi.ABI
@@ -105,7 +105,7 @@ func NewEthBridgeClient(
 	rollupAddress common.Address,
 	auth *bind.TransactOpts,
 ) (*EthBridgeClient, error) {
-	client, err := ethclient.DialContext(ctx, l1Endpoint)
+	client, err := dialWithRetry(ctx, l1Endpoint, 3)
 	if err != nil {
 		return nil, err
 	}
@@ -134,15 +134,6 @@ func NewEthBridgeClient(
 		CallOpts:     callOpts,
 		TransactOpts: transactOpts,
 	}
-	assertionMapAddr, err := rollupSession.Assertions()
-	if err != nil {
-		return nil, err
-	}
-	assertionMap, err := bindings.NewAssertionMapCaller(assertionMapAddr, client)
-	if err != nil {
-		return nil, err
-	}
-	assertionMapSession := &bindings.AssertionMapCallerSession{Contract: assertionMap, CallOpts: callOpts}
 	inboxAbi, err := bindings.ISequencerInboxMetaData.GetAbi()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get ISequencerInbox ABI, err: %w", err)
@@ -159,7 +150,6 @@ func NewEthBridgeClient(
 		inboxAbi:     inboxAbi,
 		inbox:        inboxSession,
 		rollup:       rollupSession,
-		assertionMap: assertionMapSession,
 		challengeAbi: challengeAbi,
 	}, nil
 }
@@ -201,15 +191,15 @@ func (c *EthBridgeClient) DecodeAppendTxBatchInput(tx *types.Transaction) ([]int
 	return c.inboxAbi.Methods["appendTxBatch"].Inputs.Unpack(tx.Data()[4:])
 }
 
-func (c *EthBridgeClient) IsStaked(ctx context.Context) (bool, error) {
-	return c.rollup.Contract.IsStaked(&bind.CallOpts{Pending: true, Context: ctx}, c.transactOpts.From)
+func (c *EthBridgeClient) GetStaker() (bindings.IRollupStaker, error) {
+	return c.rollup.GetStaker(c.transactOpts.From)
 }
 
 func (c *EthBridgeClient) Stake(amount *big.Int) error {
 	log.Info("Staking...")
-	stakeOpts := c.rollup.TransactOpts
-	stakeOpts.Value = amount
-	_, err := c.rollup.Contract.Stake(&stakeOpts)
+	opts := c.transactOpts
+	opts.Value = amount
+	_, err := c.rollup.Contract.Stake(opts)
 	if err != nil {
 		return fmt.Errorf("Failed to stake, err: %w", err)
 	}
@@ -235,32 +225,12 @@ func (c *EthBridgeClient) ChallengeAssertion(players [2]common.Address, assertio
 	return c.rollup.ChallengeAssertion(players, assertionIDs)
 }
 
-func (c *EthBridgeClient) WatchAssertionCreated(
-	opts *bind.WatchOpts,
-	sink chan<- *bindings.IRollupAssertionCreated,
-) (event.Subscription, error) {
-	return c.rollup.Contract.WatchAssertionCreated(opts, sink, nil)
+func (c *EthBridgeClient) ConfirmFirstUnresolvedAssertion() (*types.Transaction, error) {
+	return c.rollup.ConfirmFirstUnresolvedAssertion()
 }
 
-func (c *EthBridgeClient) WatchAssertionChallenged(
-	opts *bind.WatchOpts,
-	sink chan<- *bindings.IRollupAssertionChallenged,
-) (event.Subscription, error) {
-	return c.rollup.Contract.WatchAssertionChallenged(opts, sink)
-}
-
-func (c *EthBridgeClient) WatchAssertionConfirmed(
-	opts *bind.WatchOpts,
-	sink chan<- *bindings.IRollupAssertionConfirmed,
-) (event.Subscription, error) {
-	return c.rollup.Contract.WatchAssertionConfirmed(opts, sink)
-}
-
-func (c *EthBridgeClient) WatchAssertionRejected(
-	opts *bind.WatchOpts,
-	sink chan<- *bindings.IRollupAssertionRejected,
-) (event.Subscription, error) {
-	return c.rollup.Contract.WatchAssertionRejected(opts, sink)
+func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error) {
+	return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
 }
 
 // Returns the last assertion ID that was validated.
@@ -285,37 +255,61 @@ func (c *EthBridgeClient) GetLastValidatedAssertionID(opts *bind.FilterOpts) (*b
 	return lastValidatedAssertionID, nil
 }
 
-func (c *EthBridgeClient) ConfirmFirstUnresolvedAssertion() (*types.Transaction, error) {
-	return c.rollup.ConfirmFirstUnresolvedAssertion()
+func (c *EthBridgeClient) GetAssertion(assertionID *big.Int) (bindings.IRollupAssertion, error) {
+	return c.rollup.GetAssertion(assertionID)
 }
 
-func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error) {
-	return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
+func (c *EthBridgeClient) WatchAssertionCreated(
+	opts *bind.WatchOpts,
+	sink chan<- *bindings.IRollupAssertionCreated,
+) (event.Subscription, error) {
+	return c.rollup.Contract.WatchAssertionCreated(opts, sink)
 }
 
-func (c *EthBridgeClient) GetAssertion(opts *bind.FilterOpts, assertionID *big.Int) (*rollupTypes.Assertion, error) {
-	iter, err := c.rollup.Contract.FilterAssertionCreated(opts, []*big.Int{assertionID})
+func (c *EthBridgeClient) WatchAssertionChallenged(
+	opts *bind.WatchOpts,
+	sink chan<- *bindings.IRollupAssertionChallenged,
+) (event.Subscription, error) {
+	return c.rollup.Contract.WatchAssertionChallenged(opts, sink)
+}
+
+func (c *EthBridgeClient) WatchAssertionConfirmed(
+	opts *bind.WatchOpts,
+	sink chan<- *bindings.IRollupAssertionConfirmed,
+) (event.Subscription, error) {
+	return c.rollup.Contract.WatchAssertionConfirmed(opts, sink)
+}
+
+func (c *EthBridgeClient) WatchAssertionRejected(
+	opts *bind.WatchOpts,
+	sink chan<- *bindings.IRollupAssertionRejected,
+) (event.Subscription, error) {
+	return c.rollup.Contract.WatchAssertionRejected(opts, sink)
+}
+
+func (c *EthBridgeClient) FilterAssertionCreated(
+	opts *bind.FilterOpts,
+	assertionID *big.Int,
+) (*bindings.IRollupAssertionCreated, error) {
+	iter, err := c.rollup.Contract.FilterAssertionCreated(opts) // , []*big.Int{assertionID})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to filter AssertionCreated, err: %w", err)
 	}
-	iter.Next()
+	var assertionCreated *bindings.IRollupAssertionCreated
+	for iter.Next() {
+		// Assumes invariant: only one `AssertionCreated` event per assertion ID.
+		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
+			assertionCreated = iter.Event
+			break
+		}
+	}
 	if iter.Error() != nil {
-		return nil, fmt.Errorf("Failed to iterate through assertion IDs, err: %w", iter.Error())
+		return nil, fmt.Errorf("Failed to iterate through `AssertionCreated` events, err: %w", iter.Error())
 	}
-	assertionEvent := iter.Event
-	if iter.Next() {
-		return nil, fmt.Errorf("More than one AssertionCreated event found for ID %s", assertionID)
+	if assertionCreated == nil {
+		return nil, fmt.Errorf("No `AssertionCreated` event found for %v (start block = %d).", assertionID, opts.Start)
 	}
-	return &rollupTypes.Assertion{
-		ID:                assertionID,
-		VmHash:            assertionEvent.VmHash,
-		CumulativeGasUsed: assertionEvent.L2GasUsed,
-		InboxSize:         assertionEvent.InboxSize,
-	}, nil
-}
-
-func (c *EthBridgeClient) GetDeadline(assertionID *big.Int) (*big.Int, error) {
-	return c.assertionMap.GetDeadline(assertionID)
+	return assertionCreated, nil
 }
 
 func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error {
@@ -395,4 +389,26 @@ func (c *EthBridgeClient) WatchChallengeCompleted(
 
 func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error) {
 	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
+}
+
+func dialWithRetry(ctx context.Context, endpoint string, numAttempts uint) (*ethclient.Client, error) {
+	var l1 *ethclient.Client
+	var err error
+	retryOpts := []retry.Option{
+		retry.Context(ctx),
+		retry.Attempts(numAttempts),
+		retry.Delay(5 * time.Second),
+		retry.LastErrorOnly(true),
+		retry.OnRetry(func(n uint, err error) {
+			log.Error("Failed to connect to L1", "endpoint", endpoint, "attempt", n, "err", err)
+		}),
+	}
+	err = retry.Do(func() error {
+		l1, err = ethclient.DialContext(ctx, endpoint)
+		return err
+	}, retryOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("failed toconnect to L1: %w", err)
+	}
+	return l1, nil
 }

@@ -21,7 +21,7 @@ import (
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
-const timeInterval = 10 * time.Second
+const timeInterval = 3 * time.Second
 
 type challengeCtx struct {
 	challengeAddr common.Address
@@ -297,11 +297,12 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 				if ev.VmHash == pendingAssertion.VmHash {
 					// If assertion is created by us, get ID and deadline
 					pendingAssertion.ID = ev.AssertionID
-					pendingAssertion.Deadline, err = s.L1Client.GetDeadline(ev.AssertionID)
+					assertionFromRollup, err := s.L1Client.GetAssertion(ev.AssertionID)
 					if err != nil {
-						log.Error("[Sequencer: sequencingLoop] Can not get DA deadline", "error", err)
+						log.Error("Could not get DA", "error", err)
 						continue
 					}
+					pendingAssertion.Deadline = assertionFromRollup.Deadline
 					// Send to confirmation goroutine to confirm it
 					s.pendingAssertionCh <- pendingAssertion
 				}
