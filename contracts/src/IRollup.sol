@@ -22,12 +22,8 @@
 
 pragma solidity ^0.8.0;
 
-import "./AssertionMap.sol";
-
 interface IRollup {
-    event AssertionCreated(
-        uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 inboxSize, uint256 l2GasUsed
-    );
+    event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 l2GasUsed);
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
 
@@ -36,6 +32,14 @@ interface IRollup {
     event AssertionRejected(uint256 assertionID);
 
     event StakerStaked(address stakerAddr, uint256 assertionID);
+
+    // TODO: Include errors thrown in function documentation.
+
+    /// @dev Thrown when assertion creation requested with invalid inbox size.
+    error InvalidInboxSize();
+
+    /// @dev Thrown when assertion is a duplicate of an existing one.
+    error DuplicateAssertion();
 
     /// @dev Thrown when address that have not staked any token calls a only-staked function
     error NotStaked();
@@ -114,13 +118,36 @@ interface IRollup {
     /// @dev Thrown when there are zero stakers
     error NoStaker();
 
-    function assertions() external view returns (AssertionMap);
+    struct Staker {
+        bool isStaked;
+        uint256 amountStaked;
+        uint256 assertionID; // latest staked assertion ID
+        address currentChallenge; // address(0) if none
+    }
+
+    struct Assertion {
+        bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
+        uint256 inboxSize; // Inbox size this assertion advanced to
+        uint256 parent; // Parent assertion ID
+        uint256 deadline; // Dispute deadline (L1 block number)
+        uint256 proposalTime; // L1 block number at which assertion was proposed
+        // Staking state
+        uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
+        // Child state
+        uint256 childInboxSize; // child assertion inbox state
+    }
 
     /**
-     * @param addr User address.
-     * @return True if address is staked, else False.
+     * @param addr Staker address.
+     * @return Staker corresponding to address.
      */
-    function isStaked(address addr) external view returns (bool);
+    function getStaker(address addr) external view returns (Staker memory);
+
+    /**
+     * @param assertionID Assertion ID.
+     * @return Assertion corresponding to ID.
+     */
+    function getAssertion(uint256 assertionID) external view returns (Assertion memory);
 
     /**
      * @return The current required stake amount.
