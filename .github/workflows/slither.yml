@@ -8,6 +8,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Skip build if duplicate
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: same_content_newer
+
       - name: Run Slither
         uses: crytic/slither-action@v0.3.0
         id: slither
@@ -22,4 +27,3 @@ jobs:
         if: github.repository == 'SpecularL2/specular'
         with:
           sarif_file: ${{ steps.slither.outputs.sarif }}
-

@@ -2,16 +2,19 @@ name: Layer2
 
 on: [push, pull_request]
 
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-
       - name: checkout repo
         uses: actions/checkout@v3
         with:
           submodules: 'true'
+
+      - name: Skip build if duplicate
+        uses: fkirc/skip-duplicate-actions@master
+        with:
+          concurrent_skipping: same_content_newer
 
       - uses: actions/setup-node@v3
 
