@@ -36,7 +36,7 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^4.7.3",
-    "@openzeppelin/contracts-upgradeable": "^4.7.3",
+    "@openzeppelin/contracts-upgradeable": "^4.8.1",
     "@openzeppelin/hardhat-upgrades": "^1.21.0",
     "lint-staged": "^13.1.1"
   }
