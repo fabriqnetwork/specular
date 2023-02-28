@@ -51,6 +51,7 @@ type L1BridgeClient interface {
 	WatchAssertionConfirmed(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionConfirmed) (event.Subscription, error)
 	WatchAssertionRejected(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionRejected) (event.Subscription, error)
 	FilterAssertionCreated(opts *bind.FilterOpts, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error)
+	GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error)
 	// IChallenge.sol
 	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
 	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
@@ -203,7 +204,7 @@ func (c *EthBridgeClient) Stake(amount *big.Int) error {
 	if err != nil {
 		return fmt.Errorf("Failed to stake, err: %w", err)
 	}
-	log.Info("Staked successfully", "amount", amount)
+	log.Info("Staked successfully.", "amount (ETH)", amount)
 	return nil
 }
 
@@ -237,7 +238,7 @@ func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Ad
 func (c *EthBridgeClient) GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error) {
 	iter, err := c.rollup.Contract.FilterStakerStaked(opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Failed to filter through `StakerStaked` events to get last validated assertion ID, err: %w", err)
 	}
 	lastValidatedAssertionID := common.Big0
 	for iter.Next() {
@@ -291,7 +292,7 @@ func (c *EthBridgeClient) FilterAssertionCreated(
 	opts *bind.FilterOpts,
 	assertionID *big.Int,
 ) (*bindings.IRollupAssertionCreated, error) {
-	iter, err := c.rollup.Contract.FilterAssertionCreated(opts) // , []*big.Int{assertionID})
+	iter, err := c.rollup.Contract.FilterAssertionCreated(opts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to filter AssertionCreated, err: %w", err)
 	}
@@ -310,6 +311,18 @@ func (c *EthBridgeClient) FilterAssertionCreated(
 		return nil, fmt.Errorf("No `AssertionCreated` event found for %v (start block = %d).", assertionID, opts.Start)
 	}
 	return assertionCreated, nil
+}
+
+func (c *EthBridgeClient) GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error) {
+	// We could probably do this from initialization calldata too.
+	iter, err := c.rollup.Contract.FilterAssertionCreated(opts)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to filter through `AssertionCreated` events to get genesis assertion ID, err: %w", err)
+	}
+	if iter.Next() {
+		return iter.Event, nil
+	}
+	return nil, fmt.Errorf("No genesis `AssertionCreated` event found, err: %w", iter.Error())
 }
 
 func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error {

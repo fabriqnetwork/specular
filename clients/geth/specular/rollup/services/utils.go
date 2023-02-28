@@ -9,7 +9,22 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
+
+func NewAssertionFrom(
+	assertion *bindings.IRollupAssertion,
+	event *bindings.IRollupAssertionCreated,
+) *rollupTypes.Assertion {
+	// TODO: set StartBlock, EndBlock if necessary (or remove from this struct).
+	return &rollupTypes.Assertion{
+		ID:                event.AssertionID,
+		VmHash:            event.VmHash,
+		CumulativeGasUsed: event.L2GasUsed,
+		InboxSize:         assertion.InboxSize,
+		Deadline:          assertion.Deadline,
+	}
+}
 
 func SubmitOneStepProof(
 	ctx context.Context,

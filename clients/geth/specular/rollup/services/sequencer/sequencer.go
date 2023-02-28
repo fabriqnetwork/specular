@@ -205,8 +205,6 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	defer s.Wg.Done()
 
-	genesisRoot := s.Eth.BlockChain().CurrentBlock().Root()
-
 	// Ticker
 	var ticker = time.NewTicker(timeInterval)
 	defer ticker.Stop()
@@ -219,15 +217,11 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	}
 	defer createdSub.Unsubscribe()
 
-	// Current confirmed assertion, initalize it to genesis
-	// TODO: sync from L1 Rollup
-	confirmedAssertion := &rollupTypes.Assertion{
-		ID:                    new(big.Int),
-		VmHash:                genesisRoot,
-		CumulativeGasUsed:     new(big.Int),
-		InboxSize:             new(big.Int),
-		Deadline:              new(big.Int),
-		PrevCumulativeGasUsed: new(big.Int),
+	// Last validated assertion, initalize it to genesis
+	// TODO: change name to lastValidatedAssertion since "confirmed" may imply L1-confirmed.
+	confirmedAssertion, err := s.GetLastValidatedAssertion(ctx)
+	if err != nil {
+		log.Crit("Failed to get last validated assertion", "err", err)
 	}
 	// Assertion created and pending for confirmation
 	var pendingAssertion *rollupTypes.Assertion

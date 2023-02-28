@@ -108,7 +108,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 func (v *Validator) validationLoop(ctx context.Context) {
 	defer v.Wg.Done()
 
-	lastValidatedAssertion, err := v.getLastValidatedAssertion(ctx)
+	lastValidatedAssertion, err := v.GetLastValidatedAssertion(ctx)
 	if err != nil {
 		log.Crit("Failed to start validating, couldn't get last validated assertion", "err", err)
 	}
@@ -403,30 +403,4 @@ func (v *Validator) Start() error {
 func (v *Validator) APIs() []rpc.API {
 	// TODO: validator APIs
 	return []rpc.API{}
-}
-
-// Gets the last validated assertion.
-func (v *Validator) getLastValidatedAssertion(ctx context.Context) (*rollupTypes.Assertion, error) {
-	opts := bind.FilterOpts{Start: v.Config.L1RollupGenesisBlock, Context: ctx}
-	assertionID, err := v.L1Client.GetLastValidatedAssertionID(&opts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get ID of last validated assertion, err: %w", err)
-	}
-	lastValidatedAssertion, err := v.L1Client.GetAssertion(assertionID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
-	}
-	opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
-	lastValidatedAssertionCreatedEvent, err := v.L1Client.FilterAssertionCreated(&opts, assertionID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-	}
-	// TODO: set StartBlock, EndBlock if necessary (or remove from this struct).
-	return &rollupTypes.Assertion{
-		ID:                assertionID,
-		VmHash:            lastValidatedAssertionCreatedEvent.VmHash,
-		CumulativeGasUsed: lastValidatedAssertionCreatedEvent.L2GasUsed,
-		InboxSize:         lastValidatedAssertion.InboxSize,
-		Deadline:          lastValidatedAssertion.Deadline,
-	}, nil
 }

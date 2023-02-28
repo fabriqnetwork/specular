@@ -63,6 +63,36 @@ func (b *BaseService) Stop() error {
 	return nil
 }
 
+// Gets the last validated assertion.
+func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTypes.Assertion, error) {
+	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
+	assertionID, err := b.L1Client.GetLastValidatedAssertionID(&opts)
+
+	var assertionCreatedEvent *bindings.IRollupAssertionCreated
+	var lastValidatedAssertion bindings.IRollupAssertion
+	if err != nil {
+		// If no assertion was validated (or other errors encountered), try to use the genesis assertion.
+		log.Warn("No validated assertions found, using genesis assertion.")
+		assertionCreatedEvent, err = b.L1Client.GetGenesisAssertionCreated(&opts)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+		}
+		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionID)
+	} else {
+		// If an assertion was validated, use it.
+		lastValidatedAssertion, err := b.L1Client.GetAssertion(assertionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
+		}
+		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
+		assertionCreatedEvent, err = b.L1Client.FilterAssertionCreated(&opts, assertionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+		}
+	}
+	return NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent), nil
+}
+
 func (b *BaseService) Stake(ctx context.Context) error {
 	staker, err := b.L1Client.GetStaker()
 	if err != nil {
@@ -103,7 +133,7 @@ func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) 
 	if err != nil {
 		log.Crit("Failed initial inbox sync", "err", err)
 	}
-
+	// Start watching for new TxBatchAppended events.
 	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended)
 	opts := bind.WatchOpts{Context: ctx}
 	batchEventSub, err := b.L1Client.WatchTxBatchAppended(&opts, batchEventCh)
@@ -122,8 +152,10 @@ func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) 
 		case ev := <-batchEventCh:
 			// Avoid processing duplicate events.
 			if ev.Raw.BlockNumber <= endBlock {
+				log.Warn("Ignoring duplicate event", "l1Block", ev.Raw.BlockNumber)
 				continue
 			}
+			log.Info("Processing TxBatchAppended event", "l1Block", ev.Raw.BlockNumber)
 			err := b.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
 				log.Crit("Failed to process event", "err", err)
