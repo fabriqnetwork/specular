@@ -203,7 +203,7 @@ func (c *EthBridgeClient) Stake(amount *big.Int) error {
 	if err != nil {
 		return fmt.Errorf("Failed to stake, err: %w", err)
 	}
-	log.Info("Staked %v ETH successfully.", amount)
+	log.Info("Staked successfully", "amount", amount)
 	return nil
 }
 
