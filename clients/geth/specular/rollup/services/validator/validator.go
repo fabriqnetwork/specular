@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/big"
@@ -14,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
@@ -30,22 +32,22 @@ var errValidationFailed = fmt.Errorf("[Validator] validation failed")
 type Validator struct {
 	*services.BaseService
 
-	newBatchCh           chan struct{}
-	challengeCh          chan *challengeCtx
-	challengeResoutionCh chan *rollupTypes.Assertion
+	newBatchCh            chan struct{}
+	challengeCh           chan *challengeCtx
+	challengeResolutionCh chan *rollupTypes.Assertion
 }
 
 // TODO: this shares a lot of code with sequencer
-func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Validator, error) {
-	base, err := services.NewBaseService(eth, proofBackend, cfg, auth)
+func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Validator, error) {
+	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
 		return nil, err
 	}
 	v := &Validator{
-		BaseService:          base,
-		newBatchCh:           make(chan struct{}, 4096),
-		challengeCh:          make(chan *challengeCtx),
-		challengeResoutionCh: make(chan *rollupTypes.Assertion),
+		BaseService:           base,
+		newBatchCh:            make(chan struct{}, 4096),
+		challengeCh:           make(chan *challengeCtx),
+		challengeResolutionCh: make(chan *rollupTypes.Assertion),
 	}
 	return v, nil
 }
@@ -55,14 +57,14 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// Find asserted blocks in local blockchain
 	inboxSizeDiff := new(big.Int).Sub(assertion.InboxSize, lastValidatedAssertion.InboxSize)
 	currentBlockNum := assertion.StartBlock
-	currentChainHeight := v.Chain.CurrentBlock().NumberU64()
+	currentChainHeight := v.Chain().CurrentBlock().NumberU64()
 	var block *types.Block
 	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
 		if currentBlockNum > currentChainHeight {
 			return errAssertionOverflowedLocalInbox
 		}
-		block = v.Chain.GetBlockByNumber(currentBlockNum)
+		block = v.Chain().GetBlockByNumber(currentBlockNum)
 		if block == nil {
 			return errAssertionOverflowedLocalInbox
 		}
@@ -90,7 +92,8 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		return errValidationFailed
 	}
 	// Validation succeeded, confirm assertion and advance stake
-	_, err := v.Rollup.AdvanceStake(assertion.ID)
+	// if assertion.ID
+	_, err := v.L1Client.AdvanceStake(assertion.ID)
 	if errors.Is(err, core.ErrInsufficientFunds) {
 		return fmt.Errorf("[Validator: tryValidateAssertion] Insufficient Funds to send Tx, err: %w", err)
 	}
@@ -100,29 +103,24 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	return nil
 }
 
-// This goroutine validates the assertion posted to L1 Rollup, advances
-// stake if validated, or challenges if not
-func (v *Validator) validationLoop(genesisRoot common.Hash) {
+// This function runs as a goroutine. It listens for and validates assertions posted to the L1 Rollup contract,
+// advances its stake if validated, and challenges if not.
+func (v *Validator) validationLoop(ctx context.Context) {
 	defer v.Wg.Done()
 
+	lastValidatedAssertion, err := v.GetLastValidatedAssertion(ctx)
+	if err != nil {
+		log.Crit("Failed to start validating, couldn't get last validated assertion", "err", err)
+	}
 	// Listen to AssertionCreated event
 	assertionEventCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	assertionEventSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, assertionEventCh)
+	assertionEventSub, err := v.L1Client.WatchAssertionCreated(&bind.WatchOpts{Context: ctx}, assertionEventCh)
 	if err != nil {
 		log.Crit("[Validator: validationLoop] Failed to watch rollup event", "err", err)
 	}
 	defer assertionEventSub.Unsubscribe()
 
 	// Current agreed assertion, initalize to genesis assertion
-	// TODO: sync from L1 when restart
-	lastValidatedAssertion := &rollupTypes.Assertion{
-		ID:                    new(big.Int),
-		VmHash:                genesisRoot,
-		CumulativeGasUsed:     new(big.Int),
-		InboxSize:             new(big.Int),
-		Deadline:              new(big.Int),
-		PrevCumulativeGasUsed: new(big.Int),
-	}
 	// The next assertion to be validated
 	var currentAssertion *rollupTypes.Assertion
 
@@ -155,12 +153,12 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 		if isInChallenge {
 			// Wait for the challenge resolution
 			select {
-			case ourAssertion := <-v.challengeResoutionCh:
+			case ourAssertion := <-v.challengeResolutionCh:
 				log.Info("challenge finished")
 				isInChallenge = false
 				lastValidatedAssertion = ourAssertion
 				currentAssertion = nil
-			case <-v.Ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		} else {
@@ -180,7 +178,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					continue
 				}
 				// New assertion created on Rollup
-				assertionFromRollup, err := v.Rollup.GetAssertion(ev.AssertionID)
+				assertionFromRollup, err := v.L1Client.GetAssertion(ev.AssertionID)
 				if err != nil {
 					log.Crit("Could not get DA", "error", err)
 				}
@@ -203,31 +201,26 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 					// TODO: error handling instead of panic
 					log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 				}
-			case <-v.Ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		}
 	}
 }
 
-func (v *Validator) challengeLoop() {
+func (v *Validator) challengeLoop(ctx context.Context) {
 	defer v.Wg.Done()
-
-	abi, err := bindings.IChallengeMetaData.GetAbi()
-	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to get IChallenge ABI", "err", err)
-	}
 
 	// Watch AssertionCreated event
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	createdSub, err := v.Rollup.Contract.WatchAssertionCreated(&bind.WatchOpts{Context: v.Ctx}, createdCh)
+	createdSub, err := v.L1Client.WatchAssertionCreated(&bind.WatchOpts{Context: ctx}, createdCh)
 	if err != nil {
 		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
 	}
 	defer createdSub.Unsubscribe()
 
 	challengedCh := make(chan *bindings.IRollupAssertionChallenged, 4096)
-	challengedSub, err := v.Rollup.Contract.WatchAssertionChallenged(&bind.WatchOpts{Context: v.Ctx}, challengedCh)
+	challengedSub, err := v.L1Client.WatchAssertionChallenged(&bind.WatchOpts{Context: ctx}, challengedCh)
 	if err != nil {
 		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
 	}
@@ -235,13 +228,12 @@ func (v *Validator) challengeLoop() {
 
 	// Watch L1 blockchain for challenge timeout
 	headCh := make(chan *types.Header, 4096)
-	headSub, err := v.L1.SubscribeNewHead(v.Ctx, headCh)
+	headSub, err := v.L1Client.SubscribeNewHead(ctx, headCh)
 	if err != nil {
 		log.Crit("[Validator: challengeLoop] Failed to watch l1 chain head", "err", err)
 	}
 	defer headSub.Unsubscribe()
 
-	var challengeSession *bindings.IChallengeSession
 	var states []*proof.ExecutionState
 
 	var bisectedCh chan *bindings.IChallengeBisected
@@ -250,7 +242,7 @@ func (v *Validator) challengeLoop() {
 	var challengeCompletedSub event.Subscription
 
 	inChallenge := false
-	var ctx *challengeCtx
+	var chalCtx *challengeCtx
 	var opponentTimeoutBlock uint64
 
 	for {
@@ -260,7 +252,7 @@ func (v *Validator) challengeLoop() {
 				// case get bisection, if is our turn
 				//   if in single step, submit proof
 				//   if multiple step, track current segment, update
-				responder, err := challengeSession.CurrentResponder()
+				responder, err := v.L1Client.CurrentChallengeResponder()
 				if err != nil {
 					// TODO: error handling
 					log.Error("[Validator: challengeLoop] Can not get current responder", "error", err)
@@ -268,14 +260,14 @@ func (v *Validator) challengeLoop() {
 				}
 				// If it's our turn
 				if responder == common.Address(v.Config.Coinbase) {
-					err := services.RespondBisection(v.BaseService, abi, challengeSession, ev, states, ctx.opponentAssertion.VmHash, false)
+					err := services.RespondBisection(ctx, v.ProofBackend, v.L1Client, ev, states, chalCtx.opponentAssertion.VmHash, false)
 					if err != nil {
 						// TODO: error handling
 						log.Error("[Validator: challengeLoop] Can not respond to bisection", "error", err)
 						continue
 					}
 				} else {
-					opponentTimeLeft, err := challengeSession.CurrentResponderTimeLeft()
+					opponentTimeLeft, err := v.L1Client.CurrentChallengeResponderTimeLeft()
 					if err != nil {
 						// TODO: error handling
 						log.Error("[Validator: challengeLoop] Can not get current responder left time", "error", err)
@@ -290,7 +282,7 @@ func (v *Validator) challengeLoop() {
 				}
 				// TODO: can we use >= here?
 				if header.Number.Uint64() > opponentTimeoutBlock {
-					_, err := challengeSession.Timeout()
+					_, err := v.L1Client.TimeoutChallenge()
 					if err != nil {
 						log.Error("[Validator: challengeLoop] Can not timeout opponent", "error", err)
 						continue
@@ -305,21 +297,21 @@ func (v *Validator) challengeLoop() {
 				challengeCompletedSub.Unsubscribe()
 				states = []*proof.ExecutionState{}
 				inChallenge = false
-				v.challengeResoutionCh <- ctx.ourAssertion
-			case <-v.Ctx.Done():
+				v.challengeResolutionCh <- chalCtx.ourAssertion
+			case <-ctx.Done():
 				bisectedSub.Unsubscribe()
 				challengeCompletedSub.Unsubscribe()
 				return
 			}
 		} else {
 			select {
-			case ctx = <-v.challengeCh:
-				_, err = v.Rollup.CreateAssertion(
-					ctx.ourAssertion.VmHash,
-					ctx.ourAssertion.InboxSize,
-					ctx.ourAssertion.CumulativeGasUsed,
-					ctx.lastValidatedAssertion.VmHash,
-					ctx.lastValidatedAssertion.CumulativeGasUsed,
+			case chalCtx = <-v.challengeCh:
+				_, err = v.L1Client.CreateAssertion(
+					chalCtx.ourAssertion.VmHash,
+					chalCtx.ourAssertion.InboxSize,
+					chalCtx.ourAssertion.CumulativeGasUsed,
+					chalCtx.lastValidatedAssertion.VmHash,
+					chalCtx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if errors.Is(err, core.ErrInsufficientFunds) {
 					log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
@@ -329,14 +321,14 @@ func (v *Validator) challengeLoop() {
 				}
 			case ev := <-createdCh:
 				if common.Address(ev.AsserterAddr) == v.Config.Coinbase {
-					if ev.VmHash == ctx.ourAssertion.VmHash {
-						_, err := v.Rollup.ChallengeAssertion(
+					if ev.VmHash == chalCtx.ourAssertion.VmHash {
+						_, err := v.L1Client.ChallengeAssertion(
 							[2]common.Address{
 								common.Address(v.Config.SequencerAddr),
 								common.Address(v.Config.Coinbase),
 							},
 							[2]*big.Int{
-								ctx.opponentAssertion.ID,
+								chalCtx.opponentAssertion.ID,
 								ev.AssertionID,
 							},
 						)
@@ -349,37 +341,32 @@ func (v *Validator) challengeLoop() {
 					}
 				}
 			case ev := <-challengedCh:
-				if ctx == nil {
+				if chalCtx == nil {
 					continue
 				}
-				log.Info("[Validator: challengeLoop] validator saw challenge", "assertion id", ev.AssertionID, "expected id", ctx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
-				if ev.AssertionID.Cmp(ctx.opponentAssertion.ID) == 0 {
+				log.Info("[Validator: challengeLoop] validator saw challenge", "assertion id", ev.AssertionID, "expected id", chalCtx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
+				if ev.AssertionID.Cmp(chalCtx.opponentAssertion.ID) == 0 {
 					// start := ev.Raw.BlockNumber - 2
-					challenge, err := bindings.NewIChallenge(ev.ChallengeAddr, v.L1)
+					err := v.L1Client.InitNewChallengeSession(context.Background(), ev.ChallengeAddr)
 					if err != nil {
 						log.Crit("[Validator: challengeLoop] Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
 					}
-					challengeSession = &bindings.IChallengeSession{
-						Contract:     challenge,
-						CallOpts:     bind.CallOpts{Pending: true, Context: v.Ctx},
-						TransactOpts: *v.TransactOpts,
-					}
 					bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
-					bisectedSub, err = challenge.WatchBisected(&bind.WatchOpts{Context: v.Ctx}, bisectedCh)
+					bisectedSub, err = v.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
 					if err != nil {
 						log.Crit("[Validator: challengeLoop] Failed to watch challenge event", "err", err)
 					}
 					challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
-					challengeCompletedSub, err = challenge.WatchChallengeCompleted(&bind.WatchOpts{Context: v.Ctx}, challengeCompletedCh)
+					challengeCompletedSub, err = v.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
 					if err != nil {
 						log.Crit("[Validator: challengeLoop] Failed to watch challenge event", "err", err)
 					}
 					states, err = proof.GenerateStates(
 						v.ProofBackend,
-						v.Ctx,
-						ctx.opponentAssertion.PrevCumulativeGasUsed,
-						ctx.opponentAssertion.StartBlock,
-						ctx.opponentAssertion.EndBlock+1,
+						ctx,
+						chalCtx.opponentAssertion.PrevCumulativeGasUsed,
+						chalCtx.opponentAssertion.StartBlock,
+						chalCtx.opponentAssertion.EndBlock+1,
 						nil,
 					)
 					if err != nil {
@@ -389,7 +376,7 @@ func (v *Validator) challengeLoop() {
 				}
 			case <-headCh:
 				continue // consume channel values
-			case <-v.Ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		}
@@ -397,20 +384,25 @@ func (v *Validator) challengeLoop() {
 }
 
 func (v *Validator) Start() error {
-	genesis := v.BaseService.Start(true, true)
-
+	log.Info("Starting validator...")
+	ctx, err := v.BaseService.Start()
+	if err != nil {
+		return err
+	}
+	if err := v.Stake(ctx); err != nil {
+		return fmt.Errorf("Failed to stake, err: %w", err)
+	}
+	// This is necessary despite `SyncLoop`, since we need an up-to-date L2 chain
+	// before we resolve all information about the last validated assertion.
+	end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
+	if err != nil {
+		return fmt.Errorf("Failed to start sequencer: %w", err)
+	}
 	v.Wg.Add(3)
-	go v.SyncLoop(v.newBatchCh)
-	go v.validationLoop(genesis.Root())
-	go v.challengeLoop()
-	log.Info("[Validator] Validator started")
-	return nil
-}
-
-func (v *Validator) Stop() error {
-	log.Info("[Validator] Validator stopped")
-	v.Cancel()
-	v.Wg.Wait()
+	go v.SyncLoop(ctx, end+1, v.newBatchCh)
+	go v.validationLoop(ctx)
+	go v.challengeLoop(ctx)
+	log.Info("Validator started.")
 	return nil
 }
 
