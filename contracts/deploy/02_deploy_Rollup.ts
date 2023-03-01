@@ -53,4 +53,4 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 };
 
 export default func;
-func.tags = ["Rollup"];
+func.tags = ["Rollup", "L1", "Stage0"];

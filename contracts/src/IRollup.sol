@@ -152,6 +152,11 @@ interface IRollup {
     function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view returns (bool);
 
     /**
+     * @return The last confirmed Assertion ID.
+     */
+    function getLastConfirmedAssertionID() external view returns (uint256);
+
+    /**
      * @return The current required stake amount.
      */
     function currentRequiredStake() external view returns (uint256);

@@ -1,0 +1,16 @@
+{
+  "name": "specular-bridge-relayer",
+  "version": "0.0.0",
+  "main": "index.ts",
+  "license": "Apache-2.0",
+  "scripts": {
+    "start": "ts-node index.ts"
+  },
+  "dependencies": {
+    "@types/node": "^18.14.2",
+    "commander": "^10.0.0",
+    "ethers": "^5.7.2",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.9.5"
+  }
+}
