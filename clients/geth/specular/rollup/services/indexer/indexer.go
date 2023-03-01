@@ -28,7 +28,7 @@ func (i *Indexer) Start() error {
 		return err
 	}
 	i.Wg.Add(1)
-	go i.SyncLoop(ctx, nil)
+	go i.SyncLoop(ctx, i.Config.L1RollupGenesisBlock, nil)
 	log.Info("Indexer started")
 	return nil
 }

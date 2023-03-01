@@ -16,13 +16,14 @@ func NewAssertionFrom(
 	assertion *bindings.IRollupAssertion,
 	event *bindings.IRollupAssertionCreated,
 ) *rollupTypes.Assertion {
-	// TODO: set StartBlock, EndBlock if necessary (or remove from this struct).
+	// TODO: set StartBlock, EndBlock, PrevCumulativeGasUsed if necessary (or remove from this struct).
 	return &rollupTypes.Assertion{
-		ID:                event.AssertionID,
-		VmHash:            event.VmHash,
-		CumulativeGasUsed: event.L2GasUsed,
-		InboxSize:         assertion.InboxSize,
-		Deadline:          assertion.Deadline,
+		ID:                    event.AssertionID,
+		VmHash:                event.VmHash,
+		CumulativeGasUsed:     event.L2GasUsed,
+		InboxSize:             assertion.InboxSize,
+		Deadline:              assertion.Deadline,
+		PrevCumulativeGasUsed: new(big.Int).SetUint64(0), // TODO: this is a hack, move this property out later.
 	}
 }
 

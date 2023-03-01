@@ -48,9 +48,9 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 func (b *BaseService) Start() (context.Context, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cancel = cancel
-	// Check if we are at genesis
+	// Check if we are at genesis. TODO: remove.
 	if b.Eth.BlockChain().CurrentBlock().NumberU64() != 0 {
-		return nil, fmt.Errorf("Rollup service can only start from clean history")
+		return nil, fmt.Errorf("Service can only start from clean history")
 	}
 	return ctx, nil
 }
@@ -72,7 +72,7 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 	var lastValidatedAssertion bindings.IRollupAssertion
 	if err != nil {
 		// If no assertion was validated (or other errors encountered), try to use the genesis assertion.
-		log.Warn("No validated assertions found, using genesis assertion.")
+		log.Warn("No validated assertions found, using genesis assertion", "err", err)
 		assertionCreatedEvent, err = b.L1Client.GetGenesisAssertionCreated(&opts)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
@@ -82,7 +82,7 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 	} else {
 		// If an assertion was validated, use it.
 		log.Info("Last validated assertion ID found", "assertionID", assertionID)
-		lastValidatedAssertion, err := b.L1Client.GetAssertion(assertionID)
+		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionID)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
 		}
@@ -110,6 +110,8 @@ func (b *BaseService) Stake(ctx context.Context) error {
 }
 
 // Sync to current L1 block head and commit blocks.
+// `start` is the block number to start syncing from.
+// Returns the last synced block number (inclusive).
 func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (uint64, error) {
 	l1BlockHead, err := b.L1Client.BlockNumber(ctx)
 	if err != nil {
@@ -124,14 +126,15 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 	if err != nil {
 		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
 	}
+	log.Info("Synced L1->L2", "start", start, "end", l1BlockHead)
 	return l1BlockHead, nil
 }
 
-func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) {
+func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh chan<- struct{}) {
 	defer b.Wg.Done()
 	// Sync to current L1 block head. Can't use WatchOpts.Start,
 	// due to github.com/ethereum/go-ethereum/issues/15063
-	endBlock, err := b.SyncL2ChainToL1Head(ctx, b.Config.L1RollupGenesisBlock)
+	endBlock, err := b.SyncL2ChainToL1Head(ctx, start)
 	if err != nil {
 		log.Crit("Failed initial inbox sync", "err", err)
 	}
@@ -144,7 +147,7 @@ func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) 
 	}
 	defer batchEventSub.Unsubscribe()
 	// Sync again to ensure we don't miss events.
-	endBlock, err = b.SyncL2ChainToL1Head(ctx, endBlock)
+	endBlock, err = b.SyncL2ChainToL1Head(ctx, endBlock+1)
 	if err != nil {
 		log.Crit("Failed initial inbox sync", "err", err)
 	}

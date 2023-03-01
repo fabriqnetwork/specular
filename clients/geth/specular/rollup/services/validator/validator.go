@@ -392,8 +392,14 @@ func (v *Validator) Start() error {
 	if err := v.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to stake, err: %w", err)
 	}
+	// This is necessary despite `SyncLoop`, since we need an up-to-date L2 chain
+	// before we resolve all information about the last validated assertion.
+	end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
+	if err != nil {
+		return fmt.Errorf("Failed to start sequencer: %w", err)
+	}
 	v.Wg.Add(3)
-	go v.SyncLoop(ctx, v.newBatchCh)
+	go v.SyncLoop(ctx, end+1, v.newBatchCh)
 	go v.validationLoop(ctx)
 	go v.challengeLoop(ctx)
 	log.Info("Validator started.")

@@ -121,7 +121,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 	if err != nil {
 		return nil, fmt.Errorf("[Sequencer: addTxsToBatchAndCommit] Failed to commit transactions, err: %w", err)
 	}
-	log.Info("Committed tx batch", "batch size", len(batchTxs), "block#", s.Eth.BlockChain().CurrentBlock().Number)
+	log.Info("Committed tx batch", "batch size", len(batchTxs))
 	return batchTxs, nil
 }
 
@@ -229,7 +229,6 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	var pendingAssertion *rollupTypes.Assertion
 	// Assertion to be created on L1 Rollup
 	queuedAssertion := confirmedAssertion.Copy()
-	queuedAssertion.StartBlock = 1
 
 	// Create assertion on L1 Rollup
 	commitAssertion := func() {
@@ -277,6 +276,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			}
 			log.Info("Sequenced batch", "batch size", len(batch.Txs))
 			// Update queued assertion to latest batch
+			queuedAssertion.ID.Add(queuedAssertion.ID, big.NewInt(1))
 			queuedAssertion.VmHash = batch.LastBlockRoot()
 			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
 			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
@@ -558,11 +558,12 @@ func (s *Sequencer) Start() error {
 	if err := s.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
-	// We assume a single sequencer (us) for now.
 	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.L1RollupGenesisBlock)
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
+	// We assume a single sequencer (us) for now, so we don't
+	// need to sync transactions sequenced up.
 	s.Wg.Add(4)
 	go s.batchingLoop(ctx)
 	go s.sequencingLoop(ctx)
