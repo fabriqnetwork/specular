@@ -1332,8 +1332,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 maxGasPerAssertion,
         uint256 baseStakeAmount
     ) internal {
-        Rollup _tempRollup = new Rollup();
-
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
             owner, // owner
@@ -1348,15 +1346,10 @@ contract RollupTest is RollupBaseSetup {
             bytes32("")
         );
 
-        address proxyAdmin = makeAddr("Proxy Admin");
-
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-            address(_tempRollup), 
-            proxyAdmin, 
-            initializingData
-        );
-
-        // Initialize is called here for the first time.
-        rollup = Rollup(address(proxy));
+        // Deploying the rollup contract as the rollup owner/deployer
+        vm.startPrank(rollupOwner);
+        Rollup implementationRollup = new Rollup();
+        specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
+        rollup = Rollup(address(specularProxy));
     }
 }
