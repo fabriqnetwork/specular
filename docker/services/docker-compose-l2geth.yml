@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   l2geth:
-    image: specularl1/l2geth:${DOCKER_TAG:-latest}
+    image: specularl2/l2geth:${DOCKER_TAG:-latest}
     build:
       context: ../..
       dockerfile: ./clients/geth/specular/Dockerfile

@@ -9,7 +9,7 @@
 ```bash
 mkdir <project> && cd <project>
 mkdir specular-datadir && cd specular-datadir
-cp <specular>/clients/geth/specular/data/sequencer.prv ./key.prv # Change this key according to the configuration
+cp <specular>/clients/geth/specular/data/keys/sequencer.prv ./key.prv # Change this key according to the configuration
 cp <specular>/clients/geth/specular/data/password.txt .
 ```
 
@@ -17,7 +17,7 @@ cp <specular>/clients/geth/specular/data/password.txt .
 
 ```bash
 cd <specular>/contracts
-npx ts-node scripts/generate-genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out <project>/specular-datadir/genesis.json
+npx ts-node scripts/create-genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out <project>/specular-datadir/genesis.json
 ```
 
 ## Run sequencer
