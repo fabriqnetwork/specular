@@ -24,7 +24,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    "0xd7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544", // bytes32 _initialVMhash
+    "0x20a3a2c9bb2f8d4409598cd92a94b4aa567bb2f906e9bcfa104f6c4cee9eb4a4", // bytes32 _initialVMhash
     0, // uint256 _initialL2GasUsed
   ];
 

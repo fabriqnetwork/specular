@@ -27,6 +27,14 @@ func NewAssertionFrom(
 	}
 }
 
+// For debugging purposes.
+func LogBlockChainInfo(backend Backend, start, end uint64) {
+	for i := start; i < end; i++ {
+		block := backend.BlockChain().GetBlockByNumber(i)
+		log.Info("Block", "number", i, "hash", block.Hash(), "root", block.Root(), "num txs", len(block.Transactions()))
+	}
+}
+
 func SubmitOneStepProof(
 	ctx context.Context,
 	proofBackend proof.Backend,

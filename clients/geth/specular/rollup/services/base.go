@@ -24,7 +24,6 @@ type BaseService struct {
 
 	Eth          Backend
 	ProofBackend proof.Backend
-	Chain        *core.BlockChain
 	L1Client     client.L1BridgeClient
 
 	Cancel context.CancelFunc
@@ -40,7 +39,6 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 		Eth:          eth,
 		ProofBackend: proofBackend,
 		L1Client:     l1Client,
-		Chain:        eth.BlockChain(),
 	}, nil
 }
 
@@ -63,6 +61,10 @@ func (b *BaseService) Stop() error {
 	return nil
 }
 
+func (b *BaseService) Chain() *core.BlockChain {
+	return b.Eth.BlockChain()
+}
+
 // Gets the last validated assertion.
 func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTypes.Assertion, error) {
 	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
@@ -77,7 +79,14 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
+		// Check that the genesis assertion is correct.
+		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
+		genesisRoot := b.Eth.BlockChain().GetBlockByNumber(0).Root()
+		if vmHash != genesisRoot {
+			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
+		}
 		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
+		// Get assertion.
 		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionCreatedEvent.AssertionID)
 	} else {
 		// If an assertion was validated, use it.
@@ -92,7 +101,18 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
 	}
-	return NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent), nil
+	// Get parent to set start block. TODO: move this out.
+	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent of last validated assertion, err: %w", err)
+	}
+	parentAssertionCreatedEvent, err := b.L1Client.FilterAssertionCreated(&opts, lastValidatedAssertion.Parent)
+	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
+	err = b.setL2BlockBoundaries(assertion, parentAssertionCreatedEvent)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to set L2 block boundaries for last validated assertion, err: %w", err)
+	}
+	return assertion, nil
 }
 
 func (b *BaseService) Stake(ctx context.Context) error {
@@ -216,6 +236,34 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	return nil
 }
 
+// TODO: find a better way to do this
+func (b *BaseService) setL2BlockBoundaries(
+	assertion *rollupTypes.Assertion,
+	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
+) error {
+	numBlocks := b.Eth.BlockChain().CurrentBlock().Number().Uint64()
+	startFound := false
+	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID, "numBlocks", numBlocks)
+	for i := uint64(0); i <= numBlocks; i++ {
+		root := b.Eth.BlockChain().GetBlockByNumber(i).Root()
+		// Note: by convention, the parent VmHash is the same when the assertion is the genesis assertion.
+		if root == parentAssertionCreatedEvent.VmHash {
+			log.Info("Found start block", "l2 block#", i)
+			assertion.StartBlock = i
+			startFound = true
+		}
+		if root == assertion.VmHash {
+			log.Info("Found end block", "l2 block#", i)
+			assertion.EndBlock = i
+			if !startFound {
+				return fmt.Errorf("Found end block before start block for assertion %d", assertion.ID)
+			}
+			return nil
+		}
+	}
+	return fmt.Errorf("Could not find start or end block for assertion %d", assertion.ID)
+}
+
 // commitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
 // TODO: use StateProcessor::Process() instead
@@ -223,8 +271,8 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 	if len(blocks) == 0 {
 		return nil
 	}
-	chainConfig := b.Chain.Config()
-	parent := b.Chain.CurrentBlock()
+	chainConfig := b.Chain().Config()
+	parent := b.Chain().CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")
 	}
@@ -232,7 +280,7 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 	if num.Uint64() != blocks[0].BlockNumber-1 {
 		return fmt.Errorf("rollup services unsynced")
 	}
-	state, err := b.Chain.StateAt(parent.Root())
+	state, err := b.Chain().StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
@@ -252,14 +300,15 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 		var receipts []*types.Receipt
 		for idx, tx := range sblock.Txs {
 			state.Prepare(tx.Hash(), idx)
-			receipt, err := core.ApplyTransaction(chainConfig, b.Chain, &b.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *b.Chain.GetVMConfig())
+			receipt, err := core.ApplyTransaction(
+				chainConfig, b.Chain(), &b.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
 			if err != nil {
 				return err
 			}
 			receipts = append(receipts, receipt)
 		}
 		// Finalize header
-		header.Root = state.IntermediateRoot(b.Chain.Config().IsEIP158(header.Number))
+		header.Root = state.IntermediateRoot(b.Chain().Config().IsEIP158(header.Number))
 		header.UncleHash = types.CalcUncleHash(nil)
 		// Assemble block
 		block := types.NewBlock(header, sblock.Txs, nil, receipts, trie.NewStackTrie(nil))
@@ -279,7 +328,7 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 			}
 			logs = append(logs, receipt.Logs...)
 		}
-		_, err := b.Chain.WriteBlockAndSetHead(block, receipts, logs, state, true)
+		_, err := b.Chain().WriteBlockAndSetHead(block, receipts, logs, state, true)
 		if err != nil {
 			return err
 		}

@@ -248,7 +248,12 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		if err != nil {
 			log.Error("[Sequencer: sequencingLoop] Can not create DA", "error", err)
 		}
-		log.Info("Created assertion", "assertion id", pendingAssertion.ID)
+		log.Info(
+			"Created assertion",
+			"assertion id", pendingAssertion.ID,
+			"vmHash", pendingAssertion.VmHash,
+			"parent vmHash", confirmedAssertion.VmHash,
+		)
 	}
 
 	// Blocks from the batchingLoop that will be sent to the inbox in the next tick

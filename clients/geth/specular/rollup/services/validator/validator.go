@@ -57,14 +57,14 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// Find asserted blocks in local blockchain
 	inboxSizeDiff := new(big.Int).Sub(assertion.InboxSize, lastValidatedAssertion.InboxSize)
 	currentBlockNum := assertion.StartBlock
-	currentChainHeight := v.Chain.CurrentBlock().NumberU64()
+	currentChainHeight := v.Chain().CurrentBlock().NumberU64()
 	var block *types.Block
 	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
 		if currentBlockNum > currentChainHeight {
 			return errAssertionOverflowedLocalInbox
 		}
-		block = v.Chain.GetBlockByNumber(currentBlockNum)
+		block = v.Chain().GetBlockByNumber(currentBlockNum)
 		if block == nil {
 			return errAssertionOverflowedLocalInbox
 		}
