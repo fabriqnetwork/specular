@@ -218,101 +218,97 @@ contract RollupTest is RollupBaseSetup {
         );
     }
 
-    // // function test_initializeRollup_valuesAfterInit(
-    // //     uint256 confirmationPeriod,
-    // //     uint256 challengePeriod,
-    // //     uint256 minimumAssertionPeriod,
-    // //     uint256 maxGasPerAssertion,
-    // //     uint256 baseStakeAmount
-    // // ) external {
-    // //     Rollup _tempRollup = new Rollup();
+    function test_initializeRollup_valuesAfterInit(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            confirmationPeriod, //confirmationPeriod
+            challengePeriod, //challengPeriod
+            minimumAssertionPeriod, // minimumAssertionPeriod
+            maxGasPerAssertion, // maxGasPerAssertion
+            baseStakeAmount, //baseStakeAmount
+            bytes32("")
+        );
 
-    // //     bytes memory initializingData = abi.encodeWithSelector(
-    // //         Rollup.initialize.selector,
-    // //         owner, // owner
-    // //         address(seqIn), // sequencerInbox
-    // //         address(verifier),
-    // //         address(stakeToken),
-    // //         confirmationPeriod, //confirmationPeriod
-    // //         challengePeriod, //challengePeriod
-    // //         minimumAssertionPeriod, // minimumAssertionPeriod
-    // //         maxGasPerAssertion, // maxGasPerAssertion
-    // //         baseStakeAmount, //baseStakeAmount
-    // //         bytes32("")
-    // //     );
+        vm.startPrank(rollupOwner);
 
-    // //     address proxyAdmin = makeAddr("Proxy Admin");
+        Rollup implementationRollup = new Rollup(); // implementation contract
+        specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
+        rollup = Rollup(address(specularProxy)); // The rollup contract (proxy, not implementation should have been initialized by now)
 
-    // //     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-    // //         address(_tempRollup),
-    // //         proxyAdmin,
-    // //         initializingData
-    // //     );
+        vm.stopPrank();
 
-    // //     // Initialize is called here for the first time.
-    // //     rollup = Rollup(address(proxy));
 
-    // //     // Putting in different scope to do away with the stack too deep error.
-    // //     {
-    // //         // Check if the value of the address owner was set correctly
-    // //         address rollupOwner = rollup.owner();
-    // //         assertEq(rollupOwner, owner, "Rollup.initialize failed to update owner correctly");
+        // Putting in different scope to do away with the stack too deep error.
+        {
+            // Check if the value of the address owner was set correctly
+            address _rollupOwner = rollup.owner();
+            assertEq(_rollupOwner, rollupOwner, "Rollup.initialize failed to update owner correctly");
 
-    // //         // Check if the value of SequencerInbox was set correctly
-    // //         address rollupSeqIn = address(rollup.sequencerInbox());
-    // //         assertEq(rollupSeqIn, address(seqIn), "Rollup.initialize failed to update Sequencer Inbox correctly");
+            // Check if the value of SequencerInbox was set correctly
+            address rollupSeqIn = address(rollup.sequencerInbox());
+            assertEq(rollupSeqIn, address(seqIn), "Rollup.initialize failed to update Sequencer Inbox correctly");
 
-    // //         // Check if the value of the stakeToken was set correctly
-    // //         address rollupToken = address(rollup.stakeToken());
-    // //         assertEq(rollupToken, address(stakeToken), "Rollup.initialize failed to update StakeToken value correctly");
+            // Check if the value of the stakeToken was set correctly
+            address rollupToken = address(rollup.stakeToken());
+            assertEq(rollupToken, address(stakeToken), "Rollup.initialize failed to update StakeToken value correctly");
 
-    // //         // Check if the value of the verifier was set correctly
-    // //         address rollupVerifier = address(rollup.verifier());
-    // //         assertEq(rollupVerifier, address(verifier), "Rollup.initialize failed to update verifier value correctly");
-    // //     }
+            // Check if the value of the verifier was set correctly
+            address rollupVerifier = address(rollup.verifier());
+            assertEq(rollupVerifier, address(verifier), "Rollup.initialize failed to update verifier value correctly");
+        }
 
-    // //     // Check if the various durations and uint values were set correctly
-    // //     uint256 rollupConfirmationPeriod = rollup.confirmationPeriod();
-    // //     uint256 rollupChallengePeriod = rollup.challengePeriod();
-    // //     uint256 rollupMinimumAssertionPeriod = rollup.minimumAssertionPeriod();
-    // //     uint256 rollupMaxGasPerAssertion = rollup.maxGasPerAssertion();
-    // //     uint256 rollupBaseStakeAmount = rollup.baseStakeAmount();
+        // Check if the various durations and uint values were set correctly
+        uint256 rollupConfirmationPeriod = rollup.confirmationPeriod();
+        uint256 rollupChallengePeriod = rollup.challengePeriod();
+        uint256 rollupMinimumAssertionPeriod = rollup.minimumAssertionPeriod();
+        uint256 rollupMaxGasPerAssertion = rollup.maxGasPerAssertion();
+        uint256 rollupBaseStakeAmount = rollup.baseStakeAmount();
 
-    // //     assertEq(
-    // //         rollupConfirmationPeriod,
-    // //         confirmationPeriod,
-    // //         "Rollup.initialize failed to update confirmationPeriod value correctly"
-    // //     );
-    // //     assertEq(
-    // //         rollupChallengePeriod,
-    // //         challengePeriod,
-    // //         "Rollup.initialize failed to update confirmationPeriod value correctly"
-    // //     );
-    // //     assertEq(
-    // //         rollupMinimumAssertionPeriod,
-    // //         minimumAssertionPeriod,
-    // //         "Rollup.initialize failed to update confirmationPeriod value correctly"
-    // //     );
-    // //     assertEq(
-    // //         rollupMaxGasPerAssertion,
-    // //         maxGasPerAssertion,
-    // //         "Rollup.initialize failed to update confirmationPeriod value correctly"
-    // //     );
-    // //     assertEq(
-    // //         rollupBaseStakeAmount,
-    // //         baseStakeAmount,
-    // //         "Rollup.initialize failed to update confirmationPeriod value correctly"
-    // //     );
+        assertEq(
+            rollupConfirmationPeriod,
+            confirmationPeriod,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupChallengePeriod,
+            challengePeriod,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupMinimumAssertionPeriod,
+            minimumAssertionPeriod,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupMaxGasPerAssertion,
+            maxGasPerAssertion,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
+        assertEq(
+            rollupBaseStakeAmount,
+            baseStakeAmount,
+            "Rollup.initialize failed to update confirmationPeriod value correctly"
+        );
 
-    // //     // Make sure an assertion was created
-    // //     rollupAssertion = rollup.assertions();
+        // Make sure an assertion was created
+        rollupAssertion = rollup.assertions();
 
-    // //     uint256 rollupAssertionParentID = rollupAssertion.getParentID(0);
-    // //     assertEq(rollupAssertionParentID, 0);
+        uint256 rollupAssertionParentID = rollupAssertion.getParentID(0);
+        assertEq(rollupAssertionParentID, 0);
 
-    // //     // AssertionMap was created by the correct rollup address
-    // //     assertEq(rollupAssertion.rollupAddress(), address(rollup));
-    // // }
+        // AssertionMap was created by the correct rollup address
+        assertEq(rollupAssertion.rollupAddress(), address(rollup));
+    }
 
     // ////////////////
     // // Staking
