@@ -310,57 +310,57 @@ contract RollupTest is RollupBaseSetup {
         assertEq(rollupAssertion.rollupAddress(), address(rollup));
     }
 
-    // ////////////////
-    // // Staking
-    // ///////////////
+    ////////////////
+    // Staking
+    ///////////////
 
-    // function test_stake_isStaked(
-    //     uint256 confirmationPeriod,
-    //     uint256 challengePeriod,
-    //     uint256 minimumAssertionPeriod,
-    //     uint256 maxGasPerAssertion,
-    //     uint256 baseStakeAmount
-    // ) external {
-    //     _initializeRollup(
-    //         confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
-    //     );
+    function test_stake_isStaked(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount
+        );
 
-    //     // Alice has not staked yet and therefore, this function should return `false`
-    //     bool isAliceStaked = rollup.isStaked(alice);
-    //     assertTrue(!isAliceStaked);
-    // }
+        // Alice has not staked yet and therefore, this function should return `false`
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+    }
 
-    // function test_stake_insufficentAmountStaking(
-    //     uint256 confirmationPeriod,
-    //     uint256 challengePeriod,
-    //     uint256 minimumAssertionPeriod,
-    //     uint256 maxGasPerAssertion,
-    //     uint256 baseStakeAmount
-    // ) external {
-    //     _initializeRollup(
-    //         confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max
-    //     );
+    function test_stake_insufficentAmountStaking(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 maxGasPerAssertion,
+        uint256 baseStakeAmount
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max
+        );
 
-    //     uint256 minimumAmount = rollup.baseStakeAmount();
-    //     uint256 aliceBalance = alice.balance;
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
 
-    //     /*
-    //         emit log_named_uint("BSA", minimumAmount);
-    //     */
+        /*
+            emit log_named_uint("BSA", minimumAmount);
+        */
 
-    //     if (aliceBalance > minimumAmount) {
-    //         aliceBalance = minimumAmount / 10;
-    //     }
+        if (aliceBalance > minimumAmount) {
+            aliceBalance = minimumAmount / 10;
+        }
 
-    //     vm.expectRevert(IRollup.InsufficientStake.selector);
+        vm.expectRevert(IRollup.InsufficientStake.selector);
 
-    //     vm.prank(alice);
-    //     //slither-disable-next-line arbitrary-send-eth
-    //     rollup.stake{value: aliceBalance}();
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalance}();
 
-    //     bool isAliceStaked = rollup.isStaked(alice);
-    //     assertTrue(!isAliceStaked);
-    // }
+        bool isAliceStaked = rollup.isStaked(alice);
+        assertTrue(!isAliceStaked);
+    }
 
     // function test_stake_sufficientAmountStakingAndNumStakersIncrement(
     //     uint256 confirmationPeriod,
@@ -1338,5 +1338,6 @@ contract RollupTest is RollupBaseSetup {
         Rollup implementationRollup = new Rollup();
         specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
         rollup = Rollup(address(specularProxy));
+        vm.stopPrank();
     }
 }
