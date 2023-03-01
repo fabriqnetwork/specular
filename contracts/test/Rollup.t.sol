@@ -123,109 +123,100 @@ contract RollupTest is RollupBaseSetup {
         vm.stopPrank();
     }
 
-    // function test_initializeRollup_verifierAddressZero() external {
-    //     emit log_named_address("Stake Token", address(stakeToken));
+    function test_initializeRollup_verifierAddressZero() external {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(seqIn),
+            address(0),
+            address(stakeToken),
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount
+            bytes32("")
+        );
 
-    //     Rollup _tempRollup = new Rollup();
-    //     bytes memory initializingData = abi.encodeWithSelector(
-    //         Rollup.initialize.selector,
-    //         owner, // owner
-    //         address(seqIn),
-    //         address(0),
-    //         address(stakeToken),
-    //         0, //confirmationPeriod
-    //         0, //challengPeriod
-    //         0, // minimumAssertionPeriod
-    //         type(uint256).max, // maxGasPerAssertion
-    //         0, //baseStakeAmount
-    //         bytes32("")
-    //     );
+        vm.startPrank(rollupOwner);
 
-    //     vm.expectRevert(ZeroAddress.selector);
+        Rollup implementationRollup = new Rollup(); // implementation contract
 
-    //     address proxyAdmin = makeAddr("Proxy Admin");
-    //     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-    //         address(_tempRollup), 
-    //         proxyAdmin, 
-    //         initializingData
-    //     );
+        vm.expectRevert(ZeroAddress.selector);
+        specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
 
-    //     rollup = Rollup(address(proxy));
-    // }
+        rollup = Rollup(address(specularProxy));
 
-    // function test_initializeRollup_sequencerInboxAddressZero() external {
-    //     Rollup _tempRollup = new Rollup();
-    //     bytes memory initializingData = abi.encodeWithSelector(
-    //         Rollup.initialize.selector,
-    //         owner, // owner
-    //         address(0),
-    //         address(verifier),
-    //         address(stakeToken),
-    //         0, //confirmationPeriod
-    //         0, //challengPeriod
-    //         0, // minimumAssertionPeriod
-    //         type(uint256).max, // maxGasPerAssertion
-    //         0, //baseStakeAmount
-    //         bytes32("")
-    //     );
+        vm.stopPrank();
+    }
 
-    //     vm.expectRevert(ZeroAddress.selector);
+    function test_initializeRollup_sequencerInboxAddressZero() external {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(0),
+            address(verifier),
+            address(stakeToken),
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount
+            bytes32("")
+        );
 
-    //     address proxyAdmin = makeAddr("Proxy Admin");
-    //     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-    //         address(_tempRollup), 
-    //         proxyAdmin, 
-    //         initializingData
-    //     );
+        vm.startPrank(rollupOwner);
 
-    //     rollup = Rollup(address(proxy));
-    // }
+        Rollup implementationRollup = new Rollup(); // implementation contract
 
-    // function test_initializeRollup_cannotBeCalledTwice() external {
-    //     Rollup _tempRollup = new Rollup();
+        vm.expectRevert(ZeroAddress.selector);
+        specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
 
-    //     bytes memory initializingData = abi.encodeWithSelector(
-    //         Rollup.initialize.selector,
-    //         owner, // owner
-    //         address(seqIn), // sequencerInbox
-    //         address(verifier),
-    //         address(stakeToken),
-    //         0, //confirmationPeriod
-    //         0, //challengPeriod
-    //         0, // minimumAssertionPeriod
-    //         type(uint256).max, // maxGasPerAssertion
-    //         0, //baseStakeAmount
-    //         bytes32("")
-    //     );
+        rollup = Rollup(address(specularProxy));
 
-    //     address proxyAdmin = makeAddr("Proxy Admin");
+        vm.stopPrank();
+    }
 
-    //     TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(
-    //         address(_tempRollup), 
-    //         proxyAdmin, 
-    //         initializingData
-    //     );
+    function test_initializeRollup_cannotBeCalledTwice() external {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount
+            bytes32("")
+        );
 
-    //     // Initialize is called here for the first time.
-    //     rollup = Rollup(address(proxy));
+        vm.startPrank(rollupOwner);
 
-    //     // Trying to call initialize for the second time
-    //     vm.expectRevert("Initializable: contract is already initialized");
-    //     vm.prank(alice);
+        Rollup implementationRollup = new Rollup(); // implementation contract
+        specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
+        rollup = Rollup(address(specularProxy)); // The rollup contract (proxy, not implementation should have been initialized by now)
 
-    //     rollup.initialize(
-    //         owner, // owner
-    //         address(seqIn), // sequencerInbox
-    //         address(verifier),
-    //         address(stakeToken),
-    //         0, //confirmationPeriod
-    //         0, //challengPeriod
-    //         0, // minimumAssertionPeriod
-    //         type(uint256).max, // maxGasPerAssertion
-    //         0, //baseStakeAmount
-    //         bytes32("")
-    //     );
-    // }
+        vm.stopPrank();
+
+        // Trying to call initialize for the second time
+        vm.expectRevert("Initializable: contract is already initialized");
+        vm.prank(alice); // Someone random, who is not the proxy owner.
+
+        rollup.initialize(
+            owner, // owner
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            address(stakeToken),
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount
+            bytes32("")
+        );
+    }
 
     // // function test_initializeRollup_valuesAfterInit(
     // //     uint256 confirmationPeriod,
