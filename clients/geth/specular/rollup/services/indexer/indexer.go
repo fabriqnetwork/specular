@@ -8,17 +8,14 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
-type Indexer struct {
-	*services.BaseService
-	newBatchCh chan struct{}
-}
+type Indexer struct{ *services.BaseService }
 
 func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Indexer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
 		return nil, err
 	}
-	return &Indexer{BaseService: base, newBatchCh: make(chan struct{}, 1)}, nil
+	return &Indexer{BaseService: base}, nil
 }
 
 func (i *Indexer) Start() error {
@@ -33,7 +30,4 @@ func (i *Indexer) Start() error {
 	return nil
 }
 
-func (i *Indexer) APIs() []rpc.API {
-	// TODO: indexer APIs
-	return []rpc.API{}
-}
+func (i *Indexer) APIs() []rpc.API { return []rpc.API{} }

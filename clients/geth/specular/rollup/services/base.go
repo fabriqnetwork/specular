@@ -101,13 +101,14 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
 	}
-	// Get parent to set start block. TODO: move this out.
-	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent of last validated assertion, err: %w", err)
-	}
-	parentAssertionCreatedEvent, err := b.L1Client.FilterAssertionCreated(&opts, lastValidatedAssertion.Parent)
+	// Initialize assertion.
 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
+	// Set its boundaries using parent. TODO: move this out. Use local caching.
+	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
+	parentAssertionCreatedEvent, err := b.L1Client.FilterAssertionCreated(&opts, lastValidatedAssertion.Parent)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
+	}
 	err = b.setL2BlockBoundaries(assertion, parentAssertionCreatedEvent)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to set L2 block boundaries for last validated assertion, err: %w", err)
@@ -146,7 +147,12 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 	if err != nil {
 		return 0, fmt.Errorf("Failed to sync to L1 head, err: %w", err)
 	}
-	log.Info("Synced L1->L2", "start", start, "end", l1BlockHead)
+	log.Info(
+		"Synced L1->L2",
+		"l1 start", start,
+		"l1 end", l1BlockHead,
+		"l2 size", b.Eth.BlockChain().CurrentBlock().Number(),
+	)
 	return l1BlockHead, nil
 }
 
@@ -236,32 +242,44 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	return nil
 }
 
-// TODO: find a better way to do this
+// TODO: clean up.
 func (b *BaseService) setL2BlockBoundaries(
 	assertion *rollupTypes.Assertion,
 	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
 ) error {
 	numBlocks := b.Eth.BlockChain().CurrentBlock().Number().Uint64()
+	if numBlocks == 0 {
+		log.Info("Zero-initializing assertion block boundaries.")
+		assertion.StartBlock = 0
+		assertion.EndBlock = 0
+		return nil
+	}
 	startFound := false
-	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID, "numBlocks", numBlocks)
+	// Note: by convention defined in Rollup.sol, the parent VmHash is the
+	// same as the child only when the assertion is the genesis assertion.
+	// This is a hack to avoid mis-setting `assertion.StartBlock`.
+	if assertion.ID == parentAssertionCreatedEvent.AssertionID {
+		parentAssertionCreatedEvent.VmHash = common.Hash{}
+		startFound = true
+	}
+	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID)
+	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
 	for i := uint64(0); i <= numBlocks; i++ {
 		root := b.Eth.BlockChain().GetBlockByNumber(i).Root()
-		// Note: by convention, the parent VmHash is the same when the assertion is the genesis assertion.
 		if root == parentAssertionCreatedEvent.VmHash {
-			log.Info("Found start block", "l2 block#", i)
-			assertion.StartBlock = i
+			log.Info("Found start block", "l2 block#", i+1)
+			assertion.StartBlock = i + 1
 			startFound = true
-		}
-		if root == assertion.VmHash {
+		} else if root == assertion.VmHash {
 			log.Info("Found end block", "l2 block#", i)
 			assertion.EndBlock = i
 			if !startFound {
-				return fmt.Errorf("Found end block before start block for assertion %d", assertion.ID)
+				return fmt.Errorf("Found end block before start block for assertion with hash %d", assertion.VmHash)
 			}
 			return nil
 		}
 	}
-	return fmt.Errorf("Could not find start or end block for assertion %d", assertion.ID)
+	return fmt.Errorf("Could not find start or end block for assertion with hash %s", assertion.VmHash)
 }
 
 // commitBlocks executes and commits sequenced blocks to local blockchain

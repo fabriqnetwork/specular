@@ -250,9 +250,10 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		}
 		log.Info(
 			"Created assertion",
-			"assertion id", pendingAssertion.ID,
+			"id", pendingAssertion.ID,
 			"vmHash", pendingAssertion.VmHash,
-			"parent vmHash", confirmedAssertion.VmHash,
+			"start block", pendingAssertion.StartBlock,
+			"end block", pendingAssertion.EndBlock,
 		)
 	}
 
