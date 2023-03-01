@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   hardhat:
-    image: specularl1/hardhat:${DOCKER_TAG:-latest}
+    image: specularl2/hardhat:${DOCKER_TAG:-latest}
     build:
       context: ../..
       dockerfile: ./contracts/Dockerfile
