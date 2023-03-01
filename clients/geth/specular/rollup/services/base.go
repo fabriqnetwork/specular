@@ -77,9 +77,11 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
-		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionID)
+		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
+		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionCreatedEvent.AssertionID)
 	} else {
 		// If an assertion was validated, use it.
+		log.Info("Last validated assertion ID found", "assertionID", assertionID)
 		lastValidatedAssertion, err := b.L1Client.GetAssertion(assertionID)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
@@ -155,7 +157,7 @@ func (b *BaseService) SyncLoop(ctx context.Context, newBatchCh chan<- struct{}) 
 				log.Warn("Ignoring duplicate event", "l1Block", ev.Raw.BlockNumber)
 				continue
 			}
-			log.Info("Processing TxBatchAppended event", "l1Block", ev.Raw.BlockNumber)
+			log.Info("Processing `TxBatchAppended` event", "l1Block", ev.Raw.BlockNumber)
 			err := b.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
 				log.Crit("Failed to process event", "err", err)
@@ -204,7 +206,10 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	if err != nil {
 		return fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
 	}
-	b.commitBlocks(batch.SplitToBlocks())
+	log.Info("Decoded batch", "#txs", len(batch.Txs))
+	blocks := batch.SplitToBlocks()
+	log.Info("Batch split into blocks", "#blocks", len(blocks))
+	b.commitBlocks(blocks)
 	return nil
 }
 

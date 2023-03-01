@@ -121,6 +121,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 	if err != nil {
 		return nil, fmt.Errorf("[Sequencer: addTxsToBatchAndCommit] Failed to commit transactions, err: %w", err)
 	}
+	log.Info("Committed tx batch", "batch size", len(batchTxs), "block#", s.Eth.BlockChain().CurrentBlock().Number)
 	return batchTxs, nil
 }
 
@@ -185,6 +186,7 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 			batchTxs = nil
 		case ev := <-txsCh:
 			// Batch txs in case of txEvent
+			log.Info("[Sequencer: batchingLoop] Received txsCh event", "txs", len(ev.Txs))
 			txs := make(map[common.Address]types.Transactions)
 			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
 			for _, tx := range ev.Txs {
@@ -247,6 +249,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		if err != nil {
 			log.Error("[Sequencer: sequencingLoop] Can not create DA", "error", err)
 		}
+		log.Info("Created assertion", "assertion id", pendingAssertion.ID)
 	}
 
 	// Blocks from the batchingLoop that will be sent to the inbox in the next tick
@@ -272,6 +275,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 				log.Error("[Sequencer: sequencingLoop] Can not sequence batch", "error", err)
 				continue
 			}
+			log.Info("Sequenced batch", "batch size", len(batch.Txs))
 			// Update queued assertion to latest batch
 			queuedAssertion.VmHash = batch.LastBlockRoot()
 			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
@@ -287,6 +291,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			batchBlocks = append(batchBlocks, blocks...)
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
+			log.Info("Received `AssertionCreated` event.", "assertion id", ev.AssertionID)
 			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
 				if ev.VmHash == pendingAssertion.VmHash {
 					// If assertion is created by us, get ID and deadline
@@ -388,6 +393,7 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 					}
 				}
 			case ev := <-confirmedCh:
+				log.Info("Received `AssertionConfirmed` event ", "assertion id", ev.AssertionID)
 				// New confirmed assertion
 				if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
 					// Notify sequencing goroutine

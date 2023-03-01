@@ -322,7 +322,10 @@ func (c *EthBridgeClient) GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bi
 	if iter.Next() {
 		return iter.Event, nil
 	}
-	return nil, fmt.Errorf("No genesis `AssertionCreated` event found, err: %w", iter.Error())
+	if iter.Error() != nil {
+		return nil, fmt.Errorf("No genesis `AssertionCreated` event found, err: %w", iter.Error())
+	}
+	return nil, fmt.Errorf("No genesis `AssertionCreated` event found")
 }
 
 func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error {

@@ -3,7 +3,7 @@ package types
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,6 +32,12 @@ type SequenceContext struct {
 	NumTxs      uint64
 	BlockNumber uint64
 	Timestamp   uint64
+}
+
+type DecodeTxBatchError struct{ msg string }
+
+func (e *DecodeTxBatchError) Error() string {
+	return fmt.Sprintf("Failed to create TxBatch from decoded tx data - %s", e.msg)
 }
 
 func NewTxBatch(blocks []*types.Block, maxBatchSize uint64) *TxBatch {
@@ -123,42 +129,41 @@ func writePrimitive(w *bytes.Buffer, data interface{}) error {
 	return binary.Write(w, binary.BigEndian, data)
 }
 
-var TxBatchParseFailedError = errors.New("Failed to create TxBatch from decoded tx data")
-
 // TxBatchFromDecoded decodes the input of SequencerInbox#appendTxBatch call
 // It will only fill Contexts and Txs fields
 func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	if len(decoded) != 3 {
-		return nil, TxBatchParseFailedError
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
 	}
 	contexts := decoded[0].([]*big.Int)
 	txLengths := decoded[1].([]*big.Int)
 	txBatch := decoded[2].([]byte)
-	blockNum := len(txLengths)
-	if len(contexts) != 3*blockNum {
-		return nil, TxBatchParseFailedError
+	if len(contexts)%3 != 0 {
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
 	}
+
 	var txs []*types.Transaction
 	var ctxs []SequenceContext
-	var txLen uint64 = 0
-	for idx, l := range txLengths {
-		length := l.Uint64()
-		if uint64(len(txBatch)) < txLen+length {
-			return nil, TxBatchParseFailedError
-		}
+	var batchOffset uint64
+	var numTxs uint64
+	for i := 0; i < len(contexts); i += 3 {
 		ctx := SequenceContext{
-			NumTxs:      contexts[3*idx].Uint64(),
-			BlockNumber: contexts[3*idx+1].Uint64(),
-			Timestamp:   contexts[3*idx+2].Uint64(),
-		}
-		raw := txBatch[txLen : txLen+length]
-		var tx types.Transaction
-		err := rlp.DecodeBytes(raw, &tx)
-		if err != nil {
-			return nil, err
+			NumTxs:      contexts[i].Uint64(),
+			BlockNumber: contexts[i+1].Uint64(),
+			Timestamp:   contexts[i+2].Uint64(),
 		}
 		ctxs = append(ctxs, ctx)
-		txs = append(txs, &tx)
+		for j := uint64(0); j < ctx.NumTxs; j++ {
+			raw := txBatch[batchOffset : batchOffset+txLengths[numTxs].Uint64()]
+			var tx types.Transaction
+			err := rlp.DecodeBytes(raw, &tx)
+			if err != nil {
+				return nil, &DecodeTxBatchError{err.Error()}
+			}
+			txs = append(txs, &tx)
+			numTxs++
+			batchOffset += txLengths[numTxs-1].Uint64()
+		}
 	}
 	batch := &TxBatch{
 		Contexts: ctxs,
