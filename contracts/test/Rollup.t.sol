@@ -29,7 +29,6 @@ import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
 import {Rollup} from "../src/Rollup.sol";
-import {AssertionMap} from "../src/AssertionMap.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
 
@@ -40,14 +39,12 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     address internal sequencer;
     address internal alice;
     address internal bob;
+    address internal vault;
     address internal sequencerOwner;
     address internal sequencerAddress;
     address internal rollupOwner;
 
-    address owner = makeAddr("Owner");
     Verifier verifier = new Verifier();
-
-    IERC20 public stakeToken;
 
     function setUp() public virtual {
         utils = new Utils();
@@ -62,23 +59,16 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
         bob = users[2];
         vm.label(bob, "Bob");
 
+        vault = makeAddr("vault");
         sequencerOwner = makeAddr("sequencerOwner");
         sequencerAddress = makeAddr("sequencerAddress");
         rollupOwner = makeAddr("rollupOwner");
-
-        stakeToken = new MockToken (
-                            "Stake Token",
-                            "SPEC",
-                            1e40,
-                            address(owner)
-                        );
     }
 }
 
 contract RollupTest is RollupBaseSetup {
     Rollup public rollup;
     uint256 randomNonce;
-    AssertionMap rollupAssertion;
     SpecularProxy public specularProxy;
     SequencerInbox public seqIn;
     SequencerInbox public implementationSequencer;
@@ -106,20 +96,22 @@ contract RollupTest is RollupBaseSetup {
         assertEq(fetchedSequencerAddress, sequencerAddress);
     }
 
-    function test_initializeRollup_ownerAddressZero() external {
+    function test_initializeRollup_vaultAddressZero() external {
         // Preparing the initializing data for the (proxied)Rollup contract
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            address(0), // owner
+            address(0), // vault
             address(seqIn),
             address(verifier),
-            address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount
-            bytes32("")
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32(""),
+            0 // initialGasUsed
         );
 
         vm.startPrank(rollupOwner);
@@ -137,16 +129,18 @@ contract RollupTest is RollupBaseSetup {
     function test_initializeRollup_verifierAddressZero() external {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            owner, // owner
+            vault, // vault
             address(seqIn),
             address(0),
-            address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount
-            bytes32("")
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32(""),
+            0 // initialGasUsed
         );
 
         vm.startPrank(rollupOwner);
@@ -164,16 +158,18 @@ contract RollupTest is RollupBaseSetup {
     function test_initializeRollup_sequencerInboxAddressZero() external {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            owner, // owner
+            vault, // vault
             address(0),
             address(verifier),
-            address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount
-            bytes32("")
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32(""),
+            0 // initialGasUsed
         );
 
         vm.startPrank(rollupOwner);
@@ -191,16 +187,18 @@ contract RollupTest is RollupBaseSetup {
     function test_initializeRollup_cannotBeCalledTwice() external {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            owner, // owner
-            address(seqIn), // sequencerInbox
+            vault, // vault
+            address(seqIn),
             address(verifier),
-            address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount
-            bytes32("")
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32(""),
+            0 // initialGasUsed
         );
 
         vm.startPrank(rollupOwner);
@@ -216,38 +214,46 @@ contract RollupTest is RollupBaseSetup {
         vm.prank(alice); // Someone random, who is not the proxy owner.
 
         rollup.initialize(
-            owner, // owner
-            address(seqIn), // sequencerInbox
+            vault, // vault
+            address(seqIn),
             address(verifier),
-            address(stakeToken),
             0, //confirmationPeriod
             0, //challengPeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount
-            bytes32("")
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32(""),
+            0 // initialGasUsed
         );
     }
 
     function test_initializeRollup_valuesAfterInit(
+        address _vault,
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 maxGasPerAssertion,
-        uint256 baseStakeAmount
+        uint256 baseStakeAmount,
+        uint256 initialInboxSize,
+        uint256 initialL2GasUsed,
+        uint256 initialAssertionID
     ) external {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            owner, // owner
+            _vault,
             address(seqIn), // sequencerInbox
             address(verifier),
-            address(stakeToken),
             confirmationPeriod, //confirmationPeriod
-            challengePeriod, //challengPeriod
+            challengePeriod, //challengePeriod
             minimumAssertionPeriod, // minimumAssertionPeriod
             maxGasPerAssertion, // maxGasPerAssertion
             baseStakeAmount, //baseStakeAmount
-            bytes32("")
+            initialAssertionID,
+            initialInboxSize,
+            bytes32(""), //initialVMHash
+            initialL2GasUsed
         );
 
         vm.startPrank(rollupOwner);
@@ -268,10 +274,6 @@ contract RollupTest is RollupBaseSetup {
             // Check if the value of SequencerInbox was set correctly
             address rollupSeqIn = address(rollup.sequencerInbox());
             assertEq(rollupSeqIn, address(seqIn), "Rollup.initialize failed to update Sequencer Inbox correctly");
-
-            // Check if the value of the stakeToken was set correctly
-            address rollupToken = address(rollup.stakeToken());
-            assertEq(rollupToken, address(stakeToken), "Rollup.initialize failed to update StakeToken value correctly");
 
             // Check if the value of the verifier was set correctly
             address rollupVerifier = address(rollup.verifier());
@@ -310,15 +312,6 @@ contract RollupTest is RollupBaseSetup {
             baseStakeAmount,
             "Rollup.initialize failed to update confirmationPeriod value correctly"
         );
-
-        // Make sure an assertion was created
-        rollupAssertion = rollup.assertions();
-
-        uint256 rollupAssertionParentID = rollupAssertion.getParentID(0);
-        assertEq(rollupAssertionParentID, 0);
-
-        // AssertionMap was created by the correct rollup address
-        assertEq(rollupAssertion.rollupAddress(), address(rollup));
     }
 
     ////////////////
@@ -1323,24 +1316,33 @@ contract RollupTest is RollupBaseSetup {
     }
 
     function _initializeRollup(
+        address _vault,
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 maxGasPerAssertion,
-        uint256 baseStakeAmount
+        uint256 baseStakeAmount,
+        uint256 initialInboxSize,
+        uint256 initialL2GasUsed,
+        uint256 initialAssertionID
     ) internal {
+        if(_vault == address(0)) {
+            _vault = address(uint160(32456));
+        }
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            owner, // owner
+            _vault,
             address(seqIn), // sequencerInbox
             address(verifier),
-            address(stakeToken),
             confirmationPeriod, //confirmationPeriod
             challengePeriod, //challengePeriod
             minimumAssertionPeriod, // minimumAssertionPeriod
             maxGasPerAssertion, // maxGasPerAssertion
             baseStakeAmount, //baseStakeAmount
-            bytes32("")
+            initialAssertionID,
+            initialInboxSize,
+            bytes32(""), //initialVMHash
+            initialL2GasUsed
         );
 
         // Deploying the rollup contract as the rollup owner/deployer
