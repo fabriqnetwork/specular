@@ -4,12 +4,12 @@
 
 ### Create the project folder and add keys
 
-*Note: `<specular>` refers to the path of the Specular monorepo.*
+_Note: `<specular>` refers to the path of the Specular monorepo._
 
 ```bash
 mkdir <project> && cd <project>
 mkdir specular-datadir && cd specular-datadir
-cp <specular>/clients/geth/specular/data/sequencer.prv ./key.prv # Change this key according to the configuration
+cp <specular>/clients/geth/specular/data/keys/sequencer.prv ./key.prv # Change this key according to the configuration
 cp <specular>/clients/geth/specular/data/password.txt .
 ```
 
@@ -17,7 +17,7 @@ cp <specular>/clients/geth/specular/data/password.txt .
 
 ```bash
 cd <specular>/contracts
-npx ts-node scripts/generate-genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out <project>/specular-datadir/genesis.json
+npx ts-node scripts/create_genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out <project>/specular-datadir/genesis.json
 ```
 
 ## Run sequencer
@@ -27,7 +27,9 @@ cd <project>
 docker compose -f <specular>/docker/docker-compose-sequencer.yml -p sequencer up -d
 ```
 
-Sequencer will listen HTTP on port `4011` and WS on port `4012`.
+Sequencer will listen HTTP on port `4011` and WS on port `4012`. Note: if the sequencer container does not show up under `docker ps` then run `docker logs sequencer` to debug.
+
+Remember to delete `geth` folder under `specular-datadir` on every restart.
 
 ## Run sequencer with block explorer
 
