@@ -20,7 +20,7 @@ jobs:
       - name: Run forge install
         run: forge install
 
-      # - name: Run tests
-      #   env:
-      #     RPC_URL: ${{ secrets.RPC_URL }}
-      #   run: forge test -vvv
+      - name: Run tests
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+        run: forge test -vvv
