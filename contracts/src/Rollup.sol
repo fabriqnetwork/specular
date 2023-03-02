@@ -202,7 +202,6 @@ contract Rollup is RollupBase {
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
         deleteStaker(stakerAddress);
 
-        //slither-disable-next-line arbitrary-send-eth
         (bool success,) = stakerAddress.call{value: stakerAmountStaked}("");
         if (!success) revert TransferFailed();
     }
