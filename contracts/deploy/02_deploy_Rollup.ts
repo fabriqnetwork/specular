@@ -6,8 +6,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
   const { save } = deployments;
   const { sequencer, deployer } = await getNamedAccounts();
-  const deployerSigner = await ethers.getSigner(deployer);
-  const { provider } = network;
 
   const sequencerInboxProxyAddress = (await deployments.get("SequencerInbox"))
     .address;

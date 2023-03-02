@@ -1,7 +1,7 @@
 import "dotenv/config";
 import "@nomiclabs/hardhat-ethers";
 import { ethers } from "ethers";
-import { HardhatUserConfig } from "hardhat/types";
+import { HardhatUserConfig, HttpNetworkUserConfig } from "hardhat/types";
 import "@nomiclabs/hardhat-etherscan";
 import "@nomiclabs/hardhat-waffle";
 import "hardhat-abi-exporter";
@@ -23,7 +23,7 @@ const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
 const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS ?? wallet.address;
 
 function createConfig(network: string) {
-  const config = {
+  const config: HttpNetworkUserConfig = {
     url: getNetworkURL(network),
     accounts: getNetworkAccounts(network),
     saveDeployments: true,
@@ -49,9 +49,7 @@ function getNetworkAccounts(network: string) {
     network === "chiado" ||
     network === "specularDev"
   ) {
-    return SEQUENCER_PRIVATE_KEY
-      ? [`0x${SEQUENCER_PRIVATE_KEY}`, `0x${DEPLOYER_PRIVATE_KEY}`]
-      : { mnemonic };
+    return DEPLOYER_PRIVATE_KEY ? [`0x${DEPLOYER_PRIVATE_KEY}`] : { mnemonic };
   } else {
     return { mnemonic };
   }
@@ -73,6 +71,7 @@ function getNetworkURL(network: string) {
   } else if (network === "specularDev") {
     return "https://devnet.specular.network";
   }
+  return "http://localhost:8545";
 }
 
 const config: HardhatUserConfig = {

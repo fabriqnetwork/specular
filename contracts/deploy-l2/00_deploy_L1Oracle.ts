@@ -5,12 +5,13 @@ import { Manifest } from "@openzeppelin/upgrades-core";
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
   const { save } = deployments;
-  const { deployer } = await getNamedAccounts();
+  const { deployer, sequencer } = await getNamedAccounts();
+  console.log(sequencer);
   const deployerSigner = await ethers.getSigner(deployer);
   const { provider } = network;
 
   const L1Oracle = await ethers.getContractFactory("L1Oracle", deployer);
-  const l1Oracle = await upgrades.deployProxy(L1Oracle, [], {
+  const l1Oracle = await upgrades.deployProxy(L1Oracle, [sequencer], {
     initializer: "initialize",
     timeout: 0,
     kind: "uups",

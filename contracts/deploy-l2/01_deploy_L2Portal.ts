@@ -3,18 +3,10 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { Manifest } from "@openzeppelin/upgrades-core";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const {
-    deployments,
-    getNamedAccounts,
-    ethers,
-    upgrades,
-    network,
-    companionNetworks,
-  } = hre;
+  const { deployments, getNamedAccounts, ethers, upgrades, companionNetworks } =
+    hre;
   const { save } = deployments;
   const { deployer } = await getNamedAccounts();
-  const deployerSigner = await ethers.getSigner(deployer);
-  const { provider } = network;
 
   const l1OracleProxyAddress = (await deployments.get("L1Oracle")).address;
   const l1PortalProxyAddress = (

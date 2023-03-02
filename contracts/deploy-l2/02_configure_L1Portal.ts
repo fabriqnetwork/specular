@@ -8,7 +8,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     hre;
   const { deployer } = await getNamedAccounts();
   const provider = new Web3Provider(
-    companionNetworks.l1.provider as ExternalProvider
+    companionNetworks.l1.provider as unknown as ExternalProvider
   );
   const deployerSigner = await provider.getSigner(deployer);
 
