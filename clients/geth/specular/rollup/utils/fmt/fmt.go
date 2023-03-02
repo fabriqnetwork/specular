@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"runtime"
 
-	"github.com/go-errors/errors"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/errors"
 )
 
 type Error struct {

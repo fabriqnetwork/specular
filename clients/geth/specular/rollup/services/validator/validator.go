@@ -39,7 +39,7 @@ type Validator struct {
 func New(eth services.Backend, proofBackend proof.Backend, cfg *services.Config, auth *bind.TransactOpts) (*Validator, error) {
 	base, err := services.NewBaseService(eth, proofBackend, cfg, auth)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("NewBaseService Failed to Start",err)
 	}
 	v := &Validator{
 		BaseService:          base,
@@ -142,7 +142,7 @@ func (v *Validator) validationLoop(genesisRoot common.Hash) {
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
-				return err
+				return fmt.Errorf("tryValidateAssertion Failed",err)
 			}
 		}
 		// Validation success, clean up
