@@ -20,3 +20,29 @@ jobs:
 
       - name: Install
         run: cd ./clients/geth/specular && make
+  
+  test:
+    needs: build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: contracts
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Run forge install
+        run: forge install
+
+      - name: Install yarn dependencies
+        run: yarn install
+        
+      - name: Run tests
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+        run: forge test -vvv
