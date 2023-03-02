@@ -40,7 +40,6 @@ contract RLPEncodedTransactionsUtil is Test {
 
     function _helper_sequencerInbox_appendTx(uint256 numTxns)
         internal
-        noGasMetering
         returns (bytes memory, uint256[] memory)
     {
         uint256[] memory transactionLengths = new uint256[](numTxns);
