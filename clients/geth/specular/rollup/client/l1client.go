@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
-	"time"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum"
@@ -79,10 +78,11 @@ type L1BridgeClient interface {
 }
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
-// TODO: acquire lock in all methods to support concurrent access
+// TODO: clean up retries
 type EthBridgeClient struct {
 	client       *ethclient.Client
 	transactOpts *bind.TransactOpts
+	retryOpts    []retry.Option
 	// Lock, conservatively on all functions.
 	mu sync.Mutex
 	// ISequencerInbox.sol
@@ -103,8 +103,9 @@ func NewEthBridgeClient(
 	sequencerInboxAddress common.Address,
 	rollupAddress common.Address,
 	auth *bind.TransactOpts,
+	retryOpts []retry.Option,
 ) (*EthBridgeClient, error) {
-	client, err := dialWithRetry(ctx, l1Endpoint, 3)
+	client, err := dialWithRetry(ctx, l1Endpoint, retryOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +181,13 @@ func (c *EthBridgeClient) Close() {
 func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.inbox.AppendTxBatch(contexts, txLengths, txBatch)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.inbox.AppendTxBatch(contexts, txLengths, txBatch)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) WatchTxBatchAppended(
@@ -229,7 +236,13 @@ func (c *EthBridgeClient) Stake(amount *big.Int) error {
 func (c *EthBridgeClient) AdvanceStake(assertionID *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.AdvanceStake(assertionID)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.rollup.AdvanceStake(assertionID)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) CreateAssertion(
@@ -241,25 +254,49 @@ func (c *EthBridgeClient) CreateAssertion(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.CreateAssertion(vmHash, inboxSize, cumulativeGasUsed, prevVMHash, prevL2GasUsed)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.rollup.CreateAssertion(vmHash, inboxSize, cumulativeGasUsed, prevVMHash, prevL2GasUsed)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.ChallengeAssertion(players, assertionIDs)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.rollup.ChallengeAssertion(players, assertionIDs)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) ConfirmFirstUnresolvedAssertion() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.ConfirmFirstUnresolvedAssertion()
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.rollup.ConfirmFirstUnresolvedAssertion()
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 // Returns the last assertion ID that was validated *by us*.
@@ -387,7 +424,13 @@ func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challenge
 func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.InitializeChallengeLength(numSteps)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.challenge.InitializeChallengeLength(numSteps)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) CurrentChallengeResponder() (common.Address, error) {
@@ -417,13 +460,19 @@ func (c *EthBridgeClient) BisectExecution(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.BisectExecution(
-		bisection,
-		challengedSegmentIndex,
-		prevBisection,
-		prevChallengedSegmentStart,
-		prevChallengedSegmentLength,
-	)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.challenge.BisectExecution(
+			bisection,
+			challengedSegmentIndex,
+			prevBisection,
+			prevChallengedSegmentStart,
+			prevChallengedSegmentLength,
+		)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) VerifyOneStepProof(
@@ -435,13 +484,19 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.VerifyOneStepProof(
-		proof,
-		challengedStepIndex,
-		prevBisection,
-		prevChallengedSegmentStart,
-		prevChallengedSegmentLength,
-	)
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = c.challenge.VerifyOneStepProof(
+			proof,
+			challengedStepIndex,
+			prevBisection,
+			prevChallengedSegmentStart,
+			prevChallengedSegmentLength,
+		)
+		return err
+	}, c.retryOpts...)
+	return result, err
 }
 
 func (c *EthBridgeClient) WatchBisected(
@@ -468,24 +523,15 @@ func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]i
 	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
 }
 
-func dialWithRetry(ctx context.Context, endpoint string, numAttempts uint) (*ethclient.Client, error) {
-	var l1 *ethclient.Client
+func dialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*ethclient.Client, error) {
+	var client *ethclient.Client
 	var err error
-	retryOpts := []retry.Option{
-		retry.Context(ctx),
-		retry.Attempts(numAttempts),
-		retry.Delay(5 * time.Second),
-		retry.LastErrorOnly(true),
-		retry.OnRetry(func(n uint, err error) {
-			log.Error("Failed to connect to L1", "endpoint", endpoint, "attempt", n, "err", err)
-		}),
-	}
 	err = retry.Do(func() error {
-		l1, err = ethclient.DialContext(ctx, endpoint)
+		client, err = ethclient.DialContext(ctx, endpoint)
 		return err
 	}, retryOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("failed toconnect to L1: %w", err)
+		return nil, fmt.Errorf("failed to connect to L1: %w", err)
 	}
-	return l1, nil
+	return client, nil
 }

@@ -5,7 +5,9 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -42,7 +44,30 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 
 	// Register services
 	ctx := context.Background()
-	l1Client, err := client.NewEthBridgeClient(ctx, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, auth)
+	retryOpts := []retry.Option{
+		retry.Context(ctx),
+		retry.Attempts(3),
+		retry.Delay(5 * time.Second),
+		retry.LastErrorOnly(true),
+		retry.RetryIf(func(err error) bool {
+			// limit retry to connection error, nonce error
+			// if err == ? {
+			// 	return false
+			return true
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			log.Error("Failed attempt", "attempt", n, "err", err)
+		}),
+	}
+	l1Client, err := client.NewEthBridgeClient(
+		ctx,
+		cfg.L1Endpoint,
+		cfg.L1RollupGenesisBlock,
+		cfg.SequencerInboxAddr,
+		cfg.RollupAddr,
+		auth,
+		retryOpts,
+	)
 	var service node.Lifecycle
 	switch cfg.Node {
 	case services.NODE_SEQUENCER:
