@@ -881,15 +881,18 @@ contract RollupTest is RollupBaseSetup {
         external
     {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
-        confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         address _vault = makeAddr("vault");
-        
+        confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, 1 days, 500, 1 ether,
-            initialAssertionID,
-            initialInboxSize,
-            initialL2GasUsed
+            confirmationPeriod, 
+            challengePeriod, 
+            1 days, 
+            500, 
+            1 ether,
+            0,
+            5,
+            0
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -915,6 +918,7 @@ contract RollupTest is RollupBaseSetup {
         // stakers mapping gets updated
         (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
+        assertEq(stakerAssertionID, 0);
 
         // Checking previous Sequencer Inbox Size
         uint256 seqInboxSize = seqIn.getInboxSize();
@@ -923,7 +927,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 5;
+        uint256 mockInboxSize = 6;
         uint256 mockL2GasUsed = 342;
         bytes32 mockPrevVMHash = bytes32("");
         uint256 mockPrevL2GasUsed = 0;
