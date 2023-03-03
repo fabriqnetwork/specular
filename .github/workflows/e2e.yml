@@ -1,0 +1,38 @@
+name: e2e
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:dind
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Start up containers
+        run: |
+          docker-compose -f docker-compose-integration-test.yml up -d --build
+
+      - name: Wait for containers
+        run: |
+          while ! docker-compose -f docker-compose-integration-test.yml ps -q | xargs docker inspect -f '{{ .State.Health.Status }}' | grep -q healthy; do
+              sleep 1
+          done
+
+      - name: Install node and run e2e test
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18.x"
+        run: |
+          cd contracts/scripts
+          npm install
+          node testing.ts
+
+      - name: Stop and remove containers
+        run: |
+          docker-compose -f docker-compose-integration-test.yml down
