@@ -14,6 +14,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Create proj folder and add keys and genesis.json
+        run: |
+          mkdir project && cd project
+          mkdir specular-datadir && cd specular-datadir
+          cp ../../specular/clients/geth/specular/data/keys/sequencer.prv ./key.prv
+          cp ../../specular/clients/geth/specular/data/password.txt .
+          cp ../../specular/clients/geth/specular/data/keys/base_genesis.json ./genesis.json
+
       - name: Start up containers
         run: |
           docker-compose -f docker/docker-compose-integration-test.yml up -d --build
