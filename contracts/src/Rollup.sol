@@ -227,8 +227,6 @@ contract Rollup is RollupBase {
         if (!success) revert TransferFailed();
     }
 
-    event Debugger(uint256 value, string name);
-
     /// @inheritdoc IRollup
     function createAssertion(
         bytes32 vmHash,
@@ -242,7 +240,6 @@ contract Rollup is RollupBase {
         RollupLib.ExecutionState memory endState = RollupLib.ExecutionState(l2GasUsed, vmHash);
 
         uint256 parentID = stakers[msg.sender].assertionID;
-        emit Debugger(parentID, "Parent ID");
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
         if (block.number - parent.proposalTime < minimumAssertionPeriod) {
@@ -261,8 +258,6 @@ contract Rollup is RollupBase {
         }
         // Require that the assertion at least includes one transaction
         if (inboxSize <= parent.inboxSize) {
-            emit Debugger(inboxSize, "Inbox Size");
-            emit Debugger(parent.inboxSize, "Parent Inbox Size");
             revert EmptyAssertion();
         }
         // Require that the assertion doesn't read past the end of the current inbox.
@@ -447,7 +442,7 @@ contract Rollup is RollupBase {
         zombies.push(Zombie(loser, assertionID));
     }
 
-    function isStaked(address addr) public view returns (bool) {
+    function isStaked(address addr) private view returns (bool) {
         return stakers[addr].isStaked;
     }
 
@@ -477,7 +472,6 @@ contract Rollup is RollupBase {
         AssertionState storage parentAssertionState = assertionState[parentID];
         // Child assertions must have same inbox size
         uint256 parentChildInboxSize = parentAssertion.childInboxSize;
-        emit Debugger(parentChildInboxSize, "parentChildInboxSize");
         if (parentChildInboxSize == 0) {
             parentAssertion.childInboxSize = inboxSize;
         } else if (inboxSize != parentChildInboxSize) {
@@ -485,7 +479,6 @@ contract Rollup is RollupBase {
         } else if (parentAssertionState.childStateHashes[stateHash]) {
             revert DuplicateAssertion();
         }
-        emit Debugger(parentChildInboxSize, "parentChildInboxSize-2");
         parentAssertionState.childStateHashes[stateHash] = true;
         assertions[assertionID] = Assertion(
             stateHash,

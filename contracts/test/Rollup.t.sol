@@ -668,8 +668,7 @@ contract RollupTest is RollupBaseSetup {
 
     function test_unstake_fromUnconfirmedAssertionID(
         uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 initialAssertionID
+        uint256 challengePeriod
     ) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         address _vault = makeAddr("vault");
@@ -681,75 +680,76 @@ contract RollupTest is RollupBaseSetup {
             1 days, 
             500, 
             1 ether,
-            initialAssertionID,
-            10,
+            0,
+            5,
             0
         );
-        
-        // // Alice has not staked yet and therefore, this function should return `false`
-        // (bool isAliceStaked,,,) = rollup.stakers(alice);
-        // assertTrue(!isAliceStaked);
 
-        // uint256 minimumAmount = rollup.baseStakeAmount();
-        // uint256 aliceBalance = alice.balance;
+        // Alice has not staked yet and therefore, this function should return `false`
+        (bool isAliceStaked,,uint256 assertionID1,) = rollup.stakers(alice);
+        assertEq(assertionID1, 0);
+        assertTrue(!isAliceStaked);
 
-        // // Let's stake something on behalf of Alice
-        // uint256 aliceAmountToStake = minimumAmount * 10;
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
 
-        // vm.prank(alice);
-        // require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+        // Let's stake something on behalf of Alice
+        uint256 aliceAmountToStake = minimumAmount * 10;
 
-        // // Calling the staking function as Alice
-        // //slither-disable-next-line arbitrary-send-eth
-        // rollup.stake{value: aliceAmountToStake}();
+        vm.prank(alice);
+        require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
-        // // Now Alice should be staked
-        // uint256 stakerAssertionID;
+        // Calling the staking function as Alice
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceAmountToStake}();
 
-        // // stakers mapping gets updated
-        // (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
-        // assertTrue(isAliceStaked);
+        // Now Alice should be staked
 
-        // // Checking previous Sequencer Inbox Size
-        // uint256 seqInboxSizeInitial = seqIn.getInboxSize();
-        // emit log_named_uint("Sequencer Inbox Size", seqInboxSizeInitial);
+        // stakers mapping gets updated
+        (bool isAliceStaked2, ,uint256 assertionID2, ) = rollup.stakers(alice);
+        emit log_named_uint("assertion id 2", assertionID2);
+        assertEq(assertionID2, 0);
+        assertTrue(isAliceStaked2);
 
-        // _increaseSequencerInboxSize();
+        // Checking previous Sequencer Inbox Size
+        uint256 seqInboxSizeInitial = seqIn.getInboxSize();
+        emit log_named_uint("Sequencer Inbox Size", seqInboxSizeInitial);
 
-        // uint256 seqInboxSizeFinal = seqIn.getInboxSize();
-        // emit log_named_uint("Sequencer Inbox Size", seqInboxSizeFinal);
+        _increaseSequencerInboxSize();
 
-        // assertGt(seqInboxSizeFinal, seqInboxSizeInitial);
+        uint256 seqInboxSizeFinal = seqIn.getInboxSize();
+        emit log_named_uint("Sequencer Inbox Size", seqInboxSizeFinal);
 
-        // bytes32 mockVmHash = bytes32("");
-        // uint256 mockInboxSize = 3;
-        // uint256 mockL2GasUsed = 342;
-        // bytes32 mockPrevVMHash = bytes32("");
-        // uint256 mockPrevL2GasUsed = 0;
+        assertGt(seqInboxSizeFinal, seqInboxSizeInitial);
 
-        // // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
-        // vm.warp(block.timestamp + 50 days);
-        // vm.roll(block.number + (50 * 86400) / 20);
+        bytes32 mockVmHash = bytes32("");
+        uint256 mockInboxSize = 6;
+        uint256 mockL2GasUsed = 342;
+        bytes32 mockPrevVMHash = bytes32("");
+        uint256 mockPrevL2GasUsed = 0;
 
-        // assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
-        // (,, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
+        // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
+        vm.warp(block.timestamp + 50 days);
+        vm.roll(block.number + (50 * 86400) / 20);
 
-        // assertEq(assertionIDInitial, 0);
+        // assertEq(rollup.lastCreatedAssertionID(), 2, "The lastCreatedAssertionID should be 1 (genesis)");
+        (,, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
+        assertEq(assertionIDInitial, 0, "Alice has not yet created an assertionID, so it should be the same as genesis(0)");
 
-        // vm.prank(alice);
-        // rollup.createAssertion(mockVmHash, mockInboxSize, mockL2GasUsed, mockPrevVMHash, mockPrevL2GasUsed);
+        vm.prank(alice);
+        rollup.createAssertion(mockVmHash, mockInboxSize, mockL2GasUsed, mockPrevVMHash, mockPrevL2GasUsed);
 
-        assertTrue(false);
+        // The assertionID of alice should change after she called `createAssertion`
+        (, uint256 stakedAmount, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
 
-        // // The assertionID of alice should change after she called `createAssertion`
-        // (, uint256 stakedAmount, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
+        assertEq(assertionIDFinal, 1); // Alice is now staked on assertionID = 1 instead of assertionID = 0.
 
-        // assertEq(assertionIDFinal, 1); // Alice is now staked on assertionID = 1 instead of assertionID = 0.
+        assertGt(assertionIDFinal, assertionIDInitial, "AssertionID should increase");
 
-        // // Alice tries to unstake
-        // vm.expectRevert(IRollup.StakedOnUnconfirmedAssertion.selector);
-        // vm.prank(alice);
-        // rollup.unstake(stakedAmount);
+        // Alice tries to unstake
+        vm.prank(alice);
+        vm.expectRevert(IRollup.StakedOnUnconfirmedAssertion.selector);
+        rollup.unstake(stakedAmount);
     }
 
     //////////////////////
