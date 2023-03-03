@@ -70,7 +70,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
-			return fmt.Errorf("[Validator: tryValidateAssertion] UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
+			return fmt.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
 		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(block.GasUsed()))
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
@@ -95,10 +95,10 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// if assertion.ID
 	_, err := v.L1Client.AdvanceStake(assertion.ID)
 	if errors.Is(err, core.ErrInsufficientFunds) {
-		return fmt.Errorf("[Validator: tryValidateAssertion] Insufficient Funds to send Tx, err: %w", err)
+		return fmt.Errorf("Insufficient Funds to send Tx, err: %w", err)
 	}
 	if err != nil {
-		return fmt.Errorf("[Validator: tryValidateAssertion] UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
+		return fmt.Errorf("UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
 	}
 	return nil
 }
@@ -116,7 +116,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 	assertionEventCh := make(chan *bindings.IRollupAssertionCreated, 4096)
 	assertionEventSub, err := v.L1Client.WatchAssertionCreated(&bind.WatchOpts{Context: ctx}, assertionEventCh)
 	if err != nil {
-		log.Crit("[Validator: validationLoop] Failed to watch rollup event", "err", err)
+		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer assertionEventSub.Unsubscribe()
 
@@ -137,7 +137,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				return nil
 			case errors.Is(err, errAssertionOverflowedLocalInbox):
 				// Assertion overflowed local inbox, wait for next batch event
-				log.Warn("[Validator: validationLoop] Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
+				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
 				return err
@@ -169,7 +169,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 					err := validateCurrentAssertion()
 					if err != nil {
 						// TODO: error handling instead of panic
-						log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
+						log.Crit("UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 					}
 				}
 			case ev := <-assertionEventCh:
@@ -192,14 +192,14 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				}
 				if currentAssertion != nil {
 					// TODO: handle concurrent assertions
-					log.Crit("[Validator: validationLoop] UNHANDLED: concurrent assertion")
+					log.Crit("UNHANDLED: concurrent assertion")
 					continue
 				}
 				currentAssertion = assertion
 				err = validateCurrentAssertion()
 				if err != nil {
 					// TODO: error handling instead of panic
-					log.Crit("[Validator: validationLoop] UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
+					log.Crit("UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
 				}
 			case <-ctx.Done():
 				return
@@ -215,14 +215,14 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
 	createdSub, err := v.L1Client.WatchAssertionCreated(&bind.WatchOpts{Context: ctx}, createdCh)
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
+		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer createdSub.Unsubscribe()
 
 	challengedCh := make(chan *bindings.IRollupAssertionChallenged, 4096)
 	challengedSub, err := v.L1Client.WatchAssertionChallenged(&bind.WatchOpts{Context: ctx}, challengedCh)
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to watch rollup event", "err", err)
+		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer challengedSub.Unsubscribe()
 
@@ -230,7 +230,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 	headCh := make(chan *types.Header, 4096)
 	headSub, err := v.L1Client.SubscribeNewHead(ctx, headCh)
 	if err != nil {
-		log.Crit("[Validator: challengeLoop] Failed to watch l1 chain head", "err", err)
+		log.Crit("Failed to watch l1 chain head", "err", err)
 	}
 	defer headSub.Unsubscribe()
 
@@ -255,7 +255,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				responder, err := v.L1Client.CurrentChallengeResponder()
 				if err != nil {
 					// TODO: error handling
-					log.Error("[Validator: challengeLoop] Can not get current responder", "error", err)
+					log.Error("Can not get current responder", "error", err)
 					continue
 				}
 				// If it's our turn
@@ -263,17 +263,17 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 					err := services.RespondBisection(ctx, v.ProofBackend, v.L1Client, ev, states, chalCtx.opponentAssertion.VmHash, false)
 					if err != nil {
 						// TODO: error handling
-						log.Error("[Validator: challengeLoop] Can not respond to bisection", "error", err)
+						log.Error("Can not respond to bisection", "error", err)
 						continue
 					}
 				} else {
 					opponentTimeLeft, err := v.L1Client.CurrentChallengeResponderTimeLeft()
 					if err != nil {
 						// TODO: error handling
-						log.Error("[Validator: challengeLoop] Can not get current responder left time", "error", err)
+						log.Error("Can not get current responder left time", "error", err)
 						continue
 					}
-					log.Info("[Validator: challengeLoop] Opponent time left", "time", opponentTimeLeft)
+					log.Info("Opponent time left", "time", opponentTimeLeft)
 					opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
 				}
 			case header := <-headCh:
@@ -284,7 +284,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				if header.Number.Uint64() > opponentTimeoutBlock {
 					_, err := v.L1Client.TimeoutChallenge()
 					if err != nil {
-						log.Error("[Validator: challengeLoop] Can not timeout opponent", "error", err)
+						log.Error("Can not timeout opponent", "error", err)
 						continue
 						// TODO: wait some time before retry
 						// TODO: fix race condition
@@ -292,7 +292,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				}
 			case ev := <-challengeCompletedCh:
 				// TODO: handle if we are not winner --> state corrupted
-				log.Info("[Validator: challengeLoop] Challenge completed", "winner", ev.Winner)
+				log.Info("Challenge completed", "winner", ev.Winner)
 				bisectedSub.Unsubscribe()
 				challengeCompletedSub.Unsubscribe()
 				states = []*proof.ExecutionState{}
@@ -314,10 +314,10 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 					chalCtx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if errors.Is(err, core.ErrInsufficientFunds) {
-					log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+					log.Crit("Insufficient Funds to send Tx", "error", err)
 				}
 				if err != nil {
-					log.Crit("[Validator: challengeLoop] UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
+					log.Crit("UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
 				}
 			case ev := <-createdCh:
 				if common.Address(ev.AsserterAddr) == v.Config.Coinbase {
@@ -333,10 +333,10 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 							},
 						)
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Crit("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
+							log.Crit("Insufficient Funds to send Tx", "error", err)
 						}
 						if err != nil {
-							log.Crit("[Validator: challengeLoop] UNHANDLED: Can't start challenge, validator state corrupted", "err", err)
+							log.Crit("UNHANDLED: Can't start challenge, validator state corrupted", "err", err)
 						}
 					}
 				}
@@ -344,22 +344,22 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				if chalCtx == nil {
 					continue
 				}
-				log.Info("[Validator: challengeLoop] validator saw challenge", "assertion id", ev.AssertionID, "expected id", chalCtx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
+				log.Info("validator saw challenge", "assertion id", ev.AssertionID, "expected id", chalCtx.opponentAssertion.ID, "block", ev.Raw.BlockNumber)
 				if ev.AssertionID.Cmp(chalCtx.opponentAssertion.ID) == 0 {
 					// start := ev.Raw.BlockNumber - 2
 					err := v.L1Client.InitNewChallengeSession(context.Background(), ev.ChallengeAddr)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
+						log.Crit("Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
 					}
 					bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
 					bisectedSub, err = v.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to watch challenge event", "err", err)
+						log.Crit("Failed to watch challenge event", "err", err)
 					}
 					challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
 					challengeCompletedSub, err = v.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to watch challenge event", "err", err)
+						log.Crit("Failed to watch challenge event", "err", err)
 					}
 					states, err = proof.GenerateStates(
 						v.ProofBackend,
@@ -370,7 +370,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 						nil,
 					)
 					if err != nil {
-						log.Crit("[Validator: challengeLoop] Failed to generate states", "err", err)
+						log.Crit("Failed to generate states", "err", err)
 					}
 					inChallenge = true
 				}
