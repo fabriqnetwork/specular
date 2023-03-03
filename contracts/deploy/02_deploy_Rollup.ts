@@ -6,6 +6,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
   const { save } = deployments;
   const { sequencer, deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const sequencerInboxProxyAddress = (await deployments.get("SequencerInbox"))
     .address;
@@ -24,7 +25,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     "0x20a3a2c9bb2f8d4409598cd92a94b4aa567bb2f906e9bcfa104f6c4cee9eb4a4", // bytes32 _initialVMhash
   ];
 
-  const Rollup = await ethers.getContractFactory("Rollup", deployer);
+  const Rollup = await ethers.getContractFactory("Rollup", deployerSigner);
   const rollup = await upgrades.deployProxy(Rollup, rollupArgs, {
     initializer: "initialize",
     timeout: 0,

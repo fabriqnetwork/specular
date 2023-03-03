@@ -26,7 +26,10 @@ import {
 
 import { TypedListener } from "../../contracts/typechain-types/common";
 import { TxBatchAppendedEvent } from "../../contracts/typechain-types/src/ISequencerInbox";
-import { AssertionConfirmedEvent } from "../../contracts/typechain-types/src/IRollup";
+import {
+  AssertionConfirmedEvent,
+  AssertionCreatedEvent,
+} from "../../contracts/typechain-types/src/IRollup";
 
 export type CrossDomainMessage = {
   nonce: BigNumber;
@@ -128,13 +131,17 @@ export class CrossDomainMessager {
   async finalizeWithdrawal(
     withdrawalTx: CrossDomainMessage,
     assertionID: BigNumberish,
-    encodedBlockHeader: string,
+    l2GasUsed: BigNumberish,
+    vmHash: string,
+    // encodedBlockHeader: string,
     withdrawalProof: MessageProof
   ) {
     const tx = await this.l1Portal.finalizeWithdrawalTransaction(
       withdrawalTx,
       assertionID,
-      encodedBlockHeader,
+      l2GasUsed,
+      vmHash,
+      // encodedBlockHeader,
       withdrawalProof.accountProof,
       withdrawalProof.storageProof
     );
@@ -143,6 +150,10 @@ export class CrossDomainMessager {
 
   onInboxTxBatchAppend(callback: TypedListener<TxBatchAppendedEvent>) {
     this.inbox.on(this.inbox.filters.TxBatchAppended(), callback);
+  }
+
+  onAssertionCreated(callback: TypedListener<AssertionCreatedEvent>) {
+    this.rollup.on(this.rollup.filters.AssertionCreated(), callback);
   }
 
   onAssertionConfirmed(callback: TypedListener<AssertionConfirmedEvent>) {

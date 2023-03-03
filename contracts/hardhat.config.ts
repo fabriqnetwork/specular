@@ -98,12 +98,14 @@ const config: HardhatUserConfig = {
       default: SEQUENCER_ADDRESS,
       hardhat: 0,
       localhost: 0,
+      specularLocalDev: 0,
     },
     validator: 1,
     deployer: {
       default: DEPLOYER_ADDRESS,
       hardhat: 2,
       localhost: 2,
+      specularLocalDev: 2,
     },
   },
   networks: {

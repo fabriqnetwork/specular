@@ -101,6 +101,15 @@ export class RelayerService {
     this.state.updateL2BlockNumberMapping(l2BlockNumber, inboxSize);
   }
 
+  async assertionCreatedCallback(
+    assertionID: BigNumber,
+    asserterAddr: string,
+    vmHash: string,
+    l2GasUsed: BigNumber
+  ) {
+    this.state.updateCreatedAssertion(assertionID, l2GasUsed, vmHash);
+  }
+
   async assertionConfirmedCallback(assertionID: BigNumber) {
     const assertion = await this.messager.getAssertion(assertionID);
     this.state.updateConfirmedInboxSize(assertionID, assertion.inboxSize);
@@ -199,7 +208,7 @@ export class RelayerService {
     ]);
     return {
       accountProof: rawProof.accountProof,
-      storageProof: rawProof.storageProof.proof,
+      storageProof: rawProof.storageProof[0].proof,
     };
   }
 
@@ -265,9 +274,9 @@ export class RelayerService {
       }
 
       const withdrawal = this.state.getNextWithdrawal()!;
-      const header = await this.getL2EncodedBlockHeader(
-        this.state.lastConfirmedL2BlockNumber
-      );
+      // const header = await this.getL2EncodedBlockHeader(
+      //   this.state.lastConfirmedL2BlockNumber
+      // );
       const proof = await this.generateWithdrawalProof(
         this.state.lastConfirmedL2BlockNumber,
         withdrawal.withdrawalHash
@@ -276,12 +285,14 @@ export class RelayerService {
         await this.messager.finalizeWithdrawal(
           withdrawal.withdrawalTx,
           this.state.lastConfirmedAssertionID,
-          header,
+          this.state.lastConfirmedL2GasUsed,
+          this.state.lastConfirmedVMHash,
+          // header,
           proof
         );
       } catch (err) {
         console.error(err);
-        this.state.readdWithdrawal(withdrawal);
+        // this.state.readdWithdrawal(withdrawal);
       }
     }
   }
@@ -291,6 +302,7 @@ export class RelayerService {
     this.messager.onInboxTxBatchAppend(
       this.inboxTxBatchAppendedCallback.bind(this)
     );
+    this.messager.onAssertionCreated(this.assertionCreatedCallback.bind(this));
     this.messager.onAssertionConfirmed(
       this.assertionConfirmedCallback.bind(this)
     );

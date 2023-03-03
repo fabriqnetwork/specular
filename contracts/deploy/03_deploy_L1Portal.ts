@@ -6,10 +6,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
   const { save } = deployments;
   const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const rollupProxyAddress = (await deployments.get("Rollup")).address;
 
-  const L1Portal = await ethers.getContractFactory("L1Portal", deployer);
+  const L1Portal = await ethers.getContractFactory("L1Portal", deployerSigner);
   const l1Portal = await upgrades.deployProxy(L1Portal, [rollupProxyAddress], {
     initializer: "initialize",
     timeout: 0,

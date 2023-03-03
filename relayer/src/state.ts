@@ -73,19 +73,52 @@ export class RelayerState {
     );
   lastConfirmedAssertionID: BigNumber = BigNumber.from(0);
   lastConfirmedL2BlockNumber: number = 0;
+  lastConfirmedInboxSize: BigNumber = BigNumber.from(0);
+  lastConfirmedVMHash: string = "";
+  lastConfirmedL2GasUsed: BigNumber = BigNumber.from(0);
+
+  assertionMap: Map<string, [BigNumber, string]> = new Map<
+    string,
+    [BigNumber, string]
+  >();
 
   constructor() {}
 
   updateL2BlockNumberMapping(l2BlockNumber: number, inboxSize: BigNumber) {
-    console.log("see inbox event, mapping l2 block number", l2BlockNumber, "to inbox size", inboxSize.toString());
+    console.log(
+      "see inbox event, mapping l2 block number",
+      l2BlockNumber,
+      "to inbox size",
+      inboxSize.toString()
+    );
     this.l2BlockNumberMapping.add({
       l2BlockNumber,
       inboxSize,
     });
   }
 
+  updateCreatedAssertion(
+    assertionID: BigNumber,
+    l2GasUsed: BigNumber,
+    vmHash: string
+  ) {
+    console.log("see assertion created event", assertionID.toString());
+    this.assertionMap.set(assertionID.toString(), [l2GasUsed, vmHash]);
+  }
+
   updateConfirmedInboxSize(assertionID: BigNumber, inboxSize: BigNumber) {
+    console.log("see assertion confirmed event", assertionID.toString());
     this.lastConfirmedAssertionID = assertionID;
+    this.lastConfirmedInboxSize = inboxSize;
+    try {
+    [this.lastConfirmedL2GasUsed, this.lastConfirmedVMHash] =
+      this.assertionMap.get(assertionID.toString())!;
+    } catch (e) {
+      console.error(e)
+      console.log("assertionID ", assertionID.toString(), " not found, skipping")
+      return;
+    }
+    this.assertionMap.delete(assertionID.toString());
     while (!this.l2BlockNumberMapping.isEmpty()) {
       const entry = this.l2BlockNumberMapping.peek()!;
       if (entry.inboxSize.lt(inboxSize)) {
@@ -104,7 +137,14 @@ export class RelayerState {
       console.log(
         "dubious error: assertion created in the middle of the batch"
       );
-      console.log("confirmed assertionID", assertionID.toString(), "confirmed inbox size", inboxSize.toString(), "entry", entry);
+      console.log(
+        "confirmed assertionID",
+        assertionID.toString(),
+        "confirmed inbox size",
+        inboxSize.toString(),
+        "entry",
+        entry
+      );
       return;
     }
     this.lastConfirmedL2BlockNumber = entry.l2BlockNumber;

@@ -15,6 +15,7 @@ $GETH_SPECULAR_DIR/build/bin/geth \
     --rollup.coinbase=f39fd6e51aad88f6f4ce6ab8827279cfffb92266 \
     --rollup.l1endpoint 'ws://localhost:8545' \
     --rollup.l1chainid 31337 \
-    --rollup.sequencer-inbox-addr '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' \
-    --rollup.rollup-addr '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' \
-    --rollup.rollup-stake-amount 100
+    --rollup.sequencer-inbox-addr '0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1' \
+    --rollup.rollup-addr '0xF6168876932289D073567f347121A267095f3DD6' \
+    --rollup.rollup-stake-amount 100 \
+    --maxpeers 0

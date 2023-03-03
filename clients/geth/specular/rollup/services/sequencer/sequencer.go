@@ -90,6 +90,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 	batchTxs []*types.Transaction,
 	signer types.Signer,
 ) ([]*types.Transaction, error) {
+	prevBatchLen := len(batchTxs)
 	if txs != nil {
 		for {
 			tx := txs.Peek()
@@ -104,14 +105,15 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 			txs.Pop()
 		}
 	}
-	if len(batchTxs) == 0 {
+	txsToCommit := batchTxs[prevBatchLen:]
+	if len(txsToCommit) == 0 {
 		return batchTxs, nil
 	}
-	err := batcher.CommitTransactions(batchTxs)
+	err := batcher.CommitTransactions(txsToCommit)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to commit transactions, err: %w", err)
 	}
-	log.Info("Committed tx batch", "batch size", len(batchTxs))
+	log.Info("Committed tx batch", "batch size", len(txsToCommit))
 	return batchTxs, nil
 }
 

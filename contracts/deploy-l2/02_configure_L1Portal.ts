@@ -20,6 +20,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     l1PortalProxyAddress,
     deployerSigner
   );
+  console.log(l1Portal.signer.getAddress());
   const l2PortalProxyAddress = (await deployments.get("L2Portal")).address;
   const tx = await l1Portal.setL2PortalAddress(l2PortalProxyAddress);
   const result = await tx.wait();

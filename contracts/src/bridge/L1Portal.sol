@@ -14,6 +14,7 @@ import {SecureMerkleTrie} from "../libraries/trie/SecureMerkleTrie.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 import {IL1Portal} from "./IL1Portal.sol";
 import {IRollup} from "../IRollup.sol";
+import {RollupLib} from "../RollupLib.sol";
 
 import "../libraries/Errors.sol";
 
@@ -121,7 +122,9 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
     function finalizeWithdrawalTransaction(
         Types.CrossDomainMessage memory withdrawalTx,
         uint256 assertionID,
-        bytes calldata encodedBlockHeader,
+        uint256 l2GasUsed,
+        bytes32 vmHash,
+        // bytes calldata encodedBlockHeader,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
     ) external override L2Deployed onlyProxy {
@@ -149,13 +152,17 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
 
         // Avoid stack too deep
         {
-            (bytes32 blockHash, bytes32 stateRoot) = Encoding.decodeStateRootFromEncodedBlockHeader(encodedBlockHeader);
+            // (bytes32 blockHash, bytes32 stateRoot) = Encoding.decodeStateRootFromEncodedBlockHeader(encodedBlockHeader);
 
             // Verify that the block hash is the assertion's stateHash.
-            require(blockHash == assertion.stateHash, "L1Portal: invalid block");
+            // require(blockHash == assertion.stateHash, "L1Portal: invalid block");
+
+            RollupLib.ExecutionState memory state = RollupLib.ExecutionState(l2GasUsed, vmHash);
+
+            require(RollupLib.stateHash(state) == assertion.stateHash, "L1Portal: invalid state hash");
 
             // Verify the account proof.
-            bytes32 storageRoot = _verifyAccountInclusion(l2PortalAddress, stateRoot, withdrawalAccountProof);
+            bytes32 storageRoot = _verifyAccountInclusion(l2PortalAddress, vmHash, withdrawalAccountProof);
 
             // Verify that the hash of this withdrawal was stored in the L2Portal contract on L2.
             // If this is true, then we know that this withdrawal was actually triggered on L2

@@ -53,7 +53,9 @@ interface IL1Portal {
     function finalizeWithdrawalTransaction(
         Types.CrossDomainMessage memory withdrawalTx,
         uint256 assertionID,
-        bytes calldata encodedBlockHeader,
+        uint256 l2GasUsed,
+        bytes32 vmHash,
+        // bytes calldata encodedBlockHeader,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
     ) external;

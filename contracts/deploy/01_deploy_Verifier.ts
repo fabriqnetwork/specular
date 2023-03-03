@@ -5,8 +5,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades } = hre;
   const { save } = deployments;
   const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
-  const Verifier = await ethers.getContractFactory("Verifier", deployer);
+  const Verifier = await ethers.getContractFactory("Verifier", deployerSigner);
   const verifier = await upgrades.deployProxy(Verifier, [], {
     initializer: "initialize",
     timeout: 0,

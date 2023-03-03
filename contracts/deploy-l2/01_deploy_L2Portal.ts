@@ -7,6 +7,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     hre;
   const { save } = deployments;
   const { deployer } = await getNamedAccounts();
+  const deployerSigner = await ethers.getSigner(deployer);
 
   const l1OracleProxyAddress = (await deployments.get("L1Oracle")).address;
   const l1PortalProxyAddress = (
@@ -15,7 +16,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   const l2PortalArgs = [l1OracleProxyAddress, l1PortalProxyAddress];
 
-  const L2Portal = await ethers.getContractFactory("L2Portal", deployer);
+  const L2Portal = await ethers.getContractFactory("L2Portal", deployerSigner);
   const l2Portal = await upgrades.deployProxy(L2Portal, l2PortalArgs, {
     initializer: "initialize",
     timeout: 0,
