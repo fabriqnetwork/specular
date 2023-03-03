@@ -16,11 +16,11 @@ jobs:
 
       - name: Start up containers
         run: |
-          docker-compose -f docker-compose-integration-test.yml up -d --build
+          docker-compose -f docker/docker-compose-integration-test.yml up -d --build
 
       - name: Wait for containers
         run: |
-          while ! docker-compose -f docker-compose-integration-test.yml ps -q | xargs docker inspect -f '{{ .State.Health.Status }}' | grep -q healthy; do
+          while ! docker-compose -f docker/docker-compose-integration-test.yml ps -q | xargs docker inspect -f '{{ .State.Health.Status }}' | grep -q healthy; do
               sleep 1
           done
 
@@ -36,4 +36,4 @@ jobs:
 
       - name: Stop and remove containers
         run: |
-          docker-compose -f docker-compose-integration-test.yml down
+          docker-compose -f docker/docker-compose-integration-test.yml down
