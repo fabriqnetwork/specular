@@ -3,15 +3,14 @@ package sequencer
 import (
 	"context"
 	errors "errors"
+	"fmt"
 	"math/big"
 	"time"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
@@ -21,8 +20,10 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
-
 const timeInterval = 3 * time.Second
+
+// TODO: get rid of batcher; use engine API
+// TODO: modularize challenge
 
 type challengeCtx struct {
 	challengeAddr common.Address
@@ -45,15 +46,14 @@ func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1Bri
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create base service, err: %w", err)
 	}
-	s := &Sequencer{
+	return &Sequencer{
 		BaseService:          base,
 		blockCh:              make(chan types.Blocks, 4096),
 		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
 		confirmedIDCh:        make(chan *big.Int, 4096),
 		challengeCh:          make(chan *challengeCtx),
 		challengeResoutionCh: make(chan struct{}),
-	}
-	return s, nil
+	}, nil
 }
 
 // Get tx index in batch
@@ -81,16 +81,6 @@ func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Tra
 		}
 	}
 	return batchTxs, nil
-}
-
-// Send batch to `s.batchCh`
-func (s *Sequencer) sendBatch(batcher *Batcher) error {
-	blocks, err := batcher.Batch()
-	if err != nil {
-		return fmt.Errorf("Failed to batch blocks, err: %w", err)
-	}
-	s.blockCh <- blocks
-	return nil
 }
 
 // Add sorted txs to batch and commit txs
@@ -179,10 +169,11 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 				}
 			}
 			if len(batchTxs) > 0 {
-				err = s.sendBatch(batcher)
+				blocks, err := batcher.Batch()
 				if err != nil {
 					log.Crit("Failed to send transaction to batch", "err", err)
 				}
+				s.blockCh <- blocks
 			}
 			batchTxs = nil
 		case ev := <-txsCh:
@@ -283,7 +274,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			}
 			log.Info("Sequenced batch", "batch size", len(batch.Txs))
 			// Update queued assertion to latest batch
-			queuedAssertion.ID.Add(queuedAssertion.ID, big.NewInt(1))
+			// queuedAssertion.ID.Add(queuedAssertion.ID, big.NewInt(1))
 			queuedAssertion.VmHash = batch.LastBlockRoot()
 			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
 			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
@@ -361,7 +352,6 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 		log.Crit("Failed to watch rollup event", "err", err)
 	}
 	defer challengedSub.Unsubscribe()
-	isInChallenge := false
 
 	// Current pending assertion from sequencing goroutine
 	// TODO: watch multiple pending assertions
@@ -369,67 +359,92 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	pendingConfirmationSent := true
 	pendingConfirmed := true
 
+	// Ticker
+	var ticker = time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+
 	for {
-		if isInChallenge {
-			// Wait for the challenge resolved
-			select {
-			case <-s.challengeResoutionCh:
-				log.Info("challenge finished")
-				isInChallenge = false
-			case <-ctx.Done():
-				return
+		log.Debug("looping confirmation loop")
+		select {
+		case <-ticker.C:
+			log.Info("Resetting head subscription")
+			ticker.Reset(60 * time.Second)
+			headSub.Unsubscribe()
+			headSub, err = s.L1Client.SubscribeNewHead(ctx, headCh)
+			if err != nil {
+				log.Crit("Failed to watch l1 chain head", "err", err)
 			}
-		} else {
-			select {
-			case header := <-headCh:
-				// New block mined on L1
-				if !pendingConfirmationSent && !pendingConfirmed {
-					if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
-						// Confirmation period has past, confirm it
-						_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
-						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Crit("Insufficient Funds to send Tx", "error", err)
-						}
-						if err != nil {
-							// log.Error("Failed to confirm DA", "error", err)
-							log.Crit("Failed to confirm DA", "err", err)
-							// TODO: wait some time before retry
-							continue
-						}
-						pendingConfirmationSent = true
+		case err := <-challengedSub.Err():
+			log.Crit("`challengedSub` failed", "err", err)
+		case err = <-confirmedSub.Err():
+			log.Crit("`confirmedSub` failed", "err", err)
+		case err = <-headSub.Err():
+			log.Crit("`headSub` failed", "err", err)
+		case header := <-headCh:
+			// New block mined on L1
+			log.Info("Received new header", "number", header.Number.Uint64())
+			if !pendingConfirmationSent && !pendingConfirmed {
+				if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
+					log.Info("We can now confirm", "pending assertion", pendingAssertion.Deadline.Uint64())
+					// Confirmation period has past, confirm it
+					_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
+					if errors.Is(err, core.ErrInsufficientFunds) {
+						log.Crit("Insufficient Funds to send Tx", "error", err)
 					}
-				}
-			case ev := <-confirmedCh:
-				log.Info("Received `AssertionConfirmed` event ", "assertion id", ev.AssertionID)
-				// New confirmed assertion
-				if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
-					// Notify sequencing goroutine
-					s.confirmedIDCh <- pendingAssertion.ID
-					pendingConfirmed = true
-				}
-			case newPendingAssertion := <-s.pendingAssertionCh:
-				// New assertion created by sequencing goroutine
-				if !pendingConfirmed {
-					// TODO: support multiple pending assertion
-					log.Error("Got another DA request before current is confirmed")
-					continue
-				}
-				pendingAssertion = newPendingAssertion.Copy()
-				pendingConfirmationSent = false
-				pendingConfirmed = false
-			case ev := <-challengedCh:
-				// New challenge raised
-				if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
-					s.challengeCh <- &challengeCtx{
-						ev.ChallengeAddr,
-						pendingAssertion,
+					if err != nil {
+						// log.Error("Failed to confirm DA", "error", err)
+						log.Crit("Failed to confirm DA", "err", err)
+						// TODO: wait some time before retry
 					}
-					isInChallenge = true
+					pendingConfirmationSent = true
+					ticker.Reset(60 * time.Second)
 				}
-			case <-ctx.Done():
-				return
 			}
+		case ev := <-confirmedCh:
+			log.Info("Received `AssertionConfirmed` event ", "assertion id", ev.AssertionID)
+			// New confirmed assertion
+			if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
+				// Notify sequencing goroutine
+				s.confirmedIDCh <- pendingAssertion.ID
+				pendingConfirmed = true
+			}
+		case newPendingAssertion := <-s.pendingAssertionCh:
+			log.Info("Received pending assertion")
+			// New assertion created by sequencing goroutine
+			if !pendingConfirmed {
+				// TODO: support multiple pending assertion
+				log.Error("Got another DA request before current is confirmed")
+				continue
+			}
+			pendingAssertion = newPendingAssertion.Copy()
+			pendingConfirmationSent = false
+			pendingConfirmed = false
+		case ev := <-challengedCh:
+			// New challenge raised
+			log.Info("Received `AssertionChallenged` event ", "assertion id", ev.AssertionID)
+			if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
+				s.challengeCh <- &challengeCtx{
+					ev.ChallengeAddr,
+					pendingAssertion,
+				}
+				wait(ctx, s.challengeResoutionCh, "challenge resolution")
+			}
+		case <-ctx.Done():
+			log.Info("Aborting.")
+			return
 		}
+	}
+}
+
+func wait(ctx context.Context, ch chan struct{}, taskName string) {
+	log.Info("Waiting for %s...", taskName)
+	select {
+	case <-ch:
+		log.Info("%s notification received", taskName)
+		return
+	case <-ctx.Done():
+		log.Info("Aborting wait for %s", taskName)
+		return
 	}
 }
 
@@ -442,116 +457,114 @@ func (s *Sequencer) challengeLoop(ctx context.Context) {
 		log.Crit("Failed to watch l1 chain head", "err", err)
 	}
 	defer headSub.Unsubscribe()
-
-	var states []*proof.ExecutionState
-
-	var bisectedCh chan *bindings.IChallengeBisected
-	var bisectedSub event.Subscription
-	var challengeCompletedCh chan *bindings.IChallengeChallengeCompleted
-	var challengeCompletedSub event.Subscription
-
-	inChallenge := false
-	var opponentTimeoutBlock uint64
-
 	for {
-		if inChallenge {
-			select {
-			case ev := <-bisectedCh:
-				// case get bisection, if is our turn
-				//   if in single step, submit proof
-				//   if multiple step, track current segment, update
-				responder, err := s.L1Client.CurrentChallengeResponder()
+		select {
+		case chalCtx := <-s.challengeCh:
+			err := s.handleChallenge(ctx, chalCtx, headCh)
+			if err != nil {
+				log.Crit("Failed to handle challenge", "err", err)
+			}
+		case <-headCh:
+			continue // consume channel values
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (s *Sequencer) handleChallenge(
+	ctx context.Context,
+	chalCtx *challengeCtx,
+	headCh chan *types.Header,
+) error {
+	err := s.L1Client.InitNewChallengeSession(ctx, chalCtx.challengeAddr)
+	if err != nil {
+		return fmt.Errorf("Failed to access ongoing challenge (address=%s), err: %w", chalCtx.challengeAddr, err)
+	}
+	states, err := proof.GenerateStates(
+		s.ProofBackend,
+		ctx,
+		chalCtx.assertion.PrevCumulativeGasUsed,
+		chalCtx.assertion.StartBlock,
+		chalCtx.assertion.EndBlock+1,
+		nil,
+	)
+	if err != nil {
+		return fmt.Errorf("Failed to generate states, err: %w", err)
+	}
+	_, err = s.L1Client.InitializeChallengeLength(new(big.Int).SetUint64(uint64(len(states)) - 1))
+	if err != nil {
+		return fmt.Errorf("Failed to initialize challenge, err: %w", err)
+	}
+	bisectedCh := make(chan *bindings.IChallengeBisected, 4096)
+	bisectedSub, err := s.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
+	if err != nil {
+		return fmt.Errorf("Failed to watch challenge event, err: %w", err)
+	}
+	challengeCompletedCh := make(chan *bindings.IChallengeChallengeCompleted, 4096)
+	challengeCompletedSub, err := s.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
+	if err != nil {
+		return fmt.Errorf("Failed to watch challenge event, err: %w", err)
+	}
+	log.Info("to generate state from", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
+	log.Info("backend", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
+	var opponentTimeoutBlock uint64
+	for {
+		select {
+		case ev := <-bisectedCh:
+			// case get bisection, if is our turn
+			//   if in single step, submit proof
+			//   if multiple step, track current segment, update
+			responder, err := s.L1Client.CurrentChallengeResponder()
+			if err != nil {
+				// TODO: error handling
+				log.Error("Cannot get current responder", "error", err)
+				continue
+			}
+			if responder == common.Address(s.Config.Coinbase) {
+				// If it's our turn
+				err := services.RespondBisection(ctx, s.ProofBackend, s.L1Client, ev, states, common.Hash{}, false)
 				if err != nil {
 					// TODO: error handling
-					log.Error("Can not get current responder", "error", err)
+					log.Error("Cannot respond to bisection", "error", err)
 					continue
 				}
-				if responder == common.Address(s.Config.Coinbase) {
-					// If it's our turn
-					err := services.RespondBisection(ctx, s.ProofBackend, s.L1Client, ev, states, common.Hash{}, false)
-					if err != nil {
-						// TODO: error handling
-						log.Error("Can not respond to bisection", "error", err)
-						continue
-					}
-				} else {
-					opponentTimeLeft, err := s.L1Client.CurrentChallengeResponderTimeLeft()
-					if err != nil {
-						// TODO: error handling
-						log.Error("Can not get current responder left time", "error", err)
-						continue
-					}
-					log.Info("Opponent time left", "time", opponentTimeLeft)
-					opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
-				}
-			case header := <-headCh:
-				if opponentTimeoutBlock == 0 {
+			} else {
+				opponentTimeLeft, err := s.L1Client.CurrentChallengeResponderTimeLeft()
+				if err != nil {
+					// TODO: error handling
+					log.Error("Cannot get current responder left time", "error", err)
 					continue
 				}
-				// TODO: can we use >= here?
-				if header.Number.Uint64() > opponentTimeoutBlock {
-					_, err := s.L1Client.TimeoutChallenge()
-					if err != nil {
-						log.Error("Can not timeout opponent", "error", err)
-						continue
-						// TODO: wait some time before retry
-						// TODO: fix race condition
-					}
-				}
-			case ev := <-challengeCompletedCh:
-				// TODO: handle if we are not winner --> state corrupted
-				log.Info("Challenge completed", "winner", ev.Winner)
-				bisectedSub.Unsubscribe()
-				challengeCompletedSub.Unsubscribe()
-				states = []*proof.ExecutionState{}
-				inChallenge = false
-				s.challengeResoutionCh <- struct{}{}
-			case <-ctx.Done():
-				bisectedSub.Unsubscribe()
-				challengeCompletedSub.Unsubscribe()
-				return
+				log.Info("Opponent time left", "time", opponentTimeLeft)
+				opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
 			}
-		} else {
-			select {
-			case chalCtx := <-s.challengeCh:
-				cont := context.Background()
-				err := s.L1Client.InitNewChallengeSession(cont, chalCtx.challengeAddr)
-				if err != nil {
-					log.Crit("Failed to access ongoing challenge", "address", chalCtx.challengeAddr, "err", err)
-				}
-				bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
-				bisectedSub, err = s.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
-				if err != nil {
-					log.Crit("Failed to watch challenge event", "err", err)
-				}
-				challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
-				challengeCompletedSub, err = s.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
-				if err != nil {
-					log.Crit("Failed to watch challenge event", "err", err)
-				}
-				log.Info("to generate state from", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
-				log.Info("backend", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
-				states, err = proof.GenerateStates(
-					s.ProofBackend,
-					ctx,
-					chalCtx.assertion.PrevCumulativeGasUsed,
-					chalCtx.assertion.StartBlock,
-					chalCtx.assertion.EndBlock+1,
-					nil,
-				)
-				if err != nil {
-					log.Crit("Failed to generate states", "err", err)
-				}
-				_, err = s.L1Client.InitializeChallengeLength(new(big.Int).SetUint64(uint64(len(states)) - 1))
-				if err != nil {
-					log.Crit("Failed to initialize challenge", "err", err)
-				}
-				inChallenge = true
-			case <-headCh:
-				continue // consume channel values
-			case <-ctx.Done():
-				return
+		case header := <-headCh:
+			if opponentTimeoutBlock == 0 {
+				continue
 			}
+			// TODO: can we use >= here?
+			if header.Number.Uint64() > opponentTimeoutBlock {
+				_, err := s.L1Client.TimeoutChallenge()
+				if err != nil {
+					log.Error("Cannot timeout opponent", "error", err)
+					continue
+					// TODO: wait some time before retry
+					// TODO: fix race condition
+				}
+			}
+		case ev := <-challengeCompletedCh:
+			// TODO: handle if we are not winner --> state corrupted
+			log.Info("Challenge completed", "winner", ev.Winner)
+			bisectedSub.Unsubscribe()
+			challengeCompletedSub.Unsubscribe()
+			states = []*proof.ExecutionState{}
+			s.challengeResoutionCh <- struct{}{}
+			return nil
+		case <-ctx.Done():
+			bisectedSub.Unsubscribe()
+			challengeCompletedSub.Unsubscribe()
+			return nil
 		}
 	}
 }
