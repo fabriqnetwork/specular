@@ -24,13 +24,14 @@ jobs:
               sleep 1
           done
 
-      - name: Install node and run e2e test
+      - name: Install node
         uses: actions/setup-node@v2
         with:
           node-version: "18.x"
+
+      - name: Run test
         run: |
           cd contracts/scripts
-          npm install
           node testing.ts
 
       - name: Stop and remove containers
