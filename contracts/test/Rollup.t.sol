@@ -342,7 +342,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
     }
 
@@ -381,7 +381,7 @@ contract RollupTest is RollupBaseSetup {
         //slither-disable-next-line arbitrary-send-eth
         rollup.stake{value: aliceBalance}();
 
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
     }
 
@@ -423,7 +423,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(finalStakers, (initialStakers + 1), "Number of stakers should increase by 1");
 
         // isStaked should return true for Alice now
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         uint256 amountStaked;
@@ -479,7 +479,7 @@ contract RollupTest is RollupBaseSetup {
         address challengeAddress;
 
         // isStaked should return true for Alice now
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         // stakers mapping gets updated
@@ -540,7 +540,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         // Since Alice is not staked, function unstake should also revert
@@ -570,7 +570,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -589,7 +589,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
+        (isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         uint256 aliceBalanceInitial = alice.balance;
@@ -630,7 +630,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -649,7 +649,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
+        (isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         /*
@@ -776,7 +776,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         // Since Alice is not staked, function unstake should also revert
@@ -806,7 +806,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         // Since Alice is not staked, function unstake should also revert
@@ -836,7 +836,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -855,7 +855,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
+        (isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         uint256 aliceBalanceBeforeRemoveStake = alice.balance;
@@ -893,7 +893,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -976,7 +976,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         // Since Alice is not staked, function advanceStake should also revert
@@ -1006,7 +1006,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -1025,7 +1025,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
+        (isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         (,, uint256 stakerAssertionID,) = rollup.stakers(address(alice));
@@ -1062,7 +1062,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -1081,7 +1081,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.stake{value: aliceAmountToStake}();
 
         // Now Alice should be staked
-        isAliceStaked = rollup.isStaked(alice);
+        (isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
 
         vm.expectRevert(IRollup.AssertionOutOfRange.selector);
@@ -1108,7 +1108,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
-        bool isAliceStaked = rollup.isStaked(alice);
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -1117,7 +1117,7 @@ contract RollupTest is RollupBaseSetup {
         emit log_named_uint("AB", aliceBalance);
 
         // Bob also wants to stake on this assertion
-        bool isBobStaked = rollup.isStaked(bob);
+        (bool isBobStaked,,,) = rollup.stakers(bob);
         assertTrue(!isBobStaked);
 
         uint256 bobBalance = bob.balance;
@@ -1361,7 +1361,7 @@ contract RollupTest is RollupBaseSetup {
         // Let's increase the lastCreatedAssertionID
         {
             // Alice has not staked yet and therefore, this function should return `false`
-            bool isAliceStaked = rollup.isStaked(alice);
+            (bool isAliceStaked,,,) = rollup.stakers(alice);
             assertTrue(!isAliceStaked);
 
             uint256 minimumAmount = rollup.baseStakeAmount();
