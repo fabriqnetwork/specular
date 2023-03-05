@@ -14,6 +14,7 @@ services:
       - --http.port=8545
       - --http.addr=0.0.0.0
       - --http.corsdomain=*
+      - --http.vhosts=*
       - --http.api=personal,eth,net,web3,txpool,miner,proof,debug
       - --ws
       - --ws.port=8546
