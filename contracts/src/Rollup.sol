@@ -22,7 +22,6 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
@@ -94,7 +93,8 @@ contract Rollup is RollupBase {
         uint256 _baseStakeAmount,
         uint256 _initialAssertionID,
         uint256 _initialInboxSize,
-        bytes32 _initialVMhash
+        bytes32 _initialVMhash,
+        uint256 _initialL2GasUsed
     ) public initializer {
         // If any of addresses _vault, _sequencerInbox or _verifier is address(0), then revert.
         if (_vault == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
@@ -114,13 +114,14 @@ contract Rollup is RollupBase {
         lastConfirmedAssertionID = _initialAssertionID;
         lastCreatedAssertionID = _initialAssertionID;
 
-        createAssertion(
+        createAssertionHelper(
             _initialAssertionID, // assertionID
-            RollupLib.stateHash(RollupLib.ExecutionState(_initialAssertionID, _initialVMhash)),
+            RollupLib.stateHash(RollupLib.ExecutionState(_initialL2GasUsed, _initialVMhash)),
             _initialInboxSize, // inboxSize (genesis)
             _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash, _initialL2GasUsed);
 
         __RollupBase_init();
     }
@@ -267,7 +268,7 @@ contract Rollup is RollupBase {
         // Initialize assertion.
         lastCreatedAssertionID++;
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, l2GasUsed);
-        createAssertion(
+        createAssertionHelper(
             lastCreatedAssertionID, RollupLib.stateHash(endState), inboxSize, parentID, newAssertionDeadline()
         );
 
@@ -460,7 +461,7 @@ contract Rollup is RollupBase {
     /**
      * @notice Creates a new assertion. See `Assertion` documentation.
      */
-    function createAssertion(
+    function createAssertionHelper(
         uint256 assertionID,
         bytes32 stateHash,
         uint256 inboxSize,

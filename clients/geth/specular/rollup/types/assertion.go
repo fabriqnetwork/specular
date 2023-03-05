@@ -27,6 +27,6 @@ func (a *Assertion) Copy() *Assertion {
 		Deadline:              new(big.Int).Set(a.Deadline),
 		StartBlock:            a.StartBlock,
 		EndBlock:              a.EndBlock,
-		PrevCumulativeGasUsed: a.PrevCumulativeGasUsed,
+		PrevCumulativeGasUsed: new(big.Int).Set(a.PrevCumulativeGasUsed),
 	}
 }

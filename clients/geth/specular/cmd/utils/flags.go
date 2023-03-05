@@ -133,13 +133,22 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
 	} else {
 		utils.Fatalf("Failed to register the Rollup service: coinbase account locked")
 	}
+	node := ctx.String(RollupNodeFlag.Name)
+	coinbase := common.HexToAddress(ctx.String(RollupCoinBaseFlag.Name))
+	sequencerAddr := common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))
+	if node == "sequencer" && sequencerAddr == (common.Address{}) {
+		sequencerAddr = coinbase
+	}
+	if sequencerAddr == (common.Address{}) {
+		utils.Fatalf("Failed to register the Rollup service: sequencer address not specified")
+	}
 	cfg := &rollup.Config{
-		Node:                 ctx.String(RollupNodeFlag.Name),
-		Coinbase:             common.HexToAddress(ctx.String(RollupCoinBaseFlag.Name)),
+		Node:                 node,
+		Coinbase:             coinbase,
 		Passphrase:           passphrase,
 		L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
 		L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
-		SequencerAddr:        common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name)),
+		SequencerAddr:        sequencerAddr,
 		SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
 		RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
 		L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlock.Name),
