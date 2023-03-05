@@ -1,4 +1,4 @@
-name: Test
+name: Forge Tests
 
 on: [push, pull_request]
 
@@ -20,7 +20,10 @@ jobs:
       - name: Run forge install
         run: forge install
 
-      # - name: Run tests
-      #   env:
-      #     RPC_URL: ${{ secrets.RPC_URL }}
-      #   run: forge test -vvv
+      - name: Install yarn dependencies
+        run: yarn install
+        
+      - name: Run tests
+        env:
+          RPC_URL: ${{ secrets.RPC_URL }}
+        run: forge test -vvv

@@ -2,6 +2,8 @@ package rollup
 
 import (
 	"bytes"
+	"context"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -10,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
@@ -38,13 +41,21 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	}
 
 	// Register services
-	if cfg.Node == services.NODE_SEQUENCER {
-		sequencer.RegisterService(stack, eth, proofBackend, cfg, auth)
-	} else if cfg.Node == services.NODE_VALIDATOR {
-		validator.RegisterService(stack, eth, proofBackend, cfg, auth)
-	} else if cfg.Node == services.NODE_INDEXER {
-		indexer.RegisterService(stack, eth, proofBackend, cfg, auth)
-	} else {
-		log.Crit("Failed to register the Rollup service: Node type unkown", "type", cfg.Node)
+	ctx := context.Background()
+	l1Client, err := client.NewEthBridgeClient(ctx, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, auth)
+	var service node.Lifecycle
+	switch cfg.Node {
+	case services.NODE_SEQUENCER:
+		service, err = sequencer.New(eth, proofBackend, l1Client, cfg)
+	case services.NODE_VALIDATOR:
+		service, err = validator.New(eth, proofBackend, l1Client, cfg)
+	case services.NODE_INDEXER:
+		service, err = indexer.New(eth, proofBackend, l1Client, cfg)
+	default:
+		err = fmt.Errorf("Node type unkown: %v", cfg.Node)
 	}
+	if err != nil {
+		log.Crit("Failed to register rollup service", "err", err)
+	}
+	stack.RegisterLifecycle(service)
 }
