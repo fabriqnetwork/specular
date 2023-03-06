@@ -21,11 +21,12 @@ jobs:
 
       - name: Create proj folder and add keys and genesis.json
         run: |
+          ls -la ../../clients/geth/specular/data
           mkdir project && cd project
           mkdir specular-datadir && cd specular-datadir
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
-          cp ../../clients/geth/specular/data/keys/base_genesis.json ./genesis.json
+          cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
 
       - name: Start up containers
         run: |
