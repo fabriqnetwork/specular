@@ -21,7 +21,7 @@ jobs:
 
       - name: Create proj folder and add keys and genesis.json
         run: |
-          ls -la ../../clients/geth/specular/data
+          ls -la clients/geth/specular/data
           mkdir project && cd project
           mkdir specular-datadir && cd specular-datadir
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
