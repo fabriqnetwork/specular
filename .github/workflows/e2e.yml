@@ -59,7 +59,8 @@ jobs:
         run: |
           pwd
           ls -la
-          node --experimental-specifier-resolution=node contracts/scripts/testing.ts
+          cd contracts/scripts
+          npx ts-node testing.ts
 
       - name: Stop and remove containers
         run: |
