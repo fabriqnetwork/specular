@@ -82,7 +82,7 @@ contract RollupTest is RollupBaseSetup {
 
         // Deploying the SequencerInbox with sequencerOwner
         bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", sequencerAddress);
-        vm.startPrank(sequencerOwner); 
+        vm.startPrank(sequencerOwner);
         implementationSequencer = new SequencerInbox();
         specularProxy = new SpecularProxy(address(implementationSequencer), seqInInitData);
         seqIn = SequencerInbox(address(specularProxy));
@@ -100,7 +100,7 @@ contract RollupTest is RollupBaseSetup {
     // 2. functions that call an external contract
     // 3. calculateINterest, calculateWithdrawabeCollateral
     // 4. test pause and upgrade mechanism of the contracts.
-    // 5. internal/private functions: Anchor contracts -> public 
+    // 5. internal/private functions: Anchor contracts -> public
 
     function test_initializeRollup_vaultAddressZero() external {
         // Preparing the initializing data for the (proxied)Rollup contract
@@ -341,7 +341,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -364,7 +368,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            type(uint256).max,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -403,7 +411,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            1000,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -412,7 +424,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialStakers = rollup.numStakers();
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
-        
+
         /*
             emit log_named_uint("BSA", minimumAmount);
         */
@@ -456,7 +468,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            1000,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -497,7 +513,7 @@ contract RollupTest is RollupBaseSetup {
         assertGt(bob.balance, 0, "Bob should have a non-zero native currency balance");
 
         vm.prank(bob);
-        (bool sent, ) = alice.call{value: bob.balance}("");
+        (bool sent,) = alice.call{value: bob.balance}("");
         require(sent, "Failed to send Ether");
 
         assertEq((aliceBalanceInitial - aliceBalanceFinal), bobBalance, "Tokens transferred successfully");
@@ -539,7 +555,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -569,7 +589,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 100000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            100000,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -629,7 +653,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 100000,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            100000,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -672,27 +700,14 @@ contract RollupTest is RollupBaseSetup {
         rollup.unstake(amountToWithdraw);
     }
 
-    function test_unstake_fromUnconfirmedAssertionID(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod
-    ) external {
+    function test_unstake_fromUnconfirmedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         address _vault = makeAddr("vault");
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(
-            _vault,
-            confirmationPeriod, 
-            challengePeriod, 
-            1 days, 
-            500, 
-            1 ether,
-            0,
-            5,
-            0
-        );
+        _initializeRollup(_vault, confirmationPeriod, challengePeriod, 1 days, 500, 1 ether, 0, 5, 0);
 
         // Alice has not staked yet and therefore, this function should return `false`
-        (bool isAliceStaked,,uint256 assertionID1,) = rollup.stakers(alice);
+        (bool isAliceStaked,, uint256 assertionID1,) = rollup.stakers(alice);
         assertEq(assertionID1, 0);
         assertTrue(!isAliceStaked);
 
@@ -712,7 +727,7 @@ contract RollupTest is RollupBaseSetup {
         // Now Alice should be staked
 
         // stakers mapping gets updated
-        (bool isAliceStaked2, ,uint256 assertionID2, ) = rollup.stakers(alice);
+        (bool isAliceStaked2,, uint256 assertionID2,) = rollup.stakers(alice);
         emit log_named_uint("assertion id 2", assertionID2);
         assertEq(assertionID2, 0);
         assertTrue(isAliceStaked2);
@@ -740,7 +755,9 @@ contract RollupTest is RollupBaseSetup {
 
         // assertEq(rollup.lastCreatedAssertionID(), 2, "The lastCreatedAssertionID should be 1 (genesis)");
         (,, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
-        assertEq(assertionIDInitial, 0, "Alice has not yet created an assertionID, so it should be the same as genesis(0)");
+        assertEq(
+            assertionIDInitial, 0, "Alice has not yet created an assertionID, so it should be the same as genesis(0)"
+        );
 
         vm.prank(alice);
         rollup.createAssertion(mockVmHash, mockInboxSize, mockL2GasUsed, mockPrevVMHash, mockPrevL2GasUsed);
@@ -775,7 +792,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -805,7 +826,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -832,10 +857,14 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialL2GasUsed
     ) external {
         address _vault = makeAddr("vault");
-        
+
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            1 ether,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -869,8 +898,7 @@ contract RollupTest is RollupBaseSetup {
         vm.prank(alice);
         rollup.removeStake(address(alice));
 
-        (bool isStakedAfterRemoveStake, , , ) =
-            rollup.stakers(address(alice));
+        (bool isStakedAfterRemoveStake,,,) = rollup.stakers(address(alice));
 
         uint256 aliceBalanceAfterRemoveStake = alice.balance;
 
@@ -880,26 +908,17 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isStakedAfterRemoveStake);
     }
 
-    function test_removeStake_fromUnconfirmedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod,
+    function test_removeStake_fromUnconfirmedAssertionID(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
         uint256 initialAssertionID,
         uint256 initialInboxSize,
-        uint256 initialL2GasUsed)
-        external
-    {
+        uint256 initialL2GasUsed
+    ) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         address _vault = makeAddr("vault");
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(
-            _vault,
-            confirmationPeriod, 
-            challengePeriod, 
-            1 days, 
-            500, 
-            1 ether,
-            0,
-            5,
-            0
-        );
+        _initializeRollup(_vault, confirmationPeriod, challengePeriod, 1 days, 500, 1 ether, 0, 5, 0);
 
         // Alice has not staked yet and therefore, this function should return `false`
         (bool isAliceStaked,,,) = rollup.stakers(alice);
@@ -976,10 +995,14 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialL2GasUsed
     ) external {
         address _vault = makeAddr("vault");
-        
+
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, baseStakeAmount,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            baseStakeAmount,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -1009,7 +1032,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            1 ether,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -1065,7 +1092,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, 1 ether,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            1 ether,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -1099,23 +1130,18 @@ contract RollupTest is RollupBaseSetup {
         rollup.advanceStake(assertionID);
     }
 
-    function test_advanceStake_positiveCase(uint256 confirmationPeriod, uint256 challengePeriod,
+    function test_advanceStake_positiveCase(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
         uint256 initialAssertionID,
         uint256 initialInboxSize,
-        uint256 initialL2GasUsed)
-        external
-    {
+        uint256 initialL2GasUsed
+    ) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         address _vault = makeAddr("vault");
 
-        _initializeRollup(
-            _vault,
-            confirmationPeriod, challengePeriod, 1 days, 500, 1 ether,
-            0,
-            5,
-            0
-        );
+        _initializeRollup(_vault, confirmationPeriod, challengePeriod, 1 days, 500, 1 ether, 0, 5, 0);
 
         // Alice has not staked yet and therefore, this function should return `false`
         (bool isAliceStaked,,,) = rollup.stakers(alice);
@@ -1289,7 +1315,11 @@ contract RollupTest is RollupBaseSetup {
         address _vault = makeAddr("vault");
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            type(uint256).max,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -1324,7 +1354,11 @@ contract RollupTest is RollupBaseSetup {
         initialAssertionID = bound(initialAssertionID, 0, (type(uint256).max - 10));
         _initializeRollup(
             _vault,
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max,
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            maxGasPerAssertion,
+            type(uint256).max,
             initialAssertionID,
             initialInboxSize,
             initialL2GasUsed
@@ -1333,7 +1367,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
         uint256 challengerAssertionID;
         uint256 defenderAssertionID;
-
 
         challengerAssertionID = bound(challengerAssertionID, lastCreatedAssertionID + 1, type(uint256).max);
         defenderAssertionID = bound(defenderAssertionID, 0, challengerAssertionID - 1);
@@ -1347,26 +1380,21 @@ contract RollupTest is RollupBaseSetup {
         assertionIDs[0] = defenderAssertionID;
         assertionIDs[1] = challengerAssertionID;
 
-        vm.expectRevert(IRollup.UnproposedAssertion.selector); 
+        vm.expectRevert(IRollup.UnproposedAssertion.selector);
         rollup.challengeAssertion(players, assertionIDs);
     }
 
-    function test_challengeAssertion_alreadyResolvedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod,
+    function test_challengeAssertion_alreadyResolvedAssertionID(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
         uint256 initialAssertionID,
         uint256 initialInboxSize,
-        uint256 initialL2GasUsed)
-        public
-    {
+        uint256 initialL2GasUsed
+    ) public {
         // Initializing the rollup
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         address _vault = makeAddr("vault");
-        _initializeRollup(
-            _vault,
-            confirmationPeriod, challengePeriod, 1 days, 500, 1 ether,
-            0,
-            5,
-            0
-        );
+        _initializeRollup(_vault, confirmationPeriod, challengePeriod, 1 days, 500, 1 ether, 0, 5, 0);
 
         uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
 
@@ -1510,7 +1538,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize,
         uint256 initialL2GasUsed
     ) internal {
-        if(_vault == address(0)) {
+        if (_vault == address(0)) {
             _vault = address(uint160(32456));
         }
         bytes memory initializingData = abi.encodeWithSelector(
