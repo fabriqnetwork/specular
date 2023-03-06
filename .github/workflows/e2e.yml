@@ -55,12 +55,13 @@ jobs:
         with:
           node-version: "18.x"
 
-      - name: Run test
+      - name: Install dependencies and run test
         run: |
           pwd
           ls -la
-          cd contracts/scripts
-          npx ts-node testing.ts
+          cd contracts
+          yarn install
+          yarn ts-node scripts/testing.ts
 
       - name: Stop and remove containers
         run: |
