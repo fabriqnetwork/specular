@@ -23,16 +23,20 @@ jobs:
         run: |
           mkdir project && cd project
           mkdir specular-datadir && cd specular-datadir
-          cp ../../specular/clients/geth/specular/data/keys/sequencer.prv ./key.prv
-          cp ../../specular/clients/geth/specular/data/password.txt .
-          cp ../../specular/clients/geth/specular/data/keys/base_genesis.json ./genesis.json
+          cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
+          cp ../../clients/geth/specular/data/password.txt .
+          cp ../../clients/geth/specular/data/keys/base_genesis.json ./genesis.json
 
       - name: Start up containers
         run: |
+          pwd 
+          ls -la
           docker-compose -f docker/docker-compose-integration-test.yml up -d --build
 
       - name: Wait for containers
         run: |
+          pwd
+          ls -la
           while ! docker-compose -f docker/docker-compose-integration-test.yml ps -q | xargs docker inspect -f '{{ .State.Health.Status }}' | grep -q healthy; do
               sleep 1
           done
@@ -44,9 +48,13 @@ jobs:
 
       - name: Run test
         run: |
+          pwd
+          ls -la
           cd contracts/scripts
           node testing.ts
 
       - name: Stop and remove containers
         run: |
+          pwd 
+          ls -la
           docker-compose -f docker/docker-compose-integration-test.yml down
