@@ -53,13 +53,13 @@ contract SequencerInboxTest is SequencerBaseSetup {
         SequencerBaseSetup.setUp();
 
         bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", sequencerAddress);
-        
+
         vm.startPrank(sequencerOwner);
-        
+
         implementationSequencer = new SequencerInbox();
         specularProxy = new SpecularProxy(address(implementationSequencer), seqInInitData);
         seqIn = SequencerInbox(address(specularProxy));
-        
+
         vm.stopPrank();
     }
 
