@@ -14,6 +14,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: List files in current dir
+        run: |
+          pwd
+          ls -la
+
       - name: Create proj folder and add keys and genesis.json
         run: |
           mkdir project && cd project
