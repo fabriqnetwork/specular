@@ -181,13 +181,8 @@ func (c *EthBridgeClient) Close() {
 func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.inbox.AppendTxBatch(contexts, txLengths, txBatch)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) { return c.inbox.AppendTxBatch(contexts, txLengths, txBatch) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) WatchTxBatchAppended(
@@ -236,13 +231,8 @@ func (c *EthBridgeClient) Stake(amount *big.Int) error {
 func (c *EthBridgeClient) AdvanceStake(assertionID *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.rollup.AdvanceStake(assertionID)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) { return c.rollup.AdvanceStake(assertionID) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) CreateAssertion(
@@ -254,49 +244,31 @@ func (c *EthBridgeClient) CreateAssertion(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.rollup.CreateAssertion(vmHash, inboxSize, cumulativeGasUsed, prevVMHash, prevL2GasUsed)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) {
+		return c.rollup.CreateAssertion(vmHash, inboxSize, cumulativeGasUsed, prevVMHash, prevL2GasUsed)
+	}
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.rollup.ChallengeAssertion(players, assertionIDs)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) { return c.rollup.ChallengeAssertion(players, assertionIDs) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) ConfirmFirstUnresolvedAssertion() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.rollup.ConfirmFirstUnresolvedAssertion()
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) { return c.rollup.ConfirmFirstUnresolvedAssertion() }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) { return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 // Returns the last assertion ID that was validated *by us*.
@@ -424,13 +396,8 @@ func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challenge
 func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.challenge.InitializeChallengeLength(numSteps)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	f := func() (*types.Transaction, error) { return c.challenge.InitializeChallengeLength(numSteps) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) CurrentChallengeResponder() (common.Address, error) {
@@ -448,7 +415,8 @@ func (c *EthBridgeClient) CurrentChallengeResponderTimeLeft() (*big.Int, error) 
 func (c *EthBridgeClient) TimeoutChallenge() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.Timeout()
+	f := func() (*types.Transaction, error) { return c.challenge.Timeout() }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) BisectExecution(
@@ -460,19 +428,16 @@ func (c *EthBridgeClient) BisectExecution(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.challenge.BisectExecution(
+	f := func() (*types.Transaction, error) {
+		return c.challenge.BisectExecution(
 			bisection,
 			challengedSegmentIndex,
 			prevBisection,
 			prevChallengedSegmentStart,
 			prevChallengedSegmentLength,
 		)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	}
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) VerifyOneStepProof(
@@ -484,19 +449,16 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = c.challenge.VerifyOneStepProof(
+	f := func() (*types.Transaction, error) {
+		return c.challenge.VerifyOneStepProof(
 			proof,
 			challengedStepIndex,
 			prevBisection,
 			prevChallengedSegmentStart,
 			prevChallengedSegmentLength,
 		)
-		return err
-	}, c.retryOpts...)
-	return result, err
+	}
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) WatchBisected(
@@ -534,4 +496,14 @@ func dialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Optio
 		return nil, fmt.Errorf("failed to connect to L1: %w", err)
 	}
 	return client, nil
+}
+
+func retryTransactingFunction(f func() (*types.Transaction, error), retryOpts []retry.Option) (*types.Transaction, error) {
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = f()
+		return err
+	}, retryOpts...)
+	return result, err
 }
