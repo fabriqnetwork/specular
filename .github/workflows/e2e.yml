@@ -18,7 +18,7 @@ jobs:
         run: |
           docker version
       - name: Install Docker Compose
-        uses: ndeloof/install-docker-compose@v0.0.1
+        uses: ndeloof/install-compose-action@v0.0.1
         with:
           version: v2.5.1
 
