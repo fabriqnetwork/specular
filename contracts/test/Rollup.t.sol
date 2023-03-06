@@ -266,7 +266,6 @@ contract RollupTest is RollupBaseSetup {
             vm.stopPrank();
         }
 
-
         // Putting in different scope to do away with the stack too deep error.
         {
             // Check if the value of the address owner was set correctly
