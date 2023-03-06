@@ -96,6 +96,12 @@ contract RollupTest is RollupBaseSetup {
         assertEq(fetchedSequencerAddress, sequencerAddress);
     }
 
+    // 1. external/public functions (user data)
+    // 2. functions that call an external contract
+    // 3. calculateINterest, calculateWithdrawabeCollateral
+    // 4. test pause and upgrade mechanism of the contracts.
+    // 5. internal/private functions: Anchor contracts -> public 
+
     function test_initializeRollup_vaultAddressZero() external {
         // Preparing the initializing data for the (proxied)Rollup contract
         bytes memory initializingData = abi.encodeWithSelector(
@@ -1309,14 +1315,13 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 maxGasPerAssertion,
-        uint256 defenderAssertionID,
-        uint256 challengerAssertionID,
         uint256 initialAssertionID,
         uint256 initialInboxSize,
         uint256 initialL2GasUsed
     ) public {
         // Initializing the rollup
         address _vault = makeAddr("vault");
+        initialAssertionID = bound(initialAssertionID, 0, (type(uint256).max - 10));
         _initializeRollup(
             _vault,
             confirmationPeriod, challengePeriod, minimumAssertionPeriod, maxGasPerAssertion, type(uint256).max,
@@ -1326,6 +1331,9 @@ contract RollupTest is RollupBaseSetup {
         );
 
         uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+        uint256 challengerAssertionID;
+        uint256 defenderAssertionID;
+
 
         challengerAssertionID = bound(challengerAssertionID, lastCreatedAssertionID + 1, type(uint256).max);
         defenderAssertionID = bound(defenderAssertionID, 0, challengerAssertionID - 1);
@@ -1339,7 +1347,7 @@ contract RollupTest is RollupBaseSetup {
         assertionIDs[0] = defenderAssertionID;
         assertionIDs[1] = challengerAssertionID;
 
-        vm.expectRevert(IRollup.UnproposedAssertion.selector);
+        vm.expectRevert(IRollup.UnproposedAssertion.selector); 
         rollup.challengeAssertion(players, assertionIDs);
     }
 
