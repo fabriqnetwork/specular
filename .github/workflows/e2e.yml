@@ -56,13 +56,10 @@ jobs:
           node-version: "18.x"
 
       - name: Run test
-        env:
-          NODE_OPTIONS: --experimental-specifier-resolution=node
         run: |
           pwd
           ls -la
-          cd contracts/scripts
-          node testing.ts
+          node --experimental-specifier-resolution=node contracts/scripts/testing.ts
 
       - name: Stop and remove containers
         run: |
