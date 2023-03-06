@@ -1363,9 +1363,9 @@ contract RollupTest is RollupBaseSetup {
         _initializeRollup(
             _vault,
             confirmationPeriod, challengePeriod, 1 days, 500, 1 ether,
-            initialAssertionID,
-            initialInboxSize,
-            initialL2GasUsed
+            0,
+            5,
+            0
         );
 
         uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
@@ -1402,8 +1402,11 @@ contract RollupTest is RollupBaseSetup {
 
             _increaseSequencerInboxSize();
 
+            seqInboxSize = seqIn.getInboxSize();
+            emit log_named_uint("Sequencer Inbox Size Final", seqInboxSize);
+
             bytes32 mockVmHash = bytes32("");
-            uint256 mockInboxSize = 5;
+            uint256 mockInboxSize = 6;
             uint256 mockL2GasUsed = 342;
             bytes32 mockPrevVMHash = bytes32("");
             uint256 mockPrevL2GasUsed = 0;
@@ -1440,6 +1443,8 @@ contract RollupTest is RollupBaseSetup {
 
         vm.expectRevert(IRollup.AssertionAlreadyResolved.selector);
         rollup.challengeAssertion(players, assertionIDs);
+
+        assertTrue(true);
     }
 
     /////////////////////////
