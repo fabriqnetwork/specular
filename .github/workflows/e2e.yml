@@ -11,6 +11,17 @@ jobs:
         image: docker:dind
 
     steps:
+      - name: Check machine OS
+        run: |
+          echo "Machine OS: ${{ runner.os }}"
+      - name: Check Docker version
+        run: |
+          docker version
+      - name: Install Docker Compose
+        uses: docker/compose-action@v1.2.1
+        with:
+          compose-version: 2.5.1
+
       - name: Checkout code
         uses: actions/checkout@v2
 
