@@ -50,14 +50,6 @@ jobs:
           ls -la
           docker-compose -f docker/docker-compose-integration-test.yml up -d --build
 
-      - name: Wait for containers
-        run: |
-          pwd
-          ls -la
-          while ! docker-compose -f docker/docker-compose-integration-test.yml ps -q | xargs docker inspect -f '{{ .State.Health.Status }}' | grep -q healthy; do
-              sleep 1
-          done
-
       - name: Install node
         uses: actions/setup-node@v2
         with:
