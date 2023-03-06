@@ -63,7 +63,9 @@ jobs:
           yarn install
           npx hardhat deploy --network localhost
           cd scripts
-          yarn ts-node /testing.ts
+          pwd
+          ls -la
+          yarn ts-node testing.ts
 
       - name: Stop and remove containers
         run: |
