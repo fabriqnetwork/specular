@@ -25,6 +25,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Update Git submodules
+        run: |
+          git submodule init
+          git submodule update --recursive
+
       - name: List files in current dir
         run: |
           pwd
