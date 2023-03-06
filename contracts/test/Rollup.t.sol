@@ -1112,9 +1112,9 @@ contract RollupTest is RollupBaseSetup {
         _initializeRollup(
             _vault,
             confirmationPeriod, challengePeriod, 1 days, 500, 1 ether,
-            initialAssertionID,
-            initialInboxSize,
-            initialL2GasUsed
+            0,
+            5,
+            0
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -1181,7 +1181,7 @@ contract RollupTest is RollupBaseSetup {
         emit log_named_uint("Changed Sequencer Inbox Size", seqIn.getInboxSize());
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 5; // Which is smaller than the previously set sequencerInboxSize with the function _increaseSequencerInboxSize
+        uint256 mockInboxSize = 6; // Which is smaller than the previously set sequencerInboxSize with the function _increaseSequencerInboxSize
 
         // Need to figure out values of mockL2GasUsed so that the following condition is satisfied:
         // if (assertionGasUsed > maxGasPerAssertion) {
