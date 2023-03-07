@@ -2,28 +2,40 @@ package log
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 	"runtime"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/log"
 )
 
-func Error(msg string, args ...interface{}) {
-	log.Error(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
+func Trace(msg string, args ...interface{}) {
+	log.Trace(getLogPrefix()+" | "+msg, args...)
 }
 
-func Warn(msg string, args ...interface{}) {
-	log.Warn(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
-}
-
-func Crit(msg string, args ...interface{}) {
-	log.Crit(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
+func Debug(msg string, args ...interface{}) {
+	log.Debug(getLogPrefix()+" | "+msg, args...)
 }
 
 func Info(msg string, args ...interface{}) {
-	log.Info(fmt.Sprintf(msg, args...)+" | "+getFunctionDetail())
+	log.Info(getLogPrefix()+" | "+msg, args...)
 }
 
-func getFunctionDetail() string {
-	pc, file, line, _ := runtime.Caller(2)
+func Warn(msg string, args ...interface{}) {
+	log.Warn(getLogPrefix()+" | "+msg, args...)
+}
+
+func Error(msg string, args ...interface{}) {
+	log.Error(getLogPrefix()+" | "+msg, args...)
+}
+
+func Crit(msg string, args ...interface{}) {
+	log.Crit(getLogPrefix()+" | "+msg, args...)
+}
+
+func getLogPrefix() string {
+    // Skip two call frames (from here to the caller of log.X)
+	pc, _, line, _ := runtime.Caller(2)
 	fn := runtime.FuncForPC(pc)
-	return fmt.Sprintf("%s:%d (%s)", file, line, fn.Name())
+	fullFnName := strings.Split(fn.Name(), ".")
+	return fmt.Sprintf("%s:%d", fullFnName[len(fullFnName)-1], line)
 }
