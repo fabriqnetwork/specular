@@ -49,6 +49,8 @@ jobs:
           pwd 
           ls -la
           docker-compose -f docker/docker-compose-integration-test.yml up -d --build
+          docker run --rm --network docker_default vishnubob/wait-for-it:latest localhost:8545 -t 240
+          docker run --rm --network docker_default vishnubob/wait-for-it:latest localhost:4011 -t 240
 
       - name: Install node
         uses: actions/setup-node@v2
