@@ -52,8 +52,13 @@ jobs:
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
           docker ps
+          docker logs hardhat
+          docker logs sequencer
+          sleep 30
           ./wait-for-it.sh -t 120 127.0.0.1:8545
           ./wait-for-it.sh -t 120 127.0.0.1:4011
+          docker logs hardhat
+          docker logs sequencer
 
       - name: Install node
         uses: actions/setup-node@v2
