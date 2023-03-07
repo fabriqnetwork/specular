@@ -49,8 +49,11 @@ jobs:
           pwd 
           ls -la
           docker-compose -f docker/docker-compose-integration-test.yml up -d --build
-          docker run --rm --network docker_default vishnubob/wait-for-it:latest localhost:8545 -t 240
-          docker run --rm --network docker_default vishnubob/wait-for-it:latest localhost:4011 -t 240
+          wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
+          chmod +x wait-for-it.sh
+          docker ps
+          ./wait-for-it.sh -t 120 127.0.0.1:8545
+          ./wait-for-it.sh -t 120 127.0.0.1:4011
 
       - name: Install node
         uses: actions/setup-node@v2
