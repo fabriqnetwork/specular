@@ -3,28 +3,26 @@ package fmt
 import (
 	"fmt"
 	"runtime"
-
+	
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/errors"
 )
 
-type Error struct {
+type wrapError struct {
 	err  *errors.Error
-	file string
-	line int
-	fn   *runtime.Func
+	msg string
 }
 
-func Errorf(format string, args ...interface{}) *Error {
-	pc, file, line, _ := runtime.Caller(1)
+func Errorf(format string, args ...interface{}) *wrapError {
+	pc, _, line, _ := runtime.Caller(1)
 	fn := runtime.FuncForPC(pc)
-	return &Error{
-		err:  errors.Errorf(format, args...),
-		file: file,
-		line: line,
-		fn:   fn,
+	err := errors.Errorf(format, args...)
+	return &wrapError{
+		err:  err,
+		msg: fmt.Sprintf("%s | %s:%d", err.ErrorStack(), fn.Name(), line),
 	}
 }
 
-func (e *Error) Error() string {
-	return fmt.Sprintf("%s | %s:%d (%s)", e.err.ErrorStack(), e.file, e.line, e.fn.Name())
+func (e *wrapError) Error() string {
+	return e.msg
 }
+
