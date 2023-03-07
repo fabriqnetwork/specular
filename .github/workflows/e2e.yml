@@ -65,7 +65,7 @@ jobs:
           cd scripts
           pwd
           ls -la
-          yarn ts-node testing.ts
+          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
 
       - name: Stop and remove containers
         run: |
