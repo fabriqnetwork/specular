@@ -4,10 +4,12 @@ import { Wallet, utils, ethers, BigNumber } from "ethers";
 import assert from "assert";
 import fs from "fs";
 
+const ROOT_DIR = __dirname + "/../../";
+
 const sequencerPrivateKeyPath =
-  "../../clients/geth/specular/data/keys/sequencer.prv";
+  ROOT_DIR + "clients/geth/specular/data/keys/sequencer.prv";
 const validatorPrivateKeyPath =
-  "../../clients/geth/specular/data/keys/validator.prv";
+  ROOT_DIR + "clients/geth/specular/data/keys/validator.prv";
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:4011"
