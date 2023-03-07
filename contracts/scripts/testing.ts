@@ -12,10 +12,12 @@ const validatorPrivateKeyPath =
   ROOT_DIR + "clients/geth/specular/data/keys/validator.prv";
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
-  "http://sequencer:4011"
+  "http://localhost:4011"
 );
 
-const l1Provider = new ethers.providers.JsonRpcProvider("http://hardhat:8545");
+const l1Provider = new ethers.providers.JsonRpcProvider(
+  "http://localhost:8545"
+);
 
 // Test tx flow
 async function testTxs(toAddress: string, value: BigNumber) {
