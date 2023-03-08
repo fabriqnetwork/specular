@@ -244,7 +244,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			confirmedAssertion.CumulativeGasUsed,
 		)
 		if errors.Is(err, core.ErrInsufficientFunds) {
-			log.Error("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+			log.Error("Insufficient Funds to send Tx", "error", err)
 		}
 		if err != nil {
 			log.Error("Can not create DA", "error", err)
@@ -275,7 +275,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			}
 			_, err = s.L1Client.AppendTxBatch(contexts, txLengths, txs)
 			if errors.Is(err, core.ErrInsufficientFunds) {
-				log.Error("[Sequencer: sequencingLoop] Insufficient Funds to send Tx", "error", err)
+				log.Error("Insufficient Funds to send Tx", "error", err)
 				continue
 			}
 			if err != nil {
@@ -389,7 +389,7 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 						// Confirmation period has past, confirm it
 						_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Error("[Sequencer: confirmationLoop] Insufficient Funds to send Tx", "error", err)
+							log.Error("Insufficient Funds to send Tx", "error", err)
 							continue
 						}
 						if err != nil {

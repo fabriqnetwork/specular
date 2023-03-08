@@ -28,6 +28,7 @@ type challengeCtx struct {
 
 var errAssertionOverflowedLocalInbox = fmt.Errorf("[Validator] assertion overflowed inbox")
 var errValidationFailed = fmt.Errorf("[Validator] validation failed")
+var errInsufficientFunds = fmt.Errorf("Insufficient Funds to send Tx, err: %w", err)
 
 type Validator struct {
 	*services.BaseService
@@ -95,7 +96,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// if assertion.ID
 	_, err := v.L1Client.AdvanceStake(assertion.ID)
 	if errors.Is(err, core.ErrInsufficientFunds) {
-		return fmt.Errorf("Insufficient Funds to send Tx, err: %w", err)
+		return errInsufficientFunds
 	}
 	if err != nil {
 		return fmt.Errorf("UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
@@ -139,8 +140,8 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				// Assertion overflowed local inbox, wait for next batch event
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
-			case errors.Is(err, core.ErrInsufficientFunds):
-				log.Error("Insufficient Funds to send Tx, err: %w", err)
+			case errors.Is(err, errInsufficientFunds):
+				log.Error("Insufficient funds to advance stake")
 				return nil
 			default:
 				return err
@@ -317,8 +318,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 					chalCtx.lastValidatedAssertion.CumulativeGasUsed,
 				)
 				if errors.Is(err, core.ErrInsufficientFunds) {
-					log.Error("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
-					continue
+					log.Crit("Insufficient Funds to send Tx", "error", err)
 				}
 				if err != nil {
 					log.Crit("UNHANDLED: Can't create assertion for challenge, validator state corrupted", "err", err)
@@ -337,8 +337,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 							},
 						)
 						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Error("[Validator: challengeLoop] Insufficient Funds to send Tx", "error", err)
-							continue
+							log.Crit("Insufficient Funds to send Tx", "error", err)
 						}
 						if err != nil {
 							log.Crit("UNHANDLED: Can't start challenge, validator state corrupted", "err", err)
