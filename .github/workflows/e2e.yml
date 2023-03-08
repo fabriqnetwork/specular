@@ -48,6 +48,9 @@ jobs:
         run: |
           pwd 
           ls -la
+          cd project
+          pwd
+          ls -la
           docker-compose -f docker/docker-compose-integration-test.yml up -d --build
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
