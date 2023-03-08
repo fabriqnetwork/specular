@@ -28,7 +28,7 @@ type challengeCtx struct {
 
 var errAssertionOverflowedLocalInbox = fmt.Errorf("[Validator] assertion overflowed inbox")
 var errValidationFailed = fmt.Errorf("[Validator] validation failed")
-var errInsufficientFunds = fmt.Errorf("Insufficient Funds to send Tx, err: %w", err)
+var errInsufficientFunds = fmt.Errorf("Insufficient Funds to send Tx, err: %w", core.ErrInsufficientFunds)
 
 type Validator struct {
 	*services.BaseService
