@@ -1,15 +1,30 @@
 name: Slither Analysis
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: same_content_newer
   analyze:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
 
       - name: Run Slither
-        uses: crytic/slither-action@dev-git-safe-workspace
+        uses: crytic/slither-action@v0.3.0
         id: slither
         with:
           sarif: results.sarif
@@ -22,4 +37,3 @@ jobs:
         if: github.repository == 'SpecularL2/specular'
         with:
           sarif_file: ${{ steps.slither.outputs.sarif }}
-

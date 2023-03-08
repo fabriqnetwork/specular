@@ -22,14 +22,13 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
 import "./challenge/Challenge.sol";
 import "./challenge/ChallengeLib.sol";
-import "./AssertionMap.sol";
+import "./libraries/Errors.sol";
 import "./IRollup.sol";
 import "./RollupLib.sol";
 import "./ISequencerInbox.sol";
@@ -43,16 +42,12 @@ abstract contract RollupBase is IRollup, Initializable, UUPSUpgradeable, Ownable
     uint256 public baseStakeAmount; // number of stake tokens
 
     address public vault;
-    IERC20 public stakeToken;
     ISequencerInbox public sequencerInbox;
-    AssertionMap public override assertions;
     IVerifier public verifier;
 
-    struct Staker {
-        bool isStaked;
-        uint256 amountStaked;
-        uint256 assertionID; // latest staked assertion ID
-        address currentChallenge; // address(0) if none
+    struct AssertionState {
+        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
+        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
     }
 
     struct Zombie {
@@ -78,6 +73,8 @@ contract Rollup is RollupBase {
     uint256 public lastResolvedAssertionID;
     uint256 public lastConfirmedAssertionID;
     uint256 public lastCreatedAssertionID;
+    mapping(uint256 => Assertion) public assertions; // mapping from assertionID to assertion
+    mapping(uint256 => AssertionState) private assertionState; // mapping from assertionID to assertion state
 
     // Staking state
     uint256 public numStakers; // current total number of stakers
@@ -89,23 +86,22 @@ contract Rollup is RollupBase {
         address _vault,
         address _sequencerInbox,
         address _verifier,
-        address _stakeToken,
         uint256 _confirmationPeriod,
         uint256 _challengePeriod,
         uint256 _minimumAssertionPeriod,
         uint256 _maxGasPerAssertion,
         uint256 _baseStakeAmount,
-        bytes32 _initialVMhash
+        uint256 _initialAssertionID,
+        uint256 _initialInboxSize,
+        bytes32 _initialVMhash,
+        uint256 _initialL2GasUsed
     ) public initializer {
-        // TODO: do we still need stake token now?
-
         // If any of addresses _vault, _sequencerInbox or _verifier is address(0), then revert.
         if (_vault == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
         vault = _vault;
         sequencerInbox = ISequencerInbox(_sequencerInbox);
-        stakeToken = IERC20(_stakeToken);
         verifier = IVerifier(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
@@ -114,14 +110,18 @@ contract Rollup is RollupBase {
         maxGasPerAssertion = _maxGasPerAssertion;
         baseStakeAmount = _baseStakeAmount;
 
-        assertions = new AssertionMap(address(this));
-        assertions.createAssertion(
-            0, // assertionID
-            RollupLib.stateHash(RollupLib.ExecutionState(0, _initialVMhash)),
-            0, // inboxSize (genesis)
-            0, // parentID
+        lastResolvedAssertionID = _initialAssertionID;
+        lastConfirmedAssertionID = _initialAssertionID;
+        lastCreatedAssertionID = _initialAssertionID;
+
+        createAssertionHelper(
+            _initialAssertionID, // assertionID
+            RollupLib.stateHash(RollupLib.ExecutionState(_initialL2GasUsed, _initialVMhash)),
+            _initialInboxSize, // inboxSize (genesis)
+            _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash, _initialL2GasUsed);
 
         __RollupBase_init();
     }
@@ -134,18 +134,26 @@ contract Rollup is RollupBase {
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IRollup
-    function isStaked(address addr) public view override returns (bool) {
-        return stakers[addr].isStaked;
-    }
-
-    /// @inheritdoc IRollup
     function currentRequiredStake() public view override returns (uint256) {
         return baseStakeAmount;
     }
 
     /// @inheritdoc IRollup
     function confirmedInboxSize() public view override returns (uint256) {
-        return assertions.getInboxSize(lastConfirmedAssertionID);
+        return assertions[lastConfirmedAssertionID].inboxSize;
+    }
+
+    /// @inheritdoc IRollup
+    function getStaker(address addr) external view override returns (Staker memory) {
+        return stakers[addr];
+    }
+
+    function getAssertion(uint256 assertionID) external view override returns (Assertion memory) {
+        return assertions[assertionID];
+    }
+
+    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view returns (bool) {
+        return assertionState[assertionID].stakers[stakerAddress];
     }
 
     /// @inheritdoc IRollup
@@ -205,7 +213,7 @@ contract Rollup is RollupBase {
             revert AssertionOutOfRange();
         }
         // TODO: allow arbitrary descendant of current staked assertionID, not just child.
-        if (staker.assertionID != assertions.getParentID(assertionID)) {
+        if (staker.assertionID != assertions[assertionID].parent) {
             revert ParentAssertionUnstaked();
         }
         stakeOnAssertion(msg.sender, assertionID);
@@ -232,8 +240,9 @@ contract Rollup is RollupBase {
         RollupLib.ExecutionState memory endState = RollupLib.ExecutionState(l2GasUsed, vmHash);
 
         uint256 parentID = stakers[msg.sender].assertionID;
+        Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
-        if (block.number - assertions.getProposalTime(parentID) < minimumAssertionPeriod) {
+        if (block.number - parent.proposalTime < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
         }
         // TODO: require(..., TOO_SMALL);
@@ -244,11 +253,11 @@ contract Rollup is RollupBase {
             revert MaxGasLimitExceeded();
         }
         // Require integrity of startState.
-        if (RollupLib.stateHash(startState) != assertions.getStateHash(parentID)) {
+        if (RollupLib.stateHash(startState) != parent.stateHash) {
             revert PreviousStateHash();
         }
         // Require that the assertion at least includes one transaction
-        if (inboxSize <= assertions.getInboxSize(parentID)) {
+        if (inboxSize <= parent.inboxSize) {
             revert EmptyAssertion();
         }
         // Require that the assertion doesn't read past the end of the current inbox.
@@ -258,8 +267,8 @@ contract Rollup is RollupBase {
 
         // Initialize assertion.
         lastCreatedAssertionID++;
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, inboxSize, l2GasUsed);
-        assertions.createAssertion(
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, l2GasUsed);
+        createAssertionHelper(
             lastCreatedAssertionID, RollupLib.stateHash(endState), inboxSize, parentID, newAssertionDeadline()
         );
 
@@ -285,8 +294,8 @@ contract Rollup is RollupBase {
             revert AssertionAlreadyResolved();
         }
         // Require that players have attested to sibling assertions.
-        uint256 parentID = assertions.getParentID(defenderAssertionID);
-        if (parentID != assertions.getParentID(challengerAssertionID)) {
+        uint256 parentID = assertions[defenderAssertionID].parent;
+        if (parentID != assertions[challengerAssertionID].parent) {
             revert DifferentParent();
         }
 
@@ -309,8 +318,8 @@ contract Rollup is RollupBase {
             challenger,
             verifier,
             address(this),
-            assertions.getStateHash(parentID),
-            assertions.getStateHash(defenderAssertionID)
+            assertions[parentID].stateHash,
+            assertions[defenderAssertionID].stateHash
         );
 
         return challengeAddr;
@@ -326,12 +335,13 @@ contract Rollup is RollupBase {
         if (numStakers <= 0) revert NoStaker();
 
         uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
+        Assertion storage lastUnresolved = assertions[lastUnresolvedID];
         // (2) challenge period has passed
-        if (block.number < assertions.getDeadline(lastUnresolvedID)) {
+        if (block.number < lastUnresolved.deadline) {
             revert ChallengePeriodPending();
         }
         // (3) predecessor has been confirmed
-        if (assertions.getParentID(lastUnresolvedID) != lastConfirmedAssertionID) {
+        if (lastUnresolved.parent != lastConfirmedAssertionID) {
             revert InvalidParent();
         }
 
@@ -339,12 +349,12 @@ contract Rollup is RollupBase {
         // removeOldZombies();
 
         // (4) all stakers are staked on the block.
-        if (assertions.getNumStakers(lastUnresolvedID) != countStakedZombies(lastUnresolvedID) + numStakers) {
+        if (lastUnresolved.numStakers != countStakedZombies(lastUnresolvedID) + numStakers) {
             revert NotAllStaked();
         }
 
         // Confirm assertion.
-        // assertions.deleteAssertion(lastConfirmedAssertionID);
+        // delete assertions[lastConfirmedAssertionID];
         lastResolvedAssertionID++;
         lastConfirmedAssertionID = lastResolvedAssertionID;
         emit AssertionConfirmed(lastResolvedAssertionID);
@@ -357,6 +367,7 @@ contract Rollup is RollupBase {
         }
 
         uint256 firstUnresolvedAssertionID = lastResolvedAssertionID + 1;
+        Assertion storage firstUnresolvedAssertion = assertions[firstUnresolvedAssertionID];
 
         // First case - parent of first unresolved is last confirmed (`if` condition below). e.g.
         // [1] <- [3]           | valid chain ([1] is last confirmed, [3] is stakerAddress's unresolved assertion)
@@ -369,9 +380,9 @@ contract Rollup is RollupBase {
         //   parent is previous confirmed, e.g.
         //   [1] <- [2] <- [4]    | valid chain ([2] is last confirmed, [4] is stakerAddress's unresolved assertion)
         //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
-        if (assertions.getParentID(firstUnresolvedAssertionID) == lastConfirmedAssertionID) {
+        if (firstUnresolvedAssertion.parent == lastConfirmedAssertionID) {
             // 1a. challenge period has passed.
-            if (block.number < assertions.getDeadline(firstUnresolvedAssertionID)) {
+            if (block.number < firstUnresolvedAssertion.deadline) {
                 revert ChallengePeriodPending();
             }
 
@@ -382,16 +393,16 @@ contract Rollup is RollupBase {
             if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
                 revert AssertionAlreadyResolved();
             }
+            AssertionState storage firstUnresolvedAssertionState = assertionState[firstUnresolvedAssertionID];
             // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
-            if (assertions.isStaker(firstUnresolvedAssertionID, stakerAddress)) {
+            if (firstUnresolvedAssertionState.stakers[stakerAddress]) {
                 revert StakerStakedOnTarget();
             }
             // If a staker is staked on an assertion that is neither an ancestor nor a descendant of firstUnresolved, it must be a sibling, QED
 
             // 1c. no staker is staked on this assertion
             // removeOldZombies();
-            if (assertions.getNumStakers(firstUnresolvedAssertionID) != countStakedZombies(firstUnresolvedAssertionID))
-            {
+            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID)) {
                 revert StakersPresent();
             }
         }
@@ -399,14 +410,14 @@ contract Rollup is RollupBase {
         // Reject assertion.
         lastResolvedAssertionID++;
         emit AssertionRejected(lastResolvedAssertionID);
-        assertions.deleteAssertion(lastResolvedAssertionID);
+        delete assertions[lastResolvedAssertionID];
     }
 
     /// @inheritdoc IRollup
     function completeChallenge(address winner, address loser) external override {
         address challenge = getChallenge(winner, loser);
         if (msg.sender != challenge) {
-            revert NotChallenge(msg.sender, challenge);
+            revert NotChallengeParticipant(msg.sender, challenge);
         }
 
         uint256 remainingLoserStake = stakers[loser].amountStaked;
@@ -415,7 +426,7 @@ contract Rollup is RollupBase {
             // If loser has a higher stake than the winner, refund the difference.
             // Loser gets deleted anyways, so maybe unnecessary to set amountStaked.
             stakers[loser].amountStaked = winnerStake;
-            withdrawableFunds[loser] += winnerStake - remainingLoserStake;
+            withdrawableFunds[loser] += remainingLoserStake - winnerStake;
             remainingLoserStake = winnerStake;
         }
         // Reward the winner with half the remaining stake
@@ -431,6 +442,10 @@ contract Rollup is RollupBase {
         zombies.push(Zombie(loser, assertionID));
     }
 
+    function isStaked(address addr) private view returns (bool) {
+        return stakers[addr].isStaked;
+    }
+
     /**
      * @notice Updates staker and assertion metadata.
      * @param stakerAddress Address of existing staker.
@@ -438,8 +453,42 @@ contract Rollup is RollupBase {
      */
     function stakeOnAssertion(address stakerAddress, uint256 assertionID) private {
         stakers[stakerAddress].assertionID = assertionID;
-        assertions.stakeOnAssertion(assertionID, stakerAddress);
+        assertions[assertionID].numStakers++;
+        assertionState[assertionID].stakers[stakerAddress] = true;
         emit StakerStaked(stakerAddress, assertionID);
+    }
+
+    /**
+     * @notice Creates a new assertion. See `Assertion` documentation.
+     */
+    function createAssertionHelper(
+        uint256 assertionID,
+        bytes32 stateHash,
+        uint256 inboxSize,
+        uint256 parentID,
+        uint256 deadline
+    ) private {
+        Assertion storage parentAssertion = assertions[parentID];
+        AssertionState storage parentAssertionState = assertionState[parentID];
+        // Child assertions must have same inbox size
+        uint256 parentChildInboxSize = parentAssertion.childInboxSize;
+        if (parentChildInboxSize == 0) {
+            parentAssertion.childInboxSize = inboxSize;
+        } else if (inboxSize != parentChildInboxSize) {
+            revert InvalidInboxSize();
+        } else if (parentAssertionState.childStateHashes[stateHash]) {
+            revert DuplicateAssertion();
+        }
+        parentAssertionState.childStateHashes[stateHash] = true;
+        assertions[assertionID] = Assertion(
+            stateHash,
+            inboxSize,
+            parentID,
+            deadline,
+            block.number, // proposal time
+            0, // numStakers
+            0 // childInboxSize
+        );
     }
 
     /**
@@ -498,7 +547,7 @@ contract Rollup is RollupBase {
     function countStakedZombies(uint256 assertionID) private view returns (uint256) {
         uint256 numStakedZombies = 0;
         for (uint256 i = 0; i < zombies.length; i++) {
-            if (assertions.isStaker(assertionID, zombies[i].stakerAddress)) {
+            if (assertionState[assertionID].stakers[zombies[i].stakerAddress]) {
                 numStakedZombies++;
             }
         }

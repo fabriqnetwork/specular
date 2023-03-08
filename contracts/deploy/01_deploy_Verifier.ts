@@ -10,7 +10,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const Verifier = await ethers.getContractFactory("Verifier", deployer);
   const verifier = await upgrades.deployProxy(Verifier, [], {
     initializer: "initialize",
-    from: sequencer,
     timeout: 0,
     kind: "uups",
   });

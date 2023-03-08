@@ -1,0 +1,34 @@
+name: test_L2
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: same_content_newer
+  testL2:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: 'true'
+
+      - uses: actions/setup-node@v3
+
+      - name: Install dependencies
+        run: yarn --ignore-scripts
+
+      - name: Install
+        run: cd ./clients/geth/specular && make

@@ -1,0 +1,10 @@
+version: '3.8'
+
+services:
+  hardhat:
+    image: specularl2/hardhat:${DOCKER_TAG:-latest}
+    build:
+      context: ../..
+      dockerfile: ./contracts/Dockerfile
+    ports:
+      - 8545:8545
