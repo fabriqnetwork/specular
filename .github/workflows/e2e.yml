@@ -58,8 +58,8 @@ jobs:
           docker logs hardhat
           docker logs sequencer
           sleep 30
-          ./wait-for-it.sh -t 120 127.0.0.1:8545
-          ./wait-for-it.sh -t 120 127.0.0.1:4011
+          ./wait-for-it.sh -t 240 127.0.0.1:8545
+          ./wait-for-it.sh -t 240 127.0.0.1:4011
           docker logs hardhat
           docker logs sequencer
 
