@@ -3,7 +3,6 @@ package validator
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -18,6 +17,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 type challengeCtx struct {
@@ -140,7 +140,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
-				return err
+				return fmt.Errorf("tryValidateAssertion Failed",err)
 			}
 		}
 		// Validation success, clean up
