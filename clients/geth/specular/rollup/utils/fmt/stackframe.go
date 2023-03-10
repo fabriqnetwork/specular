@@ -1,5 +1,5 @@
 // This file was copied and modified from https://github.com/go-errors/errors in accordance to its license (MIT).
-package customerrors
+package fmt
 
 import (
 	"bufio"

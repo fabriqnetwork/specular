@@ -18,7 +18,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/customerrors"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 
@@ -43,7 +43,7 @@ type Sequencer struct {
 func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Sequencer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
-		return nil, customerrors.Errorf("Failed to create base service, err: %w", err)
+		return nil, fmt.Errorf("Failed to create base service, err: %w", err)
 	}
 	s := &Sequencer{
 		BaseService:          base,
@@ -74,7 +74,7 @@ func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Tra
 		// Check if tx exists on chain
 		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash())
 		if err != nil {
-			return nil, customerrors.Errorf("Checking GetTransaction, err: %w", err)
+			return nil, fmt.Errorf("Checking GetTransaction, err: %w", err)
 		}
 		if prevTx == nil {
 			batchTxs = append(batchTxs, tx)
@@ -87,7 +87,7 @@ func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Tra
 func (s *Sequencer) sendBatch(batcher *Batcher) error {
 	blocks, err := batcher.Batch()
 	if err != nil {
-		return customerrors.Errorf("Failed to batch blocks, err: %w", err)
+		return fmt.Errorf("Failed to batch blocks, err: %w", err)
 	}
 	s.blockCh <- blocks
 	return nil
@@ -110,7 +110,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 			var err error
 			batchTxs, err = s.modifyTxnsInBatch(ctx, batchTxs, tx)
 			if err != nil {
-				return nil, customerrors.Errorf("Modifying batch failed, err: %w", err)
+				return nil, fmt.Errorf("Modifying batch failed, err: %w", err)
 			}
 			txs.Pop()
 		}
@@ -120,7 +120,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 	}
 	err := batcher.CommitTransactions(batchTxs)
 	if err != nil {
-		return nil, customerrors.Errorf("Failed to commit transactions, err: %w", err)
+		return nil, fmt.Errorf("Failed to commit transactions, err: %w", err)
 	}
 	log.Info("Committed tx batch", "batch size", len(batchTxs))
 	return batchTxs, nil
@@ -560,14 +560,14 @@ func (s *Sequencer) Start() error {
 	log.Info("Starting sequencer...")
 	ctx, err := s.BaseService.Start()
 	if err != nil {
-		return customerrors.Errorf("Failed to start sequencer: %w", err)
+		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
 	if err := s.Stake(ctx); err != nil {
-		return customerrors.Errorf("Failed to start sequencer: %w", err)
+		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
 	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.L1RollupGenesisBlock)
 	if err != nil {
-		return customerrors.Errorf("Failed to start sequencer: %w", err)
+		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
 	// We assume a single sequencer (us) for now, so we don't
 	// need to sync transactions sequenced up.
