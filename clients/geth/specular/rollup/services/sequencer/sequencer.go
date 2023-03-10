@@ -339,14 +339,6 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	defer s.Wg.Done()
 
-	// Watch AssertionRejected event
-	rejectedCh := make(chan *bindings.IRollupAssertionRejected, 4096)
-	rejectedSub, err := s.L1Client.WatchAssertionRejected(&bind.WatchOpts{Context: ctx}, rejectedCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer rejectedSub.Unsubscribe()
-
 	// Watch AssertionConfirmed event
 	confirmedCh := make(chan *bindings.IRollupAssertionConfirmed, 4096)
 	confirmedSub, err := s.L1Client.WatchAssertionConfirmed(&bind.WatchOpts{Context: ctx}, confirmedCh)
@@ -390,39 +382,35 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 		} else {
 			select {
 			case header := <-headCh:
-				// New block mined on L1
-				if !pendingConfirmationSent && !pendingConfirmed {
-					if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
-						// Confirmation period has past, confirm it
-						_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
-						if errors.Is(err, core.ErrInsufficientFunds) {
-							log.Crit("Insufficient Funds to send Tx", "error", err)
-						}
-						if err != nil {
-							// log.Error("Failed to confirm DA", "error", err)
-							log.Crit("Failed to confirm DA", "err", err)
-							// TODO: wait some time before retry
-							continue
-						}
-						pendingConfirmationSent = true
-					}
-				}
-			case <-rejectedCh:
-				if !pendingConfirmed {
-					// Reject the first unresolved assertion if all the conditions are met
-					// (1) challenge period has passed, 
-					// (2) at least one staker exists, 
-					// (3) no staker remains staked on the assertion (all have been destroyed).
-					
-					_, err := s.L1Client.RejectFirstUnresolvedAssertion(s.Config.SequencerAddr)
-					if errors.Is(err, core.ErrInsufficientFunds) {
-						log.Error("Insufficient Funds to send Tx", "error", err)
-					}
-					if err != nil {
-						log.Error("Failed to reject first unresolved assertion", "err", err)
-					}
-					pendingConfirmed = true
-				}
+                // New block mined on L1
+                if !pendingConfirmationSent && !pendingConfirmed {
+                    if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
+                        // Confirmation period has past, confirm or reject it
+						// Todo: Add condition for rejection
+                        if false{
+                            _, err := s.L1Client.RejectFirstUnresolvedAssertion(s.Config.SequencerAddr)
+                            if errors.Is(err, core.ErrInsufficientFunds) {
+                                log.Error("Insufficient Funds to send Tx", "error", err)
+                            }
+                            if err != nil {
+                                log.Error("Failed to reject DA", "err", err)
+                                continue
+                            }
+                            pendingConfirmationSent = true
+                        } else {
+                            _, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
+                            if errors.Is(err, core.ErrInsufficientFunds) {
+                                log.Error("Insufficient Funds to send Tx", "error", err)
+                            }
+                            if err != nil {
+                                log.Error("Failed to confirm DA", "err", err)
+                                // TODO: wait some time before retry
+                                continue
+                            }
+                            pendingConfirmationSent = true
+                        }
+                    }
+                }
 			case ev := <-confirmedCh:
 				log.Info("Received `AssertionConfirmed` event ", "assertion id", ev.AssertionID)
 				// New confirmed assertion
