@@ -17,7 +17,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/customerrors"
 )
 
 type challengeCtx struct {
@@ -26,8 +26,8 @@ type challengeCtx struct {
 	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-var errAssertionOverflowedLocalInbox = fmt.Errorf("[Validator] assertion overflowed inbox")
-var errValidationFailed = fmt.Errorf("[Validator] validation failed")
+var errAssertionOverflowedLocalInbox = customerrors.Errorf("[Validator] assertion overflowed inbox")
+var errValidationFailed = customerrors.Errorf("[Validator] validation failed")
 
 type Validator struct {
 	*services.BaseService
@@ -70,7 +70,7 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
-			return fmt.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
+			return customerrors.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
 		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(block.GasUsed()))
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
@@ -95,10 +95,10 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	// if assertion.ID
 	_, err := v.L1Client.AdvanceStake(assertion.ID)
 	if errors.Is(err, core.ErrInsufficientFunds) {
-		return fmt.Errorf("Insufficient Funds to send Tx, err: %w", err)
+		return customerrors.Errorf("Insufficient Funds to send Tx, err: %w", err)
 	}
 	if err != nil {
-		return fmt.Errorf("UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
+		return customerrors.Errorf("UNHANDLED: Can't advance stake, validator state corrupted, err: %w", err)
 	}
 	return nil
 }
@@ -140,7 +140,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
-				return fmt.Errorf("tryValidateAssertion Failed",err)
+				return customerrors.Errorf("tryValidateAssertion Failed",err)
 			}
 		}
 		// Validation success, clean up
@@ -390,13 +390,13 @@ func (v *Validator) Start() error {
 		return err
 	}
 	if err := v.Stake(ctx); err != nil {
-		return fmt.Errorf("Failed to stake, err: %w", err)
+		return customerrors.Errorf("Failed to stake, err: %w", err)
 	}
 	// This is necessary despite `SyncLoop`, since we need an up-to-date L2 chain
 	// before we resolve all information about the last validated assertion.
 	end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
 	if err != nil {
-		return fmt.Errorf("Failed to start sequencer: %w", err)
+		return customerrors.Errorf("Failed to start sequencer: %w", err)
 	}
 	v.Wg.Add(3)
 	go v.SyncLoop(ctx, end+1, v.newBatchCh)

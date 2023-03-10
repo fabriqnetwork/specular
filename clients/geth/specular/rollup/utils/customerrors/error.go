@@ -1,9 +1,8 @@
-package errors
+package customerrors
 
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"runtime"
 )
 
@@ -16,7 +15,6 @@ type Error struct {
 	Err    error
 	stack  []uintptr
 	frames []StackFrame
-	prefix string
 }
 
 // New makes an Error from the given value. If that value is already an
@@ -80,12 +78,7 @@ func Errorf(format string, a ...interface{}) *Error {
 // Error returns the underlying error's message.
 func (err *Error) Error() string {
 
-	msg := err.Err.Error()
-	if err.prefix != "" {
-		msg = fmt.Sprintf("%s: %s", err.prefix, msg)
-	}
-
-	return msg
+	return err.Err.Error()+ "\n" + string(err.Stack())
 }
 
 // Stack returns the callstack formatted the same way that go does
@@ -103,12 +96,6 @@ func (err *Error) Callers() []uintptr {
 	return err.stack
 }
 
-// ErrorStack returns a string that contains both the
-// error message and the callstack.
-func (err *Error) ErrorStack() string {
-	return err.TypeName() + " " + err.Error() + "\n" + string(err.Stack())
-}
-
 
 // StackFrames returns an array of frames containing information about the
 // stack.
@@ -122,14 +109,6 @@ func (err *Error) StackFrames() []StackFrame {
 	}
 
 	return err.frames
-}
-
-// TypeName returns the type this error. e.g. *errors.stringError.
-func (err *Error) TypeName() string {
-	if _, ok := err.Err.(uncaughtPanic); ok {
-		return "panic"
-	}
-	return reflect.TypeOf(err.Err).String()
 }
 
 // Return the wrapped error (implements api for As function).
