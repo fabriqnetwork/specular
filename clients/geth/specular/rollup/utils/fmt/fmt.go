@@ -17,10 +17,6 @@ func Sprintf(format string, a ...any) string {
 	return fmt.Sprintf(format,a...)
 }
 
-func Appendf(b []byte, format string, a ...any) []byte {
-	return fmt.Appendf(b,format,a...)
-}
-
 func Fprint(w io.Writer, a ...any) (n int, err error) {
 	return fmt.Fprint(w,a...)
 }
@@ -33,10 +29,6 @@ func Sprint(a ...any) string {
 	return fmt.Sprint(a...)
 }
 
-func Append(b []byte, a ...any) []byte {
-	return fmt.Append(b,a...)
-}
-
 func Fprintln(w io.Writer, a ...any) (n int, err error) {
 	return fmt.Fprintln(w,a...)
 }
@@ -47,8 +39,4 @@ func Println(a ...any) (n int, err error) {
 
 func Sprintln(a ...any) string {
 	return fmt.Sprintln(a...)
-}
-
-func Appendln(b []byte, a ...any) []byte {
-	return fmt.Appendln(b,a...)
 }
