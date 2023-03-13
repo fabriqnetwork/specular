@@ -190,7 +190,7 @@ contract RollupTest is RollupBaseSetup {
         vm.startPrank(rollupOwner);
 
         Rollup implementationRollup = new Rollup(); // implementation contract
-        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));// The rollup contract (proxy, not implementation should have been initialized by now)
+        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
 
         vm.stopPrank();
 
