@@ -23,7 +23,6 @@ import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.so
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
-import {SpecularProxy} from "test/SpecularProxy.sol";
 import {MockToken} from "./utils/MockToken.sol";
 import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
@@ -48,28 +47,21 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(3);
+        users = utils.createUsers(7);
 
         sequencer = users[0];
-        vm.label(sequencer, "Sequencer");
-
         alice = users[1];
-        vm.label(alice, "Alice");
-
         bob = users[2];
-        vm.label(bob, "Bob");
-
-        vault = makeAddr("vault");
-        sequencerOwner = makeAddr("sequencerOwner");
-        sequencerAddress = makeAddr("sequencerAddress");
-        rollupOwner = makeAddr("rollupOwner");
+        vault = users[3];
+        sequencerOwner = users[4];
+        sequencerAddress = users[5];
+        rollupOwner = users[6];
     }
 }
 
 contract RollupTest is RollupBaseSetup {
     Rollup public rollup;
     uint256 randomNonce;
-    SpecularProxy public specularProxy;
     SequencerInbox public seqIn;
     SequencerInbox public implementationSequencer;
 
@@ -84,8 +76,7 @@ contract RollupTest is RollupBaseSetup {
         bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", sequencerAddress);
         vm.startPrank(sequencerOwner);
         implementationSequencer = new SequencerInbox();
-        specularProxy = new SpecularProxy(address(implementationSequencer), seqInInitData);
-        seqIn = SequencerInbox(address(specularProxy));
+        seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
         vm.stopPrank();
 
         // Making sure that the proxy returns the correct proxy owner and sequencerAddress
@@ -419,8 +410,7 @@ contract RollupTest is RollupBaseSetup {
         // Deploying the rollup contract as the rollup owner/deployer
         vm.startPrank(rollupOwner);
         Rollup implementationRollup = new Rollup();
-        specularProxy = new SpecularProxy(address(implementationRollup), initializingData);
-        rollup = Rollup(address(specularProxy));
+        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
         vm.stopPrank();
     }
 }
