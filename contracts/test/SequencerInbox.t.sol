@@ -21,7 +21,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
-import {SpecularProxy} from "test/SpecularProxy.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
@@ -46,7 +46,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
     /////////////////////////////////
 
     SequencerInbox public seqIn;
-    SpecularProxy public specularProxy;
     SequencerInbox public implementationSequencer;
 
     function setUp() public virtual override {
@@ -57,9 +56,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.startPrank(sequencerOwner);
 
         implementationSequencer = new SequencerInbox();
-        specularProxy = new SpecularProxy(address(implementationSequencer), seqInInitData);
-        seqIn = SequencerInbox(address(specularProxy));
-
+        seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
         vm.stopPrank();
     }
 
@@ -71,8 +68,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.startPrank(sequencerOwner);
         SequencerInbox implementationSequencer2 = new SequencerInbox();
         vm.expectRevert(ZeroAddress.selector);
-        specularProxy = new SpecularProxy(address(implementationSequencer), seqInInitData);
-        seqIn = SequencerInbox(address(specularProxy));
+        seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
         vm.stopPrank();
     }
 
