@@ -18,7 +18,6 @@ package ethapi
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"reflect"
 	"testing"
@@ -38,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 // TestSetFeeDefaults tests the logic for filling in default fee values works as expected.
