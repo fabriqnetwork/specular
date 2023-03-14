@@ -19,6 +19,7 @@ package cmdtest
 import (
 	"bufio"
 	"bytes"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -32,7 +33,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/reexec"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 func NewTestCmd(t *testing.T, data interface{}) *TestCmd {

@@ -19,6 +19,7 @@ package ethapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -45,7 +46,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/tyler-smith/go-bip39"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 // EthereumAPI provides an API to access Ethereum related information.
