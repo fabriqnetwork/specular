@@ -26,8 +26,8 @@ type challengeCtx struct {
 	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-var errAssertionOverflowedLocalInbox = fmt.Errorf("[Validator] assertion overflowed inbox")
-var errValidationFailed = fmt.Errorf("[Validator] validation failed")
+var errAssertionOverflowedLocalInbox = fmt.Errorf("assertion overflowed inbox")
+var errValidationFailed = fmt.Errorf("validation failed")
 
 type Validator struct {
 	*services.BaseService
