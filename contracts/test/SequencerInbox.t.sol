@@ -105,9 +105,9 @@ contract SequencerInboxTest is SequencerBaseSetup {
         seqIn.appendTxBatch(contexts, txLengths, "0x");
     }
 
-    /////////////////////////////
+    //////////////////////////////
     // appendTxBatch
-    /////////////////////////////
+    //////////////////////////////
     function test_appendTxBatch_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
         // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
