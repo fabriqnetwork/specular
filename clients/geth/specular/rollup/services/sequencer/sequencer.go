@@ -565,7 +565,7 @@ func (s *Sequencer) Start() error {
 	if err := s.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
-	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.L1RollupGenesisBlock)
+	_, err = s.SyncL2ChainToL1Head(ctx, s.GetL1RollupBlock(ctx, s.Config.L1RollupGenesisBlock))
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}

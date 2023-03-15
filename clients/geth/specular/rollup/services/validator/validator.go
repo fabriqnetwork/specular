@@ -394,7 +394,7 @@ func (v *Validator) Start() error {
 	}
 	// This is necessary despite `SyncLoop`, since we need an up-to-date L2 chain
 	// before we resolve all information about the last validated assertion.
-	end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
+	end, err := v.SyncL2ChainToL1Head(ctx, v.GetL1RollupBlock(ctx, v.Config.L1RollupGenesisBlock))
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}

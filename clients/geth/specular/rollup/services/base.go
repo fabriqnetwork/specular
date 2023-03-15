@@ -46,10 +46,6 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 func (b *BaseService) Start() (context.Context, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cancel = cancel
-	// Check if we are at genesis. TODO: remove.
-	if b.Eth.BlockChain().CurrentBlock().NumberU64() != 0 {
-		return nil, fmt.Errorf("Service can only start from clean history")
-	}
 	return ctx, nil
 }
 
@@ -63,6 +59,26 @@ func (b *BaseService) Stop() error {
 
 func (b *BaseService) Chain() *core.BlockChain {
 	return b.Eth.BlockChain()
+}
+
+
+func (b *BaseService) GetL1RollupBlock(ctx context.Context, start uint64) uint64 {
+	l1blocknumber := start
+	l1BlockHead, err := b.L1Client.BlockNumber(ctx)
+	if err != nil {
+		return b.Config.L1RollupGenesisBlock
+	}
+	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, End: &l1BlockHead, Context: ctx}
+	eventsIter, err := b.L1Client.FilterTxBatchAppendedEvents(&opts)
+	if err != nil {
+		return b.Config.L1RollupGenesisBlock
+	}
+	for eventsIter.Next() {
+		if eventsIter.Event.Raw.BlockNumber > l1blocknumber{
+			l1blocknumber = eventsIter.Event.Raw.BlockNumber
+		}
+	}
+	return l1blocknumber
 }
 
 // Gets the last validated assertion.
