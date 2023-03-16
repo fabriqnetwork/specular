@@ -31,9 +31,9 @@ func (b *Broker[T]) Start(ctx context.Context, sub event.Subscription) error {
 		case msg := <-b.PubCh:
 			for msgCh := range subs {
 				// Note: msgCh is buffered, non-blocking send protects broker
+				// default:
 				select {
 				case msgCh <- msg:
-				default:
 				}
 			}
 		case msgCh := <-b.subCh:
@@ -46,6 +46,7 @@ func (b *Broker[T]) Start(ctx context.Context, sub event.Subscription) error {
 			log.Warn("Subscription error, stopping broker", "err", sub.Err())
 			return err
 		case <-ctx.Done():
+			log.Info("Aborting.")
 			return ctx.Err()
 		}
 	}
@@ -61,6 +62,30 @@ func (b *Broker[T]) Subscribe() chan T {
 	return msgCh
 }
 
+// Subscribes to a new channel mapped from `inCh` (one-to-one).
+func (b *Broker[T]) SubscribeWithCallback(
+	ctx context.Context,
+	callbackFn func(context.Context, T) error,
+) {
+	inCh := b.Subscribe()
+	go func() {
+		defer b.Unsubscribe(inCh)
+		for {
+			select {
+			case head := <-inCh:
+				err := callbackFn(ctx, head)
+				if err != nil {
+					log.Error("Failed triggering callback, err: %w", err)
+					return
+				}
+			case <-ctx.Done():
+				log.Info("Aborting.")
+				return
+			}
+		}
+	}()
+}
+
 func (b *Broker[T]) Unsubscribe(msgCh chan T) {
 	b.unsubCh <- msgCh
 }
@@ -69,8 +94,8 @@ func (b *Broker[T]) Publish(msg T) {
 	b.PubCh <- msg
 }
 
-// Creates and publishes events to a channel mapped from `inCh`.
-func SubscribeMapped[T any, U any](
+// Creates and publishes events to a channel mapped from `inCh` (one-to-many).
+func SubscribeMappedToMany[T any, U any](
 	ctx context.Context,
 	broker *Broker[T],
 	mapFn func(context.Context, T) ([]U, error),
@@ -92,6 +117,7 @@ func SubscribeMapped[T any, U any](
 					outCh <- event
 				}
 			case <-ctx.Done():
+				log.Info("Aborting.")
 				return
 			}
 		}

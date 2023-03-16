@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
@@ -23,7 +24,7 @@ func SubscribeHeaderMapped[T any, U Iterable](
 	fn func(*bind.FilterOpts) (U, error),
 	start uint64,
 ) <-chan T {
-	return utils.SubscribeMapped(ctx, broker, toMapperFn[T](fn, start))
+	return utils.SubscribeMappedToMany(ctx, broker, toMapperFn[T](fn, start))
 }
 
 func toMapperFn[T any, U Iterable](
@@ -46,12 +47,13 @@ func toMapperFn[T any, U Iterable](
 		for iter.Next() {
 			// TODO: remove this hack
 			mapped = append(mapped, reflect.Indirect(reflect.ValueOf(iter)).FieldByName("Event").Interface().(T))
+			log.Info("MAPPED EVENT", "event", mapped[len(mapped)-1])
 		}
 		if iter.Error() != nil {
 			return nil, fmt.Errorf("Failed to iterate, err: %w", iter.Error())
 		}
 		last = header
-		start = last.Number.Uint64()
+		start = last.Number.Uint64() + 1
 		return mapped, nil
 	}
 }

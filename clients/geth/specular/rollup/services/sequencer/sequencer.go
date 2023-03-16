@@ -190,6 +190,7 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 				log.Crit("Failed to process txsCh event ", "err", err)
 			}
 		case <-ctx.Done():
+			log.Info("Aborting.")
 			return
 		}
 	}
@@ -320,6 +321,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 				log.Error("Confirmed ID is not current pending one", "get", id.String(), "expected", pendingAssertion.ID.String())
 			}
 		case <-ctx.Done():
+			log.Info("Aborting.")
 			return
 		}
 	}
@@ -344,7 +346,6 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	pendingConfirmed := true
 
 	for {
-		log.Info("looping")
 		select {
 		case header := <-headCh:
 			// New block mined on L1
@@ -432,6 +433,7 @@ func (s *Sequencer) challengeLoop(ctx context.Context) {
 		case <-headCh:
 			continue // consume channel values
 		case <-ctx.Done():
+			log.Info("Aborting.")
 			return
 		}
 	}
@@ -524,6 +526,7 @@ func (s *Sequencer) handleChallenge(
 			s.challengeResoutionCh <- struct{}{}
 			return nil
 		case <-ctx.Done():
+			log.Info("Aborting.")
 			return nil
 		}
 	}

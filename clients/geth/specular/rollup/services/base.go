@@ -62,8 +62,9 @@ func (b *BaseService) Start() (context.Context, error) {
 	// Watch L1 blockchain for confirmation period
 	// TODO: reduce dependency on latest
 	b.LatestHeadBroker = utils.NewBroker[*types.Header]()
+	// This is the source subscription from which we broadcast to other subscribers.
 	headSub := b.L1Client.SubscribeNewHeadByPolling(ctx, b.LatestHeadBroker.PubCh, client.Latest, 10*time.Second, 10*time.Second)
-	b.Wg.Add(2)
+	b.Wg.Add(1)
 	go func() {
 		defer b.Wg.Done()
 		err := b.LatestHeadBroker.Start(ctx, headSub)
@@ -71,26 +72,19 @@ func (b *BaseService) Start() (context.Context, error) {
 			log.Error("Failed running latest head broker", "err", err)
 		}
 	}()
-	go func() {
-		headCh := b.LatestHeadBroker.Subscribe()
-		defer b.Wg.Done()
-		defer b.LatestHeadBroker.Unsubscribe(headCh)
-		for {
-			select {
-			case b.L1State.Head = <-headCh:
-				continue
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
+	b.LatestHeadBroker.SubscribeWithCallback(ctx, func(ctx context.Context, head *types.Header) error { return b.OnHeader(head) })
 	// TODO: cleanup.
 	for b.L1State.Head == nil {
 		log.Info("Waiting for L1 head...")
-		time.Sleep(10 * time.Second)
+		time.Sleep(4 * time.Second)
 	}
 	log.Info("L1 head received", "number", b.L1State.Head.Number)
 	return ctx, nil
+}
+
+func (b *BaseService) OnHeader(header *types.Header) error {
+	b.L1State.Head = header
+	return nil
 }
 
 func (b *BaseService) Stop() error {
@@ -310,6 +304,7 @@ func (b *BaseService) setL2BlockBoundaries(
 	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID)
 	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
 	for i := uint64(0); i <= numBlocks; i++ {
+		// TODO: remove assumption of VM hash being the block root.
 		root := b.Eth.BlockChain().GetBlockByNumber(i).Root()
 		if root == parentAssertionCreatedEvent.VmHash {
 			log.Info("Found start block", "l2 block#", i+1)
