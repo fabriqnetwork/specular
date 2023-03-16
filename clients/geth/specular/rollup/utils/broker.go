@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
 type Broker[T any] struct {

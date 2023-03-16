@@ -16,9 +16,9 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 type BaseService struct {
@@ -47,6 +47,7 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 		Eth:          eth,
 		ProofBackend: proofBackend,
 		L1Client:     l1Client,
+		L1State:      &L1State{},
 	}, nil
 }
 
@@ -85,7 +86,7 @@ func (b *BaseService) Start() (context.Context, error) {
 	}()
 	// TODO: cleanup.
 	for b.L1State.Head == nil {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
 		log.Info("Waiting for L1 head...")
 	}
 	return ctx, nil

@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 	errors "errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -16,8 +15,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
 const timeInterval = 3 * time.Second
