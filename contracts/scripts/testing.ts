@@ -74,7 +74,7 @@ async function testTxs(toAddress: string, value: BigNumber) {
     assertionCreatedFilter
   );
   console.log("this is assertionCreatedLogs: ", assertionCreatedLogs);
-  // assert(assertionCreatedLogs.length > 0, "No created assertions");
+  assert(assertionCreatedLogs.length > 0, "No created assertions");
 
   // Check Assertion confirmation
   const assertionConfirmedLogs = await rollupContract.queryFilter(

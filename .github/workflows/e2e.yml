@@ -23,7 +23,7 @@ jobs:
           version: v2.5.1
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Update Git submodules
         run: |
