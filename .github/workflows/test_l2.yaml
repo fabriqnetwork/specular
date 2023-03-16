@@ -1,4 +1,4 @@
-name: Slither Analysis
+name: test_L2
 
 on:
   pull_request:
@@ -16,24 +16,19 @@ jobs:
         uses: fkirc/skip-duplicate-actions@v5
         with:
           concurrent_skipping: same_content_newer
-  analyze:
+  testL2:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-
-      - name: Run Slither
-        uses: crytic/slither-action@v0.3.0
-        id: slither
         with:
-          sarif: results.sarif
-          node-version: 16
-          target: ./contracts
-          fail-on: none
+          submodules: 'true'
 
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v2
-        if: github.repository == 'SpecularL2/specular'
-        with:
-          sarif_file: ${{ steps.slither.outputs.sarif }}
+      - uses: actions/setup-node@v3
+
+      - name: Install dependencies
+        run: yarn --ignore-scripts
+
+      - name: Install
+        run: cd ./clients/geth/specular && make

@@ -17,6 +17,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 const timeInterval = 3 * time.Second

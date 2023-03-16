@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
