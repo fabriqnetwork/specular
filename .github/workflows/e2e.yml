@@ -85,6 +85,8 @@ jobs:
           pwd
           ls -la
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
+          docker logs hardhat
+          docker logs sequencer
 
       - name: Stop and remove containers
         run: |
