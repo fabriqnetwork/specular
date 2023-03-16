@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,17 +18,24 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
 
 type BaseService struct {
 	Config *Config
 
-	Eth          Backend
-	ProofBackend proof.Backend
-	L1Client     client.L1BridgeClient
+	Eth              Backend
+	ProofBackend     proof.Backend
+	L1Client         client.L1BridgeClient
+	L1State          *L1State
+	LatestHeadBroker *utils.Broker[*types.Header]
 
 	Cancel context.CancelFunc
 	Wg     sync.WaitGroup
+}
+
+type L1State struct {
+	Head *types.Header
 }
 
 func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
@@ -49,6 +57,36 @@ func (b *BaseService) Start() (context.Context, error) {
 	// Check if we are at genesis. TODO: remove.
 	if b.Eth.BlockChain().CurrentBlock().NumberU64() != 0 {
 		return nil, fmt.Errorf("Service can only start from clean history")
+	}
+	// Watch L1 blockchain for confirmation period
+	// TODO: reduce dependency on latest
+	b.LatestHeadBroker = utils.NewBroker[*types.Header]()
+	headSub := b.L1Client.SubscribeNewHeadByPolling(ctx, b.LatestHeadBroker.PubCh, client.Latest, 10*time.Second, 10*time.Second)
+	b.Wg.Add(2)
+	go func() {
+		defer b.Wg.Done()
+		err := b.LatestHeadBroker.Start(ctx, headSub)
+		if err != nil {
+			log.Error("Failed running latest head broker", "err", err)
+		}
+	}()
+	go func() {
+		headCh := b.LatestHeadBroker.Subscribe()
+		defer b.Wg.Done()
+		defer b.LatestHeadBroker.Unsubscribe(headCh)
+		for {
+			select {
+			case b.L1State.Head = <-headCh:
+				continue
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	// TODO: cleanup.
+	for b.L1State.Head == nil {
+		time.Sleep(100 * time.Millisecond)
+		log.Info("Waiting for L1 head...")
 	}
 	return ctx, nil
 }
@@ -96,16 +134,21 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
 		}
 		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
-		assertionCreatedEvent, err = b.L1Client.FilterAssertionCreated(&opts, assertionID)
+		assertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
+		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
 	}
 	// Initialize assertion.
 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
 	// Set its boundaries using parent. TODO: move this out. Use local caching.
 	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
-	parentAssertionCreatedEvent, err := b.L1Client.FilterAssertionCreated(&opts, lastValidatedAssertion.Parent)
+	parentAssertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
+	}
+	parentAssertionCreatedEvent, err := filterAssertionCreatedWithID(parentAssertionCreatedIter, lastValidatedAssertion.Parent)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
 	}
@@ -158,34 +201,16 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 
 func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh chan<- struct{}) {
 	defer b.Wg.Done()
-	// Sync to current L1 block head. Can't use WatchOpts.Start,
-	// due to github.com/ethereum/go-ethereum/issues/15063
-	endBlock, err := b.SyncL2ChainToL1Head(ctx, start)
-	if err != nil {
-		log.Crit("Failed initial inbox sync", "err", err)
-	}
 	// Start watching for new TxBatchAppended events.
-	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended)
-	opts := bind.WatchOpts{Context: ctx}
-	batchEventSub, err := b.L1Client.WatchTxBatchAppended(&opts, batchEventCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer batchEventSub.Unsubscribe()
-	// Sync again to ensure we don't miss events.
-	endBlock, err = b.SyncL2ChainToL1Head(ctx, endBlock+1)
-	if err != nil {
-		log.Crit("Failed initial inbox sync", "err", err)
-	}
+	subCtx, cancel := context.WithCancel(ctx)
+	batchEventCh := client.SubscribeHeaderMapped[*bindings.ISequencerInboxTxBatchAppended](
+		subCtx, b.LatestHeadBroker, b.L1Client.FilterTxBatchAppendedEvents, start,
+	)
+	defer cancel()
 	// Process TxBatchAppended events.
 	for {
 		select {
 		case ev := <-batchEventCh:
-			// Avoid processing duplicate events.
-			if ev.Raw.BlockNumber <= endBlock {
-				log.Warn("Ignoring duplicate event", "l1Block", ev.Raw.BlockNumber)
-				continue
-			}
 			log.Info("Processing `TxBatchAppended` event", "l1Block", ev.Raw.BlockNumber)
 			err := b.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
@@ -198,6 +223,24 @@ func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh cha
 			return
 		}
 	}
+}
+
+func filterAssertionCreatedWithID(iter *bindings.IRollupAssertionCreatedIterator, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error) {
+	var assertionCreated *bindings.IRollupAssertionCreated
+	for iter.Next() {
+		// Assumes invariant: only one `AssertionCreated` event per assertion ID.
+		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
+			assertionCreated = iter.Event
+			break
+		}
+	}
+	if iter.Error() != nil {
+		return nil, fmt.Errorf("Failed to iterate through `AssertionCreated` events, err: %w", iter.Error())
+	}
+	if assertionCreated == nil {
+		return nil, fmt.Errorf("No `AssertionCreated` event found for %v.", assertionID)
+	}
+	return assertionCreated, nil
 }
 
 func (b *BaseService) processTxBatchAppendedEvents(

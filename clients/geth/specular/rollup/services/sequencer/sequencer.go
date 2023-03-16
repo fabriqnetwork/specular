@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -204,12 +203,12 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	defer ticker.Stop()
 
 	// Watch AssertionCreated event
-	createdCh := make(chan *bindings.IRollupAssertionCreated, 4096)
-	createdSub, err := s.L1Client.WatchAssertionCreated(&bind.WatchOpts{Context: ctx}, createdCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer createdSub.Unsubscribe()
+	createdCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionCreated](
+		ctx,
+		s.LatestHeadBroker,
+		s.L1Client.FilterAssertionCreated,
+		s.L1State.Head.Number.Uint64(),
+	)
 
 	// Last validated assertion, initalize it to genesis
 	// TODO: change name to lastValidatedAssertion since "confirmed" may imply L1-confirmed.
@@ -330,28 +329,13 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	defer s.Wg.Done()
 
-	// Watch AssertionConfirmed event
-	confirmedCh := make(chan *bindings.IRollupAssertionConfirmed, 4096)
-	confirmedSub, err := s.L1Client.WatchAssertionConfirmed(&bind.WatchOpts{Context: ctx}, confirmedCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer confirmedSub.Unsubscribe()
-
-	// Watch L1 blockchain for confirmation period
-	headCh := make(chan *types.Header, 4096)
-	headSub, err := s.L1Client.SubscribeNewHead(ctx, headCh)
-	if err != nil {
-		log.Crit("Failed to watch l1 chain head", "err", err)
-	}
-	defer headSub.Unsubscribe()
-
-	challengedCh := make(chan *bindings.IRollupAssertionChallenged, 4096)
-	challengedSub, err := s.L1Client.WatchAssertionChallenged(&bind.WatchOpts{Context: ctx}, challengedCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer challengedSub.Unsubscribe()
+	headCh := s.LatestHeadBroker.Subscribe()
+	confirmedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionConfirmed](
+		ctx, s.LatestHeadBroker, s.L1Client.FilterAssertionConfirmed, s.L1State.Head.Number.Uint64(),
+	)
+	challengedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
+		ctx, s.LatestHeadBroker, s.L1Client.FilterAssertionChallenged, s.L1State.Head.Number.Uint64(),
+	)
 
 	// Current pending assertion from sequencing goroutine
 	// TODO: watch multiple pending assertions
@@ -359,27 +343,9 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	pendingConfirmationSent := true
 	pendingConfirmed := true
 
-	// Ticker
-	var ticker = time.NewTicker(60 * time.Second)
-	defer ticker.Stop()
-
 	for {
-		log.Debug("looping confirmation loop")
+		log.Info("looping")
 		select {
-		case <-ticker.C:
-			log.Info("Resetting head subscription")
-			ticker.Reset(60 * time.Second)
-			headSub.Unsubscribe()
-			headSub, err = s.L1Client.SubscribeNewHead(ctx, headCh)
-			if err != nil {
-				log.Crit("Failed to watch l1 chain head", "err", err)
-			}
-		case err := <-challengedSub.Err():
-			log.Crit("`challengedSub` failed", "err", err)
-		case err = <-confirmedSub.Err():
-			log.Crit("`confirmedSub` failed", "err", err)
-		case err = <-headSub.Err():
-			log.Crit("`headSub` failed", "err", err)
 		case header := <-headCh:
 			// New block mined on L1
 			log.Info("Received new header", "number", header.Number.Uint64())
@@ -397,7 +363,6 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 						// TODO: wait some time before retry
 					}
 					pendingConfirmationSent = true
-					ticker.Reset(60 * time.Second)
 				}
 			}
 		case ev := <-confirmedCh:
@@ -436,7 +401,7 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	}
 }
 
-func wait(ctx context.Context, ch chan struct{}, taskName string) {
+func wait(ctx context.Context, ch <-chan struct{}, taskName string) {
 	log.Info("Waiting for %s...", taskName)
 	select {
 	case <-ch:
@@ -452,7 +417,7 @@ func (s *Sequencer) challengeLoop(ctx context.Context) {
 	defer s.Wg.Done()
 	// Watch L1 blockchain for challenge timeout
 	headCh := make(chan *types.Header, 4096)
-	headSub, err := s.L1Client.SubscribeNewHead(ctx, headCh)
+	headSub, err := s.L1Client.ResubscribeErrNewHead(ctx, headCh)
 	if err != nil {
 		log.Crit("Failed to watch l1 chain head", "err", err)
 	}
@@ -496,16 +461,15 @@ func (s *Sequencer) handleChallenge(
 	if err != nil {
 		return fmt.Errorf("Failed to initialize challenge, err: %w", err)
 	}
-	bisectedCh := make(chan *bindings.IChallengeBisected, 4096)
-	bisectedSub, err := s.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
-	if err != nil {
-		return fmt.Errorf("Failed to watch challenge event, err: %w", err)
-	}
-	challengeCompletedCh := make(chan *bindings.IChallengeChallengeCompleted, 4096)
-	challengeCompletedSub, err := s.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
-	if err != nil {
-		return fmt.Errorf("Failed to watch challenge event, err: %w", err)
-	}
+
+	subCtx, subCancel := context.WithCancel(ctx)
+	defer subCancel()
+	bisectedCh := client.SubscribeHeaderMapped[*bindings.IChallengeBisected](
+		subCtx, s.LatestHeadBroker, s.L1Client.FilterBisected, s.L1State.Head.Number.Uint64(),
+	)
+	challengeCompletedCh := client.SubscribeHeaderMapped[*bindings.IChallengeChallengeCompleted](
+		subCtx, s.LatestHeadBroker, s.L1Client.FilterChallengeCompleted, s.L1State.Head.Number.Uint64(),
+	)
 	log.Info("to generate state from", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
 	log.Info("backend", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
 	var opponentTimeoutBlock uint64
@@ -556,14 +520,10 @@ func (s *Sequencer) handleChallenge(
 		case ev := <-challengeCompletedCh:
 			// TODO: handle if we are not winner --> state corrupted
 			log.Info("Challenge completed", "winner", ev.Winner)
-			bisectedSub.Unsubscribe()
-			challengeCompletedSub.Unsubscribe()
 			states = []*proof.ExecutionState{}
 			s.challengeResoutionCh <- struct{}{}
 			return nil
 		case <-ctx.Done():
-			bisectedSub.Unsubscribe()
-			challengeCompletedSub.Unsubscribe()
 			return nil
 		}
 	}
