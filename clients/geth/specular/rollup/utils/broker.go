@@ -80,20 +80,21 @@ func SubscribeMapped[T any, U any](
 	go func() {
 		defer broker.Unsubscribe(inCh)
 		defer close(outCh)
-		select {
-		case head := <-inCh:
-			out, err := mapFn(ctx, head)
-			if err != nil {
-				log.Error("Failed to map, err: %w", err)
+		for {
+			select {
+			case head := <-inCh:
+				out, err := mapFn(ctx, head)
+				if err != nil {
+					log.Error("Failed to map, err: %w", err)
+					return
+				}
+				for _, event := range out {
+					outCh <- event
+				}
+			case <-ctx.Done():
 				return
 			}
-			for _, event := range out {
-				outCh <- event
-			}
-		case <-ctx.Done():
-			return
 		}
-		return
 	}()
 	return outCh
 }

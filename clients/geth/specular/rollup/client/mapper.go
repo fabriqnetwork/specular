@@ -45,10 +45,10 @@ func toMapperFn[T any, U Iterable](
 		var mapped []T
 		for iter.Next() {
 			// TODO: remove this hack
-			mapped = append(mapped, reflect.ValueOf(iter).FieldByName("Event").Interface().(T))
+			mapped = append(mapped, reflect.Indirect(reflect.ValueOf(iter)).FieldByName("Event").Interface().(T))
 		}
 		if iter.Error() != nil {
-
+			return nil, fmt.Errorf("Failed to iterate, err: %w", iter.Error())
 		}
 		last = header
 		start = last.Number.Uint64()

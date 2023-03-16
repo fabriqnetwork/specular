@@ -86,9 +86,10 @@ func (b *BaseService) Start() (context.Context, error) {
 	}()
 	// TODO: cleanup.
 	for b.L1State.Head == nil {
-		time.Sleep(1 * time.Second)
 		log.Info("Waiting for L1 head...")
+		time.Sleep(10 * time.Second)
 	}
+	log.Info("L1 head received", "number", b.L1State.Head.Number)
 	return ctx, nil
 }
 
