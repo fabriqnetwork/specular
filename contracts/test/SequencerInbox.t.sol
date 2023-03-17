@@ -19,24 +19,22 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
+import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
 
 contract SequencerBaseSetup is Test, RLPEncodedTransactionsUtil {
-    address internal sequencer;
     address internal alice;
     address internal bob;
+    address internal sequencerOwner;
+    address internal sequencerAddress;
 
     function setUp() public virtual {
-        sequencer = makeAddr("sequencer");
-
-        alice = makeAddr("alice");
-
-        bob = makeAddr("bob");
+        sequencerOwner = makeAddr("sequencerOwner");
+        sequencerAddress = makeAddr("sequencerAddress");
     }
 }
 
@@ -45,36 +43,34 @@ contract SequencerInboxTest is SequencerBaseSetup {
     // SequencerInbox Setup
     /////////////////////////////////
 
-    SequencerInbox private seqIn;
-    SequencerInbox private seqIn2;
+    SequencerInbox public seqIn;
+    SequencerInbox public implementationSequencer;
 
     function setUp() public virtual override {
         SequencerBaseSetup.setUp();
 
-        SequencerInbox _impl = new SequencerInbox();
-        bytes memory data = abi.encodeWithSelector(SequencerInbox.initialize.selector, sequencer);
-        address admin = address(47); // Random admin
-        TransparentUpgradeableProxy proxy = new TransparentUpgradeableProxy(address(_impl), admin, data);
+        bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", sequencerAddress);
 
-        seqIn = SequencerInbox(address(proxy));
+        vm.startPrank(sequencerOwner);
+
+        implementationSequencer = new SequencerInbox();
+        seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
+        vm.stopPrank();
     }
 
     /////////////////////////////////
     // SequencerInbox Tests
     /////////////////////////////////
     function test_initializeSequencerInbox_withSequencerAddressZero() external {
-        SequencerInbox _impl2 = new SequencerInbox();
-        bytes memory data = abi.encodeWithSelector(SequencerInbox.initialize.selector, address(0));
-        address proxyAdmin = makeAddr("Proxy Admin");
-
+        bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", address(0));
+        vm.startPrank(sequencerOwner);
         vm.expectRevert(ZeroAddress.selector);
-        TransparentUpgradeableProxy proxy2 = new TransparentUpgradeableProxy(address(_impl2), proxyAdmin, data);
-
-        seqIn2 = SequencerInbox(address(proxy2));
+        seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
+        vm.stopPrank();
     }
 
     function test_SequencerAddress() public {
-        assertEq(seqIn.sequencerAddress(), sequencer, "Sequencer Address is not as expected");
+        assertEq(seqIn.sequencerAddress(), sequencerAddress, "Sequencer Address is not as expected");
     }
 
     function test_intializeSequencerInbox_cannotBeCalledTwice() external {
@@ -91,7 +87,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     // Only sequencer can append transaction batches to the sequencerInbox
     function test_RevertWhen_InvalidSequencer() public {
-        vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencer));
+        vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencerAddress));
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
@@ -100,15 +96,15 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     function test_RevertWhen_EmptyBatch() public {
         vm.expectRevert(ISequencerInbox.EmptyBatch.selector);
-        vm.prank(sequencer);
+        vm.prank(sequencerAddress);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
         seqIn.appendTxBatch(contexts, txLengths, "0x");
     }
 
-    /////////////////////////////
+    //////////////////////////////
     // appendTxBatch
-    /////////////////////////////
+    //////////////////////////////
     function test_appendTxBatch_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
         // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
@@ -147,7 +143,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
 
         // Pranking as the sequencer and calling appendTxBatch
-        vm.prank(sequencer);
+        vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
@@ -190,7 +186,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256[] memory txLengths = _helper_findTxLength_hardcoded();
 
         // Pranking as the sequencer and calling appendTxBatch
-        vm.prank(sequencer);
+        vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
@@ -243,7 +239,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
         vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
-        vm.prank(sequencer);
+        vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, txBatch);
     }
 
@@ -276,7 +272,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
 
         // Pranking as the sequencer and calling appendTxBatch
-        vm.prank(sequencer);
+        vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
