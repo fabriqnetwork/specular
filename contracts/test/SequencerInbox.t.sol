@@ -33,8 +33,6 @@ contract SequencerBaseSetup is Test, RLPEncodedTransactionsUtil {
     address internal sequencerAddress;
 
     function setUp() public virtual {
-        alice = makeAddr("alice");
-        bob = makeAddr("bob");
         sequencerOwner = makeAddr("sequencerOwner");
         sequencerAddress = makeAddr("sequencerAddress");
     }
@@ -66,7 +64,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
     function test_initializeSequencerInbox_withSequencerAddressZero() external {
         bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", address(0));
         vm.startPrank(sequencerOwner);
-        SequencerInbox implementationSequencer2 = new SequencerInbox();
         vm.expectRevert(ZeroAddress.selector);
         seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
         vm.stopPrank();
