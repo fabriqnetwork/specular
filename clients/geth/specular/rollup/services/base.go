@@ -4,7 +4,6 @@ import (
 	"context"
 	"math/big"
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,37 +16,28 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 type BaseService struct {
 	Config *Config
 
-	Eth              Backend
-	ProofBackend     proof.Backend
-	L1Client         client.L1BridgeClient
-	L1State          *L1State
-	LatestHeadBroker *utils.Broker[*types.Header]
+	Eth          Backend
+	ProofBackend proof.Backend
+	L1Client     client.L1BridgeClient
+	L1Syncer     *client.L1Syncer
 
 	Cancel context.CancelFunc
 	Wg     sync.WaitGroup
 }
 
-type L1State struct {
-	Head *types.Header
-}
-
 func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
-	if eth == nil {
-		return nil, fmt.Errorf("can not use light client with rollup")
-	}
 	return &BaseService{
 		Config:       cfg,
 		Eth:          eth,
 		ProofBackend: proofBackend,
 		L1Client:     l1Client,
-		L1State:      &L1State{},
+		L1Syncer:     nil,
 	}, nil
 }
 
@@ -59,32 +49,9 @@ func (b *BaseService) Start() (context.Context, error) {
 	if b.Eth.BlockChain().CurrentBlock().NumberU64() != 0 {
 		return nil, fmt.Errorf("Service can only start from clean history")
 	}
-	// Watch L1 blockchain for confirmation period
-	// TODO: reduce dependency on latest
-	b.LatestHeadBroker = utils.NewBroker[*types.Header]()
-	// This is the source subscription from which we broadcast to other subscribers.
-	headSub := b.L1Client.SubscribeNewHeadByPolling(ctx, b.LatestHeadBroker.PubCh, client.Latest, 10*time.Second, 10*time.Second)
-	b.Wg.Add(1)
-	go func() {
-		defer b.Wg.Done()
-		err := b.LatestHeadBroker.Start(ctx, headSub)
-		if err != nil {
-			log.Error("Failed running latest head broker", "err", err)
-		}
-	}()
-	b.LatestHeadBroker.SubscribeWithCallback(ctx, func(ctx context.Context, head *types.Header) error { return b.OnHeader(head) })
-	// TODO: cleanup.
-	for b.L1State.Head == nil {
-		log.Info("Waiting for L1 head...")
-		time.Sleep(4 * time.Second)
-	}
-	log.Info("L1 head received", "number", b.L1State.Head.Number)
+	b.L1Syncer = client.NewL1Syncer(ctx, b.L1Client)
+	b.L1Syncer.Start(ctx)
 	return ctx, nil
-}
-
-func (b *BaseService) OnHeader(header *types.Header) error {
-	b.L1State.Head = header
-	return nil
 }
 
 func (b *BaseService) Stop() error {
@@ -200,7 +167,7 @@ func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh cha
 	// Start watching for new TxBatchAppended events.
 	subCtx, cancel := context.WithCancel(ctx)
 	batchEventCh := client.SubscribeHeaderMapped[*bindings.ISequencerInboxTxBatchAppended](
-		subCtx, b.LatestHeadBroker, b.L1Client.FilterTxBatchAppendedEvents, start,
+		subCtx, b.L1Syncer.LatestHeaderBroker, b.L1Client.FilterTxBatchAppendedEvents, start,
 	)
 	defer cancel()
 	// Process TxBatchAppended events.

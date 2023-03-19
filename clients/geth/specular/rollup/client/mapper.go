@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
@@ -18,6 +17,7 @@ type Iterable interface {
 	Close() error
 }
 
+// Subscribes to a channel that emits events mapped from fn applied to a Header broker's events.
 func SubscribeHeaderMapped[T any, U Iterable](
 	ctx context.Context,
 	broker *utils.Broker[*types.Header],
@@ -27,6 +27,7 @@ func SubscribeHeaderMapped[T any, U Iterable](
 	return utils.SubscribeMappedToMany(ctx, broker, toMapperFn[T](fn, start))
 }
 
+// Helper function used for converting bindings.Filter* functions to work with `utils.SubscribeMappedToMany`.
 func toMapperFn[T any, U Iterable](
 	filterFn func(*bind.FilterOpts) (U, error),
 	start uint64,
@@ -47,7 +48,6 @@ func toMapperFn[T any, U Iterable](
 		for iter.Next() {
 			// TODO: remove this hack
 			mapped = append(mapped, reflect.Indirect(reflect.ValueOf(iter)).FieldByName("Event").Interface().(T))
-			log.Info("MAPPED EVENT", "event", mapped[len(mapped)-1])
 		}
 		if iter.Error() != nil {
 			return nil, fmt.Errorf("Failed to iterate, err: %w", iter.Error())

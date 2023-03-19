@@ -206,9 +206,9 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	// Watch AssertionCreated event
 	createdCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionCreated](
 		ctx,
-		s.LatestHeadBroker,
+		s.L1Syncer.LatestHeaderBroker,
 		s.L1Client.FilterAssertionCreated,
-		s.L1State.Head.Number.Uint64(),
+		s.L1Syncer.Latest.Number.Uint64(),
 	)
 
 	// Last validated assertion, initalize it to genesis
@@ -331,12 +331,12 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	defer s.Wg.Done()
 
-	headCh := s.LatestHeadBroker.Subscribe()
+	headCh := s.L1Syncer.LatestHeaderBroker.Subscribe()
 	confirmedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionConfirmed](
-		ctx, s.LatestHeadBroker, s.L1Client.FilterAssertionConfirmed, s.L1State.Head.Number.Uint64(),
+		ctx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterAssertionConfirmed, s.L1Syncer.Latest.Number.Uint64(),
 	)
 	challengedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
-		ctx, s.LatestHeadBroker, s.L1Client.FilterAssertionChallenged, s.L1State.Head.Number.Uint64(),
+		ctx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterAssertionChallenged, s.L1Syncer.Latest.Number.Uint64(),
 	)
 
 	// Current pending assertion from sequencing goroutine
@@ -467,10 +467,10 @@ func (s *Sequencer) handleChallenge(
 	subCtx, subCancel := context.WithCancel(ctx)
 	defer subCancel()
 	bisectedCh := client.SubscribeHeaderMapped[*bindings.IChallengeBisected](
-		subCtx, s.LatestHeadBroker, s.L1Client.FilterBisected, s.L1State.Head.Number.Uint64(),
+		subCtx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterBisected, s.L1Syncer.Latest.Number.Uint64(),
 	)
 	challengeCompletedCh := client.SubscribeHeaderMapped[*bindings.IChallengeChallengeCompleted](
-		subCtx, s.LatestHeadBroker, s.L1Client.FilterChallengeCompleted, s.L1State.Head.Number.Uint64(),
+		subCtx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterChallengeCompleted, s.L1Syncer.Latest.Number.Uint64(),
 	)
 	log.Info("to generate state from", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
 	log.Info("backend", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)

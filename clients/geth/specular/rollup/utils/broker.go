@@ -8,10 +8,10 @@ import (
 )
 
 type Broker[T any] struct {
-	PubCh   chan T
-	subCh   chan chan T
-	unsubCh chan chan T
-	stopCh  chan struct{}
+	PubCh   chan T        // Input to broker
+	subCh   chan chan T   // Subscribes to broker
+	unsubCh chan chan T   // Unsubscribes from broker
+	stopCh  chan struct{} // Stops broker
 }
 
 func NewBroker[T any]() *Broker[T] {
@@ -57,7 +57,7 @@ func (b *Broker[T]) Stop() {
 }
 
 func (b *Broker[T]) Subscribe() chan T {
-	msgCh := make(chan T, 1)
+	msgCh := make(chan T, 8)
 	b.subCh <- msgCh
 	return msgCh
 }
