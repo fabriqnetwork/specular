@@ -30,13 +30,11 @@ import "../IDAProvider.sol";
 import "../libraries/Errors.sol";
 
 contract SymChallenge is ChallengeBase, ISymChallenge {
-    // Error codes
+    // Previous state consistency could not be verified against `bisectionHash`.
+    error PreviousStateInconsistent();
 
-    // Incorrect previous state
-    string private constant BIS_PREV = "BIS_PREV";
     uint256 private constant MAX_BISECTION_DEGREE = 2;
 
-    // Turn public turn;
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
     bytes32 public bisectionHash;
     // Initial state used to initialize bisectionHash (write-once).
@@ -113,7 +111,9 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Verify provided prev bisection.
         bytes32 prevHash =
             ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
-        require(prevHash == bisectionHash, BIS_PREV);
+        if (prevHash != bisectionHash) {
+            revert PreviousStateInconsistent();
+        }
         require(challengedSegmentIndex > 0 && challengedSegmentIndex < prevBisection.length, "INVALID_INDEX");
         // Require agreed upon start state hash and disagreed upon end state hash.
         require(bisection[0] == prevBisection[challengedSegmentIndex - 1], "INVALID_START");
@@ -155,12 +155,14 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Verify provided prev bisection.
         bytes32 prevHash =
             ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
-        require(prevHash == bisectionHash, BIS_PREV);
+        if (prevHash != bisectionHash) {
+            revert PreviousStateInconsistent();
+        }
         require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
         require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
-        // Construct verification context.
         // TODO: verify OSP
+        // Construct verification context.
         // bytes32 nextStateHash = verifier.verifyOneStepProof(
         //     ctx,
         //     prevBisection[challengedStepIndex - 1],
