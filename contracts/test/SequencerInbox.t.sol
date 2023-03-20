@@ -82,7 +82,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     function testFail_verifyTxInclusion_withEmptyProof() external view {
         bytes memory emptyProof = bytes("");
-        seqIn.verifyTxInclusion(emptyProof);
+        seqIn.verifyTxInclusion(bytes(""), emptyProof);
     }
 
     // Only sequencer can append transaction batches to the sequencerInbox

@@ -26,23 +26,28 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-import "./challenge/Challenge.sol";
+import "./challenge/IChallenge.sol";
+import "./challenge/SymChallenge.sol";
 import "./challenge/ChallengeLib.sol";
 import "./libraries/Errors.sol";
+import "./IDAProvider.sol";
 import "./IRollup.sol";
-import "./RollupLib.sol";
-import "./ISequencerInbox.sol";
 
-abstract contract RollupBase is IRollup, Initializable, UUPSUpgradeable, OwnableUpgradeable {
+abstract contract RollupBase is
+    IRollup,
+    IChallengeResultReceiver,
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable
+{
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
     uint256 public challengePeriod; // number of L1 blocks
     uint256 public minimumAssertionPeriod; // number of L1 blocks
-    uint256 public maxGasPerAssertion; // L2 gas
     uint256 public baseStakeAmount; // number of stake tokens
 
     address public vault;
-    ISequencerInbox public sequencerInbox;
+    IDAProvider public daProvider;
     IVerifier public verifier;
 
     struct AssertionState {
@@ -84,30 +89,26 @@ contract Rollup is RollupBase {
 
     function initialize(
         address _vault,
-        address _sequencerInbox,
+        address _daProvider,
         address _verifier,
         uint256 _confirmationPeriod,
         uint256 _challengePeriod,
         uint256 _minimumAssertionPeriod,
-        uint256 _maxGasPerAssertion,
         uint256 _baseStakeAmount,
         uint256 _initialAssertionID,
         uint256 _initialInboxSize,
-        bytes32 _initialVMhash,
-        uint256 _initialL2GasUsed
+        bytes32 _initialVMhash
     ) public initializer {
-        // If any of addresses _vault, _sequencerInbox or _verifier is address(0), then revert.
-        if (_vault == address(0) || _sequencerInbox == address(0) || _verifier == address(0)) {
+        if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
         vault = _vault;
-        sequencerInbox = ISequencerInbox(_sequencerInbox);
+        daProvider = IDAProvider(_daProvider);
         verifier = IVerifier(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
         challengePeriod = _challengePeriod; // TODO: currently unused.
         minimumAssertionPeriod = _minimumAssertionPeriod;
-        maxGasPerAssertion = _maxGasPerAssertion;
         baseStakeAmount = _baseStakeAmount;
 
         lastResolvedAssertionID = _initialAssertionID;
@@ -116,12 +117,12 @@ contract Rollup is RollupBase {
 
         createAssertionHelper(
             _initialAssertionID, // assertionID
-            RollupLib.stateHash(RollupLib.ExecutionState(_initialL2GasUsed, _initialVMhash)),
+            _initialVMhash,
             _initialInboxSize, // inboxSize (genesis)
             _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash, _initialL2GasUsed);
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash);
 
         __RollupBase_init();
     }
@@ -148,11 +149,13 @@ contract Rollup is RollupBase {
         return stakers[addr];
     }
 
+    /// @inheritdoc IRollup
     function getAssertion(uint256 assertionID) external view override returns (Assertion memory) {
         return assertions[assertionID];
     }
 
-    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view returns (bool) {
+    /// @inheritdoc IRollup
+    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view override returns (bool) {
         return assertionState[assertionID].stakers[stakerAddress];
     }
 
@@ -187,7 +190,6 @@ contract Rollup is RollupBase {
         if (!success) revert TransferFailed();
     }
 
-    // WARNING: this function is vulnerable to reentrancy attack!
     /// @inheritdoc IRollup
     function removeStake(address stakerAddress) external override {
         requireStaked(stakerAddress);
@@ -228,77 +230,57 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(
-        bytes32 vmHash,
-        uint256 inboxSize,
-        uint256 l2GasUsed,
-        bytes32 prevVMHash,
-        uint256 prevL2GasUsed
-    ) external override stakedOnly {
-        // TODO: determine if inboxSize needs to be included.
-        RollupLib.ExecutionState memory startState = RollupLib.ExecutionState(prevL2GasUsed, prevVMHash);
-        RollupLib.ExecutionState memory endState = RollupLib.ExecutionState(l2GasUsed, vmHash);
-
+    function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly {
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
         if (block.number - parent.proposalTime < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
         }
-        // TODO: require(..., TOO_SMALL);
-        uint256 assertionGasUsed = l2GasUsed - prevL2GasUsed;
-        // Require that the L2 gas used by the assertion is less than the limit.
-        // TODO: arbitrum uses: timeSinceLastNode.mul(avmGasSpeedLimitPerBlock).mul(4) ?
-        if (assertionGasUsed > maxGasPerAssertion) {
-            revert MaxGasLimitExceeded();
-        }
-        // Require integrity of startState.
-        if (RollupLib.stateHash(startState) != parent.stateHash) {
-            revert PreviousStateHash();
-        }
         // Require that the assertion at least includes one transaction
         if (inboxSize <= parent.inboxSize) {
             revert EmptyAssertion();
         }
+        // TODO: Enforce stricter bounds on assertion size.
         // Require that the assertion doesn't read past the end of the current inbox.
-        if (inboxSize > sequencerInbox.getInboxSize()) {
+        if (inboxSize > daProvider.getInboxSize()) {
             revert InboxReadLimitExceeded();
         }
 
         // Initialize assertion.
         lastCreatedAssertionID++;
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash, l2GasUsed);
-        createAssertionHelper(
-            lastCreatedAssertionID, RollupLib.stateHash(endState), inboxSize, parentID, newAssertionDeadline()
-        );
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash);
+        createAssertionHelper(lastCreatedAssertionID, vmHash, inboxSize, parentID, newAssertionDeadline());
 
         // Update stake.
         stakeOnAssertion(msg.sender, lastCreatedAssertionID);
     }
 
+    /// @inheritdoc IRollup
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
         external
         override
         returns (address)
     {
         uint256 defenderAssertionID = assertionIDs[0];
-        uint256 challengerAssertionID = assertionIDs[1];
-        // Require IDs ordered and in-range.
-        if (defenderAssertionID >= challengerAssertionID) {
-            revert WrongOrder();
-        }
-        if (challengerAssertionID > lastCreatedAssertionID) {
-            revert UnproposedAssertion();
-        }
-        if (lastConfirmedAssertionID >= defenderAssertionID) {
-            revert AssertionAlreadyResolved();
-        }
-        // Require that players have attested to sibling assertions.
         uint256 parentID = assertions[defenderAssertionID].parent;
-        if (parentID != assertions[challengerAssertionID].parent) {
-            revert DifferentParent();
+        {
+            uint256 challengerAssertionID = assertionIDs[1];
+            // Require IDs ordered and in-range.
+            if (defenderAssertionID >= challengerAssertionID) {
+                revert WrongOrder();
+            }
+            if (challengerAssertionID > lastCreatedAssertionID) {
+                revert UnproposedAssertion();
+            }
+            if (lastConfirmedAssertionID >= defenderAssertionID) {
+                revert AssertionAlreadyResolved();
+            }
+            // Require that players have attested to sibling assertions.
+            if (parentID != assertions[challengerAssertionID].parent) {
+                revert NotSiblings();
+            }
         }
-
         // Require that neither player is currently engaged in a challenge.
         address defender = players[0];
         address challenger = players[1];
@@ -308,7 +290,7 @@ contract Rollup is RollupBase {
         // TODO: Calculate upper limit for allowed node proposal time.
 
         // Initialize challenge.
-        Challenge challenge = new Challenge();
+        SymChallenge challenge = new SymChallenge();
         address challengeAddr = address(challenge);
         stakers[challenger].currentChallenge = challengeAddr;
         stakers[defender].currentChallenge = challengeAddr;
@@ -317,11 +299,11 @@ contract Rollup is RollupBase {
             defender,
             challenger,
             verifier,
-            address(this),
+            daProvider,
+            IChallengeResultReceiver(address(this)),
             assertions[parentID].stateHash,
             assertions[defenderAssertionID].stateHash
         );
-
         return challengeAddr;
     }
 
@@ -413,11 +395,11 @@ contract Rollup is RollupBase {
         delete assertions[lastResolvedAssertionID];
     }
 
-    /// @inheritdoc IRollup
+    /// @inheritdoc IChallengeResultReceiver
     function completeChallenge(address winner, address loser) external override {
         address challenge = getChallenge(winner, loser);
         if (msg.sender != challenge) {
-            revert NotChallengeParticipant(msg.sender, challenge);
+            revert NotChallengeManager(msg.sender, challenge);
         }
 
         uint256 remainingLoserStake = stakers[loser].amountStaked;

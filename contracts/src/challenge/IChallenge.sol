@@ -22,43 +22,59 @@
 
 pragma solidity ^0.8.0;
 
+import "../IDAProvider.sol";
 import "./verifier/IVerifier.sol";
 
-/**
- * @notice Protocol execution:
- * `initialize` (challenger, via Rollup) ->
- * `initializeChallengeLength` (defender) ->
- * `bisectExecution` (challenger, defender -- alternating) ->
- * `verifyOneStepProof`
- */
+interface IChallengeResultReceiver {
+    /**
+     * @notice Completes ongoing challenge. Callback, called by a challenge contract.
+     * @param winner Address of winning staker.
+     * @param loser Address of losing staker.
+     */
+    function completeChallenge(address winner, address loser) external;
+}
+
 interface IChallenge {
     enum CompletionReason {
         OSP_VERIFIED, // OSP verified by winner.
         TIMEOUT // Loser timed out before completing their round.
     }
 
-    event ChallengeCompleted(address winner, address loser, CompletionReason reason);
+    event Completed(address winner, address loser, CompletionReason reason);
 
     event Bisected(bytes32 challengeState, uint256 challengedSegmentStart, uint256 challengedSegmentLength);
 
-    /**
-     * @notice Initializes contract.
-     * @param _defender Defending party.
-     * @param _challenger Challenging party. Challenger starts.
-     * @param _verifier Address of the verifier contract.
-     * @param _resultReceiver Address of contract that will receive the outcome (via callback `completeChallenge`).
-     * @param _startStateHash Bisection root being challenged.
-     * @param _endStateHash Bisection root being challenged.
-     */
-    function initialize(
-        address _defender,
-        address _challenger,
-        IVerifier _verifier,
-        address _resultReceiver,
-        bytes32 _startStateHash,
-        bytes32 _endStateHash
-    ) external;
+    // Participant called function while it's not their turn.
+    error NotYourTurn();
+    // Participant did not respond prior before deadline.
+    error DeadlineExpired();
+    // Caller called function prematurely, before deadline passed.
+    error DeadlineNotPassed();
+    // Caller called function prematurely, before challenge initialized.
+    error NotInitialized();
+    // Caller called initialize function more than once.
+    error AlreadyInitialized();
 
+    /**
+     * @notice Triggers completion of challenge protocol if a responder timed out.
+     */
+    function timeout() external;
+
+    function currentResponder() external view returns (address);
+
+    function currentResponderTimeLeft() external view returns (uint256);
+}
+
+/**
+ * Symmetric challenge protocol.
+ * @notice Protocol execution:
+ * `initialize` (challenger, via Rollup) ->
+ * `initializeChallengeLength` (defender) ->
+ * `bisectExecution` (challenger, defender -- alternating) ->
+ * `verifyOneStepProof` ->
+ * `IResultReceiver.completeChallenge`
+ */
+interface ISymChallenge is IChallenge {
     /**
      * @notice Initializes the length of the challenge. Must be called by defender before bisection rounds begin.
      * @param _numSteps Number of steps executed from the start of the assertion to its end.
@@ -87,7 +103,7 @@ interface IChallenge {
 
     /**
      * @notice Verifies one step proof and completes challenge protocol.
-     * @param proof TODO.
+     * @param oneStepProof TODO.
      * @param challengedStepIndex Index into `prevBisection`. Must be greater than 0 (since the first is agreed upon).
      * @param prevBisection Bisection in the preceding round. Each segment must now be of length 1 (i.e. a single step).
      * @param prevChallengedSegmentStart Offset of the segment challenged in the preceding round (in steps).
@@ -95,19 +111,15 @@ interface IChallenge {
      * @param prevChallengedSegmentLength Length of the segment challenged in the preceding round (in steps).
      */
     function verifyOneStepProof(
-        bytes memory proof,
+        bytes calldata oneStepProof,
         uint256 challengedStepIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external;
+}
 
-    /**
-     * @notice Triggers completion of challenge protocol if a responder timed out.
-     */
-    function timeout() external;
-
-    function currentResponder() external view returns (address);
-
-    function currentResponderTimeLeft() external view returns (uint256);
+// Assymetric challenge protocol.
+interface IAsymChallenge is IChallenge {
+// TODO.
 }
