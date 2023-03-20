@@ -32,7 +32,7 @@ contract AsymChallenge is ChallengeBase, IAsymChallenge {
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
     bytes32 public bisectionHash;
 
-    uint256 private constant MAX_BISECTION_DEGREE = 2;
+    // uint256 private constant MAX_MULTISECTION_DEGREE = 2;
 
     modifier onlyDefender() {
         if (msg.sender != challenger) {
@@ -64,7 +64,7 @@ contract AsymChallenge is ChallengeBase, IAsymChallenge {
         }
         defender = _defender;
         challenger = _challenger;
-        _bisectionHash = bisectionHash;
+        bisectionHash = _bisectionHash;
         verifier = _verifier;
         daProvider = _daProvider;
         resultReceiver = _resultReceiver;
