@@ -17,10 +17,9 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
-
 
 const timeInterval = 3 * time.Second
 
@@ -235,14 +234,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	commitAssertion := func() {
 		pendingAssertion = queuedAssertion.Copy()
 		queuedAssertion.StartBlock = queuedAssertion.EndBlock + 1
-		queuedAssertion.PrevCumulativeGasUsed = new(big.Int).Set(queuedAssertion.CumulativeGasUsed)
-		_, err = s.L1Client.CreateAssertion(
-			pendingAssertion.VmHash,
-			pendingAssertion.InboxSize,
-			pendingAssertion.CumulativeGasUsed,
-			confirmedAssertion.VmHash,
-			confirmedAssertion.CumulativeGasUsed,
-		)
+		_, err = s.L1Client.CreateAssertion(pendingAssertion.VmHash, pendingAssertion.InboxSize)
 		if errors.Is(err, core.ErrInsufficientFunds) {
 			log.Crit("Insufficient Funds to send Tx", "error", err)
 		}
@@ -285,7 +277,6 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			// Update queued assertion to latest batch
 			queuedAssertion.ID.Add(queuedAssertion.ID, big.NewInt(1))
 			queuedAssertion.VmHash = batch.LastBlockRoot()
-			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
 			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
 			queuedAssertion.EndBlock = batch.LastBlockNumber()
 			// If no assertion is pending, commit it
@@ -445,9 +436,9 @@ func (s *Sequencer) challengeLoop(ctx context.Context) {
 
 	var states []*proof.ExecutionState
 
-	var bisectedCh chan *bindings.IChallengeBisected
+	var bisectedCh chan *bindings.ISymChallengeBisected
 	var bisectedSub event.Subscription
-	var challengeCompletedCh chan *bindings.IChallengeChallengeCompleted
+	var challengeCompletedCh chan *bindings.ISymChallengeCompleted
 	var challengeCompletedSub event.Subscription
 
 	inChallenge := false
@@ -519,12 +510,12 @@ func (s *Sequencer) challengeLoop(ctx context.Context) {
 				if err != nil {
 					log.Crit("Failed to access ongoing challenge", "address", chalCtx.challengeAddr, "err", err)
 				}
-				bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
+				bisectedCh = make(chan *bindings.ISymChallengeBisected, 4096)
 				bisectedSub, err = s.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
 				if err != nil {
 					log.Crit("Failed to watch challenge event", "err", err)
 				}
-				challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
+				challengeCompletedCh = make(chan *bindings.ISymChallengeCompleted, 4096)
 				challengeCompletedSub, err = s.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
 				if err != nil {
 					log.Crit("Failed to watch challenge event", "err", err)
@@ -534,7 +525,6 @@ func (s *Sequencer) challengeLoop(ctx context.Context) {
 				states, err = proof.GenerateStates(
 					s.ProofBackend,
 					ctx,
-					chalCtx.assertion.PrevCumulativeGasUsed,
 					chalCtx.assertion.StartBlock,
 					chalCtx.assertion.EndBlock+1,
 					nil,
