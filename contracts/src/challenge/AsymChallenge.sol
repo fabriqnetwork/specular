@@ -23,7 +23,6 @@
 pragma solidity ^0.8.0;
 
 import "./IChallenge.sol";
-import "./ChallengeLib.sol";
 import "./verifier/IVerifier.sol";
 import "./ChallengeBase.sol";
 import "../IDAProvider.sol";
@@ -75,40 +74,5 @@ contract AsymChallenge is ChallengeBase, IAsymChallenge {
         // TODO(ujval): initialize timeout
         defenderTimeLeft = 10;
         challengerTimeLeft = 10;
-    }
-
-    function bisectExecution(
-        bytes32[] calldata bisection,
-        uint256 challengedSegmentIndex
-        // bytes32[] calldata prevBisection,
-        // uint256 prevChallengedSegmentStart,
-        // uint256 prevChallengedSegmentLength
-    ) external onlyChallenger onlyOnTurn {
-
-    }
-
-    function choose(
-        bytes32[] calldata bisection,
-        uint256 challengedSegmentIndex
-        // bytes32[] calldata prevBisection,
-        // uint256 prevChallengedSegmentStart,
-        // uint256 prevChallengedSegmentLength
-    ) external onlyDefender onlyOnTurn {
-
-    }
-
-    function verifyOneStepProof(
-        bytes calldata encodedTx,
-        bytes calldata txInclusionProof,
-        bytes calldata oneStepProof,
-        uint256 challengedStepIndex
-        // bytes32[] calldata prevBisection,
-        // uint256 prevChallengedSegmentStart,
-        // uint256 prevChallengedSegmentLength
-    ) external onlyOnTurn {
-
-        // This reverts if the tx doesn't exist.
-        daProvider.verifyTxInclusion(encodedTx, txInclusionProof);
-
     }
 }

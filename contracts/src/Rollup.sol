@@ -33,7 +33,13 @@ import "./libraries/Errors.sol";
 import "./IDAProvider.sol";
 import "./IRollup.sol";
 
-abstract contract RollupBase is IRollup, IChallengeResultReceiver, Initializable, UUPSUpgradeable, OwnableUpgradeable {
+abstract contract RollupBase is
+    IRollup,
+    IChallengeResultReceiver,
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable
+{
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
     uint256 public challengePeriod; // number of L1 blocks
@@ -149,10 +155,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function isStakedOnAssertion(
-        uint256 assertionID,
-        address stakerAddress
-    ) external view override returns (bool) {
+    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view override returns (bool) {
         return assertionState[assertionID].stakers[stakerAddress];
     }
 
@@ -254,10 +257,11 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function challengeAssertion(
-        address[2] calldata players,
-        uint256[2] calldata assertionIDs
-    ) external override returns (address) {
+    function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
+        external
+        override
+        returns (address)
+    {
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 parentID = assertions[defenderAssertionID].parent;
         {

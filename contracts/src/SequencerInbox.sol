@@ -114,7 +114,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     // TODO post EIP-4844: KZG proof verification
     // https://eips.ethereum.org/EIPS/eip-4844#point-evaluation-precompile
 
-
     /**
      * @notice Verifies that a transaction exists in a batch, at the expected offset.
      * @param encodedTx Transaction to verify.

@@ -48,5 +48,4 @@ interface ISequencerInbox is IDAProvider {
      */
     function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
         external;
-
 }

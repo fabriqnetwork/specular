@@ -164,7 +164,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // bytes32 nextStateHash = verifier.verifyOneStepProof(
         //     ctx,
         //     prevBisection[challengedStepIndex - 1],
-        //    oneStepProof 
+        //    oneStepProof
         // );
         // if (nextStateHash == prevBisection[challengedStepIndex]) {
         //     // osp verified, current win

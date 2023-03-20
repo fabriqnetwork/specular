@@ -237,5 +237,4 @@ interface IRollup {
      * assertion is not the last confirmed assertion.
      */
     function rejectFirstUnresolvedAssertion(address stakerAddress) external;
-
 }

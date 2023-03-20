@@ -116,5 +116,4 @@ abstract contract ChallengeBase is IChallenge {
         emit Completed(challenger, defender, reason);
         resultReceiver.completeChallenge(challenger, defender); // safeSelfDestruct(msg.sender);
     }
-
 }

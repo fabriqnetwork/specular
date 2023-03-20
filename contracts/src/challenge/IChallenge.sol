@@ -25,9 +25,6 @@ pragma solidity ^0.8.0;
 import "../IDAProvider.sol";
 import "./verifier/IVerifier.sol";
 
-interface IDAVerifier {
-}
-
 interface IChallengeResultReceiver {
     /**
      * @notice Completes ongoing challenge. Callback, called by a challenge contract.
@@ -78,7 +75,6 @@ interface IChallenge {
  * `IResultReceiver.completeChallenge`
  */
 interface ISymChallenge is IChallenge {
-
     /**
      * @notice Initializes the length of the challenge. Must be called by defender before bisection rounds begin.
      * @param _numSteps Number of steps executed from the start of the assertion to its end.
@@ -121,10 +117,9 @@ interface ISymChallenge is IChallenge {
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external;
-
 }
 
 // Assymetric challenge protocol.
 interface IAsymChallenge is IChallenge {
-    // TODO.
+// TODO.
 }
