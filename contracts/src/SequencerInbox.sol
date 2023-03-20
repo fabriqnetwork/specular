@@ -53,10 +53,12 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
+    /// @inheritdoc IDAProvider
     function getInboxSize() external view override returns (uint256) {
         return inboxSize;
     }
 
+    /// @inheritdoc ISequencerInbox
     function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
         external
         override
@@ -83,7 +85,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             // TODO: consider adding L1 context.
             uint256 l2BlockNumber = contexts[i + 1];
             uint256 l2Timestamp = contexts[i + 2];
-            bytes32 prefixHash = keccak256(abi.encodePacked(msg.sender, l2BlockNumber, l2Timestamp));
+            bytes32 prefixHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
 
             uint256 numCtxTxs = contexts[i];
             for (uint256 j = 0; j < numCtxTxs; j++) {
@@ -109,7 +111,20 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
     }
 
-    function verifyTxInclusion(bytes memory proof) external view override {
+    // TODO post EIP-4844: KZG proof verification
+    // https://eips.ethereum.org/EIPS/eip-4844#point-evaluation-precompile
+
+
+    /**
+     * @notice Verifies that a transaction exists in a batch, at the expected offset.
+     * @param encodedTx Transaction to verify.
+     * @param proof Proof of inclusion of transaction, in the form:
+     * proof := batchInfo || {foreach tx in batch: (prefixHash || txDataHash), ...} where,
+     * txInfo := (sender || l2BlockNumber || l2Timestamp || txDataLength || txData)
+     * batchInfo := (batchNum || numTxsBefore || numTxsAfterInBatch || accBefore)
+     * TODO: modify based on OSP format.
+     */
+    function verifyTxInclusion(bytes memory encodedTx, bytes calldata proof) external view override {
         uint256 offset = 0;
 
         // Deserialize tx and tx info.
@@ -123,10 +138,9 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         (offset, l2Timestamp) = DeserializationLib.deserializeUint256(proof, offset);
         (offset, txDataLength) = DeserializationLib.deserializeUint256(proof, offset);
         assembly {
-            // TODO: check if off-by-32.
-            txDataHash := keccak256(add(proof, offset), txDataLength)
+            txDataHash := keccak256(encodedTx, txDataLength)
         }
-        offset += txDataLength;
+        offset = 0;
 
         // Deserialize inbox info.
         uint256 batchNum;
@@ -152,7 +166,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         }
 
         if (acc != accumulators[batchNum]) {
-            revert IncorrectAccOrBatch();
+            revert ProofVerificationFailed();
         }
     }
 }

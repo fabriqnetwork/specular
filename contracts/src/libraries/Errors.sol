@@ -26,7 +26,7 @@ error NotRollup(address sender, address rollup);
 /// @dev Thrown when unauthorized (!challenge) address calls an only-challenge function
 /// @param sender Address of the caller
 /// @param challenge The challenge address authorized to call this function
-error NotChallengeParticipant(address sender, address challenge);
+error NotChallengeManager(address sender, address challenge);
 
 /// @dev Thrown when unauthorized (!sequencer) address calls an only-sequencer function
 /// @param sender Address of the caller

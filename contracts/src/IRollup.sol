@@ -23,7 +23,7 @@
 pragma solidity ^0.8.0;
 
 interface IRollup {
-    event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash, uint256 l2GasUsed);
+    event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash);
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
 
@@ -62,9 +62,6 @@ interface IRollup {
     /// @dev Thrown when a sender tries to create assertion before the minimum assertion time period
     error MinimumAssertionPeriodNotPassed();
 
-    /// @dev Thrown when the L2 gas used by the assertion is more the max allowed limit.
-    error MaxGasLimitExceeded();
-
     /// @dev Thrown when parent's statehash is not equal to the start state(or previous state)/
     error PreviousStateHash();
 
@@ -90,7 +87,7 @@ interface IRollup {
     error ChallengePeriodPending();
 
     /// @dev Thrown when the challenger and defender didn't attest to sibling assertions
-    error DifferentParent();
+    error NotSiblings();
 
     /// @dev Thrown when the assertion's parent is not the last confirmed assertion
     error InvalidParent();
@@ -126,7 +123,7 @@ interface IRollup {
     }
 
     struct Assertion {
-        bytes32 stateHash; // Hash of execution state associated with assertion (see `RollupLib.stateHash`)
+        bytes32 stateHash; // Hash of execution state associated with assertion. Currently equiv to `vmHash`.
         uint256 inboxSize; // Inbox size this assertion advanced to
         uint256 parent; // Parent assertion ID
         uint256 deadline; // Dispute deadline (L1 block number)
@@ -150,6 +147,11 @@ interface IRollup {
     function getAssertion(uint256 assertionID) external view returns (Assertion memory);
 
     /**
+     * @return Whether or not the staker is staked on the assertion.
+     */
+    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view returns (bool);
+
+    /**
      * @return The current required stake amount.
      */
     function currentRequiredStake() external view returns (uint256);
@@ -161,13 +163,12 @@ interface IRollup {
 
     /**
      * @notice Deposits stake on staker's current assertion (or the last confirmed assertion if not currently staked).
-     * @notice currently use Ether to stake; stakeAmount Token amount to deposit. Must be > than defined threshold if this is a new stake.
+     * @dev Currently uses Ether to stake; Must be > than defined threshold if this is a new stake.
      */
-    // function stake(uint256 stakeAmount) external payable;
     function stake() external payable;
 
     /**
-     * @notice Withdraws stakeAmount from staker's stake by if assertion it is staked on is confirmed.
+     * @notice Withdraws stakeAmount from staker's stake if assertion it is staked on is confirmed.
      * @param stakeAmount Token amount to withdraw. Must be <= sender's current stake minus the current required stake.
      */
     function unstake(uint256 stakeAmount) external;
@@ -200,17 +201,8 @@ interface IRollup {
      *
      * @param vmHash New VM hash.
      * @param inboxSize Size of inbox corresponding to assertion (number of transactions).
-     * @param l2GasUsed Total L2 gas used as of the end of this assertion's last transaction.
-     * @param prevVMHash Predecessor assertion VM hash (required because it does not get stored in the assertion).
-     * @param prevL2GasUsed Predecessor assertion L2 gas used (required because it does not get stored in the assertion).
      */
-    function createAssertion(
-        bytes32 vmHash,
-        uint256 inboxSize,
-        uint256 l2GasUsed,
-        bytes32 prevVMHash,
-        uint256 prevL2GasUsed
-    ) external;
+    function createAssertion(bytes32 vmHash, uint256 inboxSize) external;
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.
@@ -246,10 +238,4 @@ interface IRollup {
      */
     function rejectFirstUnresolvedAssertion(address stakerAddress) external;
 
-    /**
-     * @notice Completes ongoing challenge. Callback, called by a challenge contract.
-     * @param winner Address of winning staker.
-     * @param loser Address of losing staker.
-     */
-    function completeChallenge(address winner, address loser) external;
 }
