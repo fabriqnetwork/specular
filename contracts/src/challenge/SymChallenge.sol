@@ -27,11 +27,14 @@ import "./ChallengeBase.sol";
 import "./ChallengeLib.sol";
 import "./verifier/IVerifier.sol";
 import "../IDAProvider.sol";
+import "../libraries/DeserializationLib.sol";
 import "../libraries/Errors.sol";
 
 contract SymChallenge is ChallengeBase, ISymChallenge {
     // Previous state consistency could not be verified against `bisectionHash`.
     error PreviousStateInconsistent();
+    // Tx context consistency could not be verified against ground truth.
+    error TxContextInconsistent();
 
     uint256 private constant MAX_BISECTION_DEGREE = 2;
 
@@ -147,6 +150,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
     function verifyOneStepProof(
         bytes calldata oneStepProof,
+        bytes calldata txInclusionProof,
+        VerificationContextLib.RawContext calldata ctx,
         uint256 challengedStepIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
@@ -161,19 +166,21 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
         require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
-        // TODO: verify OSP
-        // Construct verification context.
-        // bytes32 nextStateHash = verifier.verifyOneStepProof(
-        //     ctx,
-        //     prevBisection[challengedStepIndex - 1],
-        //    oneStepProof
-        // );
-        // if (nextStateHash == prevBisection[challengedStepIndex]) {
-        //     // osp verified, current win
-        // } else {
-        //     // current lose?
-        // }
-
-        _currentWin(CompletionReason.OSP_VERIFIED);
+        {
+            // Verify tx inclusion.
+            daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
+            // Verify tx context consistency.
+            // TODO: leaky abstraction (assumes `txInclusionProof` structure).
+            (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
+            if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
+                revert TxContextInconsistent();
+            }
+        }
+        // Verify OSP.
+        bytes32 endHash = verifier.verifyOneStepProof(prevBisection[challengedStepIndex - 1], ctx, oneStepProof);
+        // Require that the end state differs from the counterparty's.
+        if (endHash != prevBisection[challengedStepIndex]) {
+            _currentWin(CompletionReason.OSP_VERIFIED);
+        }
     }
 }
