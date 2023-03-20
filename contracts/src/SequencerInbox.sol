@@ -35,7 +35,14 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
 
+    uint256 public delayedMessagesRead;
+    // delayedInbox hashes array
+    bytes32[] public delayedInbox;
+
     address public sequencerAddress;
+
+    uint64[2] public lastBlockAndTime;
+
 
     function initialize(address _sequencerAddress) public initializer {
         if (_sequencerAddress == address(0)) {
@@ -58,14 +65,81 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         return inboxSize;
     }
 
+
+    function sendUnsignedTx(uint256 gasLimit, uint256 maxFeePerGas, uint256 nonce, uint256 to, uint256 value, bytes calldata data)
+        external
+    {
+        if(gasLimit > type(uint256).max) revert();
+
+        addToDelayedInbox(
+            msg.sender,
+            keccak256(
+                abi.encodePacked(
+                    gasLimit,
+                    maxFeePerGas,
+                    nonce,
+                    to,
+                    value,
+                    data
+                )
+            )
+        );
+    }
+
+    function addToDelayedInbox(address to, bytes32 calldata messageDataHash) internal {
+        const delayedMessageCount = delayedInbox.length;
+        bytes32 messageHash = keccak256(
+                                        abi.encodePacked(to,
+                                        l2BlockAndTime[0],
+                                        l2BlockAndTime[1],
+                                        block.baseFee,
+                                        messageDataHash)
+                                    );
+
+        delayedInbox.push(messageHash);
+        return delayedMessageCount;
+    }
+
+    function forceInclusion(
+        uint256 delayedMessageIndex,
+        address sender,
+        uint256 baseFeeL1,
+        bytes32 messageDataHash
+    ) external {
+        if(delayedMessageIndex > delayedInbox.length) revert();
+        if(delayedMessageIndex <= delayedMessagesRead) revert();
+
+        bytes32 messageHash = keccak256(
+            sender,
+            abi.encodePacked(
+                l1BlockAndTime[0],
+                l1blol1BlockAndTimeckAndTime[1],
+                delayedMessageIndex,
+                baseFeeL1,
+                messageDataHash
+            )
+        );
+
+        if(l1BlockAndTime[0] + 5760 >= block.number) revert();
+        if(l1BlockAndTime[1] + 86400 >= block.timestamp) revert();
+
+        if(messageHash != delayedInbox[delayedMessageIndex]) revert();
+
+
+
+    }
+
+
     /// @inheritdoc ISequencerInbox
-    function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
+    function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch, uint _totalDelayedMessagesRead)
         external
         override
     {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
+        if(_totalDelayedMessagesRead < delayedMessagesRead) revert();
+
 
         uint256 numTxs = inboxSize;
         bytes32 runningAccumulator;
@@ -81,10 +155,13 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         uint256 dataOffset = initialDataOffset;
 
+        uint256 l2BlockNumer;
+        uint256 l2Timestamp;
+
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
             // TODO: consider adding L1 context.
-            uint256 l2BlockNumber = contexts[i + 1];
-            uint256 l2Timestamp = contexts[i + 2];
+            l2BlockNumber = contexts[i + 1];
+            l2Timestamp = contexts[i + 2];
             bytes32 txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
 
             uint256 numCtxTxs = contexts[i];
@@ -107,6 +184,11 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256 start = inboxSize;
         inboxSize = numTxs;
         accumulators.push(runningAccumulator);
+
+        delayedMessagesRead = _totalDelayedMessagesRead;
+        l2BlockAndTime[0] = l2BlockNumber;
+        l2BlockAndTime[1] = l2BlockTime;
+
 
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
     }
