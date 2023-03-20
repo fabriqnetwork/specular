@@ -85,7 +85,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             // TODO: consider adding L1 context.
             uint256 l2BlockNumber = contexts[i + 1];
             uint256 l2Timestamp = contexts[i + 2];
-            bytes32 prefixHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
+            bytes32 txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
 
             uint256 numCtxTxs = contexts[i];
             for (uint256 j = 0; j < numCtxTxs; j++) {
@@ -94,7 +94,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
                 assembly {
                     txDataHash := keccak256(dataOffset, txLength)
                 }
-                runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, prefixHash, txDataHash));
+                runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, txDataHash));
                 dataOffset += txLength;
                 if (dataOffset - initialDataOffset > txBatch.length) {
                     revert TxBatchDataOverflow();
@@ -115,33 +115,19 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     // https://eips.ethereum.org/EIPS/eip-4844#point-evaluation-precompile
 
     /**
-     * @notice Verifies that a transaction exists in a batch, at the expected offset.
-     * @param encodedTx Transaction to verify.
-     * @param proof Proof of inclusion of transaction, in the form:
-     * proof := batchInfo || {foreach tx in batch: (prefixHash || txDataHash), ...} where,
-     * txInfo := (sender || l2BlockNumber || l2Timestamp || txDataLength || txData)
+     * @notice Verifies that a transaction is included in a batch, at the expected offset.
+     * @param encodedTx Transaction to verify inclusion of.
+     * @param proof Proof of inclusion, in the form:
+     * proof := txContextHash || batchInfo || {foreach tx in batch: (txContextHash || KEC(txData)), ...} where,
      * batchInfo := (batchNum || numTxsBefore || numTxsAfterInBatch || accBefore)
-     * TODO: modify based on OSP format.
+     * txContextHash := KEC(sequencerAddress || l2BlockNumber || l2Timestamp)
      */
-    function verifyTxInclusion(bytes memory encodedTx, bytes calldata proof) external view override {
+    function verifyTxInclusion(bytes calldata encodedTx, bytes calldata proof) external view override {
         uint256 offset = 0;
-
-        // Deserialize tx and tx info.
-        address sender;
-        uint256 l2BlockNumber;
-        uint256 l2Timestamp;
-        uint256 txDataLength;
-        bytes32 txDataHash;
-        (offset, sender) = DeserializationLib.deserializeAddress(proof, offset);
-        (offset, l2BlockNumber) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, l2Timestamp) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, txDataLength) = DeserializationLib.deserializeUint256(proof, offset);
-        assembly {
-            txDataHash := keccak256(encodedTx, txDataLength)
-        }
-        offset = 0;
-
-        // Deserialize inbox info.
+        // Deserialize tx context of `encodedTx`.
+        bytes32 txContextHash;
+        (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
+        // Deserialize batch info.
         uint256 batchNum;
         uint256 numTxs;
         uint256 numTxsAfterInBatch;
@@ -152,15 +138,15 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
 
         // Start accumulator at the tx.
-        bytes32 prefixHash = keccak256(abi.encodePacked(sender, l2BlockNumber, l2Timestamp));
-        acc = keccak256(abi.encodePacked(acc, numTxs, prefixHash, txDataHash));
+        bytes32 txDataHash = keccak256(encodedTx);
+        acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
         numTxs++;
 
         // Compute final accumulator value.
         for (uint256 i = 0; i < numTxsAfterInBatch; i++) {
-            (offset, prefixHash) = DeserializationLib.deserializeBytes32(proof, offset);
+            (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
             (offset, txDataHash) = DeserializationLib.deserializeBytes32(proof, offset);
-            acc = keccak256(abi.encodePacked(acc, numTxs, prefixHash, txDataHash));
+            acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
             numTxs++;
         }
 

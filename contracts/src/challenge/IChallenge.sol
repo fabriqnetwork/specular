@@ -112,6 +112,8 @@ interface ISymChallenge is IChallenge {
      */
     function verifyOneStepProof(
         bytes calldata oneStepProof,
+        bytes calldata txInclusionProof,
+        VerificationContextLib.RawContext calldata ctx,
         uint256 challengedStepIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
