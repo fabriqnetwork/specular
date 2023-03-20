@@ -49,6 +49,8 @@ func SubmitOneStepProof(
 	}
 	_, err = l1Client.VerifyOneStepProof(
 		osp.Encode(),
+		[]byte{}, // TODO: fix
+		bindings.VerificationContextLibRawContext{}, // TODO: fix
 		challengedStepIndex,
 		prevBisection,
 		prevChallengedSegmentStart,
