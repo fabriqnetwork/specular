@@ -68,7 +68,6 @@ func Wrap(e interface{}, skip int) *Error {
 	}
 }
 
-
 // Errorf creates a new error with the given message. You can use it
 // as a drop-in replacement for fmt.Errorf() to provide descriptive
 // errors in return values.
@@ -78,15 +77,14 @@ func Errorf(format string, a ...interface{}) *Error {
 
 // Error returns the underlying error's message.
 func (err *Error) Error() string {
-
-	return err.Err.Error()+ "\n" + string(err.Stack())
+	return err.Err.Error() + "\n" + string(err.Stack())
 }
 
 // Stack returns the callstack formatted the same way that go does
 // in runtime/debug.Stack()
 func (err *Error) Stack() []byte {
 	buf := bytes.Buffer{}
-	frame :=  err.StackFrames()[0] 
+	frame := err.StackFrames()[0]
 	buf.WriteString(frame.String())
 	return buf.Bytes()
 }
@@ -96,7 +94,6 @@ func (err *Error) Stack() []byte {
 func (err *Error) Callers() []uintptr {
 	return err.stack
 }
-
 
 // StackFrames returns an array of frames containing information about the
 // stack.

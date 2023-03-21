@@ -222,7 +222,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 
 	// Watch L1 blockchain for challenge timeout
 	headCh := make(chan *types.Header, 4096)
-	headSub, err := v.L1Client.SubscribeNewHead(ctx, headCh)
+	headSub, err := v.L1Client.ResubscribeErrNewHead(ctx, headCh)
 	if err != nil {
 		log.Crit("Failed to watch l1 chain head", "err", err)
 	}
