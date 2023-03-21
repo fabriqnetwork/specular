@@ -84,7 +84,7 @@ func (b *BaseService) GetL1RollupBlocktoSyncFromUtil(
 
 	//Compare L2 Block Number of the Event to Current L2 Block Number
 	if len(blocks)>0 && blocks[0].BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
-		// If it's greater means we can sync from current L1 Block
+		// If it's greater means we can sync from L1 Block of the event
 		return true,nil
 	}
 	return false,nil
