@@ -23,6 +23,8 @@ func NewBroker[T any]() *Broker[T] {
 	}
 }
 
+var chanSize = 8
+
 // TODO: remove dependency on `event.Subscription`
 func (b *Broker[T]) Start(ctx context.Context, sub event.Subscription) error {
 	subs := map[chan T]struct{}{}
@@ -57,7 +59,7 @@ func (b *Broker[T]) Stop() {
 }
 
 func (b *Broker[T]) Subscribe() chan T {
-	msgCh := make(chan T, 8)
+	msgCh := make(chan T, chanSize)
 	b.subCh <- msgCh
 	return msgCh
 }
@@ -101,7 +103,7 @@ func SubscribeMappedToMany[T any, U any](
 	mapFn func(context.Context, T) ([]U, error),
 ) <-chan U {
 	inCh := broker.Subscribe()
-	outCh := make(chan U, 128)
+	outCh := make(chan U, chanSize*chanSize)
 	go func() {
 		defer broker.Unsubscribe(inCh)
 		defer close(outCh)

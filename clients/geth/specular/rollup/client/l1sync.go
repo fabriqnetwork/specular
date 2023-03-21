@@ -21,27 +21,24 @@ type L1Syncer struct {
 }
 
 func NewL1Syncer(ctx context.Context, l1Client L1BridgeClient) *L1Syncer {
-	// Watch L1 blockchain for confirmation period
-	latestHeaderBroker := utils.NewBroker[*types.Header]()
 	// This is the source subscription from which we broadcast to other subscribers.
-	finalizedHeaderBroker := utils.NewBroker[*types.Header]()
 	syncer := L1Syncer{
-		LatestHeaderBroker:    latestHeaderBroker,
-		FinalizedHeaderBroker: finalizedHeaderBroker,
+		LatestHeaderBroker:    utils.NewBroker[*types.Header](),
+		FinalizedHeaderBroker: utils.NewBroker[*types.Header](),
 	}
 	syncer.wg.Add(2)
-	latestSub := l1Client.SubscribeNewHeadByPolling(ctx, latestHeaderBroker.PubCh, Latest, 10*time.Second, 10*time.Second)
+	latestSub := l1Client.SubscribeNewHeadByPolling(ctx, syncer.LatestHeaderBroker.PubCh, Latest, 10*time.Second, 10*time.Second)
 	go func() {
 		defer syncer.wg.Done()
-		err := latestHeaderBroker.Start(ctx, latestSub)
+		err := syncer.LatestHeaderBroker.Start(ctx, latestSub)
 		if err != nil {
 			log.Error("Failed running latest head broker", "err", err)
 		}
 	}()
-	finalizedSub := l1Client.SubscribeNewHeadByPolling(ctx, latestHeaderBroker.PubCh, Finalized, 10*time.Second, 10*time.Second)
+	finalizedSub := l1Client.SubscribeNewHeadByPolling(ctx, syncer.FinalizedHeaderBroker.PubCh, Finalized, 10*time.Second, 10*time.Second)
 	go func() {
 		defer syncer.wg.Done()
-		err := finalizedHeaderBroker.Start(ctx, finalizedSub)
+		err := syncer.FinalizedHeaderBroker.Start(ctx, finalizedSub)
 		if err != nil {
 			log.Error("Failed running finalized head broker", "err", err)
 		}
@@ -50,28 +47,22 @@ func NewL1Syncer(ctx context.Context, l1Client L1BridgeClient) *L1Syncer {
 }
 
 func (s *L1Syncer) Start(ctx context.Context) {
-	s.LatestHeaderBroker.SubscribeWithCallback(ctx, func(ctx context.Context, head *types.Header) error { return s.onLatest(head) })
-	s.FinalizedHeaderBroker.SubscribeWithCallback(ctx, func(ctx context.Context, head *types.Header) error { return s.onFinalized(head) })
-	// TODO: cleanup.
+	s.LatestHeaderBroker.SubscribeWithCallback(ctx, s.onLatest)
+	s.FinalizedHeaderBroker.SubscribeWithCallback(ctx, s.onFinalized)
 	for s.Latest == nil {
-		log.Info("Waiting for L1 head...")
-		log.Info("test \n test", "err", "gg no \n re")
-		time.Sleep(4 * time.Second)
+		log.Info("Waiting for L1 latest header...")
+		time.Sleep(2 * time.Second)
 	}
-	log.Info("Latest received", "number", s.Latest.Number)
-	for s.Finalized == nil {
-		log.Info("Waiting for L1 head...\n")
-		time.Sleep(4 * time.Second)
-	}
-	log.Info("Finalized received", "number", s.Finalized.Number)
+	log.Info("Latest header received", "number", s.Latest.Number)
+	// TODO: Wait for finalized head? Might cause issues in tests.
 }
 
-func (s *L1Syncer) onLatest(header *types.Header) error {
+func (s *L1Syncer) onLatest(ctx context.Context, header *types.Header) error {
 	s.Latest = header
 	return nil
 }
 
-func (s *L1Syncer) onFinalized(header *types.Header) error {
+func (s *L1Syncer) onFinalized(ctx context.Context, header *types.Header) error {
 	s.Finalized = header
 	return nil
 }
