@@ -16,8 +16,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
 type challengeCtx struct {
@@ -59,7 +59,6 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	currentBlockNum := assertion.StartBlock
 	currentChainHeight := v.Chain().CurrentBlock().NumberU64()
 	var block *types.Block
-	targetGasUsed := new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed)
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
 		if currentBlockNum > currentChainHeight {
 			return errAssertionOverflowedLocalInbox
@@ -72,21 +71,18 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		if numTxs > inboxSizeDiff.Uint64() {
 			return fmt.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
-		targetGasUsed.Add(targetGasUsed, new(big.Int).SetUint64(block.GasUsed()))
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
 		currentBlockNum++
 	}
 	assertion.EndBlock = currentBlockNum - 1
 	targetVmHash := block.Root()
-	if targetVmHash != assertion.VmHash || targetGasUsed.Cmp(assertion.CumulativeGasUsed) != 0 {
+	if targetVmHash != assertion.VmHash {
 		// Validation failed
 		ourAssertion := &rollupTypes.Assertion{
-			VmHash:                targetVmHash,
-			CumulativeGasUsed:     targetGasUsed,
-			InboxSize:             assertion.InboxSize,
-			StartBlock:            assertion.StartBlock,
-			EndBlock:              assertion.EndBlock,
-			PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
+			VmHash:     targetVmHash,
+			InboxSize:  assertion.InboxSize,
+			StartBlock: assertion.StartBlock,
+			EndBlock:   assertion.EndBlock,
 		}
 		v.challengeCh <- &challengeCtx{assertion, ourAssertion, lastValidatedAssertion}
 		return errValidationFailed
@@ -140,7 +136,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
-				return fmt.Errorf("tryValidateAssertion Failed",err)
+				return fmt.Errorf("tryValidateAssertion Failed", err)
 			}
 		}
 		// Validation success, clean up
@@ -183,12 +179,10 @@ func (v *Validator) validationLoop(ctx context.Context) {
 					log.Crit("Could not get DA", "error", err)
 				}
 				assertion := &rollupTypes.Assertion{
-					ID:                    ev.AssertionID,
-					VmHash:                ev.VmHash,
-					CumulativeGasUsed:     ev.L2GasUsed,
-					InboxSize:             assertionFromRollup.InboxSize,
-					StartBlock:            lastValidatedAssertion.EndBlock + 1,
-					PrevCumulativeGasUsed: new(big.Int).Set(lastValidatedAssertion.CumulativeGasUsed),
+					ID:         ev.AssertionID,
+					VmHash:     ev.VmHash,
+					InboxSize:  assertionFromRollup.InboxSize,
+					StartBlock: lastValidatedAssertion.EndBlock + 1,
 				}
 				if currentAssertion != nil {
 					// TODO: handle concurrent assertions
@@ -236,9 +230,9 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 
 	var states []*proof.ExecutionState
 
-	var bisectedCh chan *bindings.IChallengeBisected
+	var bisectedCh chan *bindings.ISymChallengeBisected
 	var bisectedSub event.Subscription
-	var challengeCompletedCh chan *bindings.IChallengeChallengeCompleted
+	var challengeCompletedCh chan *bindings.ISymChallengeCompleted
 	var challengeCompletedSub event.Subscription
 
 	inChallenge := false
@@ -306,13 +300,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 		} else {
 			select {
 			case chalCtx = <-v.challengeCh:
-				_, err = v.L1Client.CreateAssertion(
-					chalCtx.ourAssertion.VmHash,
-					chalCtx.ourAssertion.InboxSize,
-					chalCtx.ourAssertion.CumulativeGasUsed,
-					chalCtx.lastValidatedAssertion.VmHash,
-					chalCtx.lastValidatedAssertion.CumulativeGasUsed,
-				)
+				_, err = v.L1Client.CreateAssertion(chalCtx.ourAssertion.VmHash, chalCtx.ourAssertion.InboxSize)
 				if errors.Is(err, core.ErrInsufficientFunds) {
 					log.Crit("Insufficient Funds to send Tx", "error", err)
 				}
@@ -351,12 +339,12 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 					if err != nil {
 						log.Crit("Failed to access ongoing challenge", "address", ev.ChallengeAddr, "err", err)
 					}
-					bisectedCh = make(chan *bindings.IChallengeBisected, 4096)
+					bisectedCh = make(chan *bindings.ISymChallengeBisected, 4096)
 					bisectedSub, err = v.L1Client.WatchBisected(&bind.WatchOpts{Context: ctx}, bisectedCh)
 					if err != nil {
 						log.Crit("Failed to watch challenge event", "err", err)
 					}
-					challengeCompletedCh = make(chan *bindings.IChallengeChallengeCompleted, 4096)
+					challengeCompletedCh = make(chan *bindings.ISymChallengeCompleted, 4096)
 					challengeCompletedSub, err = v.L1Client.WatchChallengeCompleted(&bind.WatchOpts{Context: ctx}, challengeCompletedCh)
 					if err != nil {
 						log.Crit("Failed to watch challenge event", "err", err)
@@ -364,7 +352,6 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 					states, err = proof.GenerateStates(
 						v.ProofBackend,
 						ctx,
-						chalCtx.opponentAssertion.PrevCumulativeGasUsed,
 						chalCtx.opponentAssertion.StartBlock,
 						chalCtx.opponentAssertion.EndBlock+1,
 						nil,

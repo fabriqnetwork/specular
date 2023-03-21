@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /*
- * Modifications Copyright 2022, Specular contributors
- *
- * This file was changed in accordance to Apache License, Version 2.0.
- *
- * Copyright 2021, Offchain Labs, Inc.
+ * Copyright 2022, Specular contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,19 +18,19 @@
 
 pragma solidity ^0.8.0;
 
-import "./challenge/ChallengeLib.sol";
-
-// TODO: move into ChallengeLib.
-library RollupLib {
-    struct ExecutionState {
-        uint256 l2GasUsed;
-        bytes32 vmHash;
-    }
-
+/**
+ * @notice Data availability interface to rollup contracts.
+ */
+interface IDAProvider {
     /**
-     * @notice Computes the hash of `execState`.
+     * @notice Gets inbox size (total number of messages stored).
      */
-    function stateHash(ExecutionState memory execState) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(execState.l2GasUsed, execState.vmHash));
-    }
+    function getInboxSize() external view returns (uint256);
+    /**
+     * Verifies proof of inclusion of a transaction by the data availability provider.
+     * If verification fails, the function reverts.
+     * @param encodedTx RLP-encoded transaction.
+     * @param proof DA-specific membership proof.
+     */
+    function verifyTxInclusion(bytes memory encodedTx, bytes calldata proof) external view;
 }

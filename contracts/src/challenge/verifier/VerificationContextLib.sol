@@ -18,18 +18,16 @@
 
 pragma solidity ^0.8.0;
 
-import "./VerificationContextLib.sol";
+library VerificationContextLib {
+    struct RawContext {
+        bytes encodedTx;
+        // Transaction context.
+        address l2BlockCoinbase;
+        uint256 l2BlockNumber;
+        uint256 l2BlockTimestamp;
+    }
 
-interface IVerifier {
-    /**
-     * @notice Simulates and verifies execution of a single EVM step.
-     * @param startStateHash The state hash before the step.
-     * @param ctx Associated transaction and its context (already verified to be consistent).
-     * @param encodedProof The one-step proof. TODO: describe format.
-     */
-    function verifyOneStepProof(
-        bytes32 startStateHash,
-        VerificationContextLib.RawContext calldata ctx,
-        bytes calldata encodedProof
-    ) external pure returns (bytes32 endStateHash);
+    function txContextHash(RawContext calldata ctx) public pure returns (bytes32) {
+        return keccak256(abi.encodePacked(ctx.l2BlockCoinbase, ctx.l2BlockNumber, ctx.l2BlockTimestamp));
+    }
 }
