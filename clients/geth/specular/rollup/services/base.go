@@ -61,24 +61,55 @@ func (b *BaseService) Chain() *core.BlockChain {
 	return b.Eth.BlockChain()
 }
 
+// Return True if transactions of given L1 block are not present in L2
+func (b *BaseService) GetL1RollupBlocktoSyncFromUtil(
+	ctx context.Context,
+	ev *bindings.ISequencerInboxTxBatchAppended,
+) (bool,error) {
+	tx, _, err := b.L1Client.TransactionByHash(ctx, ev.Raw.TxHash)
+	if err != nil {
+		return false,fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
+	}
+	// Decode input to appendTxBatch transaction.
+	decoded, err := b.L1Client.DecodeAppendTxBatchInput(tx)
+	if err != nil {
+		return false,fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
+	}
+	// Construct batch. TODO: decode into blocks directly.
+	batch, err := rollupTypes.TxBatchFromDecoded(decoded)
+	if err != nil {
+		return false,fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
+	}
+	blocks := batch.SplitToBlocks()
 
-func (b *BaseService) GetL1RollupBlock(ctx context.Context, start uint64) uint64 {
-	l1blocknumber := start
+	//Compare L2 Block Number of the Event to Current L2 Block Number
+	if len(blocks)>0 && blocks[0].BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
+		// If it's greater means we can sync from current L1 Block
+		return true,nil
+	}
+	return false,nil
+}
+
+func (b *BaseService) GetL1RollupBlocktoSyncFrom(ctx context.Context, start uint64) (uint64, error) {
 	l1BlockHead, err := b.L1Client.BlockNumber(ctx)
 	if err != nil {
-		return b.Config.L1RollupGenesisBlock
+		return start,fmt.Errorf("Failed to get to L1 block to sync from, err: %w", err)
 	}
 	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, End: &l1BlockHead, Context: ctx}
 	eventsIter, err := b.L1Client.FilterTxBatchAppendedEvents(&opts)
 	if err != nil {
-		return b.Config.L1RollupGenesisBlock
+		return start,fmt.Errorf("Failed to get to L1 block to sync from, err: %w", err)
 	}
 	for eventsIter.Next() {
-		if eventsIter.Event.Raw.BlockNumber > l1blocknumber{
-			l1blocknumber = eventsIter.Event.Raw.BlockNumber
+		flag,err:= b.GetL1RollupBlocktoSyncFromUtil(ctx, eventsIter.Event)
+		if err != nil {
+			return start,fmt.Errorf("Failed to get l1 block to sync from, err: %w", err)
+		}
+		if flag==true{
+			return eventsIter.Event.Raw.BlockNumber, nil
 		}
 	}
-	return l1blocknumber
+	return l1BlockHead, nil
 }
 
 // Gets the last validated assertion.
@@ -221,6 +252,7 @@ func (b *BaseService) processTxBatchAppendedEvents(
 	eventsIter *bindings.ISequencerInboxTxBatchAppendedIterator,
 ) error {
 	for eventsIter.Next() {
+		log.Info("processTxBatchAppendedEvents l1blocknumber is", "l1blocknumber", eventsIter.Event.Raw.BlockNumber)
 		err := b.processTxBatchAppendedEvent(ctx, eventsIter.Event)
 		if err != nil {
 			return fmt.Errorf("Failed to process event, err: %w", err)
