@@ -16,8 +16,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 type challengeCtx struct {
@@ -140,7 +140,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
 			default:
-				return fmt.Errorf("tryValidateAssertion Failed", err)
+				return fmt.Errorf("tryValidateAssertion Failed",err)
 			}
 		}
 		// Validation success, clean up
@@ -394,7 +394,6 @@ func (v *Validator) Start() error {
 	}
 	// This is necessary despite `SyncLoop`, since we need an up-to-date L2 chain
 	// before we resolve all information about the last validated assertion.
-
 	end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
