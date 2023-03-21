@@ -17,10 +17,9 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
-
 
 const timeInterval = 3 * time.Second
 
@@ -565,11 +564,7 @@ func (s *Sequencer) Start() error {
 	if err := s.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
-	l1RollupBlocktoSyncFrom, err := s.GetL1RollupBlocktoSyncFrom(ctx, s.Config.L1RollupGenesisBlock)
-	if err != nil {
-		return fmt.Errorf("Failed to start sequencer: %w", err)
-	}
-	_, err = s.SyncL2ChainToL1Head(ctx, l1RollupBlocktoSyncFrom)
+	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.L1RollupGenesisBlock)
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}

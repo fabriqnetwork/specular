@@ -15,8 +15,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 type BaseService struct {
@@ -59,57 +59,6 @@ func (b *BaseService) Stop() error {
 
 func (b *BaseService) Chain() *core.BlockChain {
 	return b.Eth.BlockChain()
-}
-
-// Return True if transactions of given L1 block are not present in L2
-func (b *BaseService) GetL1RollupBlocktoSyncFromUtil(
-	ctx context.Context,
-	ev *bindings.ISequencerInboxTxBatchAppended,
-) (bool,error) {
-	tx, _, err := b.L1Client.TransactionByHash(ctx, ev.Raw.TxHash)
-	if err != nil {
-		return false,fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
-	}
-	// Decode input to appendTxBatch transaction.
-	decoded, err := b.L1Client.DecodeAppendTxBatchInput(tx)
-	if err != nil {
-		return false,fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
-	}
-	// Construct batch. TODO: decode into blocks directly.
-	batch, err := rollupTypes.TxBatchFromDecoded(decoded)
-	if err != nil {
-		return false,fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
-	}
-	blocks := batch.SplitToBlocks()
-
-	//Compare L2 Block Number of the Event to Current L2 Block Number
-	if len(blocks)>0 && blocks[0].BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
-		// If it's greater means we can sync from L1 Block of the event
-		return true,nil
-	}
-	return false,nil
-}
-
-func (b *BaseService) GetL1RollupBlocktoSyncFrom(ctx context.Context, start uint64) (uint64, error) {
-	l1BlockHead, err := b.L1Client.BlockNumber(ctx)
-	if err != nil {
-		return start,fmt.Errorf("Failed to get to L1 block to sync from, err: %w", err)
-	}
-	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, End: &l1BlockHead, Context: ctx}
-	eventsIter, err := b.L1Client.FilterTxBatchAppendedEvents(&opts)
-	if err != nil {
-		return start,fmt.Errorf("Failed to get to L1 block to sync from, err: %w", err)
-	}
-	for eventsIter.Next() {
-		flag,err:= b.GetL1RollupBlocktoSyncFromUtil(ctx, eventsIter.Event)
-		if err != nil {
-			return start,fmt.Errorf("Failed to get l1 block to sync from, err: %w", err)
-		}
-		if flag==true{
-			return eventsIter.Event.Raw.BlockNumber, nil
-		}
-	}
-	return l1BlockHead, nil
 }
 
 // Gets the last validated assertion.
@@ -286,7 +235,11 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	log.Info("Decoded batch", "#txs", len(batch.Txs))
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
-	b.commitBlocks(blocks)
+	//Compare L2 Block Number of the Event to Current L2 Block Number
+	if len(blocks) > 0 && blocks[0].BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
+		// If it's greater means we can commit on L2
+		b.commitBlocks(blocks)
+	}
 	return nil
 }
 
