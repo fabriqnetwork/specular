@@ -27,7 +27,7 @@ library VerificationContextLib {
         uint256 l2BlockTimestamp;
     }
 
-    function txContextHash(RawContext calldata ctx) public pure returns (bytes32) {
+    function txContextHash(RawContext calldata ctx) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(ctx.l2BlockCoinbase, ctx.l2BlockNumber, ctx.l2BlockTimestamp));
     }
 }
