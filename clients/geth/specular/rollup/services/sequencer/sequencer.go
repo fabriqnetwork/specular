@@ -21,6 +21,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
+
 const timeInterval = 3 * time.Second
 
 type challengeCtx struct {
