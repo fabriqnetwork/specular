@@ -201,7 +201,6 @@ func (b *BaseService) processTxBatchAppendedEvents(
 	eventsIter *bindings.ISequencerInboxTxBatchAppendedIterator,
 ) error {
 	for eventsIter.Next() {
-		log.Info("processTxBatchAppendedEvents l1blocknumber is", "l1blocknumber", eventsIter.Event.Raw.BlockNumber)
 		err := b.processTxBatchAppendedEvent(ctx, eventsIter.Event)
 		if err != nil {
 			return fmt.Errorf("Failed to process event, err: %w", err)
