@@ -54,12 +54,9 @@ jobs:
           ls -la specular-datadir
           rm -rf specular-datadir/geth/
           ls -la specular-datadir
-          docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
+          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/docker_start.ts
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
-          docker ps
-          docker logs hardhat
-          docker logs sequencer
           sleep 60
           docker ps
           docker logs hardhat
@@ -92,4 +89,4 @@ jobs:
         run: |
           pwd 
           ls -la
-          docker-compose -f docker/docker-compose-integration-test.yml down
+          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/docker_stop.ts
