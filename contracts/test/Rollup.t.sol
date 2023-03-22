@@ -36,27 +36,21 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     Utils internal utils;
     address payable[] internal users;
 
-    address internal sequencer;
     address internal alice;
     address internal bob;
-    address internal vault;
-    address internal sequencerOwner;
+    address internal deployer;
     address internal sequencerAddress;
-    address internal rollupOwner;
 
     Verifier verifier = new Verifier();
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(7);
+        users = utils.createUsers(4);
 
-        sequencer = users[0];
-        alice = users[1];
-        bob = users[2];
-        vault = users[3];
-        sequencerOwner = users[4];
-        sequencerAddress = users[5];
-        rollupOwner = users[6];
+        alice = users[0];
+        bob = users[1];
+        deployer = users[2];
+        sequencerAddress = users[3];
     }
 }
 
@@ -66,33 +60,60 @@ contract RollupTest is RollupBaseSetup {
     SequencerInbox public seqIn;
     SequencerInbox public implementationSequencer;
 
-    address defender = makeAddr("defender");
-    address challenger = makeAddr("challenger");
-
     function setUp() public virtual override {
         // Parent contract setup
         RollupBaseSetup.setUp();
 
-        // Deploying the SequencerInbox with sequencerOwner
+        // Deploying the SequencerInbox
         bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", sequencerAddress);
-        vm.startPrank(sequencerOwner);
+        vm.startPrank(deployer);
         implementationSequencer = new SequencerInbox();
         seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
         vm.stopPrank();
 
         // Making sure that the proxy returns the correct proxy owner and sequencerAddress
-        address sequencerInboxOwner = seqIn.owner();
-        assertEq(sequencerInboxOwner, sequencerOwner);
+        address sequencerInboxDeployer = seqIn.owner();
+        assertEq(sequencerInboxDeployer, deployer);
 
         address fetchedSequencerAddress = seqIn.sequencerAddress();
         assertEq(fetchedSequencerAddress, sequencerAddress);
     }
 
-    function test_initializeRollup_vaultAddressZero() external {
-        // Preparing the initializing data for the (proxied)Rollup contract
+    // Tests the zero value initialization
+    function test_fuzz_zeroValues(address _sequencerAddress, address _verifier) external {
+        vm.assume(_sequencerAddress >= address(0));
+        vm.assume(_verifier >= address(0));
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            address(0), // vault
+            _sequencerAddress, // vault
+            address(seqIn),
+            _verifier,
+            0, //confirmationPeriod
+            0, //challengPeriod
+            0, // minimumAssertionPeriod
+            type(uint256).max, // maxGasPerAssertion
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32(""),
+            0 // initialGasUsed
+        );
+        if (_sequencerAddress == address(0) || _verifier == address(0)) {
+            vm.startPrank(deployer);
+
+            Rollup implementationRollup = new Rollup(); // implementation contract
+
+            vm.expectRevert(ZeroAddress.selector);
+            rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
+
+            vm.stopPrank();
+        }
+    }
+
+    function test_initializeRollup_cannotReinitializeRollup() external {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            sequencerAddress, // vault
             address(seqIn),
             address(verifier),
             0, //confirmationPeriod
@@ -106,100 +127,16 @@ contract RollupTest is RollupBaseSetup {
             0 // initialGasUsed
         );
 
-        vm.startPrank(rollupOwner);
-
-        Rollup implementationRollup = new Rollup(); // implementation contract
-
-        vm.expectRevert(ZeroAddress.selector);
-        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
-
-        vm.stopPrank();
-    }
-
-    function test_initializeRollup_verifierAddressZero() external {
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
-            vault, // vault
-            address(seqIn),
-            address(0),
-            0, //confirmationPeriod
-            0, //challengPeriod
-            0, // minimumAssertionPeriod
-            type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount,
-            0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
-            0 // initialGasUsed
-        );
-
-        vm.startPrank(rollupOwner);
-
-        Rollup implementationRollup = new Rollup(); // implementation contract
-
-        vm.expectRevert(ZeroAddress.selector);
-        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
-
-        vm.stopPrank();
-    }
-
-    function test_initializeRollup_sequencerInboxAddressZero() external {
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
-            vault, // vault
-            address(0),
-            address(verifier),
-            0, //confirmationPeriod
-            0, //challengPeriod
-            0, // minimumAssertionPeriod
-            type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount,
-            0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
-            0 // initialGasUsed
-        );
-
-        vm.startPrank(rollupOwner);
-
-        Rollup implementationRollup = new Rollup(); // implementation contract
-
-        vm.expectRevert(ZeroAddress.selector);
-        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
-
-        vm.stopPrank();
-    }
-
-    function test_initializeRollup_cannotBeCalledTwice() external {
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
-            vault, // vault
-            address(seqIn),
-            address(verifier),
-            0, //confirmationPeriod
-            0, //challengPeriod
-            0, // minimumAssertionPeriod
-            type(uint256).max, // maxGasPerAssertion
-            0, //baseStakeAmount,
-            0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
-            0 // initialGasUsed
-        );
-
-        vm.startPrank(rollupOwner);
+        vm.startPrank(deployer);
 
         Rollup implementationRollup = new Rollup(); // implementation contract
         rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
 
-        vm.stopPrank();
-
         // Trying to call initialize for the second time
         vm.expectRevert("Initializable: contract is already initialized");
-        vm.prank(alice); // Someone random, who is not the proxy owner.
 
         rollup.initialize(
-            vault, // vault
+            sequencerAddress, // vault
             address(seqIn),
             address(verifier),
             0, //confirmationPeriod
@@ -215,7 +152,6 @@ contract RollupTest is RollupBaseSetup {
     }
 
     function test_initializeRollup_valuesAfterInit(
-        address _vault,
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -228,7 +164,7 @@ contract RollupTest is RollupBaseSetup {
         {
             bytes memory initializingData = abi.encodeWithSelector(
                 Rollup.initialize.selector,
-                _vault,
+                sequencerAddress,
                 address(seqIn), // sequencerInbox
                 address(verifier),
                 confirmationPeriod, //confirmationPeriod
@@ -242,7 +178,7 @@ contract RollupTest is RollupBaseSetup {
                 initialL2GasUsed
             );
 
-            vm.startPrank(rollupOwner);
+            vm.startPrank(deployer);
 
             Rollup implementationRollup = new Rollup(); // implementation contract
             rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
@@ -253,8 +189,8 @@ contract RollupTest is RollupBaseSetup {
         // Putting in different scope to do away with the stack too deep error.
         {
             // Check if the value of the address owner was set correctly
-            address _rollupOwner = rollup.owner();
-            assertEq(_rollupOwner, rollupOwner, "Rollup.initialize failed to update owner correctly");
+            address _rollupDeployer = rollup.owner();
+            assertEq(_rollupDeployer, deployer, "Rollup.initialize failed to update owner correctly");
 
             // Check if the value of SequencerInbox was set correctly
             address rollupSeqIn = address(rollup.sequencerInbox());
@@ -354,7 +290,6 @@ contract RollupTest is RollupBaseSetup {
     }
 
     function _initializeRollup(
-        address _vault,
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -364,12 +299,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize,
         uint256 initialL2GasUsed
     ) internal {
-        if (_vault == address(0)) {
-            _vault = address(uint160(32456));
-        }
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            _vault,
+            sequencerAddress,
             address(seqIn), // sequencerInbox
             address(verifier),
             confirmationPeriod, //confirmationPeriod
@@ -384,7 +316,7 @@ contract RollupTest is RollupBaseSetup {
         );
 
         // Deploying the rollup contract as the rollup owner/deployer
-        vm.startPrank(rollupOwner);
+        vm.startPrank(deployer);
         Rollup implementationRollup = new Rollup();
         rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
         vm.stopPrank();
