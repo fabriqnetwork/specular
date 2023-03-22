@@ -50,6 +50,8 @@ abstract contract RollupBase is
     IDAProvider public daProvider;
     IVerifier public verifier;
 
+    event ConfigurationChanged();
+
     struct AssertionState {
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
         mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
@@ -63,6 +65,11 @@ abstract contract RollupBase is
     function __RollupBase_init() internal onlyInitializing {
         __Ownable_init();
         __UUPSUpgradeable_init();
+    }
+
+    function setConfirmationPeriod(uint256 newPeriod) public onlyOwner {
+        confirmationPeriod = newPeriod;
+        emit ConfigurationChanged();
     }
 }
 
