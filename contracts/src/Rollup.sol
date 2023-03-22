@@ -71,6 +71,25 @@ abstract contract RollupBase is
         confirmationPeriod = newPeriod;
         emit ConfigurationChanged();
     }
+
+    function setChallengePeriod(uint256 newPeriod) public onlyOwner {
+        challengePeriod = newPeriod;
+        emit ConfigurationChanged();
+    }
+
+    function setMinimumAssertionPeriod(uint256 newPeriod) public onlyOwner {
+        minimumAssertionPeriod = newPeriod;
+        emit ConfigurationChanged();
+    }
+
+    function setBaseStakeAmount(uint256 newAmount) public onlyOwner {
+        if (newAmount > baseStakeAmount) {
+            revert("Cannot increase base stake amount");
+        }
+
+        baseStakeAmount = newAmount;
+        emit ConfigurationChanged();
+    }
 }
 
 contract Rollup is RollupBase {
