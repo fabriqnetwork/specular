@@ -92,12 +92,10 @@ contract RollupTest is RollupBaseSetup {
             0, //confirmationPeriod
             0, //challengePeriod
             0, // minimumAssertionPeriod
-            type(uint256).max, // maxGasPerAssertion
             0, //baseStakeAmount,
             0, // initialAssertionID
             0, // initialInboxSize
-            bytes32(""),
-            0 // initialGasUsed
+            bytes32("")
         );
         if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
             vm.startPrank(deployer);
@@ -118,12 +116,10 @@ contract RollupTest is RollupBaseSetup {
             0, //confirmationPeriod
             0, //challengePeriod
             0, // minimumAssertionPeriod
-            type(uint256).max, // maxGasPerAssertion
             0, //baseStakeAmount,
             0, // initialAssertionID
             0, // initialInboxSize
-            bytes32(""),
-            0 // initialGasUsed
+            bytes32("")
         );
 
         vm.startPrank(deployer);
@@ -141,12 +137,10 @@ contract RollupTest is RollupBaseSetup {
             0, //confirmationPeriod
             0, //challengePeriod
             0, // minimumAssertionPeriod
-            type(uint256).max, // maxGasPerAssertion
             0, //baseStakeAmount,
             0, // initialAssertionID
             0, // initialInboxSize
-            bytes32(""),
-            0 // initialGasUsed
+            bytes32("")
         );
     }
 
@@ -154,10 +148,8 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 maxGasPerAssertion,
         uint256 baseStakeAmount,
         uint256 initialInboxSize,
-        uint256 initialL2GasUsed,
         uint256 initialAssertionID
     ) external {
         {
@@ -169,12 +161,10 @@ contract RollupTest is RollupBaseSetup {
                 confirmationPeriod, //confirmationPeriod
                 challengePeriod, //challengePeriod
                 minimumAssertionPeriod, // minimumAssertionPeriod
-                maxGasPerAssertion, // maxGasPerAssertion
                 baseStakeAmount, //baseStakeAmount
                 initialAssertionID,
                 initialInboxSize,
-                bytes32(""), //initialVMHash
-                initialL2GasUsed
+                bytes32("") //initialVMHash
             );
 
             vm.startPrank(deployer);
@@ -192,7 +182,7 @@ contract RollupTest is RollupBaseSetup {
             assertEq(_rollupDeployer, deployer, "Rollup.initialize failed to update owner correctly");
 
             // Check if the value of SequencerInbox was set correctly
-            address rollupSeqIn = address(rollup.sequencerInbox());
+            address rollupSeqIn = address(rollup.daProvider());
             assertEq(rollupSeqIn, address(seqIn), "Rollup.initialize failed to update Sequencer Inbox correctly");
 
             // Check if the value of the verifier was set correctly
@@ -205,7 +195,6 @@ contract RollupTest is RollupBaseSetup {
             uint256 rollupConfirmationPeriod = rollup.confirmationPeriod();
             uint256 rollupChallengePeriod = rollup.challengePeriod();
             uint256 rollupMinimumAssertionPeriod = rollup.minimumAssertionPeriod();
-            uint256 rollupMaxGasPerAssertion = rollup.maxGasPerAssertion();
             uint256 rollupBaseStakeAmount = rollup.baseStakeAmount();
 
             assertEq(
@@ -222,11 +211,6 @@ contract RollupTest is RollupBaseSetup {
                 rollupMinimumAssertionPeriod,
                 minimumAssertionPeriod,
                 "Rollup.initialize failed to update minimumAssertionPeriod value correctly"
-            );
-            assertEq(
-                rollupMaxGasPerAssertion,
-                maxGasPerAssertion,
-                "Rollup.initialize failed to update maxGasPerAssertion value correctly"
             );
             assertEq(
                 rollupBaseStakeAmount,
@@ -292,11 +276,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 maxGasPerAssertion,
         uint256 baseStakeAmount,
         uint256 initialAssertionID,
-        uint256 initialInboxSize,
-        uint256 initialL2GasUsed
+        uint256 initialInboxSize
     ) internal {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
@@ -306,12 +288,10 @@ contract RollupTest is RollupBaseSetup {
             confirmationPeriod, //confirmationPeriod
             challengePeriod, //challengePeriod
             minimumAssertionPeriod, // minimumAssertionPeriod
-            maxGasPerAssertion, // maxGasPerAssertion
             baseStakeAmount, //baseStakeAmount
             initialAssertionID,
             initialInboxSize,
-            bytes32(""), //initialVMHash
-            initialL2GasUsed
+            bytes32("") //initialVMHash
         );
 
         // Deploying the rollup contract as the rollup owner/deployer
