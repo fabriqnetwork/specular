@@ -44,7 +44,12 @@ jobs:
           cp ../../clients/geth/specular/data/password.txt .
           cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
 
-      - name: Start up containers
+      - name: Install node
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18.x"
+
+      - name: Install deps and start up containers
         run: |
           pwd 
           ls -la
@@ -52,6 +57,7 @@ jobs:
           cd contracts
           pwd
           ls -la
+          yarn install
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/docker_start.ts
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
@@ -63,20 +69,10 @@ jobs:
           ./wait-for-it.sh -t 240 127.0.0.1:4011
           docker logs hardhat
           docker logs sequencer
+          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
 
-      - name: Install node
-        uses: actions/setup-node@v2
-        with:
-          node-version: "18.x"
-
-      - name: Install dependencies, deploy and run test
+      - name: Run testing script
         run: |
-          pwd
-          ls -la
-          cd contracts
-          yarn install
-          npx hardhat deploy --network localhost
-          cd scripts
           pwd
           ls -la
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
