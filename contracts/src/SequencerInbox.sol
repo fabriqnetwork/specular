@@ -20,7 +20,7 @@
  * limitations under the License.
  */
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
@@ -41,7 +41,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
     address public sequencerAddress;
 
-    uint64[2] public lastBlockAndTime;
+    uint64[2] public l2BlockAndTime;
 
     function initialize(address _sequencerAddress) public initializer {
         if (_sequencerAddress == address(0)) {
@@ -77,32 +77,59 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         addToDelayedInbox(msg.sender, keccak256(abi.encodePacked(gasLimit, maxFeePerGas, nonce, to, value, data)));
     }
 
-    function addToDelayedInbox(address to, bytes32 calldata messageDataHash) internal {
-        const delayedMessageCount = delayedInbox.length;
-        bytes32 messageHash =
-            keccak256(abi.encodePacked(to, l2BlockAndTime[0], l2BlockAndTime[1], block.baseFee, messageDataHash));
+    function addToDelayedInbox(address _sender, bytes32 messageDataHash)
+        internal
+        returns (uint256 delayedMessageCount)
+    {
+        delayedMessageCount = delayedInbox.length;
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                _sender, block.number, block.timestamp, delayedMessageCount, block.basefee, messageDataHash
+            )
+        );
 
         delayedInbox.push(messageHash);
         return delayedMessageCount;
     }
 
-    function forceInclusion(uint256 delayedMessageIndex, address sender, uint256 baseFeeL1, bytes32 messageDataHash)
-        external
-    {
+    function forceInclusion(
+        uint256 delayedMessageIndex,
+        address _sender,
+        uint256 baseFeeL1,
+        uint64[2] calldata _l1BlockAndTime,
+        bytes32 messageDataHash
+    ) external {
         if (delayedMessageIndex > delayedInbox.length) revert();
         if (delayedMessageIndex <= delayedMessagesRead) revert();
 
         bytes32 messageHash = keccak256(
-            sender,
             abi.encodePacked(
-                l1BlockAndTime[0], l1blol1BlockAndTimeckAndTime[1], delayedMessageIndex, baseFeeL1, messageDataHash
+                _sender, _l1BlockAndTime[0], _l1BlockAndTime[1], delayedMessageIndex, baseFeeL1, messageDataHash
             )
         );
 
-        if (l1BlockAndTime[0] + 5760 >= block.number) revert();
-        if (l1BlockAndTime[1] + 86400 >= block.timestamp) revert();
+        if (_l1BlockAndTime[0] + 5760 <= block.number) revert();
+        if (_l1BlockAndTime[1] + 86400 <= block.timestamp) revert();
 
         if (messageHash != delayedInbox[delayedMessageIndex]) revert();
+
+        bytes32 txContentHash = keccak256(abi.encodePacked(_sender, l2BlockAndTime[0], l2BlockAndTime[1]));
+
+        bytes32 runningAccumulator;
+        if (accumulators.length > 0) {
+            runningAccumulator = accumulators[accumulators.length - 1];
+        }
+        uint256 numTxs = inboxSize;
+        for (uint256 i = delayedMessagesRead; i <= delayedMessageIndex; i++) {
+            bytes32 txDataHash = delayedInbox[i];
+            runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContentHash, txDataHash));
+            numTxs++;
+        }
+        if (numTxs <= inboxSize) revert EmptyBatch();
+        inboxSize = numTxs;
+        accumulators.push(runningAccumulator);
+
+        delayedMessagesRead = delayedMessageIndex + 1;
     }
 
     /// @inheritdoc ISequencerInbox
@@ -131,7 +158,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         uint256 dataOffset = initialDataOffset;
 
-        uint256 l2BlockNumer;
+        uint256 l2BlockNumber;
         uint256 l2Timestamp;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
@@ -162,8 +189,8 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         accumulators.push(runningAccumulator);
 
         delayedMessagesRead = _totalDelayedMessagesRead;
-        l2BlockAndTime[0] = l2BlockNumber;
-        l2BlockAndTime[1] = l2BlockTime;
+        l2BlockAndTime[0] = uint64(l2BlockNumber);
+        l2BlockAndTime[1] = uint64(l2Timestamp);
 
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
     }

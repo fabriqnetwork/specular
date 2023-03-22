@@ -45,7 +45,12 @@ interface ISequencerInbox is IDAProvider {
      * (numTxs, l2BlockNumber, l2Timestamp). Each context corresponds to a single "L2 block".
      * @param txLengths Array of lengths of each encoded tx in txBatch.
      * @param txBatch Batch of RLP-encoded transactions.
+     * @param totalDelayedMessagesRead Total delayed messages read till now
      */
-    function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
-        external;
+    function appendTxBatch(
+        uint256[] calldata contexts,
+        uint256[] calldata txLengths,
+        bytes calldata txBatch,
+        uint256 totalDelayedMessagesRead
+    ) external;
 }
