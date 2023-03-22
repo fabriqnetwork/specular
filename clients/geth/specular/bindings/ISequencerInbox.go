@@ -30,7 +30,7 @@ var (
 
 // ISequencerInboxMetaData contains all meta data concerning the ISequencerInbox contract.
 var ISequencerInboxMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"EmptyBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"IncorrectAccOrBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"TxBatchDataOverflow\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"batchNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startTxNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endTxNumber\",\"type\":\"uint256\"}],\"name\":\"TxBatchAppended\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"contexts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"txLengths\",\"type\":\"uint256[]\"},{\"internalType\":\"bytes\",\"name\":\"txBatch\",\"type\":\"bytes\"}],\"name\":\"appendTxBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verifyTxInclusion\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"EmptyBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ProofVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"TxBatchDataOverflow\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"batchNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startTxNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endTxNumber\",\"type\":\"uint256\"}],\"name\":\"TxBatchAppended\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"contexts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"txLengths\",\"type\":\"uint256[]\"},{\"internalType\":\"bytes\",\"name\":\"txBatch\",\"type\":\"bytes\"}],\"name\":\"appendTxBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"encodedTx\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verifyTxInclusion\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 }
 
 // ISequencerInboxABI is the input ABI used to generate the binding from.
@@ -210,12 +210,12 @@ func (_ISequencerInbox *ISequencerInboxCallerSession) GetInboxSize() (*big.Int, 
 	return _ISequencerInbox.Contract.GetInboxSize(&_ISequencerInbox.CallOpts)
 }
 
-// VerifyTxInclusion is a free data retrieval call binding the contract method 0xe0faa15c.
+// VerifyTxInclusion is a free data retrieval call binding the contract method 0xf785968f.
 //
-// Solidity: function verifyTxInclusion(bytes proof) view returns()
-func (_ISequencerInbox *ISequencerInboxCaller) VerifyTxInclusion(opts *bind.CallOpts, proof []byte) error {
+// Solidity: function verifyTxInclusion(bytes encodedTx, bytes proof) view returns()
+func (_ISequencerInbox *ISequencerInboxCaller) VerifyTxInclusion(opts *bind.CallOpts, encodedTx []byte, proof []byte) error {
 	var out []interface{}
-	err := _ISequencerInbox.contract.Call(opts, &out, "verifyTxInclusion", proof)
+	err := _ISequencerInbox.contract.Call(opts, &out, "verifyTxInclusion", encodedTx, proof)
 
 	if err != nil {
 		return err
@@ -225,18 +225,18 @@ func (_ISequencerInbox *ISequencerInboxCaller) VerifyTxInclusion(opts *bind.Call
 
 }
 
-// VerifyTxInclusion is a free data retrieval call binding the contract method 0xe0faa15c.
+// VerifyTxInclusion is a free data retrieval call binding the contract method 0xf785968f.
 //
-// Solidity: function verifyTxInclusion(bytes proof) view returns()
-func (_ISequencerInbox *ISequencerInboxSession) VerifyTxInclusion(proof []byte) error {
-	return _ISequencerInbox.Contract.VerifyTxInclusion(&_ISequencerInbox.CallOpts, proof)
+// Solidity: function verifyTxInclusion(bytes encodedTx, bytes proof) view returns()
+func (_ISequencerInbox *ISequencerInboxSession) VerifyTxInclusion(encodedTx []byte, proof []byte) error {
+	return _ISequencerInbox.Contract.VerifyTxInclusion(&_ISequencerInbox.CallOpts, encodedTx, proof)
 }
 
-// VerifyTxInclusion is a free data retrieval call binding the contract method 0xe0faa15c.
+// VerifyTxInclusion is a free data retrieval call binding the contract method 0xf785968f.
 //
-// Solidity: function verifyTxInclusion(bytes proof) view returns()
-func (_ISequencerInbox *ISequencerInboxCallerSession) VerifyTxInclusion(proof []byte) error {
-	return _ISequencerInbox.Contract.VerifyTxInclusion(&_ISequencerInbox.CallOpts, proof)
+// Solidity: function verifyTxInclusion(bytes encodedTx, bytes proof) view returns()
+func (_ISequencerInbox *ISequencerInboxCallerSession) VerifyTxInclusion(encodedTx []byte, proof []byte) error {
+	return _ISequencerInbox.Contract.VerifyTxInclusion(&_ISequencerInbox.CallOpts, encodedTx, proof)
 }
 
 // AppendTxBatch is a paid mutator transaction binding the contract method 0x66ac980a.

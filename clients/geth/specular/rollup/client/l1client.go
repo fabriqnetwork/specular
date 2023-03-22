@@ -2,21 +2,18 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sync"
 	"time"
 
-	"github.com/avast/retry-go/v4"
-	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 const syncRange uint64 = 10000
@@ -24,7 +21,14 @@ const syncRange uint64 = 10000
 type L1BridgeClient interface {
 	TransactionByHash(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error)
 	BlockNumber(ctx context.Context) (uint64, error)
-	SubscribeNewHead(ctx context.Context, sink chan<- *types.Header) (ethereum.Subscription, error)
+	ResubscribeErrNewHead(ctx context.Context, sink chan<- *types.Header) (event.Subscription, error)
+	SubscribeNewHeadByPolling(
+		ctx context.Context,
+		headCh chan<- *types.Header,
+		tag BlockTag,
+		interval time.Duration,
+		requestTimeout time.Duration,
+	) event.Subscription
 	Close()
 	// ISequencerInbox.sol
 	AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error)
@@ -35,13 +39,7 @@ type L1BridgeClient interface {
 	Stake(amount *big.Int) error
 	GetStaker() (bindings.IRollupStaker, error)
 	AdvanceStake(assertionID *big.Int) (*types.Transaction, error)
-	CreateAssertion(
-		vmHash [32]byte,
-		inboxSize *big.Int,
-		cumulativeGasUsed *big.Int,
-		prevVMHash common.Hash,
-		prevL2GasUsed *big.Int,
-	) (*types.Transaction, error)
+	CreateAssertion(vmHash [32]byte, inboxSize *big.Int) (*types.Transaction, error)
 	ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error)
 	ConfirmFirstUnresolvedAssertion() (*types.Transaction, error)
 	RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error)
@@ -51,7 +49,10 @@ type L1BridgeClient interface {
 	WatchAssertionChallenged(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionChallenged) (event.Subscription, error)
 	WatchAssertionConfirmed(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionConfirmed) (event.Subscription, error)
 	WatchAssertionRejected(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionRejected) (event.Subscription, error)
-	FilterAssertionCreated(opts *bind.FilterOpts, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error)
+	FilterAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreatedIterator, error)
+	FilterAssertionChallenged(opts *bind.FilterOpts) (*bindings.IRollupAssertionChallengedIterator, error)
+	FilterAssertionConfirmed(opts *bind.FilterOpts) (*bindings.IRollupAssertionConfirmedIterator, error)
+	FilterAssertionRejected(opts *bind.FilterOpts) (*bindings.IRollupAssertionRejectedIterator, error)
 	GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error)
 	// IChallenge.sol
 	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
@@ -68,20 +69,24 @@ type L1BridgeClient interface {
 	) (*types.Transaction, error)
 	VerifyOneStepProof(
 		proof []byte,
+		txInclusionProof []byte,
+		verificationRawCtx bindings.VerificationContextLibRawContext,
 		challengedStepIndex *big.Int,
 		prevBisection [][32]byte,
 		prevChallengedSegmentStart *big.Int,
 		prevChallengedSegmentLength *big.Int,
 	) (*types.Transaction, error)
-	WatchBisected(opts *bind.WatchOpts, sink chan<- *bindings.IChallengeBisected) (event.Subscription, error)
-	WatchChallengeCompleted(opts *bind.WatchOpts, sink chan<- *bindings.IChallengeChallengeCompleted) (event.Subscription, error)
+	WatchBisected(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeBisected) (event.Subscription, error)
+	WatchChallengeCompleted(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeCompleted) (event.Subscription, error)
+	FilterBisected(opts *bind.FilterOpts) (*bindings.ISymChallengeBisectedIterator, error)
+	FilterChallengeCompleted(opts *bind.FilterOpts) (*bindings.ISymChallengeCompletedIterator, error)
 	DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error)
 }
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
 // TODO: acquire lock in all methods to support concurrent access
 type EthBridgeClient struct {
-	client       *ethclient.Client
+	client       *EthClient
 	transactOpts *bind.TransactOpts
 	// Lock, conservatively on all functions.
 	mu sync.Mutex
@@ -93,7 +98,7 @@ type EthBridgeClient struct {
 	// IChallenge.sol
 	// `challenge` initialized separately through `InitNewChallengeSession`
 	challengeAbi *abi.ABI
-	challenge    *bindings.IChallengeSession
+	challenge    *bindings.ISymChallengeSession
 }
 
 func NewEthBridgeClient(
@@ -138,7 +143,7 @@ func NewEthBridgeClient(
 		return nil, fmt.Errorf("Failed to get ISequencerInbox ABI, err: %w", err)
 	}
 
-	challengeAbi, err := bindings.IChallengeMetaData.GetAbi()
+	challengeAbi, err := bindings.ISymChallengeMetaData.GetAbi()
 	if err != nil {
 		return nil, err
 	}
@@ -165,10 +170,55 @@ func (c *EthBridgeClient) BlockNumber(ctx context.Context) (uint64, error) {
 	return c.client.BlockNumber(ctx)
 }
 
-func (c *EthBridgeClient) SubscribeNewHead(ctx context.Context, headCh chan<- *types.Header) (ethereum.Subscription, error) {
+func (c *EthBridgeClient) ResubscribeErrNewHead(ctx context.Context, headCh chan<- *types.Header) (event.Subscription, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.client.SubscribeNewHead(ctx, headCh)
+	sub := event.ResubscribeErr(
+		time.Second*10,
+		func(ctx context.Context, err error) (event.Subscription, error) {
+			if err != nil {
+				log.Warn("Error in NewHead subscription, resubscribing", "err", err)
+			}
+			return c.client.SubscribeNewHead(ctx, headCh)
+		},
+	)
+	return sub, nil
+}
+
+func (c *EthBridgeClient) SubscribeNewHeadByPolling(
+	ctx context.Context,
+	headCh chan<- *types.Header,
+	tag BlockTag,
+	interval time.Duration,
+	requestTimeout time.Duration,
+) event.Subscription {
+	return event.NewSubscription(func(unsub <-chan struct{}) error {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+		lastHeaderNumber := big.NewInt(-1)
+		for {
+			select {
+			case <-ticker.C:
+				reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+				header, err := c.client.HeaderByTag(reqCtx, tag)
+				cancel()
+				if err != nil {
+					log.Warn("Failed to poll for latest L1 block header", "err", err)
+					continue
+				}
+				if header.Number.Cmp(lastHeaderNumber) <= 0 {
+					log.Warn("Polled header is not new", "number", header.Number, "newest", lastHeaderNumber)
+					continue
+				}
+				headCh <- header
+				lastHeaderNumber = header.Number
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-unsub:
+				return nil
+			}
+		}
+	})
 }
 
 func (c *EthBridgeClient) Close() {
@@ -232,16 +282,10 @@ func (c *EthBridgeClient) AdvanceStake(assertionID *big.Int) (*types.Transaction
 	return c.rollup.AdvanceStake(assertionID)
 }
 
-func (c *EthBridgeClient) CreateAssertion(
-	vmHash [32]byte,
-	inboxSize *big.Int,
-	cumulativeGasUsed *big.Int,
-	prevVMHash common.Hash,
-	prevL2GasUsed *big.Int,
-) (*types.Transaction, error) {
+func (c *EthBridgeClient) CreateAssertion(vmHash [32]byte, inboxSize *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.CreateAssertion(vmHash, inboxSize, cumulativeGasUsed, prevVMHash, prevL2GasUsed)
+	return c.rollup.CreateAssertion(vmHash, inboxSize)
 }
 
 func (c *EthBridgeClient) ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error) {
@@ -325,31 +369,40 @@ func (c *EthBridgeClient) WatchAssertionRejected(
 	return c.rollup.Contract.WatchAssertionRejected(opts, sink)
 }
 
-func (c *EthBridgeClient) FilterAssertionCreated(
-	opts *bind.FilterOpts,
-	assertionID *big.Int,
-) (*bindings.IRollupAssertionCreated, error) {
+func (c *EthBridgeClient) GetAllAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreatedIterator, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	iter, err := c.rollup.Contract.FilterAssertionCreated(opts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to filter AssertionCreated, err: %w", err)
-	}
-	var assertionCreated *bindings.IRollupAssertionCreated
-	for iter.Next() {
-		// Assumes invariant: only one `AssertionCreated` event per assertion ID.
-		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
-			assertionCreated = iter.Event
-			break
-		}
-	}
-	if iter.Error() != nil {
-		return nil, fmt.Errorf("Failed to iterate through `AssertionCreated` events, err: %w", iter.Error())
-	}
-	if assertionCreated == nil {
-		return nil, fmt.Errorf("No `AssertionCreated` event found for %v (start block = %d).", assertionID, opts.Start)
-	}
-	return assertionCreated, nil
+	return c.rollup.Contract.FilterAssertionCreated(opts)
+}
+
+func (c *EthBridgeClient) FilterAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreatedIterator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.rollup.Contract.FilterAssertionCreated(opts)
+}
+
+func (c *EthBridgeClient) FilterAssertionChallenged(
+	opts *bind.FilterOpts,
+) (*bindings.IRollupAssertionChallengedIterator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.rollup.Contract.FilterAssertionChallenged(opts)
+}
+
+func (c *EthBridgeClient) FilterAssertionConfirmed(
+	opts *bind.FilterOpts,
+) (*bindings.IRollupAssertionConfirmedIterator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.rollup.Contract.FilterAssertionConfirmed(opts)
+}
+
+func (c *EthBridgeClient) FilterAssertionRejected(
+	opts *bind.FilterOpts,
+) (*bindings.IRollupAssertionRejectedIterator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.rollup.Contract.FilterAssertionRejected(opts)
 }
 
 func (c *EthBridgeClient) GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error) {
@@ -372,11 +425,11 @@ func (c *EthBridgeClient) GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bi
 func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	challenge, err := bindings.NewIChallenge(challengeAddress, c.client)
+	challenge, err := bindings.NewISymChallenge(challengeAddress, c.client)
 	if err != nil {
 		return fmt.Errorf("Failed to initialize challenge contract, err: %w", err)
 	}
-	c.challenge = &bindings.IChallengeSession{
+	c.challenge = &bindings.ISymChallengeSession{
 		Contract:     challenge,
 		CallOpts:     bind.CallOpts{Pending: true, Context: ctx},
 		TransactOpts: *c.transactOpts,
@@ -428,6 +481,8 @@ func (c *EthBridgeClient) BisectExecution(
 
 func (c *EthBridgeClient) VerifyOneStepProof(
 	proof []byte,
+	txInclusionProof []byte,
+	verificationRawCtx bindings.VerificationContextLibRawContext,
 	challengedStepIndex *big.Int,
 	prevBisection [][32]byte,
 	prevChallengedSegmentStart *big.Int,
@@ -437,6 +492,8 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 	defer c.mu.Unlock()
 	return c.challenge.VerifyOneStepProof(
 		proof,
+		txInclusionProof,
+		verificationRawCtx,
 		challengedStepIndex,
 		prevBisection,
 		prevChallengedSegmentStart,
@@ -446,7 +503,7 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 
 func (c *EthBridgeClient) WatchBisected(
 	opts *bind.WatchOpts,
-	sink chan<- *bindings.IChallengeBisected,
+	sink chan<- *bindings.ISymChallengeBisected,
 ) (event.Subscription, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -455,37 +512,29 @@ func (c *EthBridgeClient) WatchBisected(
 
 func (c *EthBridgeClient) WatchChallengeCompleted(
 	opts *bind.WatchOpts,
-	sink chan<- *bindings.IChallengeChallengeCompleted,
+	sink chan<- *bindings.ISymChallengeCompleted,
 ) (event.Subscription, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.Contract.WatchChallengeCompleted(opts, sink)
+	return c.challenge.Contract.WatchCompleted(opts, sink)
+}
+
+func (c *EthBridgeClient) FilterBisected(opts *bind.FilterOpts) (*bindings.ISymChallengeBisectedIterator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.challenge.Contract.FilterBisected(opts)
+}
+
+func (c *EthBridgeClient) FilterChallengeCompleted(
+	opts *bind.FilterOpts,
+) (*bindings.ISymChallengeCompletedIterator, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.challenge.Contract.FilterCompleted(opts)
 }
 
 func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
-}
-
-func dialWithRetry(ctx context.Context, endpoint string, numAttempts uint) (*ethclient.Client, error) {
-	var l1 *ethclient.Client
-	var err error
-	retryOpts := []retry.Option{
-		retry.Context(ctx),
-		retry.Attempts(numAttempts),
-		retry.Delay(5 * time.Second),
-		retry.LastErrorOnly(true),
-		retry.OnRetry(func(n uint, err error) {
-			log.Error("Failed to connect to L1", "endpoint", endpoint, "attempt", n, "err", err)
-		}),
-	}
-	err = retry.Do(func() error {
-		l1, err = ethclient.DialContext(ctx, endpoint)
-		return err
-	}, retryOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed toconnect to L1: %w", err)
-	}
-	return l1, nil
 }

@@ -20,12 +20,10 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     5, // uint256 _confirmationPeriod
     0, // uint256 _challengePeriod
     0, // uint256 _minimumAssertionPeriod
-    1000000000000, // uint256 _maxGasPerAssertion
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
     "0x20a3a2c9bb2f8d4409598cd92a94b4aa567bb2f906e9bcfa104f6c4cee9eb4a4", // bytes32 _initialVMhash
-    0, // uint256 _initialL2GasUsed
   ];
 
   const Rollup = await ethers.getContractFactory("Rollup", deployer);
