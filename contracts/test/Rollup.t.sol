@@ -80,16 +80,17 @@ contract RollupTest is RollupBaseSetup {
     }
 
     // Tests the zero value initialization
-    function test_fuzz_zeroValues(address _sequencerAddress, address _verifier) external {
-        vm.assume(_sequencerAddress >= address(0));
+    function test_fuzz_zeroValues(address _vault, address _sequencerInboxAddress, address _verifier) external {
+        vm.assume(_vault >= address(0));
+        vm.assume(_sequencerInboxAddress >= address(0));
         vm.assume(_verifier >= address(0));
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
-            _sequencerAddress, // vault
-            address(seqIn),
+            _vault, // vault
+            _sequencerInboxAddress,
             _verifier,
             0, //confirmationPeriod
-            0, //challengPeriod
+            0, //challengePeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
             0, //baseStakeAmount,
@@ -98,15 +99,13 @@ contract RollupTest is RollupBaseSetup {
             bytes32(""),
             0 // initialGasUsed
         );
-        if (_sequencerAddress == address(0) || _verifier == address(0)) {
+        if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
             vm.startPrank(deployer);
 
             Rollup implementationRollup = new Rollup(); // implementation contract
 
             vm.expectRevert(ZeroAddress.selector);
             rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
-
-            vm.stopPrank();
         }
     }
 
@@ -117,7 +116,7 @@ contract RollupTest is RollupBaseSetup {
             address(seqIn),
             address(verifier),
             0, //confirmationPeriod
-            0, //challengPeriod
+            0, //challengePeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
             0, //baseStakeAmount,
@@ -140,7 +139,7 @@ contract RollupTest is RollupBaseSetup {
             address(seqIn),
             address(verifier),
             0, //confirmationPeriod
-            0, //challengPeriod
+            0, //challengePeriod
             0, // minimumAssertionPeriod
             type(uint256).max, // maxGasPerAssertion
             0, //baseStakeAmount,
