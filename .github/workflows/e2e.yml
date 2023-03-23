@@ -58,10 +58,11 @@ jobs:
           pwd
           ls -la
           yarn install
+          cd ../project
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/docker_start.ts
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
-          sleep 60
+          sleep 30
           docker ps
           docker logs hardhat
           docker logs sequencer
