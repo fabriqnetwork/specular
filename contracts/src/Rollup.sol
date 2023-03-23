@@ -107,7 +107,7 @@ contract Rollup is RollupBase {
         verifier = IVerifier(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
-        challengePeriod = _challengePeriod; 
+        challengePeriod = _challengePeriod;
         minimumAssertionPeriod = _minimumAssertionPeriod;
         baseStakeAmount = _baseStakeAmount;
 
