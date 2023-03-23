@@ -66,25 +66,25 @@ abstract contract RollupBase is
     }
 
     /// @inheritdoc IRollup
-    function setConfirmationPeriod(uint256 newPeriod) public onlyOwner {
+    function setConfirmationPeriod(uint256 newPeriod) public override onlyOwner {
         confirmationPeriod = newPeriod;
         emit ConfigurationChanged();
     }
 
     /// @inheritdoc IRollup
-    function setChallengePeriod(uint256 newPeriod) public onlyOwner {
+    function setChallengePeriod(uint256 newPeriod) public override onlyOwner {
         challengePeriod = newPeriod;
         emit ConfigurationChanged();
     }
 
     /// @inheritdoc IRollup
-    function setMinimumAssertionPeriod(uint256 newPeriod) public onlyOwner {
+    function setMinimumAssertionPeriod(uint256 newPeriod) override public onlyOwner {
         minimumAssertionPeriod = newPeriod;
         emit ConfigurationChanged();
     }
 
     /// @inheritdoc IRollup
-    function setBaseStakeAmount(uint256 newAmount) public onlyOwner {
+    function setBaseStakeAmount(uint256 newAmount) public override onlyOwner {
         if (newAmount > baseStakeAmount) {
             revert IncreaseStake();
         }
