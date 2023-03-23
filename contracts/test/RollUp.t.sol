@@ -66,10 +66,7 @@ contract RollupTest is RollupBaseSetup {
         RollupBaseSetup.setUp();
 
         // Deploying the SequencerInbox
-        bytes memory seqInInitData = abi.encodeWithSignature(
-            "initialize(address)",
-            sequencerAddress
-        );
+        bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", sequencerAddress);
         vm.startPrank(deployer);
         implementationSequencer = new SequencerInbox();
         seqIn = SequencerInbox(
