@@ -55,8 +55,6 @@ jobs:
           ls -la
           cd project
           rm -rf project/specular-datadir/geth/
-          pwd
-          ls -la
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
@@ -68,7 +66,6 @@ jobs:
           ./wait-for-it.sh -t 240 127.0.0.1:4011
           docker logs hardhat
           docker logs sequencer
-          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
 
       - name: Run testing script
         run: |
