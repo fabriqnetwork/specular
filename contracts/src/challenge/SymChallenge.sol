@@ -71,7 +71,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         IDAProvider _daProvider,
         IChallengeResultReceiver _resultReceiver,
         bytes32 _startStateHash,
-        bytes32 _endStateHash
+        bytes32 _endStateHash,
+        uint256 challengePeriod
     ) external {
         if (turn != Turn.NoChallenge) {
             revert AlreadyInitialized();
@@ -89,9 +90,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
         turn = Turn.Defender;
         lastMoveBlock = block.number;
-        // TODO(ujval): initialize timeout
-        defenderTimeLeft = 10;
-        challengerTimeLeft = 10;
+        defenderTimeLeft = challengePeriod;
+        challengerTimeLeft = challengePeriod;
     }
 
     function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {

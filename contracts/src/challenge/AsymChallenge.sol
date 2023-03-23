@@ -54,7 +54,8 @@ contract AsymChallenge is ChallengeBase, IAsymChallenge {
         bytes32 _bisectionHash,
         IVerifier _verifier,
         IDAProvider _daProvider,
-        IChallengeResultReceiver _resultReceiver
+        IChallengeResultReceiver _resultReceiver,
+        uint256 challengePeriod
     ) external {
         if (turn != Turn.NoChallenge) {
             revert AlreadyInitialized();
@@ -71,8 +72,7 @@ contract AsymChallenge is ChallengeBase, IAsymChallenge {
 
         turn = Turn.Defender;
         lastMoveBlock = block.number;
-        // TODO(ujval): initialize timeout
-        defenderTimeLeft = 10;
-        challengerTimeLeft = 10;
+        defenderTimeLeft = challengePeriod;
+        challengerTimeLeft = challengePeriod;
     }
 }
