@@ -78,7 +78,7 @@ abstract contract RollupBase is
     }
 
     /// @inheritdoc IRollup
-    function setMinimumAssertionPeriod(uint256 newPeriod) override public onlyOwner {
+    function setMinimumAssertionPeriod(uint256 newPeriod) public override onlyOwner {
         minimumAssertionPeriod = newPeriod;
         emit ConfigurationChanged();
     }
