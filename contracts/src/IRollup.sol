@@ -33,6 +33,8 @@ interface IRollup {
 
     event StakerStaked(address stakerAddr, uint256 assertionID);
 
+    event ConfigurationChanged();
+
     // TODO: Include errors thrown in function documentation.
 
     /// @dev Thrown when assertion creation requested with invalid inbox size.
@@ -114,6 +116,9 @@ interface IRollup {
 
     /// @dev Thrown when there are zero stakers
     error NoStaker();
+
+    /// @dev Thrown when the staker amount is set to be increased
+    error IncreaseStake();
 
     struct Staker {
         bool isStaked;
@@ -237,4 +242,32 @@ interface IRollup {
      * assertion is not the last confirmed assertion.
      */
     function rejectFirstUnresolvedAssertion(address stakerAddress) external;
+
+    /**
+     * @notice Sets the confirmation period
+     * @param newPeriod New confirmation period
+     *
+     */
+    function setConfirmationPeriod(uint256 newPeriod) external;
+
+    /**
+     * @notice Sets the challenge period
+     * @param newPeriod New challenge period
+     *
+     */
+    function setChallengePeriod(uint256 newPeriod) external;
+
+    /**
+     * @notice Sets the minimum assertion period
+     * @param newPeriod New minimum assertion period
+     *
+     */
+    function setMinimumAssertionPeriod(uint256 newPeriod) external;
+
+    /**
+     * @notice Sets the base stake amount
+     * @param newAmount New base stake amount, this can only be decreased
+     *
+     */
+    function setBaseStakeAmount(uint256 newAmount) external;
 }

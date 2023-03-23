@@ -50,8 +50,6 @@ abstract contract RollupBase is
     IDAProvider public daProvider;
     IVerifier public verifier;
 
-    event ConfigurationChanged();
-
     struct AssertionState {
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
         mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
@@ -67,24 +65,28 @@ abstract contract RollupBase is
         __UUPSUpgradeable_init();
     }
 
+    /// @inheritdoc IRollup
     function setConfirmationPeriod(uint256 newPeriod) public onlyOwner {
         confirmationPeriod = newPeriod;
         emit ConfigurationChanged();
     }
 
+    /// @inheritdoc IRollup
     function setChallengePeriod(uint256 newPeriod) public onlyOwner {
         challengePeriod = newPeriod;
         emit ConfigurationChanged();
     }
 
+    /// @inheritdoc IRollup
     function setMinimumAssertionPeriod(uint256 newPeriod) public onlyOwner {
         minimumAssertionPeriod = newPeriod;
         emit ConfigurationChanged();
     }
 
+    /// @inheritdoc IRollup
     function setBaseStakeAmount(uint256 newAmount) public onlyOwner {
         if (newAmount > baseStakeAmount) {
-            revert("Cannot increase base stake amount");
+            revert IncreaseStake();
         }
 
         baseStakeAmount = newAmount;

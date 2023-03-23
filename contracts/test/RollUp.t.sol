@@ -227,7 +227,7 @@ contract RollupTest is RollupBaseSetup {
         ); // The rollup contract (proxy, not implementation should have been initialized by now)
 
         assertEq(rollup.baseStakeAmount(), 0);
-        vm.expectRevert("Cannot increase base stake amount");
+        vm.expectRevert(IRollup.IncreaseStake.selector);
         rollup.setBaseStakeAmount(10);
         assertEq(rollup.baseStakeAmount(), 0);
 
