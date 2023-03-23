@@ -107,7 +107,7 @@ contract Rollup is RollupBase {
         verifier = IVerifier(_verifier);
 
         confirmationPeriod = _confirmationPeriod;
-        challengePeriod = _challengePeriod; // TODO: currently unused.
+        challengePeriod = _challengePeriod; 
         minimumAssertionPeriod = _minimumAssertionPeriod;
         baseStakeAmount = _baseStakeAmount;
 
@@ -302,7 +302,8 @@ contract Rollup is RollupBase {
             daProvider,
             IChallengeResultReceiver(address(this)),
             assertions[parentID].stateHash,
-            assertions[defenderAssertionID].stateHash
+            assertions[defenderAssertionID].stateHash,
+            challengePeriod
         );
         return challengeAddr;
     }
