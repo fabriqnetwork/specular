@@ -33,7 +33,7 @@ func Crit(msg string, args ...interface{}) {
 }
 
 func getLogPrefix() string {
-    // Skip two call frames (from here to the caller of log.X)
+	// Skip two call frames (from here to the caller of log.X)
 	pc, _, line, _ := runtime.Caller(2)
 	fn := runtime.FuncForPC(pc)
 	fullFnName := strings.Split(fn.Name(), ".")

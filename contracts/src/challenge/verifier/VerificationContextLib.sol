@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /*
- * Modifications Copyright 2022, Specular contributors
- *
- * This file was changed in accordance to Apache License, Version 2.0.
- *
- * Copyright 2021, Offchain Labs, Inc.
+ * Copyright 2022, Specular contributors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,19 +18,16 @@
 
 pragma solidity ^0.8.0;
 
-import "./challenge/ChallengeLib.sol";
-
-// TODO: move into ChallengeLib.
-library RollupLib {
-    struct ExecutionState {
-        uint256 l2GasUsed;
-        bytes32 vmHash;
+library VerificationContextLib {
+    struct RawContext {
+        bytes encodedTx;
+        // Transaction context.
+        address l2BlockCoinbase;
+        uint256 l2BlockNumber;
+        uint256 l2BlockTimestamp;
     }
 
-    /**
-     * @notice Computes the hash of `execState`.
-     */
-    function stateHash(ExecutionState memory execState) internal pure returns (bytes32) {
-        return keccak256(abi.encodePacked(execState.l2GasUsed, execState.vmHash));
+    function txContextHash(RawContext calldata ctx) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(ctx.l2BlockCoinbase, ctx.l2BlockNumber, ctx.l2BlockTimestamp));
     }
 }

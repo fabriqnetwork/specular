@@ -48,7 +48,6 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
         sequencerAddress = users[1];
         alice = users[2];
         bob = users[3];
-
     }
 }
 
@@ -75,6 +74,146 @@ contract RollupTest is RollupBaseSetup {
 
         address fetchedSequencerAddress = seqIn.sequencerAddress();
         assertEq(fetchedSequencerAddress, sequencerAddress);
+    }
+
+    function test_fuzz_zeroValues(address _vault, address _sequencerInboxAddress, address _verifier) external {
+        vm.assume(_vault >= address(0));
+        vm.assume(_sequencerInboxAddress >= address(0));
+        vm.assume(_verifier >= address(0));
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            _vault, // vault
+            _sequencerInboxAddress,
+            _verifier,
+            0, //confirmationPeriod
+            0, //challengePeriod
+            0, // minimumAssertionPeriod
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32("")
+        );
+        if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
+            vm.startPrank(deployer);
+
+            Rollup implementationRollup = new Rollup(); // implementation contract
+
+            vm.expectRevert(ZeroAddress.selector);
+            rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
+        }
+    }
+
+    function test_initializeRollup_cannotReinitializeRollup() external {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            sequencerAddress, // vault
+            address(seqIn),
+            address(verifier),
+            0, //confirmationPeriod
+            0, //challengePeriod
+            0, // minimumAssertionPeriod
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32("")
+        );
+
+        vm.startPrank(deployer);
+
+        Rollup implementationRollup = new Rollup(); // implementation contract
+        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
+
+        // Trying to call initialize for the second time
+        vm.expectRevert("Initializable: contract is already initialized");
+
+        rollup.initialize(
+            sequencerAddress, // vault
+            address(seqIn),
+            address(verifier),
+            0, //confirmationPeriod
+            0, //challengePeriod
+            0, // minimumAssertionPeriod
+            0, //baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            bytes32("")
+        );
+    }
+
+    function test_initializeRollup_valuesAfterInit(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 baseStakeAmount,
+        uint256 initialInboxSize,
+        uint256 initialAssertionID
+    ) external {
+        {
+            bytes memory initializingData = abi.encodeWithSelector(
+                Rollup.initialize.selector,
+                sequencerAddress,
+                address(seqIn), // sequencerInbox
+                address(verifier),
+                confirmationPeriod, //confirmationPeriod
+                challengePeriod, //challengePeriod
+                minimumAssertionPeriod, // minimumAssertionPeriod
+                baseStakeAmount, //baseStakeAmount
+                initialAssertionID,
+                initialInboxSize,
+                bytes32("") //initialVMHash
+            );
+
+            vm.startPrank(deployer);
+
+            Rollup implementationRollup = new Rollup(); // implementation contract
+            rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
+
+            vm.stopPrank();
+        }
+
+        // Putting in different scope to do away with the stack too deep error.
+        {
+            // Check if the value of the address owner was set correctly
+            address _rollupDeployer = rollup.owner();
+            assertEq(_rollupDeployer, deployer, "Rollup.initialize failed to update owner correctly");
+
+            // Check if the value of SequencerInbox was set correctly
+            address rollupSeqIn = address(rollup.daProvider());
+            assertEq(rollupSeqIn, address(seqIn), "Rollup.initialize failed to update Sequencer Inbox correctly");
+
+            // Check if the value of the verifier was set correctly
+            address rollupVerifier = address(rollup.verifier());
+            assertEq(rollupVerifier, address(verifier), "Rollup.initialize failed to update verifier value correctly");
+        }
+
+        {
+            // Check if the various durations and uint values were set correctly
+            uint256 rollupConfirmationPeriod = rollup.confirmationPeriod();
+            uint256 rollupChallengePeriod = rollup.challengePeriod();
+            uint256 rollupMinimumAssertionPeriod = rollup.minimumAssertionPeriod();
+            uint256 rollupBaseStakeAmount = rollup.baseStakeAmount();
+
+            assertEq(
+                rollupConfirmationPeriod,
+                confirmationPeriod,
+                "Rollup.initialize failed to update confirmationPeriod value correctly"
+            );
+            assertEq(
+                rollupChallengePeriod,
+                challengePeriod,
+                "Rollup.initialize failed to update challengePeriod value correctly"
+            );
+            assertEq(
+                rollupMinimumAssertionPeriod,
+                minimumAssertionPeriod,
+                "Rollup.initialize failed to update minimumAssertionPeriod value correctly"
+            );
+            assertEq(
+                rollupBaseStakeAmount,
+                baseStakeAmount,
+                "Rollup.initialize failed to update baseStakeAmount value correctly"
+            );
+        }
     }
 
     ////////////////
@@ -148,12 +287,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            1000,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
         );
 
         uint256 initialStakers = rollup.numStakers();
@@ -199,12 +333,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            1000,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
         );
 
         uint256 minimumAmount = rollup.baseStakeAmount();
