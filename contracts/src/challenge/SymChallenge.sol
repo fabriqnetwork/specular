@@ -23,46 +23,21 @@
 pragma solidity ^0.8.0;
 
 import "./IChallenge.sol";
+import "./ChallengeBase.sol";
 import "./ChallengeLib.sol";
 import "./verifier/IVerifier.sol";
-import "../IRollup.sol";
+import "../IDAProvider.sol";
+import "../libraries/DeserializationLib.sol";
+import "../libraries/Errors.sol";
 
-contract Challenge is IChallenge {
-    enum Turn {
-        NoChallenge,
-        Challenger,
-        Defender
-    }
-
-    // Error codes
-
-    // Can only initialize once
-    string private constant CHAL_INIT_STATE = "CHAL_INIT_STATE";
-    // deadline expired
-    string private constant BIS_DEADLINE = "BIS_DEADLINE";
-    // Only original asserter can continue bisect
-    string private constant BIS_SENDER = "BIS_SENDER";
-    // Incorrect previous state
-    string private constant BIS_PREV = "BIS_PREV";
-    // Can't timeout before deadline
-    string private constant TIMEOUT_DEADLINE = "TIMEOUT_DEADLINE";
-
-    bytes32 private constant UNREACHABLE_ASSERTION = bytes32(uint256(0));
+contract SymChallenge is ChallengeBase, ISymChallenge {
+    // Previous state consistency could not be verified against `bisectionHash`.
+    error PreviousStateInconsistent();
+    // Tx context consistency could not be verified against ground truth.
+    error TxContextInconsistent();
 
     uint256 private constant MAX_BISECTION_DEGREE = 2;
 
-    // Other contracts
-    address internal resultReceiver;
-    IVerifier internal verifier;
-
-    // Challenge state
-    address public defender;
-    address public challenger;
-    uint256 public lastMoveBlock;
-    uint256 public defenderTimeLeft;
-    uint256 public challengerTimeLeft;
-
-    Turn public turn;
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
     bytes32 public bisectionHash;
     // Initial state used to initialize bisectionHash (write-once).
@@ -70,59 +45,59 @@ contract Challenge is IChallenge {
     bytes32 private endStateHash;
 
     /**
-     * @notice Pre-condition: `msg.sender` is correct and still has time remaining.
-     * Post-condition: `turn` changes and `lastMoveBlock` set to current `block.number`.
-     */
-    modifier onlyOnTurn() {
-        require(msg.sender == currentResponder(), BIS_SENDER);
-        require(block.number - lastMoveBlock <= currentResponderTimeLeft(), BIS_DEADLINE);
-
-        _;
-
-        if (turn == Turn.Challenger) {
-            challengerTimeLeft = challengerTimeLeft - (block.number - lastMoveBlock);
-            turn = Turn.Defender;
-        } else if (turn == Turn.Defender) {
-            defenderTimeLeft = defenderTimeLeft - (block.number - lastMoveBlock);
-            turn = Turn.Challenger;
-        }
-        lastMoveBlock = block.number;
-    }
-
-    /**
      * @notice Ensures challenge has been initialized.
      */
     modifier postInitialization() {
-        require(bisectionHash != 0, "NOT_INITIALIZED");
+        if (bisectionHash != 0) {
+            revert NotInitialized();
+        }
         _;
     }
 
+    /**
+     * @notice Initializes contract.
+     * @param _defender Defending party.
+     * @param _challenger Challenging party. Challenger starts.
+     * @param _verifier Address of the verifier contract.
+     * @param _daProvider DA provider.
+     * @param _resultReceiver Address of contract that will receive the outcome (via callback `completeChallenge`).
+     * @param _startStateHash Bisection root being challenged.
+     * @param _endStateHash Bisection root being challenged.
+     */
     function initialize(
         address _defender,
         address _challenger,
         IVerifier _verifier,
-        address _resultReceiver,
+        IDAProvider _daProvider,
+        IChallengeResultReceiver _resultReceiver,
         bytes32 _startStateHash,
-        bytes32 _endStateHash
-    ) external override {
-        require(turn == Turn.NoChallenge, CHAL_INIT_STATE);
-        require(_defender != address(0) && _challenger != address(0) && _resultReceiver != address(0), "ZERO_ADDRESS");
+        bytes32 _endStateHash,
+        uint256 challengePeriod
+    ) external {
+        if (turn != Turn.NoChallenge) {
+            revert AlreadyInitialized();
+        }
+        if (_defender == address(0) || _challenger == address(0)) {
+            revert ZeroAddress();
+        }
         defender = _defender;
         challenger = _challenger;
         verifier = _verifier;
+        daProvider = _daProvider;
         resultReceiver = _resultReceiver;
         startStateHash = _startStateHash;
         endStateHash = _endStateHash;
 
         turn = Turn.Defender;
         lastMoveBlock = block.number;
-        // TODO(ujval): initialize timeout
-        defenderTimeLeft = 10;
-        challengerTimeLeft = 10;
+        defenderTimeLeft = challengePeriod;
+        challengerTimeLeft = challengePeriod;
     }
 
     function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
-        require(bisectionHash == 0, CHAL_INIT_STATE);
+        if (bisectionHash != 0) {
+            revert AlreadyInitialized();
+        }
         require(_numSteps > 0, "INVALID_NUM_STEPS");
         bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, _numSteps);
         // TODO: consider emitting a different event?
@@ -139,7 +114,9 @@ contract Challenge is IChallenge {
         // Verify provided prev bisection.
         bytes32 prevHash =
             ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
-        require(prevHash == bisectionHash, BIS_PREV);
+        if (prevHash != bisectionHash) {
+            revert PreviousStateInconsistent();
+        }
         require(challengedSegmentIndex > 0 && challengedSegmentIndex < prevBisection.length, "INVALID_INDEX");
         // Require agreed upon start state hash and disagreed upon end state hash.
         require(bisection[0] == prevBisection[challengedSegmentIndex - 1], "INVALID_START");
@@ -172,7 +149,9 @@ contract Challenge is IChallenge {
     }
 
     function verifyOneStepProof(
-        bytes calldata proof,
+        bytes calldata oneStepProof,
+        bytes calldata txInclusionProof,
+        VerificationContextLib.RawContext calldata ctx,
         uint256 challengedStepIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
@@ -181,71 +160,27 @@ contract Challenge is IChallenge {
         // Verify provided prev bisection.
         bytes32 prevHash =
             ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
-        require(prevHash == bisectionHash, BIS_PREV);
+        if (prevHash != bisectionHash) {
+            revert PreviousStateInconsistent();
+        }
         require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
         require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
-
-        // TODO: verify OSP
-        // IVerificationContext ctx = <get ctx from sequenced txs>;
-        // bytes32 nextStateHash = verifier.verifyOneStepProof(
-        //     ctx,
-        //     prevBisection[challengedStepIndex - 1],
-        //     proof
-        // );
-        // if (nextStateHash == prevBisection[challengedStepIndex]) {
-        //     // osp verified, current win
-        // } else {
-        //     // current lose?
-        // }
-
-        _currentWin(CompletionReason.OSP_VERIFIED);
-    }
-
-    function timeout() external override {
-        require(block.number - lastMoveBlock > currentResponderTimeLeft(), TIMEOUT_DEADLINE);
-        if (turn == Turn.Defender) {
-            _challengerWin(CompletionReason.TIMEOUT);
-        } else {
-            _asserterWin(CompletionReason.TIMEOUT);
+        {
+            // Verify tx inclusion.
+            daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
+            // Verify tx context consistency.
+            // TODO: leaky abstraction (assumes `txInclusionProof` structure).
+            (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
+            if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
+                revert TxContextInconsistent();
+            }
         }
-    }
-
-    function currentResponder() public view override returns (address) {
-        if (turn == Turn.Defender) {
-            return defender;
-        } else if (turn == Turn.Challenger) {
-            return challenger;
-        } else {
-            revert("NO_TURN");
+        // Verify OSP.
+        bytes32 endHash = verifier.verifyOneStepProof(prevBisection[challengedStepIndex - 1], ctx, oneStepProof);
+        // Require that the end state differs from the counterparty's.
+        if (endHash != prevBisection[challengedStepIndex]) {
+            _currentWin(CompletionReason.OSP_VERIFIED);
         }
-    }
-
-    function currentResponderTimeLeft() public view override returns (uint256) {
-        if (turn == Turn.Defender) {
-            return defenderTimeLeft;
-        } else if (turn == Turn.Challenger) {
-            return challengerTimeLeft;
-        } else {
-            revert("NO_TURN");
-        }
-    }
-
-    function _currentWin(CompletionReason reason) private {
-        if (turn == Turn.Defender) {
-            _asserterWin(reason);
-        } else {
-            _challengerWin(reason);
-        }
-    }
-
-    function _asserterWin(CompletionReason reason) private {
-        emit ChallengeCompleted(defender, challenger, reason);
-        IRollup(resultReceiver).completeChallenge(defender, challenger); // safeSelfDestruct(msg.sender);
-    }
-
-    function _challengerWin(CompletionReason reason) private {
-        emit ChallengeCompleted(challenger, defender, reason);
-        IRollup(resultReceiver).completeChallenge(challenger, defender); // safeSelfDestruct(msg.sender);
     }
 }

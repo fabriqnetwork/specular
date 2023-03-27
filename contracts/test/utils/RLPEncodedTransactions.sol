@@ -38,7 +38,7 @@ contract RLPEncodedTransactionsUtil is Test {
         )
     ];
 
-    function _helper_sequencerInbox_appendTx(uint256 numTxns) internal returns (bytes memory, uint256[] memory) {
+    function _helper_sequencerInbox_appendTx(uint256 numTxns) internal view returns (bytes memory, uint256[] memory) {
         uint256[] memory transactionLengths = new uint256[](numTxns);
         bytes memory combinedNumTxnsBytes;
         uint256 rlpEncodedTxnIndex;
