@@ -3,7 +3,6 @@ package rollup
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 // RegisterRollupService registers rollup service configured by ctx
