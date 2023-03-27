@@ -268,8 +268,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
 
-        emit log_named_uint("AB", aliceBalance);
-
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
 
@@ -317,8 +315,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
 
-        emit log_named_uint("AB", aliceBalance);
-
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
 
@@ -350,8 +346,6 @@ contract RollupTest is RollupBaseSetup {
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
-
-        emit log_named_uint("AB", aliceBalance);
 
         // Bob also wants to stake on this assertion
         (bool isBobStaked,,,) = rollup.stakers(bob);
@@ -410,14 +404,6 @@ contract RollupTest is RollupBaseSetup {
         bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 6; // Which is smaller than the previously set sequencerInboxSize with the function _increaseSequencerInboxSize
 
-        emit log_named_uint("BN-1", block.number);
-
-        /**
-         * This error is popping up. Let's figure out how to tackle this:
-         *         if (block.number - assertions.getProposalTime(parentID) < minimumAssertionPeriod) {
-         *             revert MinimumAssertionPeriodNotPassed();
-         *         }
-         */
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.warp(block.timestamp + 50 days);
         vm.roll(block.number + (50 * 86400) / 20);
@@ -426,35 +412,6 @@ contract RollupTest is RollupBaseSetup {
         // is not known yet, so, let's assume they won't match and move forward.
         // ^ The above problem is solved because coincidentally we are on the 0th assertionID and the values of creating that can
         // be seen from the function `Rollup.initialize()`
-        /**
-         * assertions.createAssertion(
-         *             0, // assertionID
-         *             RollupLib.stateHash(RollupLib.ExecutionState(0, _initialVMhash)),
-         *             0, // inboxSize (genesis)
-         *             0, // parentID
-         *             block.number // deadline (unchallengeable)
-         *         );
-         */
-
-        /*
-            rollupAssertion = rollupAssertion = rollup.assertions();
-            uint256 proposalTime = rollupAssertion.getProposalTime(0);
-
-            emit log_named_uint("Proposal Time", proposalTime);
-            emit log_named_uint("BN-2", block.number);
-            emit log_named_uint("MAP", 1 days);
-        */
-
-        // Now getting this error:
-        /**
-         * if (assertionGasUsed > maxGasPerAssertion) {
-         *             revert MaxGasLimitExceeded();
-         *         }
-         *
-         *         We've set maxGasPerAssertion as 500
-         *
-         *         And, assertionGasUsed = l2GasUsed - prevL2GasUsed
-         */
 
         assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
         (, uint256 amountStakedInitial, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
