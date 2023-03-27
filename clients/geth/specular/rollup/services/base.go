@@ -25,20 +25,19 @@ type BaseService struct {
 	Eth          Backend
 	ProofBackend proof.Backend
 	L1Client     client.L1BridgeClient
+	L1Syncer     *client.L1Syncer
 
 	Cancel context.CancelFunc
 	Wg     sync.WaitGroup
 }
 
 func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
-	if eth == nil {
-		return nil, fmt.Errorf("can not use light client with rollup")
-	}
 	return &BaseService{
 		Config:       cfg,
 		Eth:          eth,
 		ProofBackend: proofBackend,
 		L1Client:     l1Client,
+		L1Syncer:     nil,
 	}, nil
 }
 
@@ -46,6 +45,8 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 func (b *BaseService) Start() (context.Context, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cancel = cancel
+	b.L1Syncer = client.NewL1Syncer(ctx, b.L1Client)
+	b.L1Syncer.Start(ctx)
 	return ctx, nil
 }
 
@@ -92,16 +93,21 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
 		}
 		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
-		assertionCreatedEvent, err = b.L1Client.FilterAssertionCreated(&opts, assertionID)
+		assertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
+		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
 	}
 	// Initialize assertion.
 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
 	// Set its boundaries using parent. TODO: move this out. Use local caching.
 	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
-	parentAssertionCreatedEvent, err := b.L1Client.FilterAssertionCreated(&opts, lastValidatedAssertion.Parent)
+	parentAssertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
+	}
+	parentAssertionCreatedEvent, err := filterAssertionCreatedWithID(parentAssertionCreatedIter, lastValidatedAssertion.Parent)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
 	}
@@ -154,34 +160,16 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 
 func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh chan<- struct{}) {
 	defer b.Wg.Done()
-	// Sync to current L1 block head. Can't use WatchOpts.Start,
-	// due to github.com/ethereum/go-ethereum/issues/15063
-	endBlock, err := b.SyncL2ChainToL1Head(ctx, start)
-	if err != nil {
-		log.Crit("Failed initial inbox sync", "err", err)
-	}
 	// Start watching for new TxBatchAppended events.
-	batchEventCh := make(chan *bindings.ISequencerInboxTxBatchAppended)
-	opts := bind.WatchOpts{Context: ctx}
-	batchEventSub, err := b.L1Client.WatchTxBatchAppended(&opts, batchEventCh)
-	if err != nil {
-		log.Crit("Failed to watch rollup event", "err", err)
-	}
-	defer batchEventSub.Unsubscribe()
-	// Sync again to ensure we don't miss events.
-	endBlock, err = b.SyncL2ChainToL1Head(ctx, endBlock+1)
-	if err != nil {
-		log.Crit("Failed initial inbox sync", "err", err)
-	}
+	subCtx, cancel := context.WithCancel(ctx)
+	batchEventCh := client.SubscribeHeaderMapped[*bindings.ISequencerInboxTxBatchAppended](
+		subCtx, b.L1Syncer.LatestHeaderBroker, b.L1Client.FilterTxBatchAppendedEvents, start,
+	)
+	defer cancel()
 	// Process TxBatchAppended events.
 	for {
 		select {
 		case ev := <-batchEventCh:
-			// Avoid processing duplicate events.
-			if ev.Raw.BlockNumber <= endBlock {
-				log.Warn("Ignoring duplicate event", "l1Block", ev.Raw.BlockNumber)
-				continue
-			}
 			log.Info("Processing `TxBatchAppended` event", "l1Block", ev.Raw.BlockNumber)
 			err := b.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
@@ -194,6 +182,24 @@ func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh cha
 			return
 		}
 	}
+}
+
+func filterAssertionCreatedWithID(iter *bindings.IRollupAssertionCreatedIterator, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error) {
+	var assertionCreated *bindings.IRollupAssertionCreated
+	for iter.Next() {
+		// Assumes invariant: only one `AssertionCreated` event per assertion ID.
+		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
+			assertionCreated = iter.Event
+			break
+		}
+	}
+	if iter.Error() != nil {
+		return nil, fmt.Errorf("Failed to iterate through `AssertionCreated` events, err: %w", iter.Error())
+	}
+	if assertionCreated == nil {
+		return nil, fmt.Errorf("No `AssertionCreated` event found for %v.", assertionID)
+	}
+	return assertionCreated, nil
 }
 
 func (b *BaseService) processTxBatchAppendedEvents(
@@ -271,6 +277,7 @@ func (b *BaseService) setL2BlockBoundaries(
 	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID)
 	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
 	for i := uint64(0); i <= numBlocks; i++ {
+		// TODO: remove assumption of VM hash being the block root.
 		root := b.Eth.BlockChain().GetBlockByNumber(i).Root()
 		if root == parentAssertionCreatedEvent.VmHash {
 			log.Info("Found start block", "l2 block#", i+1)

@@ -36,12 +36,12 @@ contract Verifier is IVerifier, Initializable, UUPSUpgradeable, OwnableUpgradeab
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
-    function verifyOneStepProof(IVerificationContext, bytes32, bytes calldata)
+    function verifyOneStepProof(bytes32, VerificationContextLib.RawContext calldata, bytes calldata)
         external
         pure
         override
-        returns (bytes32 nextStateHash)
+        returns (bytes32 endStateHash)
     {
-        nextStateHash = 0x0;
+        endStateHash = 0x0;
     }
 }
