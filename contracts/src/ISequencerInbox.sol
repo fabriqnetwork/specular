@@ -22,22 +22,22 @@
 
 pragma solidity ^0.8.0;
 
-interface ISequencerInbox {
+import "./IDAProvider.sol";
+
+/**
+ * @notice On-chain DA provider.
+ */
+interface ISequencerInbox is IDAProvider {
     event TxBatchAppended(uint256 batchNumber, uint256 startTxNumber, uint256 endTxNumber);
 
-    /// @dev Thrown when the given tx inlcusion proof has incorrect accumulator or batch no.
-    error IncorrectAccOrBatch();
+    /// @dev Thrown when the given tx inlcusion proof couldn't be verified.
+    error ProofVerificationFailed();
 
     /// @dev Thrown when sequencer tries to append an empty batch
     error EmptyBatch();
 
     /// @dev Thrown when overflow occurs reading txBatch (likely due to malformed txLengths)
     error TxBatchDataOverflow();
-
-    /**
-     * @notice Gets inbox size (number of messages).
-     */
-    function getInboxSize() external view returns (uint256);
 
     /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.
@@ -48,14 +48,4 @@ interface ISequencerInbox {
      */
     function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, bytes calldata txBatch)
         external;
-
-    /**
-     * @notice Verifies that a transaction exists in a batch, at the expected offset.
-     * @param proof Proof of inclusion of transaction, in the form:
-     * proof := txInfo || batchInfo || {foreach tx in batch: (prefixHash || txDataHash), ...} where,
-     * txInfo := (sender || l2BlockNumber || l2Timestamp || txDataLength || txData)
-     * batchInfo := (batchNum || numTxsBefore || numTxsAfterInBatch || accBefore)
-     * TODO: modify based on OSP format.
-     */
-    function verifyTxInclusion(bytes memory proof) external view;
 }
