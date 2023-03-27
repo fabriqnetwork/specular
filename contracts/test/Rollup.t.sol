@@ -609,12 +609,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            1 ether,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID, initialInboxSize
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -663,12 +658,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            1 ether,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID, initialInboxSize
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -699,10 +689,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.advanceStake(assertionID);
     }
 
-    function test_advanceStake_positiveCase(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod
-    ) external {
+    function test_advanceStake_positiveCase(uint256 confirmationPeriod, uint256 challengePeriod) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
