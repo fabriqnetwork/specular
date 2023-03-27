@@ -12,12 +12,18 @@ const mnemonic =
   process.env.MNEMONIC ??
   "test test test test test test test test test test test junk";
 
-const wallet = ethers.Wallet.fromMnemonic(mnemonic);
+const sequencerWallet = ethers.Wallet.fromMnemonic(mnemonic);
+// path for second account from mnemonic
+const deployerPath = "m/44'/60'/1'/0/0";
+const deployerWallet = ethers.Wallet.fromMnemonic(mnemonic, deployerPath);
 const INFURA_KEY = process.env.INFURA_KEY || "";
 const ALCHEMY_KEY = process.env.ALCHEMY_KEY || "";
 const SEQUENCER_PRIVATE_KEY = process.env.SEQUENCER_PRIVATE_KEY;
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
 const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY || "";
-const SEQUENCER_ADDRESS = process.env.SEQUENCER_ADDRESS ?? wallet.address;
+const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS ?? deployerWallet.address;
+const SEQUENCER_ADDRESS =
+  process.env.SEQUENCER_ADDRESS ?? sequencerWallet.address;
 
 function createConfig(network: string) {
   return {
@@ -28,8 +34,8 @@ function createConfig(network: string) {
 
 function getNetworkAccounts(network: string) {
   if (network === "goerli" || network === "chiado") {
-    return SEQUENCER_PRIVATE_KEY
-      ? [`0x${SEQUENCER_PRIVATE_KEY}`]
+    return SEQUENCER_PRIVATE_KEY && DEPLOYER_PRIVATE_KEY
+      ? [`0x${SEQUENCER_PRIVATE_KEY}`, `0x${DEPLOYER_PRIVATE_KEY}`]
       : { mnemonic };
   } else {
     return { mnemonic };
@@ -76,7 +82,11 @@ const config: HardhatUserConfig = {
       chiado: SEQUENCER_ADDRESS,
     },
     validator: 1,
-    deployer: 2,
+    deployer: {
+      default: 2,
+      goerli: DEPLOYER_ADDRESS,
+      chiado: DEPLOYER_ADDRESS,
+    },
   },
   networks: {
     mainnet: createConfig("mainnet"),

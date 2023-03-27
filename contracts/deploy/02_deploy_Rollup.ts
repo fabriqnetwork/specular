@@ -1,13 +1,10 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { Manifest } from "@openzeppelin/upgrades-core";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
+  const { deployments, getNamedAccounts, ethers, upgrades } = hre;
   const { save } = deployments;
   const { sequencer, deployer } = await getNamedAccounts();
-  const deployerSigner = await ethers.getSigner(deployer);
-  const { provider } = network;
 
   const sequencerInboxProxyAddress = (await deployments.get("SequencerInbox"))
     .address;

@@ -3,9 +3,8 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades } = hre;
-  const { deploy, save } = deployments;
-  const { sequencer, deployer } = await getNamedAccounts();
-  const deployerSigner = await ethers.getSigner(deployer);
+  const { save } = deployments;
+  const { deployer } = await getNamedAccounts();
 
   const Verifier = await ethers.getContractFactory("Verifier", deployer);
   const verifier = await upgrades.deployProxy(Verifier, [], {
