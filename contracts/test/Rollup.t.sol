@@ -609,12 +609,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            100000,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID, initialInboxSize
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -667,12 +662,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            100000,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID, initialInboxSize
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
