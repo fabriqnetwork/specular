@@ -18,18 +18,19 @@
 
 pragma solidity ^0.8.0;
 
-import "./VerificationContextLib.sol";
-
-interface IVerifier {
+/**
+ * @notice Data availability interface to rollup contracts.
+ */
+interface IDAProvider {
     /**
-     * @notice Simulates and verifies execution of a single EVM step.
-     * @param startStateHash The state hash before the step.
-     * @param ctx Associated transaction and its context (already verified to be consistent).
-     * @param encodedProof The one-step proof. TODO: describe format.
+     * @notice Gets inbox size (total number of messages stored).
      */
-    function verifyOneStepProof(
-        bytes32 startStateHash,
-        VerificationContextLib.RawContext calldata ctx,
-        bytes calldata encodedProof
-    ) external pure returns (bytes32 endStateHash);
+    function getInboxSize() external view returns (uint256);
+    /**
+     * Verifies proof of inclusion of a transaction by the data availability provider.
+     * If verification fails, the function reverts.
+     * @param encodedTx RLP-encoded transaction.
+     * @param proof DA-specific membership proof.
+     */
+    function verifyTxInclusion(bytes memory encodedTx, bytes calldata proof) external view;
 }

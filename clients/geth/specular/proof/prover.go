@@ -17,17 +17,16 @@ package proof
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/proof/proof"
 	"github.com/specularl2/specular/clients/geth/specular/proof/prover"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 const (
@@ -43,7 +42,6 @@ type ProverConfig struct {
 
 type ExecutionState struct {
 	VMHash         common.Hash
-	L2GasUsed      *big.Int
 	Block          *types.Block
 	TransactionIdx uint64
 	StepIdx        uint64
@@ -58,7 +56,6 @@ func (s *ExecutionState) MarshalJson() ([]byte, error) {
 		StepIdx        uint64      `json:"stepIdx"`
 	}{
 		VMHash:         s.VMHash,
-		L2GasUsed:      s.L2GasUsed,
 		BlockHash:      s.Block.Hash(),
 		TransactionIdx: s.TransactionIdx,
 		StepIdx:        s.StepIdx,
@@ -66,15 +63,19 @@ func (s *ExecutionState) MarshalJson() ([]byte, error) {
 }
 
 func (s *ExecutionState) Hash() common.Hash {
-	gas := make([]byte, 32)
-	s.L2GasUsed.FillBytes(gas)
-	return crypto.Keccak256Hash(gas[:], s.VMHash.Bytes())
+	return s.VMHash
 }
 
 // This function generates execution states across blocks [startNum, endNum)
 // For example there are 2 transactions: a, b
 // The states are: inter-state before a, intra-states in a, inter-state before b (after a), intra-states in b, inter-state after b
-func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int, startNum, endNum uint64, config *ProverConfig) ([]*ExecutionState, error) {
+func GenerateStates(
+	backend Backend,
+	ctx context.Context,
+	startNum uint64,
+	endNum uint64,
+	config *ProverConfig,
+) ([]*ExecutionState, error) {
 	parent, err := backend.BlockByNumber(ctx, rpc.BlockNumber(startNum-1))
 	if err != nil {
 		return nil, err
@@ -91,7 +92,6 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 		states []*ExecutionState
 		block  *types.Block
 	)
-	cumulativeGasUsed := new(big.Int).Set(startGasUsed)
 	for num := startNum; num < endNum; num++ {
 		block, err = backend.BlockByNumber(ctx, rpc.BlockNumber(num))
 		if err != nil {
@@ -107,7 +107,6 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 			// Push inter-state hash
 			states = append(states, &ExecutionState{
 				VMHash:         statedb.IntermediateRoot(backend.ChainConfig().IsEIP158(block.Number())),
-				L2GasUsed:      new(big.Int).Set(cumulativeGasUsed),
 				Block:          block,
 				TransactionIdx: uint64(i),
 				StepIdx:        0,
@@ -119,7 +118,7 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 			vmenv := vm.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover, NoBaseFee: true})
 			// Call Prepare to clear out the statedb access list
 			statedb.Prepare(tx.Hash(), i)
-			executionResult, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+			_, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 			if err != nil {
 				return nil, fmt.Errorf("tracing failed: %w", err)
 			}
@@ -130,14 +129,11 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 			for idx, s := range generatedStates {
 				states = append(states, &ExecutionState{
 					VMHash:         s.VMHash,
-					L2GasUsed:      new(big.Int).Add(cumulativeGasUsed, new(big.Int).SetUint64(tx.Gas()-s.Gas)),
 					Block:          block,
 					TransactionIdx: uint64(i),
 					StepIdx:        uint64(idx + 1),
 				})
 			}
-			// Include refund
-			cumulativeGasUsed.Add(cumulativeGasUsed, new(big.Int).SetUint64(executionResult.UsedGas))
 		}
 		// Get next statedb if we are not at the last block
 		if num < endNum-1 {
@@ -149,7 +145,6 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 	}
 	states = append(states, &ExecutionState{
 		VMHash:         block.Root(),
-		L2GasUsed:      cumulativeGasUsed,
 		Block:          block,
 		TransactionIdx: uint64(len(block.Transactions())),
 		StepIdx:        0,

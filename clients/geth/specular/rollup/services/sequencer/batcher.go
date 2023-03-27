@@ -3,7 +3,6 @@ package sequencer
 import (
 	"errors"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -16,11 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
-
-type Batch struct {
-	Blocks            types.Blocks
-	CumulativeGasUsed *big.Int
-}
 
 // Batcher assumes exclusive control of underlying blockchain, i.e.
 // mining and blockchain insertion can not happen.
