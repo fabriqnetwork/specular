@@ -234,10 +234,16 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	log.Info("Decoded batch", "#txs", len(batch.Txs))
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
-	//Compare L2 Block Number of the Event to Current L2 Block Number
-	if len(blocks) > 0 && blocks[0].BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
-		// If it's greater means we can commit on L2
-		b.commitBlocks(blocks)
+    // Compare the L2 Block Number of the Event to the Current L2 Block Number and commit blocks ahead of the current chain
+    // If it causes any performance issue occurs then can be optimized at the batch level by sending 2 batches at once 
+	for i, block := range blocks {
+		if block.BlockNumber <= b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
+			if i > 0 {
+				blocks = blocks[:i]
+				b.commitBlocks(blocks)
+			}
+			break
+		}
 	}
 	return nil
 }
