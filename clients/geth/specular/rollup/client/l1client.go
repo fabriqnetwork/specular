@@ -4,7 +4,9 @@ import (
 	"context"
 	"math/big"
 	"sync"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -505,15 +507,15 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) {
-    return c.challenge.VerifyOneStepProof(
-      proof,
-      txInclusionProof,
-      verificationRawCtx,
-      challengedStepIndex,
-      prevBisection,
-      prevChallengedSegmentStart,
-      prevChallengedSegmentLength,
-    )
+		return c.challenge.VerifyOneStepProof(
+			proof,
+			txInclusionProof,
+			verificationRawCtx,
+			challengedStepIndex,
+			prevBisection,
+			prevChallengedSegmentStart,
+			prevChallengedSegmentLength,
+		)
 	}
 	return retryTransactingFunction(f, c.retryOpts)
 }
@@ -554,19 +556,6 @@ func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]i
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
-}
-
-func dialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*ethclient.Client, error) {
-	var client *ethclient.Client
-	var err error
-	err = retry.Do(func() error {
-		client, err = ethclient.DialContext(ctx, endpoint)
-		return err
-	}, retryOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to L1: %w", err)
-	}
-	return client, nil
 }
 
 func retryTransactingFunction(f func() (*types.Transaction, error), retryOpts []retry.Option) (*types.Transaction, error) {

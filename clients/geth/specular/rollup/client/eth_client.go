@@ -2,13 +2,11 @@ package client
 
 import (
 	"context"
-	"time"
 
 	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
@@ -51,19 +49,9 @@ func (c *EthClient) HeaderByTag(ctx context.Context, tag BlockTag) (*types.Heade
 	return header, err
 }
 
-func dialWithRetry(ctx context.Context, endpoint string, numAttempts uint) (*EthClient, error) {
+func dialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*EthClient, error) {
 	var client *EthClient
-	var err error
-	retryOpts := []retry.Option{
-		retry.Context(ctx),
-		retry.Attempts(numAttempts),
-		retry.Delay(5 * time.Second),
-		retry.LastErrorOnly(true),
-		retry.OnRetry(func(n uint, err error) {
-			log.Error("Failed to connect to node", "endpoint", endpoint, "attempt", n, "err", err)
-		}),
-	}
-	err = retry.Do(func() error {
+	err := retry.Do(func() error {
 		rpcClient, err := rpc.DialContext(ctx, endpoint)
 		client = NewEthClient(rpcClient)
 		return err
