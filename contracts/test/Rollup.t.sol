@@ -295,10 +295,9 @@ contract RollupTest is RollupBaseSetup {
         rollup.challengeAssertion(players, assertionIDs);
     }
 
-    function test_challengeAssertion_alreadyResolvedAssertionID(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod
-    ) public {
+    function test_challengeAssertion_alreadyResolvedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod)
+        public
+    {
         // Initializing the rollup
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
