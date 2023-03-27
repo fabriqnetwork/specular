@@ -244,11 +244,9 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	// If it causes any performance issue, then it can optimized at the batch level by sending 2 batches at once. If 1st element of 1st batch is ahead and the 2nd batch behind then only we look at the block level, else look only at the batch level
 	for i, block := range blocks {
 		if block.BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
-			if i > 0 {
-				blocks = blocks[i:]
-				b.commitBlocks(blocks)
-				break
-			}
+			blocks = blocks[i:]
+			b.commitBlocks(blocks)
+			break
 		}
 	}
 	return nil
