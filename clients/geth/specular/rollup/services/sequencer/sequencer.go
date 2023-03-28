@@ -337,6 +337,12 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	pendingConfirmationSent := true
 	pendingConfirmed := true
 
+	// TODO: change name to lastValidatedAssertion since "confirmed" may imply L1-confirmed.
+	confirmedAssertion, err := s.GetLastValidatedAssertion(ctx)
+	if err != nil {
+		log.Crit("Failed to get last validated assertion", "err", err)
+	}
+
 	for {
 		select {
 		case header := <-headCh:
@@ -344,16 +350,35 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 			log.Info("Received new header", "number", header.Number.Uint64())
 			if !pendingConfirmationSent && !pendingConfirmed {
 				if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
-					log.Info("We can now confirm", "pending assertion", pendingAssertion.Deadline.Uint64())
-					// Confirmation period has past, confirm it
-					_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
-					if errors.Is(err, core.ErrInsufficientFunds) {
-						log.Crit("Insufficient Funds to send Tx", "error", err)
-					}
+					assertionFromRollup, err := s.L1Client.GetAssertion(pendingAssertion.ID)
 					if err != nil {
-						// log.Error("Failed to confirm DA", "error", err)
-						log.Crit("Failed to confirm DA", "err", err)
-						// TODO: wait some time before retry
+						log.Error("Could not get DA", "error", err)
+						continue
+					}
+					if assertionFromRollup.NumStakers.Cmp(big.NewInt(0)) > 0 && assertionFromRollup.Parent == confirmedAssertion.ID {
+						log.Info("We can now confirm", "pending assertion", pendingAssertion.Deadline.Uint64())
+						_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
+						if errors.Is(err, core.ErrInsufficientFunds) {
+							log.Crit("Insufficient Funds to send Tx", "error", err)
+						}
+						if err != nil {
+							// log.Error("Failed to confirm DA", "error", err)
+							log.Crit("Failed to confirm DA", "err", err)
+							// TODO: wait some time before retry
+						}
+					} else {
+						log.Info("We can now reject", "pending assertion", pendingAssertion.Deadline.Uint64())
+						// stakerAddress should be the address of staker that staked on given Assertion
+						stakerAddress := s.Config.SequencerAddr
+						_, err := s.L1Client.RejectFirstUnresolvedAssertion(stakerAddress)
+						if errors.Is(err, core.ErrInsufficientFunds) {
+							log.Crit("Insufficient Funds to send Tx", "error", err)
+						}
+						if err != nil {
+							// log.Error("Failed to confirm DA", "error", err)
+							log.Crit("Failed to confirm DA", "err", err)
+							// TODO: wait some time before retry
+						}
 					}
 					pendingConfirmationSent = true
 				}
@@ -364,6 +389,7 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 			if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
 				// Notify sequencing goroutine
 				s.confirmedIDCh <- pendingAssertion.ID
+				confirmedAssertion = pendingAssertion
 				pendingConfirmed = true
 			}
 		case newPendingAssertion := <-s.pendingAssertionCh:
