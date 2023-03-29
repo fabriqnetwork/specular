@@ -529,7 +529,7 @@ contract Rollup is RollupBase {
      */
     function countStakedZombies(uint256 assertionID) private view returns (uint256) {
         uint256 numStakedZombies = 0;
-        for (uint256 i = 0; i < zombies.length; i++) {
+        for (uint256 i = 0; i < zombies.length; ++i) {
             if (assertionState[assertionID].stakers[zombies[i].stakerAddress]) {
                 numStakedZombies++;
             }
