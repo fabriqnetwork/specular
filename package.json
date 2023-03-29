@@ -1,0 +1,15 @@
+{
+  "name": "specular-monorepo",
+  "version": "0.0.1",
+  "private": true,
+  "description": "",
+  "scripts": {
+    "prepare": "husky install ./.husky"
+  },
+  "keywords": [],
+  "author": "Specular contributors",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "husky": "^8.0.1"
+  }
+}

@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-node@v3
 
       - name: Install dependencies
-        run: yarn --ignore-scripts
+        run: pnpm i --ignore-scripts
 
       - name: Install
         run: cd ./clients/geth/specular && make

@@ -35,8 +35,8 @@ jobs:
       - name: Run forge install
         run: forge install
 
-      - name: Install yarn dependencies
-        run: yarn install
+      - name: Install dependencies
+        run: pnpm install
         
       - name: Run tests
         env:
