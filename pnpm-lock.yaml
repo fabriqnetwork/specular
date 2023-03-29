@@ -14,11 +14,11 @@ importers:
   contracts:
     dependencies:
       '@openzeppelin/contracts':
-        specifier: ^4.8.1
-        version: 4.8.1
+        specifier: ^4.8.3
+        version: 4.8.3
       '@openzeppelin/contracts-upgradeable':
-        specifier: ^4.8.1
-        version: 4.8.1
+        specifier: ^4.8.3
+        version: 4.8.3
       '@openzeppelin/hardhat-upgrades':
         specifier: ^1.22.1
         version: 1.22.1(@nomiclabs/hardhat-etherscan@3.1.0)(ethers@5.7.2)(hardhat-deploy-ethers@0.3.0-beta.13)(hardhat@2.12.7)
@@ -889,12 +889,12 @@ packages:
       hardhat: 2.12.7(ts-node@10.9.1)(typescript@4.9.3)
     dev: true
 
-  /@openzeppelin/contracts-upgradeable@4.8.1:
-    resolution: {integrity: sha512-1wTv+20lNiC0R07jyIAbHU7TNHKRwGiTGRfiNnA8jOWjKT98g5OgLpYWOi40Vgpk8SPLA9EvfJAbAeIyVn+7Bw==}
+  /@openzeppelin/contracts-upgradeable@4.8.3:
+    resolution: {integrity: sha512-SXDRl7HKpl2WDoJpn7CK/M9U4Z8gNXDHHChAKh0Iz+Wew3wu6CmFYBeie3je8V0GSXZAIYYwUktSrnW/kwVPtg==}
     dev: false
 
-  /@openzeppelin/contracts@4.8.1:
-    resolution: {integrity: sha512-xQ6eUZl+RDyb/FiZe1h+U7qr/f4p/SrTSQcTPH2bjur3C5DbuW/zFgCU/b1P/xcIaEqJep+9ju4xDRi3rmChdQ==}
+  /@openzeppelin/contracts@4.8.3:
+    resolution: {integrity: sha512-bQHV8R9Me8IaJoJ2vPG4rXcL7seB7YVuskr4f+f5RyOStSZetwzkWtoqDMl5erkBJy0lDRUnIR2WIkPiC0GJlg==}
     dev: false
 
   /@openzeppelin/hardhat-upgrades@1.22.1(@nomiclabs/hardhat-etherscan@3.1.0)(ethers@5.7.2)(hardhat-deploy-ethers@0.3.0-beta.13)(hardhat@2.12.7):
