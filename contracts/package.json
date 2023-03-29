@@ -8,7 +8,6 @@
     "build": "forge build",
     "lint:fix": "forge fmt",
     "lint:check": "forge fmt --check",
-    "prepare": "cd .. && husky install ./.husky",
     "test": "forge test"
   },
   "keywords": [],
@@ -35,7 +34,6 @@
     "hardhat": "^2.12.7",
     "hardhat-abi-exporter": "^2.10.0",
     "hardhat-deploy": "^0.11.18",
-    "husky": "^8.0.1",
     "inquirer": "^8.2.5",
     "prettier": "^2.8.4",
     "ts-node": "^10.9.1",
