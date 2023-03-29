@@ -10,3 +10,4 @@ runs:
 
     - name: Run forge install
       run: forge install
+      shell: bash
