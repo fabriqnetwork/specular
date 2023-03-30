@@ -211,7 +211,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		s.L1Client.FilterAssertionCreated,
 		s.L1Syncer.Latest.Number.Uint64(),
 	)
-	// Watch AssertionQueued event
+
 	opts := bind.FilterOpts{Start: s.Config.L1RollupGenesisBlock, Context: ctx}
 
 	// Last validated assertion, initalize it to genesis
