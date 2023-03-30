@@ -55,6 +55,7 @@ type L1BridgeClient interface {
 	FilterAssertionConfirmed(opts *bind.FilterOpts) (*bindings.IRollupAssertionConfirmedIterator, error)
 	FilterAssertionRejected(opts *bind.FilterOpts) (*bindings.IRollupAssertionRejectedIterator, error)
 	GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error)
+	RemoveStakesOnLastConfirmed(opts *bind.FilterOpts, assertionID *big.Int) error
 	// IChallenge.sol
 	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
 	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
@@ -340,6 +341,30 @@ func (c *EthBridgeClient) GetLastValidatedAssertionID(opts *bind.FilterOpts) (*b
 		return nil, fmt.Errorf("No validated assertion IDs found")
 	}
 	return lastValidatedAssertionID, nil
+}
+
+func (c *EthBridgeClient) RemoveStakesOnLastConfirmed(opts *bind.FilterOpts, assertionID *big.Int) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	iter, err := c.rollup.Contract.FilterStakerStaked(opts)
+	if err != nil {
+		return fmt.Errorf("failed to filter through `StakerStaked` events, err: %w", err)
+	}
+	for iter.Next() {
+		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
+			stakerAddr := iter.Event.StakerAddr
+			_, err := c.rollup.RemoveStake(stakerAddr)
+			if err != nil {
+				return fmt.Errorf("Failed to remove staker stake for %s, err: %w", stakerAddr.String(), err)
+			}
+
+			log.Debug("Staker stake removed", "staker", stakerAddr, "assertionID", assertionID)
+		}
+	}
+	if iter.Error() != nil {
+		return fmt.Errorf("failed to iterate through `StakerStaked` events, err: %w", iter.Error())
+	}
+	return nil
 }
 
 func (c *EthBridgeClient) GetAssertion(assertionID *big.Int) (bindings.IRollupAssertion, error) {

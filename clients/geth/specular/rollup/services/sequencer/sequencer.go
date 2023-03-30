@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -300,6 +301,11 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			// New assertion confirmed
 			if pendingAssertion.ID.Cmp(id) == 0 {
 				confirmedAssertion = pendingAssertion
+				opts := bind.FilterOpts{Start: s.Config.L1RollupGenesisBlock, Context: ctx}
+				err = s.L1Client.RemoveStakesOnLastConfirmed(&opts, confirmedAssertion.ID)
+				if err != nil {
+					log.Error("Failed to remove staker stake for assertion %s, err: %w", confirmedAssertion.ID, err)
+				}
 				if pendingAssertion.VmHash == queuedAssertion.VmHash {
 					// We are done here, waiting for new batches
 					pendingAssertion = nil
