@@ -211,6 +211,8 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		s.L1Client.FilterAssertionCreated,
 		s.L1Syncer.Latest.Number.Uint64(),
 	)
+	// Watch AssertionQueued event
+	opts := bind.FilterOpts{Start: s.Config.L1RollupGenesisBlock, Context: ctx}
 
 	// Last validated assertion, initalize it to genesis
 	// TODO: change name to lastValidatedAssertion since "confirmed" may imply L1-confirmed.
@@ -301,7 +303,6 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			// New assertion confirmed
 			if pendingAssertion.ID.Cmp(id) == 0 {
 				confirmedAssertion = pendingAssertion
-				opts := bind.FilterOpts{Start: s.Config.L1RollupGenesisBlock, Context: ctx}
 				err = s.L1Client.RemoveStakesOnLastConfirmed(&opts, confirmedAssertion.ID)
 				if err != nil {
 					log.Error("Failed to remove staker stake for assertion %s, err: %w", confirmedAssertion.ID, err)
