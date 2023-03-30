@@ -29,6 +29,8 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
+import "hardhat/console.sol";
+
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Total number of transactions
     uint256 private inboxSize;
@@ -39,9 +41,17 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     // delayedInbox hashes array
     bytes32[] public delayedInbox;
 
+    bytes32[] public messageDataHashes;
+
+    uint256 public delayedMessageCounter;
+
     address public sequencerAddress;
 
     uint64[2] public l2BlockAndTime;
+
+    uint64[2] public l1BlockAndTime;
+
+    uint256 public baseFee;
 
     function initialize(address _sequencerAddress) public initializer {
         if (_sequencerAddress == address(0)) {
@@ -68,7 +78,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256 gasLimit,
         uint256 maxFeePerGas,
         uint256 nonce,
-        uint256 to,
+        address to,
         uint256 value,
         bytes calldata data
     ) external {
@@ -77,18 +87,28 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         addToDelayedInbox(msg.sender, keccak256(abi.encodePacked(gasLimit, maxFeePerGas, nonce, to, value, data)));
     }
 
-    function addToDelayedInbox(address _sender, bytes32 messageDataHash)
+    function addToDelayedInbox(address _sender, bytes32 _messageDataHash)
         internal
         returns (uint256 delayedMessageCount)
     {
+        messageDataHashes.push(_messageDataHash);
         delayedMessageCount = delayedInbox.length;
+        console.log("delayed message count %d", delayedMessageCount);
         bytes32 messageHash = keccak256(
             abi.encodePacked(
-                _sender, block.number, block.timestamp, delayedMessageCount, block.basefee, messageDataHash
+                _sender, uint64(block.number), uint64(block.timestamp), delayedMessageCount, block.basefee, _messageDataHash
             )
         );
 
+        console.log("Printing message Hash");
+        console.logBytes32(messageHash);
+        l1BlockAndTime[0] = uint64(block.number);
+        l1BlockAndTime[1] = uint64(block.timestamp);
+
+        baseFee = block.basefee;
+
         delayedInbox.push(messageHash);
+        delayedMessageCounter++;
         return delayedMessageCount;
     }
 
@@ -100,7 +120,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         bytes32 messageDataHash
     ) external {
         if (delayedMessageIndex > delayedInbox.length) revert();
-        if (delayedMessageIndex <= delayedMessagesRead) revert();
+        if (delayedMessageIndex < delayedMessagesRead) revert ();
 
         bytes32 messageHash = keccak256(
             abi.encodePacked(
@@ -108,10 +128,12 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             )
         );
 
-        if (_l1BlockAndTime[0] + 5760 <= block.number) revert();
-        if (_l1BlockAndTime[1] + 86400 <= block.timestamp) revert();
+        if (_l1BlockAndTime[0] + 5760 >= block.number) revert ();
+        if (_l1BlockAndTime[1] + 86400 >= block.timestamp) revert ();
 
-        if (messageHash != delayedInbox[delayedMessageIndex]) revert();
+        console.logBytes32(messageHash);
+        console.logBytes32(delayedInbox[delayedMessageIndex]);
+        if (messageHash != delayedInbox[delayedMessageIndex]) revert EmptyBatch();
 
         bytes32 txContentHash = keccak256(abi.encodePacked(_sender, l2BlockAndTime[0], l2BlockAndTime[1]));
 
