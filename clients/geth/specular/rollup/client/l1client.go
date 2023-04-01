@@ -87,6 +87,7 @@ type L1BridgeClient interface {
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
 // TODO: clean up retries
 type EthBridgeClient struct {
+	ctx          context.Context
 	client       *EthClient
 	transactOpts *bind.TransactOpts
 	retryOpts    []retry.Option
@@ -152,6 +153,7 @@ func NewEthBridgeClient(
 	}
 
 	return &EthBridgeClient{
+		ctx:          ctx,
 		client:       client,
 		transactOpts: &transactOpts,
 		inboxAbi:     inboxAbi,
@@ -234,7 +236,7 @@ func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.In
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.inbox.AppendTxBatch(contexts, txLengths, txBatch) }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) WatchTxBatchAppended(
@@ -284,7 +286,7 @@ func (c *EthBridgeClient) AdvanceStake(assertionID *big.Int) (*types.Transaction
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.rollup.AdvanceStake(assertionID) }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) CreateAssertion(vmHash [32]byte, inboxSize *big.Int) (*types.Transaction, error) {
@@ -293,28 +295,28 @@ func (c *EthBridgeClient) CreateAssertion(vmHash [32]byte, inboxSize *big.Int) (
 	f := func() (*types.Transaction, error) {
 		return c.rollup.CreateAssertion(vmHash, inboxSize)
 	}
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.rollup.ChallengeAssertion(players, assertionIDs) }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) ConfirmFirstUnresolvedAssertion() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.rollup.ConfirmFirstUnresolvedAssertion() }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress) }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 // Returns the last assertion ID that was validated *by us*.
@@ -452,7 +454,7 @@ func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.T
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.challenge.InitializeChallengeLength(numSteps) }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) CurrentChallengeResponder() (common.Address, error) {
@@ -471,7 +473,7 @@ func (c *EthBridgeClient) TimeoutChallenge() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) { return c.challenge.Timeout() }
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) BisectExecution(
@@ -492,7 +494,7 @@ func (c *EthBridgeClient) BisectExecution(
 			prevChallengedSegmentLength,
 		)
 	}
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) VerifyOneStepProof(
@@ -517,7 +519,7 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 			prevChallengedSegmentLength,
 		)
 	}
-	return retryTransactingFunction(f, c.retryOpts)
+	return retryTransactingFunction(c.ctx, c.client, f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) WatchBisected(
@@ -556,14 +558,4 @@ func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]i
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
-}
-
-func retryTransactingFunction(f func() (*types.Transaction, error), retryOpts []retry.Option) (*types.Transaction, error) {
-	var result *types.Transaction
-	var err error
-	err = retry.Do(func() error {
-		result, err = f()
-		return err
-	}, retryOpts...)
-	return result, err
 }

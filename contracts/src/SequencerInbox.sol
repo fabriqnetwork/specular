@@ -32,6 +32,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     // Total number of transactions
     uint256 private inboxSize;
+    uint256 private latestL2BlockNumber;
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
 
@@ -65,6 +66,10 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
+        }
+
+        if (contexts[1] != latestL2BlockNumber + 1) {
+            revert InvalidBatch();
         }
 
         uint256 numTxs = inboxSize;
@@ -107,6 +112,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256 start = inboxSize;
         inboxSize = numTxs;
         accumulators.push(runningAccumulator);
+        latestL2BlockNumber = contexts[contexts.length - 2];
 
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
     }
