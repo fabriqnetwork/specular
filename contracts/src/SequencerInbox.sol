@@ -68,6 +68,10 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             revert NotSequencer(msg.sender, sequencerAddress);
         }
 
+        if (contexts.length < 3 || txLengths.length == 0) {
+            revert EmptyBatch();
+        }
+        
         if (contexts[1] != latestL2BlockNumber + 1) {
             revert InvalidBatch();
         }

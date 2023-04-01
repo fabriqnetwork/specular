@@ -127,8 +127,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
 
-            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-            contexts[i + 1] = txnBlockTimestamp / 20;
+            // Formual Used for blockNumber: counting from 1;
+            contexts[i + 1] = i + 1;
 
             // Formula used for blockTimestamp: (current block.timestamp) / 5x
             contexts[i + 2] = txnBlockTimestamp;
@@ -167,8 +167,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 numTxns = numTxnsPerBlock * 2;
         uint256 timeStamp1 = block.timestamp / 10;
         uint256 timeStamp2 = block.timestamp / 5;
-        uint256 blockNumber1 = timeStamp1 / 20;
-        uint256 blockNumber2 = timeStamp2 / 20;
+        uint256 blockNumber1 = 1;
+        uint256 blockNumber2 = 2;
 
         uint256[] memory contexts = new uint256[](6);
 
@@ -217,8 +217,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
 
-            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-            contexts[i + 1] = txnBlockTimestamp / 20;
+            // Formual Used for blockNumber: counting from 1;
+            contexts[i + 1] = i + 1;
 
             // Formula used for blockTimestamp: (current block.timestamp) / 5x
             contexts[i + 2] = txnBlockTimestamp;
@@ -257,7 +257,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Let's create an array of contexts
         uint256 numTxns = numTxnsPerBlock * 2;
         uint256 timeStamp1 = block.timestamp / 10;
-        uint256 blockNumber1 = timeStamp1 / 20;
+        uint256 blockNumber1 = 1;
 
         uint256[] memory contexts = new uint256[](4);
 
