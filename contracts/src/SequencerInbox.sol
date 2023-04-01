@@ -71,7 +71,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         if (contexts.length < 3 || txLengths.length == 0) {
             revert EmptyBatch();
         }
-        
+
         if (contexts[1] != latestL2BlockNumber + 1) {
             revert InvalidBatch();
         }
