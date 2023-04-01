@@ -78,13 +78,16 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 		}
 		// Check that the genesis assertion is correct.
 		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
-		genesisRoot := b.Eth.BlockChain().GetBlockByNumber(0).Root()
+		genesisRoot := b.Chain().GetBlockByNumber(0).Root()
 		if vmHash != genesisRoot {
 			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
 		}
 		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
 		// Get assertion.
 		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionCreatedEvent.AssertionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get genesis assertion, err: %w", err)
+		}
 	} else {
 		// If an assertion was validated, use it.
 		log.Info("Last validated assertion ID found", "assertionID", assertionID)
@@ -98,6 +101,9 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
 		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+		}
 	}
 	// Initialize assertion.
 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
@@ -153,7 +159,7 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 		"Synced L1->L2",
 		"l1 start", start,
 		"l1 end", l1BlockHead,
-		"l2 size", b.Eth.BlockChain().CurrentBlock().Number(),
+		"l2 size", b.Chain().CurrentBlock().Number(),
 	)
 	return l1BlockHead, nil
 }
@@ -240,13 +246,9 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	log.Info("Decoded batch", "#txs", len(batch.Txs))
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
-	// Commit only blocks ahead of the current L2 chain.
-	for i, block := range blocks {
-		if block.BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
-			blocks = blocks[i:]
-			b.commitBlocks(blocks)
-			break
-		}
+	err = b.commitBlocks(blocks)
+	if err != nil {
+		return fmt.Errorf("Failed to commit blocks, err: %w", err)
 	}
 	return nil
 }
@@ -256,7 +258,7 @@ func (b *BaseService) setL2BlockBoundaries(
 	assertion *rollupTypes.Assertion,
 	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
 ) error {
-	numBlocks := b.Eth.BlockChain().CurrentBlock().Number().Uint64()
+	numBlocks := b.Chain().CurrentBlock().Number().Uint64()
 	if numBlocks == 0 {
 		log.Info("Zero-initializing assertion block boundaries.")
 		assertion.StartBlock = 0
@@ -275,7 +277,7 @@ func (b *BaseService) setL2BlockBoundaries(
 	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
 	for i := uint64(0); i <= numBlocks; i++ {
 		// TODO: remove assumption of VM hash being the block root.
-		root := b.Eth.BlockChain().GetBlockByNumber(i).Root()
+		root := b.Chain().GetBlockByNumber(i).Root()
 		if root == parentAssertionCreatedEvent.VmHash {
 			log.Info("Found start block", "l2 block#", i+1)
 			assertion.StartBlock = i + 1
@@ -304,8 +306,9 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 	if parent == nil {
 		return fmt.Errorf("missing parent")
 	}
-	num := parent.Number()
-	if num.Uint64() != blocks[0].BlockNumber-1 {
+	startHead := parent.Number().Uint64()
+	if startHead < blocks[0].BlockNumber-1 {
+		// We are missing some blocks
 		return fmt.Errorf("rollup services unsynced")
 	}
 	state, err := b.Chain().StateAt(parent.Root())
@@ -316,6 +319,10 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 	defer state.StopPrefetcher()
 
 	for _, sblock := range blocks {
+		if sblock.BlockNumber <= startHead {
+			// We already have this block, skip
+			continue
+		}
 		header := &types.Header{
 			ParentHash: parent.Hash(),
 			Number:     new(big.Int).SetUint64(sblock.BlockNumber),
@@ -360,6 +367,7 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 		if err != nil {
 			return err
 		}
+		parent = block
 	}
 	return nil
 }
