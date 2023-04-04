@@ -226,6 +226,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 	commitAssertion := func() {
 		pendingAssertion = queuedAssertion.Copy()
 		queuedAssertion.StartBlock = queuedAssertion.EndBlock + 1
+		queuedAssertion.PrevCumulativeGasUsed = new(big.Int).Set(queuedAssertion.CumulativeGasUsed)
 		_, err = s.L1Client.CreateAssertion(pendingAssertion.VmHash, pendingAssertion.InboxSize)
 		if errors.Is(err, core.ErrInsufficientFunds) {
 			log.Crit("Insufficient Funds to send Tx", "error", err)
@@ -276,6 +277,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			// Update queued assertion to latest batch
 			// queuedAssertion.ID.Add(queuedAssertion.ID, big.NewInt(1))
 			queuedAssertion.VmHash = batch.LastBlockRoot()
+			queuedAssertion.CumulativeGasUsed.Add(queuedAssertion.CumulativeGasUsed, batch.GasUsed)
 			queuedAssertion.InboxSize.Add(queuedAssertion.InboxSize, batch.InboxSize())
 			queuedAssertion.EndBlock = batch.LastBlockNumber()
 			// If no assertion is pending, commit it
@@ -450,6 +452,7 @@ func (s *Sequencer) handleChallenge(
 	states, err := proof.GenerateStates(
 		s.ProofBackend,
 		ctx,
+		chalCtx.assertion.PrevCumulativeGasUsed,
 		chalCtx.assertion.StartBlock,
 		chalCtx.assertion.EndBlock+1,
 		nil,

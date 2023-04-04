@@ -69,9 +69,10 @@ type L1BridgeClient interface {
 		prevChallengedSegmentLength *big.Int,
 	) (*types.Transaction, error)
 	VerifyOneStepProof(
+		verifierSel uint8,
 		proof []byte,
 		txInclusionProof []byte,
-		verificationRawCtx bindings.VerificationContextLibRawContext,
+		verificationRawCtx bindings.VerificationContextRawContext,
 		challengedStepIndex *big.Int,
 		prevBisection [][32]byte,
 		prevChallengedSegmentStart *big.Int,
@@ -498,9 +499,10 @@ func (c *EthBridgeClient) BisectExecution(
 }
 
 func (c *EthBridgeClient) VerifyOneStepProof(
+	verifierSel uint8,
 	proof []byte,
 	txInclusionProof []byte,
-	verificationRawCtx bindings.VerificationContextLibRawContext,
+	verificationRawCtx bindings.VerificationContextRawContext,
 	challengedStepIndex *big.Int,
 	prevBisection [][32]byte,
 	prevChallengedSegmentStart *big.Int,
@@ -510,6 +512,7 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 	defer c.mu.Unlock()
 	f := func() (*types.Transaction, error) {
 		return c.challenge.VerifyOneStepProof(
+			verifierSel,
 			proof,
 			txInclusionProof,
 			verificationRawCtx,

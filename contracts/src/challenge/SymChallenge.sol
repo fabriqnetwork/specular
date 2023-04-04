@@ -150,19 +150,22 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     }
 
     function verifyOneStepProof(
+        uint8 verifierSel,
         bytes calldata oneStepProof,
         bytes calldata txInclusionProof,
-        VerificationContextLib.RawContext calldata ctx,
+        VerificationContext.RawContext calldata ctx,
         uint256 challengedStepIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external override onlyOnTurn {
-        // Verify provided prev bisection.
-        bytes32 prevHash =
-            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
-        if (prevHash != bisectionHash) {
-            revert PreviousStateInconsistent();
+        {
+            // Verify provided prev bisection.
+            bytes32 prevHash =
+                ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+            if (prevHash != bisectionHash) {
+                revert PreviousStateInconsistent();
+            }
         }
         require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
@@ -172,13 +175,15 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
             daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
             // Verify tx context consistency.
             // TODO: leaky abstraction (assumes `txInclusionProof` structure).
+            // TODO: check if the coinbase is the sequencer.
             (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
-            if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
+            if (VerificationContext.txContextHash(ctx) != txContextHash) {
                 revert TxContextInconsistent();
             }
         }
         // Verify OSP.
-        bytes32 endHash = verifier.verifyOneStepProof(prevBisection[challengedStepIndex - 1], ctx, oneStepProof);
+        bytes32 endHash = verifier.verifyOneStepProof(ctx, verifierSel, prevBisection[challengedStepIndex - 1], oneStepProof);
+
         // Require that the end state differs from the counterparty's.
         if (endHash != prevBisection[challengedStepIndex]) {
             _currentWin(CompletionReason.OSP_VERIFIED);

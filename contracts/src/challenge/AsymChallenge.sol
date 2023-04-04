@@ -23,7 +23,7 @@
 pragma solidity ^0.8.0;
 
 import "./IChallenge.sol";
-import "./verifier/IVerifier.sol";
+import "./verifier/IVerifierEntry.sol";
 import "./ChallengeBase.sol";
 import "../IDAProvider.sol";
 import "../libraries/Errors.sol";
@@ -52,7 +52,7 @@ contract AsymChallenge is ChallengeBase, IAsymChallenge {
         address _defender,
         address _challenger,
         bytes32 _bisectionHash,
-        IVerifier _verifier,
+        IVerifierEntry _verifier,
         IDAProvider _daProvider,
         IChallengeResultReceiver _resultReceiver,
         uint256 challengePeriod

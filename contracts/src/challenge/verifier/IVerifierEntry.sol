@@ -29,7 +29,7 @@ interface IVerifierEntry {
      * @param encoded The one-step proof. TODO: describe format.
      */
     function verifyOneStepProof(
-        VerificationContext.Context memory ctx,
+        VerificationContext.RawContext memory ctx,
         uint8 verifier,
         bytes32 currStateHash,
         bytes calldata encoded

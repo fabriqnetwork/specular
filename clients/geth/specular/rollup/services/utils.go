@@ -48,9 +48,10 @@ func SubmitOneStepProof(
 		log.Crit("UNHANDLED: osp generation failed", "err", err)
 	}
 	_, err = l1Client.VerifyOneStepProof(
+		uint8(osp.VerifierType),
 		osp.Encode(),
-		[]byte{}, // TODO: fix
-		bindings.VerificationContextLibRawContext{}, // TODO: fix
+		[]byte{},                                 // TODO: fix
+		bindings.VerificationContextRawContext{}, // TODO: fix
 		challengedStepIndex,
 		prevBisection,
 		prevChallengedSegmentStart,

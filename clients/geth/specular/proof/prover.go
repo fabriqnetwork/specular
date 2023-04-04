@@ -202,6 +202,8 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 					StepIdx:           uint64(idx + 1),
 				})
 			}
+			// Include refund
+			cumulativeGasUsed.Add(cumulativeGasUsed, new(big.Int).SetUint64(executionResult.UsedGas))
 		}
 
 		// Push the inter state after all transactions

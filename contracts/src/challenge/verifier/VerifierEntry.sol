@@ -71,7 +71,7 @@ contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
     }
 
     function verifyOneStepProof(
-        VerificationContext.Context memory ctx,
+        VerificationContext.RawContext memory rawCtx,
         uint8 verifier,
         bytes32 currStateHash,
         bytes calldata encoded
@@ -98,6 +98,7 @@ contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
         } else {
             revert("unreachable");
         }
+        VerificationContext.Context memory ctx = VerificationContext.fromRaw(rawCtx);
         return impl.verifyOneStepProof(ctx, currStateHash, encoded);
     }
 }

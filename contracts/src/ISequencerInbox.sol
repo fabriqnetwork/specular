@@ -45,11 +45,6 @@ interface ISequencerInbox is IDAProvider {
     function sequencerAddress() external view returns (address);
 
     /**
-     * @notice Gets inbox size (number of messages).
-     */
-    function getInboxSize() external view returns (uint256);
-
-    /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.
      * @param contexts Array of contexts, where each context is represented by a uint256 2-tuple:
      * (numTxs, l2Timestamp). Each context corresponds to a single "L2 block".

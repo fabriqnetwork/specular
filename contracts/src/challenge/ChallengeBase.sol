@@ -33,7 +33,7 @@ abstract contract ChallengeBase is IChallenge {
 
     Turn public turn;
 
-    IVerifier internal verifier;
+    IVerifierEntry internal verifier;
     IDAProvider internal daProvider;
     IChallengeResultReceiver internal resultReceiver;
 

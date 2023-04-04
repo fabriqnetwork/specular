@@ -25,6 +25,7 @@ pragma solidity ^0.8.0;
 import "../IDAProvider.sol";
 import "./verifier/IVerifierEntry.sol";
 
+
 interface IChallengeResultReceiver {
     /**
      * @notice Completes ongoing challenge. Callback, called by a challenge contract.
@@ -111,9 +112,10 @@ interface ISymChallenge is IChallenge {
      * @param prevChallengedSegmentLength Length of the segment challenged in the preceding round (in steps).
      */
     function verifyOneStepProof(
+        uint8 verifier,
         bytes calldata oneStepProof,
         bytes calldata txInclusionProof,
-        VerificationContextLib.RawContext calldata ctx,
+        VerificationContext.RawContext calldata ctx,
         uint256 challengedStepIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,

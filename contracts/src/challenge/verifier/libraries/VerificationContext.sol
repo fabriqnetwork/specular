@@ -30,6 +30,18 @@ library VerificationContext {
     using BytesLib for bytes;
     using EVMTypesLib for EVMTypesLib.Transaction;
 
+    struct RawContext {
+        bytes encodedTx;
+        // Transaction context.
+        address coinbase;
+        uint256 number;
+        uint256 timestamp;
+    }
+
+    function txContextHash(RawContext calldata ctx) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(ctx.coinbase, ctx.number, ctx.timestamp));
+    }
+
     struct Context {
         address coinbase;
         uint256 timestamp;
@@ -40,17 +52,11 @@ library VerificationContext {
         bytes32 txHash;
     }
 
-    function newContext(ISequencerInbox inbox, bytes calldata proof) internal view returns (Context memory ctx) {
-        inbox.verifyTxInclusion(proof);
-        ctx.coinbase = inbox.sequencerAddress();
-        uint256 offset = 0;
-        uint256 txDataLength;
-        (offset, ctx.origin) = DeserializationLib.deserializeAddress(proof, offset);
-        (offset, ctx.number) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, ctx.timestamp) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, txDataLength) = DeserializationLib.deserializeUint256(proof, offset);
-        bytes memory txData = bytes(proof[offset:txDataLength]);
-        ctx.transaction = EVMTypesLib.decodeTransaction(txData);
+    function fromRaw(RawContext memory raw) internal pure returns (Context memory ctx) {
+        ctx.coinbase = raw.coinbase;
+        ctx.number = raw.number;
+        ctx.timestamp = raw.timestamp;
+        ctx.transaction = EVMTypesLib.decodeTransaction(raw.encodedTx);
     }
 
     function getCoinbase(Context memory ctx) internal pure returns (address) {
