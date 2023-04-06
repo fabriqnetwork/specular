@@ -42,11 +42,12 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(3);
+        users = utils.createUsers(4);
 
         deployer = users[0];
         sequencerAddress = users[1];
         alice = users[2];
+        bob = users[3];
     }
 }
 
@@ -395,6 +396,134 @@ contract RollupTest is RollupBaseSetup {
         vm.prank(bob);
         vm.expectRevert(IRollup.ChallengePeriodPending.selector);
         rollup.confirmFirstUnresolvedAssertion();
+    }
+
+    function test_confirmFirstUnresolvedAssertion_positiveCase(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod
+    ) public {
+        // Initializing the rollup
+        confirmationPeriod = bound(confirmationPeriod, 1 days, 30 days);
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            1 days,
+            1 ether, // baseStakeAmount
+            0,
+            0
+        );
+
+        // There should be assertionIDs right now, therefore, lastCreatedAssertionID == lastResolvedAssertionID
+        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+        uint256 lastResolvedAssertionID = rollup.lastResolvedAssertionID();
+        assert(lastCreatedAssertionID == lastResolvedAssertionID); // Initially, both will be the same as the initialAssertionID passed into _initializeRollup
+
+        // Let's increase the lastCreatedAssertionID
+        {
+            // Alice has not staked yet and therefore, this function should return `false`
+            (bool isAliceStaked,,,) = rollup.stakers(alice);
+            assertTrue(!isAliceStaked);
+
+            uint256 minimumAmount = rollup.baseStakeAmount();
+            uint256 aliceBalance = alice.balance;
+
+            // Let's stake something on behalf of Alice
+            uint256 aliceAmountToStake = minimumAmount * 10;
+
+            vm.prank(alice);
+            require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+            // Calling the staking function as Alice
+            //slither-disable-next-line arbitrary-send-eth
+            rollup.stake{value: aliceAmountToStake}();
+
+            // Now Alice should be staked
+            uint256 stakerAssertionID;
+
+            // stakers mapping gets updated
+            (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
+            assertTrue(isAliceStaked);
+             
+            emit log_named_uint("Staker Assertion ID", stakerAssertionID);
+
+            (
+                , // Hash of execution state associated with assertion. Currently equiv to `vmHash`.
+                uint256 inboxSize,
+                ,
+                ,
+                uint256 proposalTime,
+                uint256 numStakers,
+                uint256 childInboxSize
+            ) = rollup.assertions(stakerAssertionID);
+
+            emit log_uint(inboxSize);
+            emit log_uint(numStakers);
+            emit log_uint(childInboxSize);
+            emit log_uint(proposalTime);
+
+            uint256 mockInboxSize = 6;
+            bytes32 mockVmHash = bytes32("VM STATE HASH 2");
+
+            uint256 result = rollup.daProvider().getInboxSize();
+            emit log_named_uint("DA_InboxSize", result);
+
+            // Let's try and increase the sequencer inbox size
+            _increaseSequencerInboxSize();
+
+            uint256 result2 = rollup.daProvider().getInboxSize();
+            emit log_named_uint("DA_InboxSize", result2);
+
+            (
+                , // Hash of execution state associated with assertion. Currently equiv to `vmHash`.
+                uint256 inboxSize2,
+                ,
+                ,
+                uint256 proposalTime2,
+                ,
+                
+            ) = rollup.assertions(stakerAssertionID);
+
+            emit log_uint(inboxSize2);
+
+            uint256 minAssertionPeriod = rollup.minimumAssertionPeriod();
+            emit log_named_uint("MAP", minAssertionPeriod);
+            emit log_named_uint("PPT2", proposalTime2);
+
+            vm.warp(block.timestamp + 1 days); // since passed minimum assertion period is 1 days.
+            vm.roll(block.number + (1 days) / 20);
+
+            vm.prank(alice);
+            rollup.createAssertion(mockVmHash, mockInboxSize);
+        }
+
+        lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+        lastResolvedAssertionID = rollup.lastResolvedAssertionID();
+
+        assert(lastCreatedAssertionID > lastResolvedAssertionID);
+
+        (
+            , // Hash of execution state associated with assertion. Currently equiv to `vmHash`.
+            ,
+            ,
+            uint256 deadlineNewlyCreatedAssertionID,
+            ,
+            ,
+            
+        ) = rollup.assertions(lastResolvedAssertionID + 1);
+
+        assert(deadlineNewlyCreatedAssertionID > block.number);
+        uint256 blockLag = deadlineNewlyCreatedAssertionID - block.number; // @note : I think this should not be block.number, rather it should be time.
+
+        vm.roll(block.number + blockLag);
+        vm.warp(block.timestamp + (blockLag * 20)); // Assuming approx 20 seconds for a single block creation.
+
+        vm.prank(bob); // This is to show that anyone can call this function
+        rollup.confirmFirstUnresolvedAssertion();
+
+        lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+        lastResolvedAssertionID = rollup.lastResolvedAssertionID();
+
+        assertEq(lastCreatedAssertionID, lastResolvedAssertionID, "The lastResolvedAssertionID has not incremented");
     }
 
     /////////////////////////
