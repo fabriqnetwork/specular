@@ -42,10 +42,11 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(2);
+        users = utils.createUsers(3);
 
         deployer = users[0];
         sequencerAddress = users[1];
+        alice = users[2];
     }
 }
 
@@ -294,5 +295,66 @@ contract RollupTest is RollupBaseSetup {
         Rollup implementationRollup = new Rollup();
         rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
         vm.stopPrank();
+    }
+
+    ///////////////////////////////////////////
+    // Confirm First Unresolved Assertion
+    ///////////////////////////////////////////
+
+    function test_confirmFirstUnresolvedAssertion_noUnresolvedAssertion(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 defenderAssertionID,
+        uint256 challengerAssertionID,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) public {
+        // Initializing the rollup
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            1 ether, // baseStakeAmount
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        // There should be assertionIDs right now, therefore, lastCreatedAssertionID == lastResolvedAssertionID
+        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+        uint256 lastResolvedAssertionID = rollup.lastResolvedAssertionID();
+        assert(lastCreatedAssertionID <= lastResolvedAssertionID);
+
+        // Now, let's make sure that the 0th assertionID has one staker
+        // @note This is NOT a necessary step
+        {
+            (bool isAliceStaked,,,) = rollup.stakers(alice);
+            assertTrue(!isAliceStaked);
+
+            uint256 minimumAmount = rollup.baseStakeAmount();
+            uint256 aliceBalance = alice.balance;
+
+            // Let's stake something on behalf of Alice
+            uint256 aliceAmountToStake = minimumAmount * 10;
+
+            vm.prank(alice);
+            require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+
+            // Calling the staking function as Alice
+            //slither-disable-next-line arbitrary-send-eth
+            rollup.stake{value: aliceAmountToStake}();
+
+            // Now Alice should be staked
+            uint256 stakerAssertionID;
+
+            // stakers mapping gets updated
+            (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
+            assertTrue(isAliceStaked);
+        }
+
+        // Calling rollup.confirmFirstUnresolvedAssertion as a staker.
+        vm.prank(alice);
+        vm.expectRevert(IRollup.NoUnresolvedAssertion.selector);
+        rollup.confirmFirstUnresolvedAssertion();
     }
 }
