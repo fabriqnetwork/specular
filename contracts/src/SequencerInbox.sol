@@ -28,7 +28,6 @@ import "./libraries/Errors.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-
 import "hardhat/console.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable {
@@ -40,8 +39,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     uint256 public delayedMessagesRead;
     // delayedInbox hashes array
     bytes32[] public delayedInbox;
-
-    bytes32[] public messageDataHashes;
 
     uint256 public delayedMessageCounter;
 
@@ -91,9 +88,9 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         internal
         returns (uint256 delayedMessageCount)
     {
-        messageDataHashes.push(_messageDataHash);
         delayedMessageCount = delayedInbox.length;
         console.log("delayed message count %d", delayedMessageCount);
+        // generating a message hash
         bytes32 messageHash = keccak256(
             abi.encodePacked(
                 _sender, uint64(block.number), uint64(block.timestamp), delayedMessageCount, block.basefee, _messageDataHash
@@ -102,11 +99,13 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         console.log("Printing message Hash");
         console.logBytes32(messageHash);
+
+        // saving the block data for forceInclusion (it is for testing purposes as of now)
         l1BlockAndTime[0] = uint64(block.number);
         l1BlockAndTime[1] = uint64(block.timestamp);
-
         baseFee = block.basefee;
 
+        // adding the message to delayedInbox
         delayedInbox.push(messageHash);
         delayedMessageCounter++;
         return delayedMessageCount;
@@ -119,20 +118,26 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint64[2] calldata _l1BlockAndTime,
         bytes32 messageDataHash
     ) external {
+        // check to avoid invalid index
         if (delayedMessageIndex > delayedInbox.length) revert();
+        // check to avoid already included transactions
         if (delayedMessageIndex < delayedMessagesRead) revert ();
 
+        // calculating messageHash with all the given message data
         bytes32 messageHash = keccak256(
             abi.encodePacked(
                 _sender, _l1BlockAndTime[0], _l1BlockAndTime[1], delayedMessageIndex, baseFeeL1, messageDataHash
             )
         );
 
+        // enforcing the 1 day time limit
         if (_l1BlockAndTime[0] + 5760 >= block.number) revert ();
         if (_l1BlockAndTime[1] + 86400 >= block.timestamp) revert ();
 
         console.logBytes32(messageHash);
         console.logBytes32(delayedInbox[delayedMessageIndex]);
+
+        // messageHash should be identical to hash stored in delayedInbox
         if (messageHash != delayedInbox[delayedMessageIndex]) revert EmptyBatch();
 
         bytes32 txContentHash = keccak256(abi.encodePacked(_sender, l2BlockAndTime[0], l2BlockAndTime[1]));
@@ -149,6 +154,8 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         }
         if (numTxs <= inboxSize) revert EmptyBatch();
         inboxSize = numTxs;
+
+        // pushing it to main accumulator
         accumulators.push(runningAccumulator);
 
         delayedMessagesRead = delayedMessageIndex + 1;
