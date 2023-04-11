@@ -35,12 +35,14 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     uint256 private inboxSize;
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
-
+    // delayedMessages successfully read from the delayedInbox
     uint256 public delayedMessagesRead;
     // delayedInbox hashes array
-    bytes32[] public delayedInbox;
+    bytes32[] public delayedInboxAccumulator;
 
     uint256 public delayedMessageCounter;
+
+    bytes32[] public messageDataHashes;
 
     address public sequencerAddress;
 
@@ -79,6 +81,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256 value,
         bytes calldata data
     ) external {
+        console.log("something");
         if (gasLimit > type(uint256).max) revert();
 
         addToDelayedInbox(msg.sender, keccak256(abi.encodePacked(gasLimit, maxFeePerGas, nonce, to, value, data)));
@@ -88,7 +91,9 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         internal
         returns (uint256 delayedMessageCount)
     {
-        delayedMessageCount = delayedInbox.length;
+
+        messageDataHashes.push(_messageDataHash);
+        delayedMessageCount = delayedInboxAccumulator.length;
         console.log("delayed message count %d", delayedMessageCount);
         // generating a message hash
         bytes32 messageHash = keccak256(
@@ -100,13 +105,18 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         console.log("Printing message Hash");
         console.logBytes32(messageHash);
 
+        bytes32 prevAcc = 0;
+        if (delayedMessageCount > 0) {
+            prevAcc = delayedInboxAccumulator[delayedMessageCount - 1];
+        }
+
         // saving the block data for forceInclusion (it is for testing purposes as of now)
         l1BlockAndTime[0] = uint64(block.number);
         l1BlockAndTime[1] = uint64(block.timestamp);
         baseFee = block.basefee;
 
         // adding the message to delayedInbox
-        delayedInbox.push(messageHash);
+        delayedInboxAccumulator.push(keccak256(abi.encodePacked(prevAcc, messageHash)));
         delayedMessageCounter++;
         return delayedMessageCount;
     }
@@ -119,7 +129,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         bytes32 messageDataHash
     ) external {
         // check to avoid invalid index
-        if (delayedMessageIndex > delayedInbox.length) revert();
+        if (delayedMessageIndex >= delayedInboxAccumulator.length) revert();
         // check to avoid already included transactions
         if (delayedMessageIndex < delayedMessagesRead) revert ();
 
@@ -129,16 +139,22 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
                 _sender, _l1BlockAndTime[0], _l1BlockAndTime[1], delayedMessageIndex, baseFeeL1, messageDataHash
             )
         );
+        console.logBytes32(messageHash);
 
         // enforcing the 1 day time limit
         if (_l1BlockAndTime[0] + 5760 >= block.number) revert ();
         if (_l1BlockAndTime[1] + 86400 >= block.timestamp) revert ();
 
         console.logBytes32(messageHash);
-        console.logBytes32(delayedInbox[delayedMessageIndex]);
+        console.logBytes32(delayedInboxAccumulator[delayedMessageIndex]);
+
+        bytes32 prevDelayedAcc = 0;
+        if (delayedInboxAccumulator.length > 1) {
+            prevDelayedAcc = delayedInboxAccumulator[delayedMessageIndex - 1];
+        }
 
         // messageHash should be identical to hash stored in delayedInbox
-        if (messageHash != delayedInbox[delayedMessageIndex]) revert EmptyBatch();
+        if (keccak256(abi.encodePacked(prevDelayedAcc, messageHash)) != delayedInboxAccumulator[delayedMessageIndex]) revert EmptyBatch();
 
         bytes32 txContentHash = keccak256(abi.encodePacked(_sender, l2BlockAndTime[0], l2BlockAndTime[1]));
 
@@ -148,7 +164,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         }
         uint256 numTxs = inboxSize;
         for (uint256 i = delayedMessagesRead; i <= delayedMessageIndex; i++) {
-            bytes32 txDataHash = delayedInbox[i];
+            bytes32 txDataHash = delayedInboxAccumulator[i];
             runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContentHash, txDataHash));
             numTxs++;
         }
@@ -171,9 +187,13 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
+        // check - if messages already read
         if (_totalDelayedMessagesRead < delayedMessagesRead) revert();
+        // check - if new index is valid
+        if (_totalDelayedMessagesRead > delayedInboxAccumulator.length) revert();
 
         uint256 numTxs = inboxSize;
+
         bytes32 runningAccumulator;
         if (accumulators.length > 0) {
             runningAccumulator = accumulators[accumulators.length - 1];
@@ -185,16 +205,18 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             initialDataOffset := txBatch.offset
         }
 
+
         uint256 dataOffset = initialDataOffset;
 
         uint256 l2BlockNumber;
         uint256 l2Timestamp;
+        bytes32 txContextHash;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
             // TODO: consider adding L1 context.
             l2BlockNumber = contexts[i + 1];
             l2Timestamp = contexts[i + 2];
-            bytes32 txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
+            txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
 
             uint256 numCtxTxs = contexts[i];
             for (uint256 j = 0; j < numCtxTxs; j++) {
@@ -211,6 +233,17 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
                 numTxs++;
             }
         }
+
+
+        bytes32 prevDelayedAccumulator = 0;
+        if (prevDelayedAccumulator.length > 0) {
+            prevDelayedAccumulator = prevDelayedAccumulator[prevDelayedAccumulator.length - 1];
+        }
+
+        // number of delayed Tx being added.
+        numTxs +=  _totalDelayedMessagesRead - delayedMessagesRead;
+
+        runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, prevDelayedAccumulator));
 
         if (numTxs <= inboxSize) revert EmptyBatch();
         uint256 start = inboxSize;

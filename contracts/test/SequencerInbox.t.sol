@@ -108,6 +108,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
     //////////////////////////////
 
     function test_force_inclusion() external {
+        console.log("Something");
         vm.prank(bob);
         vm.deal(bob, 1 ether);
 
