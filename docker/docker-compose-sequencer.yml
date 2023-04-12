@@ -27,3 +27,10 @@ services:
       - --rollup.sequencer-inbox-addr=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
       - --rollup.rollup-addr=0x5FC8d32690cc91D4c39d9d3abcBD16989F875707
       - --rollup.rollup-stake-amount=100
+  netdata:
+    extends:
+      file: ./services/docker-compose-netdata.yml
+      service: netdata
+    container_name: netdata
+    ports:
+      - 19999:19999
