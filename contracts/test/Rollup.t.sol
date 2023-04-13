@@ -323,7 +323,7 @@ contract RollupTest is RollupBaseSetup {
             // stakers mapping gets updated
             (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
             assertTrue(isAliceStaked);
-             
+
             emit log_named_uint("Staker Assertion ID", stakerAssertionID);
 
             (
@@ -360,7 +360,6 @@ contract RollupTest is RollupBaseSetup {
                 ,
                 uint256 proposalTime2,
                 ,
-                
             ) = rollup.assertions(stakerAssertionID);
 
             emit log_uint(inboxSize2);
@@ -388,7 +387,6 @@ contract RollupTest is RollupBaseSetup {
             uint256 deadlineNewlyCreatedAssertionID,
             ,
             ,
-            
         ) = rollup.assertions(lastResolvedAssertionID + 1);
 
         assert(deadlineNewlyCreatedAssertionID > block.number);
@@ -398,10 +396,9 @@ contract RollupTest is RollupBaseSetup {
         rollup.confirmFirstUnresolvedAssertion();
     }
 
-    function test_confirmFirstUnresolvedAssertion_positiveCase(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod
-    ) public {
+    function test_confirmFirstUnresolvedAssertion_positiveCase(uint256 confirmationPeriod, uint256 challengePeriod)
+        public
+    {
         // Initializing the rollup
         confirmationPeriod = bound(confirmationPeriod, 1 days, 30 days);
         _initializeRollup(
@@ -443,7 +440,7 @@ contract RollupTest is RollupBaseSetup {
             // stakers mapping gets updated
             (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
             assertTrue(isAliceStaked);
-             
+
             emit log_named_uint("Staker Assertion ID", stakerAssertionID);
 
             (
@@ -480,7 +477,6 @@ contract RollupTest is RollupBaseSetup {
                 ,
                 uint256 proposalTime2,
                 ,
-                
             ) = rollup.assertions(stakerAssertionID);
 
             emit log_uint(inboxSize2);
@@ -508,7 +504,6 @@ contract RollupTest is RollupBaseSetup {
             uint256 deadlineNewlyCreatedAssertionID,
             ,
             ,
-            
         ) = rollup.assertions(lastResolvedAssertionID + 1);
 
         assert(deadlineNewlyCreatedAssertionID > block.number);
