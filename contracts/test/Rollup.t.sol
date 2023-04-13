@@ -287,7 +287,7 @@ contract RollupTest is RollupBaseSetup {
         _initializeRollup(
             confirmationPeriod,
             challengePeriod,
-            1 days,
+            1,
             1 ether, // baseStakeAmount
             0,
             0
@@ -368,8 +368,8 @@ contract RollupTest is RollupBaseSetup {
             emit log_named_uint("MAP", minAssertionPeriod);
             emit log_named_uint("PPT2", proposalTime2);
 
-            vm.warp(block.timestamp + 1 days); // since passed minimum assertion period is 1 days.
-            vm.roll(block.number + (1 days) / 20);
+            vm.roll(block.number + 1); // since minimum assertion period is 1 (block)
+            vm.warp(block.timestamp + (1 * 20));
 
             vm.prank(alice);
             rollup.createAssertion(mockVmHash, mockInboxSize);
@@ -404,7 +404,7 @@ contract RollupTest is RollupBaseSetup {
         _initializeRollup(
             confirmationPeriod,
             challengePeriod,
-            1 days,
+            1, // 1 means 1 block
             1 ether, // baseStakeAmount
             0,
             0
@@ -485,8 +485,8 @@ contract RollupTest is RollupBaseSetup {
             emit log_named_uint("MAP", minAssertionPeriod);
             emit log_named_uint("PPT2", proposalTime2);
 
-            vm.warp(block.timestamp + 1 days); // since passed minimum assertion period is 1 days.
-            vm.roll(block.number + (1 days) / 20);
+            vm.roll(block.number + 1); // since minimum assertion period is 1 (block)
+            vm.warp(block.timestamp + (1 * 20));
 
             vm.prank(alice);
             rollup.createAssertion(mockVmHash, mockInboxSize);
