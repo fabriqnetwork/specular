@@ -42,10 +42,12 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(2);
+        users = utils.createUsers(4);
 
         deployer = users[0];
         sequencerAddress = users[1];
+        alice = users[2];
+        bob = users[3];
     }
 }
 
@@ -74,7 +76,6 @@ contract RollupTest is RollupBaseSetup {
         assertEq(fetchedSequencerAddress, sequencerAddress);
     }
 
-    // Tests the zero value initialization
     function test_fuzz_zeroValues(address _vault, address _sequencerInboxAddress, address _verifier) external {
         vm.assume(_vault >= address(0));
         vm.assume(_sequencerInboxAddress >= address(0));
@@ -213,6 +214,173 @@ contract RollupTest is RollupBaseSetup {
                 "Rollup.initialize failed to update baseStakeAmount value correctly"
             );
         }
+    }
+
+    ////////////////
+    // Staking
+    ///////////////
+
+    function test_stake_isStaked(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 baseStakeAmount,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            baseStakeAmount,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(!isAliceStaked);
+    }
+
+    function test_stake_insufficentAmountStaking(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            type(uint256).max,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        if (aliceBalance > minimumAmount) {
+            aliceBalance = minimumAmount / 10;
+        }
+
+        vm.expectRevert(IRollup.InsufficientStake.selector);
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalance}();
+
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(!isAliceStaked);
+    }
+
+    function test_stake_sufficientAmountStakingAndNumStakersIncrement(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
+        );
+
+        uint256 initialStakers = rollup.numStakers();
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalance}();
+
+        uint256 finalStakers = rollup.numStakers();
+
+        assertEq(alice.balance, 0, "Alice should not have any balance left");
+        assertEq(finalStakers, (initialStakers + 1), "Number of stakers should increase by 1");
+
+        // isStaked should return true for Alice now
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(isAliceStaked);
+
+        uint256 amountStaked;
+        uint256 assertionID;
+        address challengeAddress;
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+
+        assertEq(amountStaked, aliceBalance, "amountStaked not updated properly");
+        assertEq(assertionID, rollup.lastConfirmedAssertionID(), "assertionID not updated properly");
+        assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
+    }
+
+    function test_stake_increaseStake(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
+        );
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalanceInitial = alice.balance;
+        uint256 bobBalance = bob.balance;
+
+        assertGt(
+            aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test"
+        );
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalanceInitial}();
+
+        uint256 initialStakers = rollup.numStakers();
+
+        uint256 amountStaked;
+        uint256 assertionID;
+        address challengeAddress;
+
+        // isStaked should return true for Alice now
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(isAliceStaked);
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+
+        uint256 aliceBalanceFinal = alice.balance;
+
+        assertEq(alice.balance, 0, "Alice should not have any balance left");
+        assertGt(bob.balance, 0, "Bob should have a non-zero native currency balance");
+
+        vm.prank(bob);
+        (bool sent,) = alice.call{value: bob.balance}("");
+        require(sent, "Failed to send Ether");
+
+        assertEq((aliceBalanceInitial - aliceBalanceFinal), bobBalance, "Tokens transferred successfully");
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: alice.balance}();
+
+        uint256 finalStakers = rollup.numStakers();
+
+        uint256 amountStakedFinal;
+        uint256 assertionIDFinal;
+        address challengeAddressFinal;
+
+        // stakers mapping gets updated (only the relevant values)
+        (isAliceStaked, amountStakedFinal, assertionIDFinal, challengeAddressFinal) = rollup.stakers(alice);
+
+        assertEq(challengeAddress, challengeAddressFinal, "Challenge Address should not change with more staking");
+        assertEq(assertionID, assertionIDFinal, "Challenge Address should not change with more staking");
+        assertEq(amountStakedFinal, (amountStaked + bobBalance), "Additional stake not updated correctly");
+        assertEq(initialStakers, finalStakers, "Number of stakers should not increase");
     }
 
     /////////////////////////
