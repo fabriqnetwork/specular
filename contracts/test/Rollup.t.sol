@@ -261,10 +261,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
 
-        /*
-            emit log_named_uint("BSA", minimumAmount);
-        */
-
         if (aliceBalance > minimumAmount) {
             aliceBalance = minimumAmount / 10;
         }
@@ -293,10 +289,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialStakers = rollup.numStakers();
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
-
-        /*
-            emit log_named_uint("BSA", minimumAmount);
-        */
 
         assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
 
@@ -339,10 +331,6 @@ contract RollupTest is RollupBaseSetup {
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalanceInitial = alice.balance;
         uint256 bobBalance = bob.balance;
-
-        /*
-            emit log_named_uint("BSA", minimumAmount);
-        */
 
         assertGt(
             aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test"
