@@ -229,7 +229,7 @@ contract Rollup is RollupBase {
         if (!success) revert TransferFailed();
     }
 
-event Debugger(string, uint);
+    event Debugger(string, uint);
 
     /// @inheritdoc IRollup
     function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly {
@@ -237,6 +237,7 @@ event Debugger(string, uint);
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
         // @audit-issue Pretty sure it should be block.timestamp instead of block.number, however confirm with the team once.
+        // @note: From @Ujval 1. Sibling assertions with different inbox test times.
         /*
         if (block.number - parent.proposalTime < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
@@ -331,6 +332,7 @@ event Debugger(string, uint);
         }
 
         // (1) there is at least one staker, and
+        // @audit-issue Impossible condition. Can remove.
         if (numStakers <= 0) revert NoStaker();
 
         uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
