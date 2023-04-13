@@ -229,21 +229,12 @@ contract Rollup is RollupBase {
         if (!success) revert TransferFailed();
     }
 
-    event Debugger(string, uint);
-
     /// @inheritdoc IRollup
     function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly {
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
-        // @audit-issue Pretty sure it should be block.timestamp instead of block.number, however confirm with the team once.
-        // @note: From @Ujval 1. Sibling assertions with different inbox test times.
-        /*
         if (block.number - parent.proposalTime < minimumAssertionPeriod) {
-            revert MinimumAssertionPeriodNotPassed();
-        }
-        */
-        if (block.timestamp - parent.proposalTime < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
         }
         // Require that the assertion at least includes one transaction
@@ -253,19 +244,12 @@ contract Rollup is RollupBase {
         // TODO: Enforce stricter bounds on assertion size.
         // Require that the assertion doesn't read past the end of the current inbox.
         if (inboxSize > daProvider.getInboxSize()) {
-            emit Debugger("DAProvider Inbox Size", daProvider.getInboxSize());
             revert InboxReadLimitExceeded();
         }
 
         // Initialize assertion.
         lastCreatedAssertionID++;
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash);
-
-        emit Debugger("LCAID", lastCreatedAssertionID);
-        emit Debugger("IS", inboxSize);
-        emit Debugger("PID", parentID);
-        emit Debugger("NAD", newAssertionDeadline());
-
 
         createAssertionHelper(lastCreatedAssertionID, vmHash, inboxSize, parentID, newAssertionDeadline());
 
@@ -332,7 +316,6 @@ contract Rollup is RollupBase {
         }
 
         // (1) there is at least one staker, and
-        // @audit-issue Impossible condition. Can remove.
         if (numStakers <= 0) revert NoStaker();
 
         uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
@@ -469,26 +452,18 @@ contract Rollup is RollupBase {
         uint256 parentID,
         uint256 deadline
     ) private {
-        emit Debugger("CAH", 1);
         Assertion storage parentAssertion = assertions[parentID];
         AssertionState storage parentAssertionState = assertionState[parentID];
-        emit Debugger("CAH", 2);
         // Child assertions must have same inbox size
         uint256 parentChildInboxSize = parentAssertion.childInboxSize;
-        emit Debugger("CAH", 3);
         if (parentChildInboxSize == 0) {
-            emit Debugger("CAHH", 3);
             parentAssertion.childInboxSize = inboxSize;
         } else if (inboxSize != parentChildInboxSize) {
-            emit Debugger("CAHHH", 3);
             revert InvalidInboxSize();
         } else if (parentAssertionState.childStateHashes[stateHash]) {
-            emit Debugger("CAHHHHH", 3);
             revert DuplicateAssertion();
         }
-        emit Debugger("CAH", 4);
         parentAssertionState.childStateHashes[stateHash] = true;
-        emit Debugger("CAH", 5);
         assertions[assertionID] = Assertion(
             stateHash,
             inboxSize,
@@ -498,7 +473,6 @@ contract Rollup is RollupBase {
             0, // numStakers
             0 // childInboxSize
         );
-        emit Debugger("CAH", 6);
     }
 
     /**
@@ -531,8 +505,6 @@ contract Rollup is RollupBase {
 
     function newAssertionDeadline() private view returns (uint256) {
         // TODO: account for prev assertion, gas
-        // @audit-issue Is this really supposed to be block.number? Cause that would mean confirmationPeriod is in terms of blocknumbers too.
-        // @audit-issue Issue a min/max value for assigning to confirmationPeriod.
         return block.number + confirmationPeriod;
     }
 
