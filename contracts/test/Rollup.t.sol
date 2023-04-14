@@ -286,12 +286,6 @@ contract RollupTest is RollupBaseSetup {
 
         uint256 aliceBalanceInitial = alice.balance;
 
-        /*
-            emit log_named_address("MSGS" , msg.sender);
-            emit log_named_address("Alice", alice);
-            emit log_named_address("Rollup", address(rollup));
-        */
-
         amountToWithdraw = _generateRandomUintInRange(1, (aliceAmountToStake - minimumAmount), amountToWithdraw);
 
         vm.prank(alice);
@@ -336,12 +330,6 @@ contract RollupTest is RollupBaseSetup {
         // Now Alice should be staked
         (isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
-
-        /*
-            emit log_named_address("MSGS" , msg.sender);
-            emit log_named_address("Alice", alice);
-            emit log_named_address("Rollup", address(rollup));
-        */
 
         amountToWithdraw =
             _generateRandomUintInRange((aliceAmountToStake - minimumAmount) + 1, type(uint256).max, amountToWithdraw);
