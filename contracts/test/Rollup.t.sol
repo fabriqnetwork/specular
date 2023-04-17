@@ -217,6 +217,254 @@ contract RollupTest is RollupBaseSetup {
     }
 
     ////////////////
+    // Staking
+    ///////////////
+
+    function test_stake_isStaked(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 baseStakeAmount,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            baseStakeAmount,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        // Alice has not staked yet and therefore, this function should return `false`
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(!isAliceStaked);
+    }
+
+    function test_stake_insufficentAmountStaking(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            type(uint256).max,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        if (aliceBalance > minimumAmount) {
+            aliceBalance = minimumAmount / 10;
+        }
+
+        vm.expectRevert(IRollup.InsufficientStake.selector);
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalance}();
+
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(!isAliceStaked);
+    }
+
+    function test_stake_sufficientAmountStakingAndNumStakersIncrement(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
+        );
+
+        uint256 initialStakers = rollup.numStakers();
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalance = alice.balance;
+
+        assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalance}();
+
+        uint256 finalStakers = rollup.numStakers();
+
+        assertEq(alice.balance, 0, "Alice should not have any balance left");
+        assertEq(finalStakers, (initialStakers + 1), "Number of stakers should increase by 1");
+
+        // isStaked should return true for Alice now
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(isAliceStaked);
+
+        uint256 amountStaked;
+        uint256 assertionID;
+        address challengeAddress;
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+
+        assertEq(amountStaked, aliceBalance, "amountStaked not updated properly");
+        assertEq(assertionID, rollup.lastConfirmedAssertionID(), "assertionID not updated properly");
+        assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
+    }
+
+    function test_stake_increaseStake(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) external {
+        _initializeRollup(
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
+        );
+
+        uint256 minimumAmount = rollup.baseStakeAmount();
+        uint256 aliceBalanceInitial = alice.balance;
+        uint256 bobBalance = bob.balance;
+
+        assertGt(
+            aliceBalanceInitial, minimumAmount, "Alice's Balance should be greater than stake amount for this test"
+        );
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: aliceBalanceInitial}();
+
+        uint256 initialStakers = rollup.numStakers();
+
+        uint256 amountStaked;
+        uint256 assertionID;
+        address challengeAddress;
+
+        // isStaked should return true for Alice now
+        (bool isAliceStaked,,,) = rollup.stakers(alice);
+        assertTrue(isAliceStaked);
+
+        // stakers mapping gets updated
+        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+
+        uint256 aliceBalanceFinal = alice.balance;
+
+        assertEq(alice.balance, 0, "Alice should not have any balance left");
+        assertGt(bob.balance, 0, "Bob should have a non-zero native currency balance");
+
+        vm.prank(bob);
+        (bool sent,) = alice.call{value: bob.balance}("");
+        require(sent, "Failed to send Ether");
+
+        assertEq((aliceBalanceInitial - aliceBalanceFinal), bobBalance, "Tokens transferred successfully");
+
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: alice.balance}();
+
+        uint256 finalStakers = rollup.numStakers();
+
+        uint256 amountStakedFinal;
+        uint256 assertionIDFinal;
+        address challengeAddressFinal;
+
+        // stakers mapping gets updated (only the relevant values)
+        (isAliceStaked, amountStakedFinal, assertionIDFinal, challengeAddressFinal) = rollup.stakers(alice);
+
+        assertEq(challengeAddress, challengeAddressFinal, "Challenge Address should not change with more staking");
+        assertEq(assertionID, assertionIDFinal, "Challenge Address should not change with more staking");
+        assertEq(amountStakedFinal, (amountStaked + bobBalance), "Additional stake not updated correctly");
+        assertEq(initialStakers, finalStakers, "Number of stakers should not increase");
+    }
+
+    /////////////////////////
+    // Auxillary Functions
+    /////////////////////////
+
+    function checkRange(uint256 _lower, uint256 _upper, uint256 _random) external {
+        uint256 test = _generateRandomUintInRange(_lower, _upper, _random);
+
+        require(test >= _lower && test <= _upper, "Cheat didn't work as expected");
+        assertEq(uint256(2), uint256(2));
+    }
+
+    function _generateRandomUintInRange(uint256 _lower, uint256 _upper, uint256 randomUint)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 boundedUint = bound(randomUint, _lower, _upper);
+        return boundedUint;
+    }
+
+    // This function increases the inbox size by 6
+    function _increaseSequencerInboxSize() internal {
+        uint256 numTxnsPerBlock = 3;
+
+        // Each context corresponds to a single "L2 block"
+        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        // Let's create an array of contexts
+        uint256 timeStamp1 = block.timestamp / 10;
+        uint256 timeStamp2 = block.timestamp / 5;
+        uint256 blockNumber1 = timeStamp1 / 20;
+        uint256 blockNumber2 = timeStamp2 / 20;
+
+        uint256[] memory contexts = new uint256[](6);
+
+        // Let's assume that we had 2 blocks and each had 3 transactions
+        contexts[0] = (numTxnsPerBlock);
+        contexts[1] = (blockNumber1);
+        contexts[2] = (timeStamp1);
+        contexts[3] = (numTxnsPerBlock);
+        contexts[4] = (blockNumber2);
+        contexts[5] = (timeStamp2);
+
+        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
+        // txBatch is defined as: Batch of RLP-encoded transactions
+        bytes memory txBatch = _helper_createTxBatch_hardcoded();
+        uint256[] memory txLengths = _helper_findTxLength_hardcoded();
+
+        // Pranking as the sequencer and calling appendTxBatch
+        vm.prank(sequencerAddress);
+        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+    }
+
+    function _initializeRollup(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 baseStakeAmount,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) internal {
+        bytes memory initializingData = abi.encodeWithSelector(
+            Rollup.initialize.selector,
+            sequencerAddress,
+            address(seqIn), // sequencerInbox
+            address(verifier),
+            confirmationPeriod, //confirmationPeriod
+            challengePeriod, //challengePeriod
+            minimumAssertionPeriod, // minimumAssertionPeriod
+            baseStakeAmount, //baseStakeAmount
+            initialAssertionID,
+            initialInboxSize,
+            bytes32("") //initialVMHash
+        );
+
+        // Deploying the rollup contract as the rollup owner/deployer
+        vm.startPrank(deployer);
+        Rollup implementationRollup = new Rollup();
+        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
+        vm.stopPrank();
+    }
+
+////////////////
     // Unstaking
     ///////////////
 
@@ -408,86 +656,5 @@ contract RollupTest is RollupBaseSetup {
         vm.prank(alice);
         vm.expectRevert(IRollup.StakedOnUnconfirmedAssertion.selector);
         rollup.unstake(stakedAmount);
-    }
-
-    /////////////////////////
-    // Auxillary Functions
-    /////////////////////////
-
-    function checkRange(uint256 _lower, uint256 _upper, uint256 _random) external {
-        uint256 test = _generateRandomUintInRange(_lower, _upper, _random);
-
-        require(test >= _lower && test <= _upper, "Cheat didn't work as expected");
-        assertEq(uint256(2), uint256(2));
-    }
-
-    function _generateRandomUintInRange(uint256 _lower, uint256 _upper, uint256 randomUint)
-        internal
-        view
-        returns (uint256)
-    {
-        uint256 boundedUint = bound(randomUint, _lower, _upper);
-        return boundedUint;
-    }
-
-    // This function increases the inbox size by 6
-    function _increaseSequencerInboxSize() internal {
-        uint256 numTxnsPerBlock = 3;
-
-        // Each context corresponds to a single "L2 block"
-        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-        // Let's create an array of contexts
-        uint256 timeStamp1 = block.timestamp / 10;
-        uint256 timeStamp2 = block.timestamp / 5;
-        uint256 blockNumber1 = timeStamp1 / 20;
-        uint256 blockNumber2 = timeStamp2 / 20;
-
-        uint256[] memory contexts = new uint256[](6);
-
-        // Let's assume that we had 2 blocks and each had 3 transactions
-        contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (blockNumber1);
-        contexts[2] = (timeStamp1);
-        contexts[3] = (numTxnsPerBlock);
-        contexts[4] = (blockNumber2);
-        contexts[5] = (timeStamp2);
-
-        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
-        // txBatch is defined as: Batch of RLP-encoded transactions
-        bytes memory txBatch = _helper_createTxBatch_hardcoded();
-        uint256[] memory txLengths = _helper_findTxLength_hardcoded();
-
-        // Pranking as the sequencer and calling appendTxBatch
-        vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
-    }
-
-    function _initializeRollup(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 minimumAssertionPeriod,
-        uint256 baseStakeAmount,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
-    ) internal {
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
-            sequencerAddress,
-            address(seqIn), // sequencerInbox
-            address(verifier),
-            confirmationPeriod, //confirmationPeriod
-            challengePeriod, //challengePeriod
-            minimumAssertionPeriod, // minimumAssertionPeriod
-            baseStakeAmount, //baseStakeAmount
-            initialAssertionID,
-            initialInboxSize,
-            bytes32("") //initialVMHash
-        );
-
-        // Deploying the rollup contract as the rollup owner/deployer
-        vm.startPrank(deployer);
-        Rollup implementationRollup = new Rollup();
-        rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
-        vm.stopPrank();
     }
 }
