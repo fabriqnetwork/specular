@@ -13,6 +13,16 @@ First setup L1 and then follow following steps
 make install
 ```
 
+### Generate the genesis file
+
+```sh
+cd ../../../contracts
+
+npx ts-node scripts/create_genesis.ts \ 
+--in ../clients/geth/specular/data/base_genesis.json \
+--out ../clients/geth/specular/data/genesis.json
+```
+
 ### L2 setup
 
 ```sh
