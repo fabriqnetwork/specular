@@ -238,6 +238,16 @@ func (b *BaseService) processTxBatchAppendedEvent(
 		return fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
 	}
 	log.Info("Decoded batch", "#txs", len(batch.Txs))
+	safeL2Head := b.Eth.BlockChain().CurrentBlock().Number().Uint64()
+	l1BlockHead, err := b.L1Client.BlockNumber(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to get to L1 head, err: %w", err)
+	}
+	// Validate the TxBatch
+	valid, validationResults := ValidateTxBatch(safeL2Head, l1BlockHead, batch)
+	if !valid {
+		return fmt.Errorf("TxBatch is not valid: %v", validationResults)
+	}
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
 	// Commit only blocks ahead of the current L2 chain.
@@ -249,6 +259,42 @@ func (b *BaseService) processTxBatchAppendedEvent(
 		}
 	}
 	return nil
+}
+
+func ValidateTxBatch(safeL2Head uint64, l1BlockHead uint64, txBatch *rollupTypes.TxBatch) (bool, []string) {
+	// Check if there are any SequenceContexts
+	if len(txBatch.Contexts) == 0 {
+		fmt.Println("No SequenceContexts provided, cannot proceed with TxBatch validation")
+		return false, []string{""}
+	}
+	// Todo: Check if TxBatch timestamp is within an acceptable range
+	sequenceBlocks := txBatch.SplitToBlocks()
+	validationResults := make([]string, len(sequenceBlocks))
+	allValid := true
+	for i, sequenceBlock := range sequenceBlocks {
+		isValid, validationResult := ValidateSequenceBlock(safeL2Head, l1BlockHead, sequenceBlock)
+		validationResults[i] = fmt.Sprintf("SequenceBlock %d: %s", i, validationResult)
+		if !isValid {
+			allValid = false
+		}
+	}
+	return allValid, validationResults
+}
+
+func ValidateSequenceBlock(safeL2Head uint64, l1BlockHead uint64, sequenceBlock *rollupTypes.SequenceBlock) (bool, string) {
+	// Check if the block number is greater than the safe L2 head
+	if sequenceBlock.BlockNumber <= safeL2Head {
+		return false, "Invalid: Block number is less than or equal to the safe L2 head"
+	}
+	// Todo: Check if the block timestamp is greater than the L1 block head timestamp
+
+	// Check if the number of transactions in the block matches the value of NumTxs
+	if uint64(len(sequenceBlock.Txs)) != sequenceBlock.NumTxs {
+		return false, "Invalid: Mismatch between number of transactions in the block and NumTxs"
+	}
+	// Todo: Check for empty transactions
+
+	return true, "Valid"
 }
 
 // TODO: clean up.
