@@ -13,6 +13,7 @@ $GETH_SPECULAR_DIR/build/bin/geth \
     --networkid 13527 \
     --rollup.node 'sequencer' \
     --rollup.coinbase f39fd6e51aad88f6f4ce6ab8827279cfffb92266 \
+    --rollup.clefendpoint 'http://127.0.0.1:8550/' \
     --rollup.l1endpoint 'ws://localhost:8545' \
     --rollup.l1chainid 31337 \
     --rollup.sequencer-inbox-addr '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' \

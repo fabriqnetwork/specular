@@ -51,6 +51,11 @@ var (
 		Usage: "The sequencer/validator address to be unlocked (pass passphrash via --password)",
 		Value: "",
 	}
+	RollupClefEndpointFlag = &cli.StringFlag{
+		Name:  "rollup.clefendpoint",
+		Usage: "The Endpoint of the Clef instance that should be used as a signer)",
+		Value: "",
+	}
 	RollupL1EndpointFlag = &cli.StringFlag{
 		Name:  "rollup.l1endpoint",
 		Usage: "The api endpoint of L1 client",
@@ -146,6 +151,7 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
 		Node:                 node,
 		Coinbase:             coinbase,
 		Passphrase:           passphrase,
+		ClefEndpoint:         ctx.String(RollupClefEndpointFlag.Name),
 		L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
 		L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
 		SequencerAddr:        sequencerAddr,
