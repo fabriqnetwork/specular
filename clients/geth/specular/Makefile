@@ -2,7 +2,7 @@
 
 GOBIN = ./build/bin
 
-install: bindings geth
+install: bindings geth clef
 
 contracts:
 	./sbin/compile_contracts.sh
@@ -10,10 +10,15 @@ contracts:
 bindings: contracts
 	go generate ./...
 
-geth: bindings
+geth:
 	go build -o $(GOBIN)/geth ./cmd/geth
-	@echo "Done building."
+	@echo "Done building geth."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
+
+clef:
+	go build -o $(GOBIN)/clef ./../go-ethereum/cmd/clef
+	@echo "Done building clef."
+	@echo "Run \"$(GOBIN)/clef\" to launch clef."
 
 geth-docker: 
 	go build -o $(GOBIN)/geth ./cmd/geth
