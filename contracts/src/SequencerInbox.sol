@@ -96,15 +96,17 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         delayedMessageCount = delayedInboxAccumulator.length;
         console.log("delayed message count %d", delayedMessageCount);
         // generating a message hash
-        bytes32 messageHash = keccak256(
+        bytes memory messageHash_1 =
             abi.encodePacked(
                 _sender, uint64(block.number), uint64(block.timestamp), delayedMessageCount, block.basefee, _messageDataHash
-            )
-        );
+            );
+
+
 
         console.log("Printing message Hash");
-        console.logBytes32(messageHash);
+        console.logBytes(messageHash_1);
 
+        bytes32 messageHash = keccak256(messageHash_1);
         bytes32 prevAcc = 0;
         if (delayedMessageCount > 0) {
             prevAcc = delayedInboxAccumulator[delayedMessageCount - 1];
@@ -234,6 +236,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             }
         }
 
+        console.logBytes32(runningAccumulator);
 
         bytes32 prevDelayedAccumulator = 0;
         if (prevDelayedAccumulator.length > 0) {
@@ -300,4 +303,61 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             revert ProofVerificationFailed();
         }
     }
+
+    /**
+     * @notice Verifies that a transaction is included in a batch, at the expected offset.
+     * @param encodedTx Transaction to verify inclusion of.
+     * @param proof Proof of inclusion, in the form:
+     * proof := txContextHash || batchInfo || delayedInfo || {foreach delayedTx in batch: ( messageHash ), ...} where,
+     * batchInfo := (batchNum || numTxsBefore || accBefore)
+     * delayedInfo := (numTxsBefore || numTxsAfterInDelayedAcc || delayedAccBefore)
+     * txContextHash := KEC(sequencerAddress || l2BlockNumber || l2Timestamp)
+     */
+    function verifyDelayedTxInclusion(bytes calldata encodedTx, bytes calldata proof) external view override {
+        uint256 offset = 0;
+        // Deserialize tx context of `encodedTx`.
+        bytes32 txContextHash;
+        console.log("TxContexHash: ");
+        console.logBytes32(txContextHash);
+        (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
+        // Deserialize batch info.
+        uint256 batchNum;
+        console.log("BatchNum", batchNum);
+        uint256 numTxs; // num txs before  // might not need it for delayed verification
+        console.log("numTxsBefore", numTxs);
+        bytes32 acc; // main accumulator before
+        console.log("acc before");
+        console.logBytes32(acc);
+        (offset, batchNum) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, numTxs) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
+
+        // delayed txs related data
+        uint256 numTxsBefore;
+        uint256 numTxsAfter;
+        bytes32 delayedAcc; // before
+
+        (offset, numTxsBefore) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, numTxsAfter) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, delayedAcc) = DeserializationLib.deserializeBytes32(proof, offset);
+
+
+        // Start accumulator at the tx.
+        bytes32 txDataHash = keccak256(encodedTx);
+        delayedAcc = keccak256(abi.encodePacked(delayedAcc, txDataHash));
+        numTxs++; // might not need it
+
+        // Compute final delayed accumulator value.
+        for (uint256 i = 0; i < numTxsAfter; i++) {
+            (offset, txDataHash) = DeserializationLib.deserializeBytes32(proof, offset);
+            delayedAcc = keccak256(abi.encodePacked(delayedAcc, txDataHash));
+        }
+        uint256 totalDelayedTxs = numTxsBefore + numTxsAfter + 1;
+        acc = keccak256(abi.encodePacked(acc, totalDelayedTxs, txContextHash, delayedAcc));
+
+        if (acc != accumulators[batchNum]) {
+            revert ProofVerificationFailed();
+        }
+    }
+
 }

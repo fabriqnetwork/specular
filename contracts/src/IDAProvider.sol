@@ -33,4 +33,5 @@ interface IDAProvider {
      * @param proof DA-specific membership proof.
      */
     function verifyTxInclusion(bytes memory encodedTx, bytes calldata proof) external view;
+    function verifyDelayedTxInclusion(bytes memory encodedTx, bytes calldata proof) external view;
 }
