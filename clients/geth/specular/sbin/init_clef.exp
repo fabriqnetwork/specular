@@ -1,0 +1,66 @@
+#!/usr/bin/expect
+
+set CLEF_PW "unsafe-password"
+set ADDR_PW ""
+
+spawn ./init_clef.sh
+
+# init clef masterseed
+expect ">"
+send "ok\n"
+
+expect "Password: "
+send "$CLEF_PW\n"
+
+expect "Repeat password: "
+send "$CLEF_PW\n"
+
+# set account password for 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+expect ">"
+send "ok\n"
+
+expect "Password: "
+send "$ADDR_PW\n"
+
+expect "Repeat password: "
+send "$ADDR_PW\n"
+
+expect "Password: "
+send "$CLEF_PW\n"
+
+# set account password for 0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+expect ">"
+send "ok\n"
+
+expect "Password: "
+send "$ADDR_PW\n"
+
+expect "Repeat password: "
+send "$ADDR_PW\n"
+
+expect "Password: "
+send "$CLEF_PW\n"
+
+# set account password for 0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc
+expect ">"
+send "ok\n"
+
+expect "Password: "
+send "$ADDR_PW\n"
+
+expect "Repeat password: "
+send "$ADDR_PW\n"
+
+expect "Password: "
+send "$CLEF_PW\n"
+
+# attest ruleset hash
+expect ">"
+send "ok\n"
+
+expect "Password: "
+send "$CLEF_PW\n"
+
+interact
+
+

@@ -1,0 +1,17 @@
+#!/bin/bash
+SBIN=`dirname $0`
+SBIN="`cd "$SBIN"; pwd`"
+. $SBIN/configure.sh
+cd $DATA_DIR
+
+CLEF_PW="unsafe-password"
+echo ${CLEF_PW} | \
+$GETH_SPECULAR_DIR/build/bin/clef \
+    --suppress-bootwarn \
+    --configdir ./data_clef/ \
+    --auditlog ./data_clef/audit.log \
+    --signersecret ./data_clef/masterseed.json \
+    --keystore ./data_sequencer/keystore/ \
+    --rules ./ruleset.js \
+    --http \
+    --chainid 31337
