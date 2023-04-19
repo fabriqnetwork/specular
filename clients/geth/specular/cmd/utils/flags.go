@@ -132,12 +132,15 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
 	utils.CheckExclusive(ctx, RollupNodeFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(ctx, RollupNodeFlag, utils.DeveloperFlag)
+
+	clefEndpoint := ctx.String(RollupClefEndpointFlag.Name)
 	var passphrase string
 	if list := utils.MakePasswordList(ctx); len(list) > 0 {
 		passphrase = list[0]
-	} else {
+	} else if clefEndpoint == "" {
 		utils.Fatalf("Failed to register the Rollup service: coinbase account locked")
 	}
+
 	node := ctx.String(RollupNodeFlag.Name)
 	coinbase := common.HexToAddress(ctx.String(RollupCoinBaseFlag.Name))
 	sequencerAddr := common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))

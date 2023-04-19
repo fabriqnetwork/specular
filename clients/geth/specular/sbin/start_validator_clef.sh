@@ -5,7 +5,6 @@ SBIN="`cd "$SBIN"; pwd`"
 cd $DATA_DIR
 $GETH_SPECULAR_DIR/build/bin/geth \
     --datadir ./data_validator \
-    --password ./password.txt \
     --http --http.addr '0.0.0.0' --http.port 4018 --http.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
     --ws --ws.addr '0.0.0.0' --ws.port 4019 --ws.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
     --http.corsdomain '*' --ws.origins '*' \
