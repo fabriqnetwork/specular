@@ -1,7 +1,9 @@
 #!/usr/bin/expect
 
 set CLEF_PW "unsafe-password"
-set ADDR_PW ""
+
+set PW_FILE [open "../data/password.txt"]
+set ADDR_PW [read $PW_FILE]
 
 spawn ./init_clef.sh
 

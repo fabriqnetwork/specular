@@ -4,17 +4,24 @@ SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
 cd $DATA_DIR
 
-$GETH_SPECULAR_DIR/build/bin/geth \
-    --datadir ./data_sequencer \
-    --password ./password.txt \
-    --http --http.addr '0.0.0.0' --http.port 4011 --http.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
-    --ws --ws.addr '0.0.0.0' --ws.port 4012 --ws.api 'personal,eth,net,web3,txpool,miner,proof,debug' \
-    --http.corsdomain '*' --ws.origins '*' \
-    --networkid 13527 \
-    --rollup.node 'sequencer' \
-    --rollup.coinbase f39fd6e51aad88f6f4ce6ab8827279cfffb92266 \
-    --rollup.l1endpoint 'ws://localhost:8545' \
-    --rollup.l1chainid 31337 \
-    --rollup.sequencer-inbox-addr '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' \
-    --rollup.rollup-addr '0x5FC8d32690cc91D4c39d9d3abcBD16989F875707' \
-    --rollup.rollup-stake-amount 100
+args=(
+    --datadir ./data_sequencer
+    --password ./password.txt
+    --http --http.addr '0.0.0.0' --http.port 4011 --http.api 'personal,eth,net,web3,txpool,miner,proof,debug'
+    --ws --ws.addr '0.0.0.0' --ws.port 4012 --ws.api 'personal,eth,net,web3,txpool,miner,proof,debug'
+    --http.corsdomain '*' --ws.origins '*'
+    --networkid $NETWORK_ID
+    --rollup.node 'sequencer'
+    --rollup.coinbase $COINBASE_ADDR
+    --rollup.l1endpoint $L1_ENDPOINT
+    --rollup.l1chainid $L1_CHAIN_ID
+    --rollup.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
+    --rollup.rollup-addr $ROLLUP_ADDR
+    --rollup.rollup-stake-amount $ROLLUP_STAKE_AMOUNT
+)
+
+if $USE_CLEF == 'true'; then
+    args+=(--rollup.clefendpoint $CLEF_ENDPOINT)
+fi
+
+$GETH_SPECULAR_DIR/build/bin/geth "${args[@]}"
