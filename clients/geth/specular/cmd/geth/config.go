@@ -46,6 +46,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
 	"github.com/specularl2/specular/clients/geth/specular/rollup"
+	specularGeth "github.com/specularl2/specular/clients/geth/specular/rollup/geth"
 )
 
 var (
@@ -170,7 +171,9 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		cfg.Eth.OverrideTerminalTotalDifficultyPassed = &override
 	}
 
+	// <specular modification>
 	backend, eth := specularUtils.RegisterEthService(stack, &cfg.Eth)
+	// <specular modification/>
 
 	// Warn users to migrate if they have a legacy freezer format.
 	if eth != nil && !ctx.IsSet(utils.IgnoreLegacyReceiptsFlag.Name) {
@@ -191,9 +194,16 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	// <specular modification>
-	if ctx.IsSet(specularUtils.RollupNodeFlag.Name) {
+	if ctx.IsSet(specularUtils.RollupL1EndpointFlag.Name) {
 		cfg := specularUtils.MakeRollupConfig(ctx)
-		rollup.RegisterRollupService(stack, eth, eth.APIBackend, cfg)
+		execBackend, err := specularGeth.NewExecutionBackend(eth.BlockChain(), eth.TxPool(), cfg.SequencerAccountAddr)
+		proofBackend := eth.APIBackend
+		if err != nil {
+			utils.Fatalf("Failed to create execution backend", "err", err)
+		}
+		if err := rollup.RegisterRollupServices(stack, execBackend, proofBackend, cfg); err != nil {
+			utils.Fatalf("Failed to register the rollup service", "err", err)
+		}
 	}
 	// <specular modification/>
 

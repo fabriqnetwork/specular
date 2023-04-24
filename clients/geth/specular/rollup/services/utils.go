@@ -8,35 +8,27 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
 )
 
 func NewAssertionFrom(
-	assertion *bindings.IRollupAssertion,
+	inAssertion *bindings.IRollupAssertion,
 	event *bindings.IRollupAssertionCreated,
-) *rollupTypes.Assertion {
+) *assertion.Assertion {
 	// TODO: set StartBlock, EndBlock if necessary (or remove from this struct).
-	return &rollupTypes.Assertion{
+	return &assertion.Assertion{
 		ID:        event.AssertionID,
 		VmHash:    event.VmHash,
-		InboxSize: assertion.InboxSize,
-		Deadline:  assertion.Deadline,
-	}
-}
-
-// For debugging purposes.
-func LogBlockChainInfo(backend Backend, start, end uint64) {
-	for i := start; i < end; i++ {
-		block := backend.BlockChain().GetBlockByNumber(i)
-		log.Info("Block", "number", i, "hash", block.Hash(), "root", block.Root(), "num txs", len(block.Transactions()))
+		InboxSize: inAssertion.InboxSize,
+		Deadline:  inAssertion.Deadline,
 	}
 }
 
 func SubmitOneStepProof(
 	ctx context.Context,
 	proofBackend proof.Backend,
-	l1Client client.L1BridgeClient,
+	l1Client EthBridgeClient,
 	state *proof.ExecutionState,
 	challengedStepIndex *big.Int,
 	prevBisection [][32]byte,
@@ -66,7 +58,7 @@ func SubmitOneStepProof(
 func RespondBisection(
 	ctx context.Context,
 	proofBackend proof.Backend,
-	l1Client client.L1BridgeClient,
+	l1Client EthBridgeClient,
 	ev *bindings.ISymChallengeBisected,
 	states []*proof.ExecutionState,
 	opponentEndStateHash common.Hash,
@@ -82,7 +74,7 @@ func RespondBisection(
 		log.Error("Failed to get challenge data", "error", err)
 		return nil
 	}
-	decoded, err := l1Client.DecodeBisectExecutionInput(tx)
+	decoded, err := client.UnpackBisectExecutionInput(tx)
 	if err != nil {
 		if isDefender {
 			// Defender always starts first

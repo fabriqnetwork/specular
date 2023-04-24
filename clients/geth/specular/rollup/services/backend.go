@@ -2,13 +2,16 @@ package services
 
 import (
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/data"
 )
 
-// Required interface for interacting with Ethereum instance
-type Backend interface {
-	BlockChain() *core.BlockChain
-	TxPool() *core.TxPool
-	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error)
+// TODO: generalize
+type ExecutionBackend interface {
+	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
+	Prepare(txs []*types.Transaction) *types.TransactionsByPriceAndNonce
+	// TODO: dedup
+	CommitTransactions(txs []*types.Transaction) error
+	CommitBlock(block *data.DerivationBlock) error
 }

@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -16,102 +15,35 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
-const syncRange uint64 = 10000
-
-type L1BridgeClient interface {
-	TransactionByHash(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error)
-	BlockNumber(ctx context.Context) (uint64, error)
-	ResubscribeErrNewHead(ctx context.Context, sink chan<- *types.Header) (event.Subscription, error)
-	SubscribeNewHeadByPolling(
-		ctx context.Context,
-		headCh chan<- *types.Header,
-		tag BlockTag,
-		interval time.Duration,
-		requestTimeout time.Duration,
-	) event.Subscription
-	Close()
-	// ISequencerInbox.sol
-	AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error)
-	WatchTxBatchAppended(opts *bind.WatchOpts, sink chan<- *bindings.ISequencerInboxTxBatchAppended) (event.Subscription, error)
-	FilterTxBatchAppendedEvents(opts *bind.FilterOpts) (*bindings.ISequencerInboxTxBatchAppendedIterator, error)
-	DecodeAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error)
-	// IRollup.sol
-	Stake(amount *big.Int) error
-	GetStaker() (bindings.IRollupStaker, error)
-	AdvanceStake(assertionID *big.Int) (*types.Transaction, error)
-	CreateAssertion(vmHash [32]byte, inboxSize *big.Int) (*types.Transaction, error)
-	ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error)
-	ConfirmFirstUnresolvedAssertion() (*types.Transaction, error)
-	RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error)
-	GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error)
-	GetAssertion(assertionID *big.Int) (bindings.IRollupAssertion, error)
-	WatchAssertionCreated(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionCreated) (event.Subscription, error)
-	WatchAssertionChallenged(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionChallenged) (event.Subscription, error)
-	WatchAssertionConfirmed(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionConfirmed) (event.Subscription, error)
-	WatchAssertionRejected(opts *bind.WatchOpts, sink chan<- *bindings.IRollupAssertionRejected) (event.Subscription, error)
-	FilterAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreatedIterator, error)
-	FilterAssertionChallenged(opts *bind.FilterOpts) (*bindings.IRollupAssertionChallengedIterator, error)
-	FilterAssertionConfirmed(opts *bind.FilterOpts) (*bindings.IRollupAssertionConfirmedIterator, error)
-	FilterAssertionRejected(opts *bind.FilterOpts) (*bindings.IRollupAssertionRejectedIterator, error)
-	GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error)
-	// IChallenge.sol
-	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
-	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
-	CurrentChallengeResponder() (common.Address, error)
-	CurrentChallengeResponderTimeLeft() (*big.Int, error)
-	TimeoutChallenge() (*types.Transaction, error)
-	BisectExecution(
-		bisection [][32]byte,
-		challengedSegmentIndex *big.Int,
-		prevBisection [][32]byte,
-		prevChallengedSegmentStart *big.Int,
-		prevChallengedSegmentLength *big.Int,
-	) (*types.Transaction, error)
-	VerifyOneStepProof(
-		proof []byte,
-		txInclusionProof []byte,
-		verificationRawCtx bindings.VerificationContextLibRawContext,
-		challengedStepIndex *big.Int,
-		prevBisection [][32]byte,
-		prevChallengedSegmentStart *big.Int,
-		prevChallengedSegmentLength *big.Int,
-	) (*types.Transaction, error)
-	WatchBisected(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeBisected) (event.Subscription, error)
-	WatchChallengeCompleted(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeCompleted) (event.Subscription, error)
-	FilterBisected(opts *bind.FilterOpts) (*bindings.ISymChallengeBisectedIterator, error)
-	FilterChallengeCompleted(opts *bind.FilterOpts) (*bindings.ISymChallengeCompletedIterator, error)
-	DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error)
-}
-
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
-// TODO: acquire lock in all methods to support concurrent access
 type EthBridgeClient struct {
 	client       *EthClient
 	transactOpts *bind.TransactOpts
 	// Lock, conservatively on all functions.
-	mu sync.Mutex
-	// ISequencerInbox.sol
-	inboxAbi *abi.ABI
-	inbox    *bindings.ISequencerInboxSession
+	mu    sync.Mutex
+	inbox *bindings.ISequencerInboxSession
 	// IRollup.sol
 	rollup *bindings.IRollupSession
 	// IChallenge.sol
 	// `challenge` initialized separately through `InitNewChallengeSession`
-	challengeAbi *abi.ABI
-	challenge    *bindings.ISymChallengeSession
+	challenge *bindings.ISymChallengeSession
 }
 
 func NewEthBridgeClient(
 	ctx context.Context,
+	client *EthClient,
 	l1Endpoint string,
 	genesisL1Block uint64,
 	sequencerInboxAddress common.Address,
 	rollupAddress common.Address,
 	auth *bind.TransactOpts,
 ) (*EthBridgeClient, error) {
-	client, err := dialWithRetry(ctx, l1Endpoint, 3)
-	if err != nil {
-		return nil, err
+	if client == nil {
+		var err error
+		client, err = DialWithRetry(ctx, l1Endpoint, 3)
+		if err != nil {
+			return nil, err
+		}
 	}
 	callOpts := bind.CallOpts{Pending: true, Context: ctx}
 	transactOpts := bind.TransactOpts{
@@ -138,23 +70,12 @@ func NewEthBridgeClient(
 		CallOpts:     callOpts,
 		TransactOpts: transactOpts,
 	}
-	inboxAbi, err := bindings.ISequencerInboxMetaData.GetAbi()
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get ISequencerInbox ABI, err: %w", err)
-	}
-
-	challengeAbi, err := bindings.ISymChallengeMetaData.GetAbi()
-	if err != nil {
-		return nil, err
-	}
 
 	return &EthBridgeClient{
 		client:       client,
 		transactOpts: &transactOpts,
-		inboxAbi:     inboxAbi,
 		inbox:        inboxSession,
 		rollup:       rollupSession,
-		challengeAbi: challengeAbi,
 	}, nil
 }
 
@@ -168,6 +89,12 @@ func (c *EthBridgeClient) BlockNumber(ctx context.Context) (uint64, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.client.BlockNumber(ctx)
+}
+
+func (c *EthBridgeClient) BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.client.BlockByNumber(ctx, number)
 }
 
 func (c *EthBridgeClient) ResubscribeErrNewHead(ctx context.Context, headCh chan<- *types.Header) (event.Subscription, error) {
@@ -192,45 +119,15 @@ func (c *EthBridgeClient) SubscribeNewHeadByPolling(
 	interval time.Duration,
 	requestTimeout time.Duration,
 ) event.Subscription {
-	return event.NewSubscription(func(unsub <-chan struct{}) error {
-		ticker := time.NewTicker(interval)
-		defer ticker.Stop()
-		lastHeaderNumber := big.NewInt(-1)
-		for {
-			select {
-			case <-ticker.C:
-				reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
-				header, err := c.client.HeaderByTag(reqCtx, tag)
-				cancel()
-				if err != nil {
-					log.Warn("Failed to poll for latest L1 block header", "err", err)
-					continue
-				}
-				if header.Number.Cmp(lastHeaderNumber) <= 0 {
-					log.Warn("Polled header is not new", "number", header.Number, "newest", lastHeaderNumber)
-					continue
-				}
-				headCh <- header
-				lastHeaderNumber = header.Number
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-unsub:
-				return nil
-			}
-		}
-	})
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.client.SubscribeNewHeadByPolling(ctx, headCh, tag, interval, requestTimeout)
 }
 
 func (c *EthBridgeClient) Close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.client.Close()
-}
-
-func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.inbox.AppendTxBatch(contexts, txLengths, txBatch)
 }
 
 func (c *EthBridgeClient) WatchTxBatchAppended(
@@ -248,12 +145,6 @@ func (c *EthBridgeClient) FilterTxBatchAppendedEvents(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.inbox.Contract.FilterTxBatchAppended(opts)
-}
-
-func (c *EthBridgeClient) DecodeAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.inboxAbi.Methods["appendTxBatch"].Inputs.Unpack(tx.Data()[4:])
 }
 
 func (c *EthBridgeClient) GetStaker() (bindings.IRollupStaker, error) {
@@ -531,10 +422,4 @@ func (c *EthBridgeClient) FilterChallengeCompleted(
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.challenge.Contract.FilterCompleted(opts)
-}
-
-func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
 }

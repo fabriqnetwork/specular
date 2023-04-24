@@ -2,20 +2,19 @@ package indexer
 
 import (
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
-type Indexer struct{ *services.BaseService }
+type Indexer struct {
+	*services.BaseService
+	cfg    IndexerServiceConfig
+	syncer *services.Syncer
+}
 
-func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Indexer, error) {
-	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
-	if err != nil {
-		return nil, err
-	}
-	return &Indexer{BaseService: base}, nil
+type IndexerServiceConfig interface{ L1() *services.L1Config }
+
+func NewIndexer(cfg IndexerServiceConfig, syncer *services.Syncer) *Indexer {
+	return &Indexer{BaseService: &services.BaseService{}, syncer: syncer}
 }
 
 func (i *Indexer) Start() error {
@@ -25,9 +24,10 @@ func (i *Indexer) Start() error {
 		return err
 	}
 	i.Wg.Add(1)
-	go i.SyncLoop(ctx, i.Config.L1RollupGenesisBlock, nil)
+	go func() {
+		defer i.Wg.Done()
+		i.syncer.SyncLoop(ctx, i.cfg.L1().L1RollupGenesisBlock, nil)
+	}()
 	log.Info("Indexer started")
 	return nil
 }
-
-func (i *Indexer) APIs() []rpc.API { return []rpc.API{} }

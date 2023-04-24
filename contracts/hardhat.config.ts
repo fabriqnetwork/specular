@@ -86,6 +86,7 @@ const config: HardhatUserConfig = {
     chiado: createConfig("chiado"),
     hardhat: {
       gas: "auto",
+      hardhat: "merge",
       mining: {
         auto: true,
         interval: 5000,

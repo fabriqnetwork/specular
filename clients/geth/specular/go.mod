@@ -12,6 +12,7 @@ require (
 	github.com/ethereum/go-ethereum v1.10.25
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
 	github.com/hashicorp/go-bexpr v0.1.10
+	github.com/hashicorp/golang-lru/v2 v2.0.2
 	github.com/jedisct1/go-minisign v0.0.0-20190909160543-45766022959e
 	github.com/mattn/go-colorable v0.1.8
 	github.com/mattn/go-isatty v0.0.12

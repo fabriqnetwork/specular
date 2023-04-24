@@ -1,8 +1,9 @@
-package sequencer
+package geth
 
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -10,26 +11,26 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
-// Batcher assumes exclusive control of underlying blockchain, i.e.
+// TODO: cleanup; use Engine API
+
+// Assumes exclusive control of underlying blockchain, i.e.
 // mining and blockchain insertion can not happen.
 // TODO: support Berlin+London fork
-type Batcher struct {
-	eth         services.Backend
-	chain       *core.BlockChain
+type ExecutionBackend struct {
+	coinbase    common.Address
 	chainConfig *params.ChainConfig
 
-	state    *state.StateDB // apply state changes here
-	coinbase common.Address
+	chain  *core.BlockChain
+	txPool *core.TxPool
+	state  *state.StateDB // apply state changes here
 
-	blocks []*types.Block // batched blocks
-
-	// current batching block
+	// pending block
 	header   *types.Header
 	gasPool  *core.GasPool // available gas used to pack transactions
 	tcount   int
@@ -37,13 +38,13 @@ type Batcher struct {
 	receipts []*types.Receipt
 }
 
-func NewBatcher(coinbase common.Address, eth services.Backend) (*Batcher, error) {
-	b := &Batcher{
-		coinbase: coinbase,
-		eth:      eth,
-	}
-	b.chain = eth.BlockChain()
-	b.chainConfig = b.chain.Config()
+type GethBackend interface {
+	BlockChain() *core.BlockChain
+	TxPool() *core.TxPool
+}
+
+func NewExecutionBackend(eth GethBackend, coinbase common.Address) (*ExecutionBackend, error) {
+	b := &ExecutionBackend{coinbase: coinbase, chainConfig: eth.BlockChain().Config(), chain: eth.BlockChain(), txPool: eth.TxPool()}
 	err := b.startNewBlock()
 	if err != nil {
 		return nil, err
@@ -51,10 +52,14 @@ func NewBatcher(coinbase common.Address, eth services.Backend) (*Batcher, error)
 	return b, nil
 }
 
+func (b *ExecutionBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
+	return b.txPool.SubscribeNewTxsEvent(ch)
+}
+
 // CommitTransactions will try fill transactions into blocks, and insert
 // full blocks into the blockchain
 // TODO: recover from failed commitBlock, rewind blockchain
-func (b *Batcher) CommitTransactions(txs []*types.Transaction) error {
+func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 	// Update timestamp if we do not have any transactions in current block
 	if len(b.txs) == 0 {
 		b.header.Time = uint64(time.Now().Unix())
@@ -64,7 +69,7 @@ func (b *Batcher) CommitTransactions(txs []*types.Transaction) error {
 		// If we don't have enough gas for any further transactions, commit and
 		// start a new block
 		if b.gasPool.Gas() < params.TxGas {
-			err := b.commitBlock()
+			err := b.commitStoredBlock()
 			if err != nil {
 				return err
 			}
@@ -87,7 +92,7 @@ func (b *Batcher) CommitTransactions(txs []*types.Transaction) error {
 		switch {
 		case errors.Is(err, core.ErrGasLimitReached):
 			// Commit block and retry transaction in new block
-			err = b.commitBlock()
+			err = b.commitStoredBlock()
 			if err != nil {
 				return err
 			}
@@ -104,21 +109,98 @@ func (b *Batcher) CommitTransactions(txs []*types.Transaction) error {
 	return nil
 }
 
-// Batch will force the remaining transactions to form a block, insert it into
-// the blockchain, and return all blocks created between Batch calls
-func (b *Batcher) Batch() (types.Blocks, error) {
-	err := b.commitBlock()
-	if err != nil {
-		return nil, err
+// Sorts transactions to be committed.
+func (b *ExecutionBackend) Prepare(txs []*types.Transaction) *types.TransactionsByPriceAndNonce {
+	sortedTxs := make(map[common.Address]types.Transactions)
+	signer := types.MakeSigner(b.chainConfig, b.header.Number)
+	for _, tx := range txs {
+		acc, _ := types.Sender(signer, tx)
+		sortedTxs[acc] = append(sortedTxs[acc], tx)
 	}
-	blocks := b.blocks
-	b.blocks = nil
-	return blocks, nil
+	return types.NewTransactionsByPriceAndNonce(signer, sortedTxs, b.header.BaseFee)
 }
 
-// commitBlock will assemble the current block, insert it into the blockchain
+type ExecutionPayload interface {
+	BlockNumber() uint64
+	Timestamp() uint64
+	Txs() [][]byte
+}
+
+// CommitBlock executes and commits a block to local blockchain *deterministically*
+// TODO: dedup with CommitTransactions
+// TODO: use StateProcessor::Process() instead
+func (b *ExecutionBackend) CommitBlock(payload ExecutionPayload) error {
+	parent := b.chain.CurrentBlock()
+	if parent == nil {
+		return fmt.Errorf("missing parent")
+	}
+	num := parent.Number()
+	if num.Uint64() != payload.BlockNumber()-1 {
+		return fmt.Errorf("rollup services unsynced")
+	}
+	state, err := b.chain.StateAt(parent.Root())
+	if err != nil {
+		return err
+	}
+	state.StartPrefetcher("chain")
+	defer state.StopPrefetcher()
+
+	header := &types.Header{
+		ParentHash: parent.Hash(),
+		Number:     new(big.Int).SetUint64(payload.BlockNumber()),
+		GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
+		Time:       payload.Timestamp(),
+		Coinbase:   b.coinbase,
+		Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
+	}
+	gasPool := new(core.GasPool).AddGas(header.GasLimit)
+	var receipts []*types.Receipt
+
+	txs, err := DecodeRLP(payload.Txs())
+	if err != nil {
+		return fmt.Errorf("Failed to decode batch, err: %w", err)
+	}
+
+	for idx, tx := range txs {
+		state.Prepare(tx.Hash(), idx)
+		receipt, err := core.ApplyTransaction(
+			b.chainConfig, b.chain, &b.coinbase, gasPool, state, header, tx, &header.GasUsed, *b.chain.GetVMConfig())
+		if err != nil {
+			return err
+		}
+		receipts = append(receipts, receipt)
+	}
+	// Finalize header
+	header.Root = state.IntermediateRoot(b.chain.Config().IsEIP158(header.Number))
+	header.UncleHash = types.CalcUncleHash(nil)
+	// Assemble block
+	block := types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil))
+	hash := block.Hash()
+	// Finalize receipts and logs
+	var logs []*types.Log
+	for i, receipt := range receipts {
+		// Add block location fields
+		receipt.BlockHash = hash
+		receipt.BlockNumber = block.Number()
+		receipt.TransactionIndex = uint(i)
+
+		// Update the block hash in all logs since it is now available and not when the
+		// receipt/log of individual transactions were created.
+		for _, log := range receipt.Logs {
+			log.BlockHash = hash
+		}
+		logs = append(logs, receipt.Logs...)
+	}
+	_, err = b.chain.WriteBlockAndSetHead(block, receipts, logs, state, true)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// commitBlock will assemble the pending block, insert it into the blockchain
 // and start a new block
-func (b *Batcher) commitBlock() error {
+func (b *ExecutionBackend) commitStoredBlock() error {
 	// TODO: return if nothing to be committed
 
 	// Stop state prefetcher (see env.discard in worker.go)
@@ -155,13 +237,12 @@ func (b *Batcher) commitBlock() error {
 	if err != nil {
 		return err
 	}
-	b.blocks = append(b.blocks, block)
 	return nil
 }
 
 // startNewBlock should be called when a block is full and inserted into the
 // blockchain. It will reset the batcher except batched blocks
-func (b *Batcher) startNewBlock() error {
+func (b *ExecutionBackend) startNewBlock() error {
 	parent := b.chain.CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")
@@ -179,7 +260,7 @@ func (b *Batcher) startNewBlock() error {
 	if err != nil {
 		return err
 	}
-	state.StartPrefetcher("sequencer")
+	state.StartPrefetcher("chain")
 	b.state = state
 	b.gasPool = new(core.GasPool).AddGas(b.header.GasLimit)
 	b.tcount = 0

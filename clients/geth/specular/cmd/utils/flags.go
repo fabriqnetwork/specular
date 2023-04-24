@@ -22,6 +22,8 @@
 package utils
 
 import (
+	"time"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
@@ -40,51 +42,81 @@ import (
 
 var (
 	// <specular modification>
-	// RollupFlags
-	RollupNodeFlag = &cli.StringFlag{
-		Name:  "rollup.node",
-		Usage: "Start node as rollup sequencer or validator",
-		Value: "",
-	}
-	RollupCoinBaseFlag = &cli.StringFlag{
-		Name:  "rollup.coinbase",
-		Usage: "The sequencer/validator address to be unlocked (pass passphrash via --password)",
-		Value: "",
-	}
+	// L1 config flags
 	RollupL1EndpointFlag = &cli.StringFlag{
-		Name:  "rollup.l1endpoint",
+		Name:  "rollup.l1-endpoint",
 		Usage: "The api endpoint of L1 client",
 		Value: "",
 	}
 	RollupL1ChainIDFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1chainid",
+		Name:  "rollup.l1-chainid",
 		Usage: "The chain ID of L1 client",
 		Value: 31337,
 	}
-	RollupSequencerAddrFlag = &cli.StringFlag{
-		Name:  "rollup.sequencer-addr",
-		Usage: "The account address of sequencer",
-		Value: "",
-	}
-	RollupSequencerInboxAddrFlag = &cli.StringFlag{
-		Name:  "rollup.sequencer-inbox-addr",
-		Usage: "The contract address of L1 sequencer inbox",
-		Value: "",
-	}
-	RollupRollupAddrFlag = &cli.StringFlag{
-		Name:  "rollup.rollup-addr",
-		Usage: "The contract address of L1 rollup",
-		Value: "",
-	}
-	RollupL1RollupGenesisBlock = &cli.Uint64Flag{
+	RollupL1RollupGenesisBlockFlag = &cli.Uint64Flag{
 		Name:  "rollup.l1-rollup-genesis-block",
 		Usage: "The block number of L1 rollup genesis block to sync from",
 		Value: 0,
 	}
-	RollupRollupStakeAmount = &cli.Uint64Flag{
+	RollupSequencerInboxAddrFlag = &cli.StringFlag{
+		Name:  "rollup.l1-sequencer-inbox-addr",
+		Usage: "The contract address of L1 sequencer inbox",
+		Value: "",
+	}
+	RollupRollupAddrFlag = &cli.StringFlag{
+		Name:  "rollup.l1-rollup-addr",
+		Usage: "The contract address of L1 rollup",
+		Value: "",
+	}
+	// Sequencer config flags
+	RollupSequencerAddrFlag = &cli.StringFlag{
+		Name:  "rollup.sequencer-addr",
+		Usage: "The sequencer address to be unlocked (pass passphrash via --password)",
+		Value: "",
+	}
+	RollupSequencerExecutionIntervalFlag = &cli.Uint64Flag{
+		Name:  "rollup.sequencer-execution-interval",
+		Usage: "Maximum time between block executions (seconds)",
+		Value: 1,
+	}
+	RollupSequencerSequencingIntervalFlag = &cli.Uint64Flag{
+		Name:  "rollup.sequencer-sequencing-interval",
+		Usage: "Time between batch sequencing attempts (seconds)",
+		Value: 5,
+	}
+	// Validator config flags
+	RollupValidatorAddrFlag = &cli.StringFlag{
+		Name:  "rollup.validator-addr",
+		Usage: "The validator address to be unlocked (pass passphrash via --password)",
+		Value: "",
+	}
+	RollupValidatorIsActiveCreatorFlag = &cli.BoolFlag{
+		Name:  "rollup.validator-is-active-creator",
+		Usage: "Whether the validator should be an active assertion creator",
+		Value: false,
+	}
+	RollupValidatorIsActiveChallengerFlag = &cli.BoolFlag{
+		Name:  "rollup.validator-is-active-challenger",
+		Usage: "Whether the validator should be an active challenger (i.e. issue challenges)",
+		Value: false,
+	}
+	RollupValidatorIsResolverFlag = &cli.BoolFlag{
+		Name:  "rollup.validator-is-resolver",
+		Usage: "Whether the validator should resolve (confirm/reject) assertions",
+		Value: false,
+	}
+	// TODO: read this from the contract
+	RollupRollupStakeAmountFlag = &cli.Uint64Flag{
 		Name:  "rollup.rollup-stake-amount",
 		Usage: "Required staking amount",
 		Value: 1000000000000000000,
+	}
+
+	// Indexer config flags
+	RollupIndexerAddrFlag = &cli.StringFlag{
+		Name:  "rollup.indexer-addr",
+		Usage: "The indexer address to be unlocked (pass passphrash via --password)",
+		Value: "",
 	}
 	// <specular modification/>
 )
@@ -124,35 +156,65 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	return backend.APIBackend, backend
 }
 
-func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
-	utils.CheckExclusive(ctx, RollupNodeFlag, utils.MiningEnabledFlag)
-	utils.CheckExclusive(ctx, RollupNodeFlag, utils.DeveloperFlag)
-	var passphrase string
-	if list := utils.MakePasswordList(ctx); len(list) > 0 {
-		passphrase = list[0]
-	} else {
-		utils.Fatalf("Failed to register the Rollup service: coinbase account locked")
+func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
+	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.MiningEnabledFlag)
+	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.DeveloperFlag)
+	// Indexer must run standalone (for now).
+	utils.CheckExclusive(ctx, RollupSequencerAddrFlag, RollupIndexerAddrFlag)
+	utils.CheckExclusive(ctx, RollupValidatorAddrFlag, RollupIndexerAddrFlag)
+
+	pwList := utils.MakePasswordList(ctx)
+	if len(pwList) == 0 {
+		utils.Fatalf("Failed to register rollup services: no password provided")
 	}
-	node := ctx.String(RollupNodeFlag.Name)
-	coinbase := common.HexToAddress(ctx.String(RollupCoinBaseFlag.Name))
-	sequencerAddr := common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))
-	if node == "sequencer" && sequencerAddr == (common.Address{}) {
-		sequencerAddr = coinbase
+
+	var sequencerAddr common.Address
+	var sequencerPassphrase string
+	if ctx.String(RollupSequencerAddrFlag.Name) != "" {
+		sequencerAddr = common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))
+		sequencerPassphrase = pwList[0]
+		pwList = pwList[1:]
 	}
-	if sequencerAddr == (common.Address{}) {
-		utils.Fatalf("Failed to register the Rollup service: sequencer address not specified")
+	var validatorAddr common.Address
+	var validatorPassphrase string
+	if ctx.String(RollupValidatorAddrFlag.Name) != "" {
+		validatorAddr = common.HexToAddress(ctx.String(RollupValidatorAddrFlag.Name))
+		validatorPassphrase = pwList[0]
+		pwList = pwList[1:]
 	}
-	cfg := &rollup.Config{
-		Node:                 node,
-		Coinbase:             coinbase,
-		Passphrase:           passphrase,
-		L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
-		L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
-		SequencerAddr:        sequencerAddr,
-		SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
-		RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
-		L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlock.Name),
-		RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmount.Name),
+	var indexerAddr common.Address
+	var indexerPassphrase string
+	if ctx.String(RollupIndexerAddrFlag.Name) != "" {
+		indexerAddr = common.HexToAddress(ctx.String(RollupIndexerAddrFlag.Name))
+		indexerPassphrase = pwList[0]
+		pwList = pwList[1:]
 	}
-	return cfg
+
+	return &rollup.SystemConfig{
+		L1Config: rollup.L1Config{
+			L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
+			L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
+			L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlockFlag.Name),
+			SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
+			RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
+		},
+		SequencerConfig: rollup.SequencerConfig{
+			SequencerAccountAddr: sequencerAddr,
+			SequencerPassphrase:  sequencerPassphrase,
+			ExecutionInterval:    time.Duration(ctx.Uint64(RollupSequencerExecutionIntervalFlag.Name)) * time.Second,
+			SequencingInterval:   time.Duration(ctx.Uint64(RollupSequencerSequencingIntervalFlag.Name)) * time.Second,
+		},
+		ValidatorConfig: rollup.ValidatorConfig{
+			ValidatorAccountAddr: validatorAddr,
+			ValidatorPassphrase:  validatorPassphrase,
+			RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmountFlag.Name),
+			IsActiveCreator:      ctx.Bool(RollupValidatorIsActiveCreatorFlag.Name),
+			IsActiveChallenger:   ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
+			IsResolver:           ctx.Bool(RollupValidatorIsResolverFlag.Name),
+		},
+		IndexerConfig: rollup.IndexerConfig{
+			IndexerAccountAddr: indexerAddr,
+			IndexerPassphrase:  indexerPassphrase,
+		},
+	}
 }

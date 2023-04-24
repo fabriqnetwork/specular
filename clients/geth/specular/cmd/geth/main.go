@@ -211,15 +211,22 @@ var (
 
 	// <specular modification>
 	rollupFlags = []cli.Flag{
-		specularUtils.RollupNodeFlag,
-		specularUtils.RollupCoinBaseFlag,
+		// L1 config flags
 		specularUtils.RollupL1EndpointFlag,
 		specularUtils.RollupL1ChainIDFlag,
-		specularUtils.RollupSequencerAddrFlag,
+		specularUtils.RollupL1RollupGenesisBlockFlag,
 		specularUtils.RollupSequencerInboxAddrFlag,
 		specularUtils.RollupRollupAddrFlag,
-		specularUtils.RollupRollupStakeAmount,
-		specularUtils.RollupL1RollupGenesisBlock,
+		// Sequencer config flags
+		specularUtils.RollupSequencerAddrFlag,
+		// Validator config flags
+		specularUtils.RollupValidatorAddrFlag,
+		specularUtils.RollupValidatorIsActiveCreatorFlag,
+		specularUtils.RollupValidatorIsActiveChallengerFlag,
+		specularUtils.RollupValidatorIsResolverFlag,
+		specularUtils.RollupRollupStakeAmountFlag,
+		// Indexer config flags
+		specularUtils.RollupIndexerAddrFlag,
 	}
 	// <specular modification/>
 )

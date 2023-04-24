@@ -24,7 +24,7 @@ func SubscribeHeaderMapped[T any, U Iterable](
 	fn func(*bind.FilterOpts) (U, error),
 	start uint64,
 ) <-chan T {
-	return utils.SubscribeMappedToMany(ctx, broker, toMapperFn[T](fn, start))
+	return utils.SubscribeBrokerMappedToMany(ctx, broker, toMapperFn[T](fn, start))
 }
 
 // Helper function used for converting bindings.Filter* functions to work with `utils.SubscribeMappedToMany`.
