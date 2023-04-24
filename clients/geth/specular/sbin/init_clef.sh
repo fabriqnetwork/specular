@@ -2,6 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
+. $SBIN/configure_systems.sh
 cd $DATA_DIR
 
 rm -rf ./data_clef/
@@ -11,15 +12,15 @@ $GETH_SPECULAR_DIR/build/bin/clef init \
 
 $GETH_SPECULAR_DIR/build/bin/clef setpw \
     --configdir ./data_clef/ \
-    0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+    $SEQUENCER_ADDR
 
 $GETH_SPECULAR_DIR/build/bin/clef setpw \
     --configdir ./data_clef/ \
-    0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+    $VALIDATOR_ADDR
 
 $GETH_SPECULAR_DIR/build/bin/clef setpw \
     --configdir ./data_clef/ \
-    0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc
+    $INDEXER_ADDR
 
 CHECKSUM=$(shasum -a 256 ./ruleset.js)
 ARR=($CHECKSUM)

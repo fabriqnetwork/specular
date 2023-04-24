@@ -2,6 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
+. $SBIN/configure_system.sh
 cd $DATA_DIR
 
 args=(
@@ -12,7 +13,7 @@ args=(
     --http.corsdomain '*' --ws.origins '*'
     --networkid $NETWORK_ID
     --rollup.node 'sequencer'
-    --rollup.coinbase $COINBASE_ADDR
+    --rollup.coinbase $SEQUENCER_ADDR
     --rollup.l1endpoint $L1_ENDPOINT
     --rollup.l1chainid $L1_CHAIN_ID
     --rollup.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
@@ -20,7 +21,7 @@ args=(
     --rollup.rollup-stake-amount $ROLLUP_STAKE_AMOUNT
 )
 
-if $USE_CLEF == 'true'; then
+if [[ $USE_CLEF == 'true' ]]; then
     args+=(--rollup.clefendpoint $CLEF_ENDPOINT)
 fi
 

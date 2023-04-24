@@ -2,6 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
+. $SBIN/configure_system.sh
 cd $DATA_DIR
 
 CLEF_PW="unsafe-password"
@@ -14,4 +15,5 @@ $GETH_SPECULAR_DIR/build/bin/clef \
     --keystore ./data_sequencer/keystore/ \
     --rules ./ruleset.js \
     --http \
-    --chainid 31337
+    --advanced \
+    --chainid $L1_CHAIN_ID

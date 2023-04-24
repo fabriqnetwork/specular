@@ -2,6 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
+. $SBIN/configure_system.sh
 cd $DATA_DIR
 
 args=(
@@ -16,7 +17,7 @@ args=(
     --port 30305
     --authrpc.port 8562
     --rollup.node 'indexer'
-    --rollup.coinbase $COINBASE_ADDR
+    --rollup.coinbase $SEQUENCER_ADDR
     --rollup.l1endpoint $L1_ENDPOINT
     --rollup.l1chainid $L1_CHAIN_ID
     --rollup.sequencer-addr $SEQUENCER_ADDR
