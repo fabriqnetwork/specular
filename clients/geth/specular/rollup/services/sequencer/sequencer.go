@@ -252,12 +252,19 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 				continue
 			}
 			batch := rollupTypes.NewTxBatch(batchBlocks, 0) // TODO: handle max batch size
-			contexts, txLengths, txs, err := batch.SerializeToArgs()
+			contexts, txLengths, firstL2Block, txs, err := batch.SerializeToArgs()
 			if err != nil {
 				log.Error("Can not serialize batch", "error", err)
 				continue
 			}
-			_, err = s.L1Client.AppendTxBatch(contexts, txLengths, txs)
+			log.Info(
+				"Serialized new Tx Batch",
+				"#txs", len(batch.Txs),
+				"#numBlocks", len(contexts) / 2,
+				"#firsBlockNumber", firstL2Block,
+			)
+
+			_, err = s.L1Client.AppendTxBatch(contexts, txLengths, firstL2Block, txs)
 			if errors.Is(err, core.ErrInsufficientFunds) {
 				log.Crit("Insufficient Funds to send Tx", "error", err)
 			}

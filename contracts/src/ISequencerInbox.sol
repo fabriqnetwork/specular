@@ -47,6 +47,10 @@ interface ISequencerInbox is IDAProvider {
      * @param firstL2BlockNumber The block number of the first "L2 block" included in this batch.
      * @param txBatch Batch of RLP-encoded transactions.
      */
-    function appendTxBatch(uint256[] calldata contexts, uint256[] calldata txLengths, uint256 firstL2BlockNumber, bytes calldata txBatch)
-        external;
+    function appendTxBatch(
+        uint256[] calldata contexts,
+        uint256[] calldata txLengths,
+        uint256 firstL2BlockNumber,
+        bytes calldata txBatch
+    ) external;
 }

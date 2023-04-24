@@ -59,18 +59,36 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	currentBlockNum := assertion.StartBlock
 	currentChainHeight := v.Chain().CurrentBlock().NumberU64()
 	var block *types.Block
+
+	log.Trace(
+		"Trying to validate assertion",
+		"#currentBlockNum", currentBlockNum,
+		"#currentChainHeight", currentChainHeight,
+		"#inboxSizeDiff", inboxSizeDiff.Uint64(),
+	)
+
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
+		log.Trace(
+			"Looping through inbox",
+			"#inboxSizeDiff", inboxSizeDiff.Uint64(),
+			"#currentBlockNum", currentBlockNum,
+		)
+
 		if currentBlockNum > currentChainHeight {
 			return errAssertionOverflowedLocalInbox
 		}
+
 		block = v.Chain().GetBlockByNumber(currentBlockNum)
+
 		if block == nil {
+			log.Warn("Could not get current block by number")
 			return errAssertionOverflowedLocalInbox
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
 			return fmt.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
+
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
 		currentBlockNum++
 	}

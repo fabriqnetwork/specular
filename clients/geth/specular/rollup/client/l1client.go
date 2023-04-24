@@ -32,7 +32,7 @@ type L1BridgeClient interface {
 	) event.Subscription
 	Close()
 	// ISequencerInbox.sol
-	AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error)
+	AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, firstL2Block *big.Int, txBatch []byte) (*types.Transaction, error)
 	WatchTxBatchAppended(opts *bind.WatchOpts, sink chan<- *bindings.ISequencerInboxTxBatchAppended) (event.Subscription, error)
 	FilterTxBatchAppendedEvents(opts *bind.FilterOpts) (*bindings.ISequencerInboxTxBatchAppendedIterator, error)
 	DecodeAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error)
@@ -230,10 +230,10 @@ func (c *EthBridgeClient) Close() {
 	c.client.Close()
 }
 
-func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
+func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, firstL2Block *big.Int, txBatch []byte) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.inbox.AppendTxBatch(contexts, txLengths, txBatch) }
+	f := func() (*types.Transaction, error) { return c.inbox.AppendTxBatch(contexts, txLengths, firstL2Block, txBatch) }
 	return retryTransactingFunction(f, c.retryOpts)
 }
 

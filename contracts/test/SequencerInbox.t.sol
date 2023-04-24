@@ -127,7 +127,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i; i < numContextsArrEntries; i += 2) {
+        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
 
@@ -214,7 +214,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i; i < numContextsArrEntries; i += 2) {
+        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
 
