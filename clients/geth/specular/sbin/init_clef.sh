@@ -2,7 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
-. $SBIN/configure_systems.sh
+. $SBIN/configure_system.sh
 cd $DATA_DIR
 
 rm -rf ./data_clef/
@@ -29,4 +29,3 @@ $GETH_SPECULAR_DIR/build/bin/clef attest \
     --configdir ./data_clef \
     --signersecret ./data_clef/masterseed.json \
     ${ARR[0]}
-

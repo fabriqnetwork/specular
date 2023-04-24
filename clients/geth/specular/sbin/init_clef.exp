@@ -40,5 +40,3 @@ expect "Password: "
 send "$CLEF_PW\n"
 
 interact
-
-
