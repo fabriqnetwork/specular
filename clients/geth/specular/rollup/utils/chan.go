@@ -20,7 +20,10 @@ func SubscribeBatched[T any](
 	if minBatchInterval > 0 {
 		minTicker = time.NewTicker(minBatchInterval)
 	}
-	maxTicker := time.NewTicker(maxBatchInterval)
+	var maxTicker *time.Ticker // a nil channel blocks.
+	if maxBatchInterval > 0 {
+		maxTicker = time.NewTicker(maxBatchInterval)
+	}
 	var batch []T
 	go func() {
 		defer close(outCh)
@@ -39,7 +42,11 @@ func SubscribeBatched[T any](
 				batch = []T{}
 				minTicker.Reset(minBatchInterval)
 			case ev := <-inCh:
-				batch = append(batch, ev)
+				if minBatchInterval == 0 {
+					outCh <- []T{ev}
+				} else {
+					batch = append(batch, ev)
+				}
 			case <-ctx.Done():
 				if len(batch) > 0 {
 					log.Info("Dropping batch", "size", len(batch))

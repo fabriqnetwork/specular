@@ -70,8 +70,8 @@ var (
 	}
 	// L2 config flags
 	RollupL2ClefEndpointFlag = &cli.StringFlag{
-		Name:  "rollup.clefendpoint",
-		Usage: "The Endpoint of the Clef instance that should be used as a signer)",
+		Name:  "rollup.l2-clef-endpoint",
+		Usage: "The Endpoint of the Clef instance that should be used as a signer",
 		Value: "",
 	}
 	// Sequencer config flags
@@ -81,12 +81,12 @@ var (
 		Value: "",
 	}
 	RollupSequencerMinExecutionIntervalFlag = &cli.Uint64Flag{
-		Name:  "rollup.sequencer-execution-interval",
+		Name:  "rollup.sequencer-min-execution-interval",
 		Usage: "Minimum time between block executions (seconds)",
 		Value: 0,
 	}
 	RollupSequencerMaxExecutionIntervalFlag = &cli.Uint64Flag{
-		Name:  "rollup.sequencer-execution-interval",
+		Name:  "rollup.sequencer-max-execution-interval",
 		Usage: "Maximum time between block executions (seconds)",
 		Value: 1,
 	}
@@ -122,7 +122,6 @@ var (
 		Usage: "Required staking amount",
 		Value: 1000000000000000000,
 	}
-
 	// Indexer config flags
 	RollupIndexerAddrFlag = &cli.StringFlag{
 		Name:  "rollup.indexer-addr",

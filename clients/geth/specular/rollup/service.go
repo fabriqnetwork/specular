@@ -32,6 +32,9 @@ type Node interface {
 	AccountManager() *accounts.Manager
 }
 
+// TODO: use cfg
+const localhost = "ws://0.0.0.0:4012"
+
 // RegisterRollupService registers rollup service configured by ctx
 // Either a sequncer service or a validator service will be registered
 func RegisterRollupServices(
@@ -92,7 +95,7 @@ func createSequencer(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
-	l2Client, err := client.DialWithRetry(ctx, "localhost", client.DefaultRetryOpts)
+	l2Client, err := client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l2 client: %w", err)
 	}
@@ -125,7 +128,7 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
 	}
-	l2Client, err := client.DialWithRetry(ctx, "localhost", client.DefaultRetryOpts)
+	l2Client, err := client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l2 client: %w", err)
 	}
@@ -139,15 +142,15 @@ func createSyncer(
 	execBackend services.ExecutionBackend,
 ) (*services.Syncer, error) {
 	rollupState := state.NewRollupState()
-	l1Client, err := client.DialWithRetry(ctx, cfg.L1Endpoint, client.DefaultRetryOpts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to L1 node: %w", err)
-	}
-	l2Client, err := client.DialWithRetry(ctx, "localhost", client.DefaultRetryOpts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to connect to L2 node: %w", err)
-	}
-	rollupState.StartSync(ctx, l1Client, l2Client)
+	// l1Client, err := client.DialWithRetry(ctx, cfg.L1Endpoint, client.DefaultRetryOpts)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Failed to connect to L1 node: %w", err)
+	// }
+	// l2Client, err := client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("Failed to connect to L2 node: %w", err)
+	// }
+	// rollupState.StartSync(ctx, l1Client, l2Client)
 	transactor, err := createTransactor(
 		accountMgr, cfg.ValidatorAccountAddr, cfg.L2ClefEndpoint, cfg.ValidatorPassphrase, cfg.L1ChainID,
 	)
