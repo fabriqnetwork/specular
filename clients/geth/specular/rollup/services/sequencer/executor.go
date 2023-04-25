@@ -11,18 +11,23 @@ import (
 )
 
 type executor struct {
-	cfg      SequencerServiceConfig
-	backend  ExecutionBackend
-	orderer  orderer
-	l2Client L2Client
+	cfg     SequencerServiceConfig
+	backend ExecutionBackend
+	orderer orderer
+}
+
+type orderer interface {
+	OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error)
+	RegisterL2Client(l2Client L2Client)
 }
 
 // This goroutine fetches, orders and executes txs from the tx pool.
 // Commits an empty block if no txs are received within an interval
 // TODO: handle reorgs in the decentralized sequencer case.
 // TODO: commit a msg-passing tx in empty block.
-func (e *executor) start(ctx context.Context, wg *sync.WaitGroup) {
+func (e *executor) start(ctx context.Context, wg *sync.WaitGroup, l2Client L2Client) {
 	defer wg.Done()
+	e.orderer.RegisterL2Client(l2Client)
 	// Watch transactions in TxPool
 	txsCh := make(chan core.NewTxsEvent, 4096)
 	txsSub := e.backend.SubscribeNewTxsEvent(txsCh)
@@ -36,7 +41,7 @@ func (e *executor) start(ctx context.Context, wg *sync.WaitGroup) {
 				txs = append(txs, ev.Txs...)
 			}
 			if len(txs) == 0 {
-				log.Info("No txs received in last execution window.")
+				log.Trace("No txs received in last execution window.")
 				continue
 			} else {
 				var err error

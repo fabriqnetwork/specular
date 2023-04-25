@@ -23,17 +23,20 @@ const interval = 10 * time.Second
 type Validator struct {
 	*services.BaseService
 
-	cfg          ValidatorServiceConfig
-	l2Client     L2Client
-	l1TxMgr      TxManager
-	l1Client     services.EthBridgeClient
-	assertionMgr AssertionManager
-	proofBackend proof.Backend
+	cfg               ValidatorServiceConfig
+	l2ClientCreatorFn l2ClientCreatorFn
+	l2Client          L2Client
+	l1TxMgr           TxManager
+	l1Client          services.EthBridgeClient
+	assertionMgr      AssertionManager
+	proofBackend      proof.Backend
 }
+
+type l2ClientCreatorFn func(ctx context.Context) (L2Client, error)
 
 func NewValidator(
 	cfg ValidatorServiceConfig,
-	l2Client L2Client,
+	l2ClientCreatorFn l2ClientCreatorFn,
 	l1TxMgr TxManager,
 	l1Client services.EthBridgeClient,
 	proofBackend proof.Backend,
@@ -42,7 +45,7 @@ func NewValidator(
 	return &Validator{
 		BaseService:  &services.BaseService{},
 		cfg:          cfg,
-		l2Client:     l2Client,
+		l2Client:     nil, // Initialized in `Start()`
 		l1TxMgr:      l1TxMgr,
 		l1Client:     l1Client,
 		proofBackend: proofBackend,
@@ -56,6 +59,12 @@ func (v *Validator) Start() error {
 	if err != nil {
 		return err
 	}
+	// Connect to L2 client.
+	l2Client, err := v.l2ClientCreatorFn(ctx)
+	if err != nil {
+		return fmt.Errorf("Failed to create L2 client: %w", err)
+	}
+	v.l2Client = l2Client
 	if err := v.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to stake: %w", err)
 	}

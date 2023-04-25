@@ -13,13 +13,18 @@ import (
 // TODO: Support:
 // - PBS-style ordering: publicize current mempool and call remote engine API.
 // - remote ordering +  DA in single call (some systems conflate these roles -- e.g. Espresso)
-type orderer interface {
-	OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error)
-}
 
 type ordererByFee struct {
 	backend  ExecutionBackend
 	l2Client L2Client
+}
+
+func newOrdererByFee(backend ExecutionBackend) *ordererByFee {
+	return &ordererByFee{backend: backend}
+}
+
+func (o *ordererByFee) RegisterL2Client(l2Client L2Client) {
+	o.l2Client = l2Client
 }
 
 func (o *ordererByFee) OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error) {

@@ -15,32 +15,44 @@ func SubscribeBatched[T any](
 	minBatchInterval time.Duration,
 	maxBatchInterval time.Duration,
 ) chan []T {
-	outCh := make(chan []T)
-	var minTicker *time.Ticker // a nil channel blocks.
+	var (
+		minTicker   *time.Ticker
+		minTickerCh <-chan time.Time // a nil channel blocks.
+		maxTicker   *time.Ticker
+		maxTickerCh <-chan time.Time // a nil channel blocks.
+	)
 	if minBatchInterval > 0 {
 		minTicker = time.NewTicker(minBatchInterval)
+		minTickerCh = minTicker.C
 	}
-	var maxTicker *time.Ticker // a nil channel blocks.
 	if maxBatchInterval > 0 {
 		maxTicker = time.NewTicker(maxBatchInterval)
+		maxTickerCh = maxTicker.C
 	}
-	var batch []T
+	var (
+		outCh = make(chan []T)
+		batch []T
+	)
 	go func() {
 		defer close(outCh)
 		for {
 			select {
-			case <-minTicker.C:
+			case <-minTickerCh:
 				// Only publish batch if it's non-empty.
 				if len(batch) > 0 {
 					outCh <- batch
 					batch = []T{}
-					maxTicker.Reset(maxBatchInterval)
+					if maxBatchInterval > 0 {
+						maxTicker.Reset(maxBatchInterval)
+					}
 				}
-			case <-maxTicker.C:
+			case <-maxTickerCh:
 				// Publish batch even if it's empty.
 				outCh <- batch
 				batch = []T{}
-				minTicker.Reset(minBatchInterval)
+				if minBatchInterval > 0 {
+					minTicker.Reset(minBatchInterval)
+				}
 			case ev := <-inCh:
 				if minBatchInterval == 0 {
 					outCh <- []T{ev}

@@ -7,7 +7,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
-	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
@@ -44,17 +44,8 @@ func RegisterRollupServices(
 	cfg *services.SystemConfig,
 ) error {
 	ctx := context.Background()
-	syncer, err := createSyncer(ctx, cfg, stack.AccountManager(), execBackend)
-	if err != nil {
-		return fmt.Errorf("Failed to create syncer: %w", err)
-	}
 	// Register services
 	if (cfg.SequencerAccountAddr != common.Address{}) {
-		// TODO: fix.
-		_, err := syncer.SyncL2ChainToL1Head(ctx, cfg.L1RollupGenesisBlock)
-		if err != nil {
-			return fmt.Errorf("Failed to sync l2 chain to l1 head: %w", err)
-		}
 		sequencer, err := createSequencer(ctx, cfg, stack.AccountManager(), execBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create sequencer: %w", err)
@@ -62,11 +53,6 @@ func RegisterRollupServices(
 		stack.RegisterLifecycle(sequencer)
 	}
 	if (cfg.ValidatorAccountAddr != common.Address{}) {
-		// TODO: fix.
-		_, err := syncer.SyncL2ChainToL1Head(ctx, cfg.L1RollupGenesisBlock)
-		if err != nil {
-			return fmt.Errorf("Failed to sync l2 chain to l1 head: %w", err)
-		}
 		validator, err := createValidator(ctx, cfg, stack.AccountManager(), proofBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create validator: %w", err)
@@ -74,6 +60,10 @@ func RegisterRollupServices(
 		stack.RegisterLifecycle(validator)
 	}
 	if (cfg.IndexerAccountAddr != common.Address{}) {
+		syncer, err := createSyncer(ctx, cfg, stack.AccountManager(), execBackend)
+		if err != nil {
+			return fmt.Errorf("Failed to create syncer: %w", err)
+		}
 		stack.RegisterLifecycle(indexer.NewIndexer(cfg, syncer))
 	}
 	return nil
@@ -95,11 +85,10 @@ func createSequencer(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
-	l2Client, err := client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l2 client: %w", err)
+	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
+		return client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
 	}
-	return sequencer.NewSequencer(cfg, execBackend, l2Client, l1TxMgr, batchBuilder), nil
+	return sequencer.NewSequencer(cfg, execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
 
 func createValidator(
@@ -128,11 +117,10 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
 	}
-	l2Client, err := client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l2 client: %w", err)
+	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
+		return client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
 	}
-	return validator.NewValidator(cfg, l2Client, l1TxMgr, l1BridgeClient, proofBackend, assertionMgr), nil
+	return validator.NewValidator(cfg, l2ClientCreatorFn, l1TxMgr, l1BridgeClient, proofBackend, assertionMgr), nil
 }
 
 func createSyncer(

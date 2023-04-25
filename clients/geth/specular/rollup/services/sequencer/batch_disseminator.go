@@ -22,12 +22,21 @@ import (
 type batchDisseminator struct {
 	cfg          SequencerServiceConfig
 	batchBuilder BatchBuilder
-	l2Client     L2Client
 	l1TxMgr      TxManager
+	l2Client     L2Client
 }
 
-func (d *batchDisseminator) start(ctx context.Context, wg *sync.WaitGroup) {
+func newBatchDisseminator(
+	cfg SequencerServiceConfig,
+	batchBuilder BatchBuilder,
+	l1TxMgr TxManager,
+) *batchDisseminator {
+	return &batchDisseminator{cfg: cfg, batchBuilder: batchBuilder, l1TxMgr: l1TxMgr}
+}
+
+func (d *batchDisseminator) start(ctx context.Context, wg *sync.WaitGroup, l2Client L2Client) {
 	defer wg.Done()
+	d.l2Client = l2Client
 	// Start with latest safe state.
 	d.revertToSafe()
 	var ticker = time.NewTicker(d.cfg.Sequencer().SequencingInterval)
