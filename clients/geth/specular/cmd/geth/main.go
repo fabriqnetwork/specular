@@ -217,8 +217,13 @@ var (
 		specularUtils.RollupL1RollupGenesisBlockFlag,
 		specularUtils.RollupSequencerInboxAddrFlag,
 		specularUtils.RollupRollupAddrFlag,
+		// L2 config flags
+		specularUtils.RollupL2ClefEndpointFlag,
 		// Sequencer config flags
 		specularUtils.RollupSequencerAddrFlag,
+		specularUtils.RollupSequencerMinExecutionIntervalFlag,
+		specularUtils.RollupSequencerMaxExecutionIntervalFlag,
+		specularUtils.RollupSequencerSequencingIntervalFlag,
 		// Validator config flags
 		specularUtils.RollupValidatorAddrFlag,
 		specularUtils.RollupValidatorIsActiveCreatorFlag,

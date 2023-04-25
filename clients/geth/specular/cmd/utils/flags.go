@@ -68,6 +68,12 @@ var (
 		Usage: "The contract address of L1 rollup",
 		Value: "",
 	}
+	// L2 config flags
+	RollupL2ClefEndpointFlag = &cli.StringFlag{
+		Name:  "rollup.clefendpoint",
+		Usage: "The Endpoint of the Clef instance that should be used as a signer)",
+		Value: "",
+	}
 	// Sequencer config flags
 	RollupSequencerAddrFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer-addr",
@@ -161,6 +167,7 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	return backend.APIBackend, backend
 }
 
+// <<<<<<< HEAD
 // <specular modification>
 func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.MiningEnabledFlag)
@@ -169,31 +176,35 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 	utils.CheckExclusive(ctx, RollupSequencerAddrFlag, RollupIndexerAddrFlag)
 	utils.CheckExclusive(ctx, RollupValidatorAddrFlag, RollupIndexerAddrFlag)
 
+	var (
+		sequencerAddr       common.Address
+		validatorAddr       common.Address
+		indexerAddr         common.Address
+		sequencerPassphrase string
+		validatorPassphrase string
+		indexerPassphrase   string
+	)
 	pwList := utils.MakePasswordList(ctx)
-	if len(pwList) == 0 {
-		utils.Fatalf("Failed to register rollup services: no password provided")
-	}
-
-	var sequencerAddr common.Address
-	var sequencerPassphrase string
-	if ctx.String(RollupSequencerAddrFlag.Name) != "" {
-		sequencerAddr = common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))
-		sequencerPassphrase = pwList[0]
-		pwList = pwList[1:]
-	}
-	var validatorAddr common.Address
-	var validatorPassphrase string
-	if ctx.String(RollupValidatorAddrFlag.Name) != "" {
-		validatorAddr = common.HexToAddress(ctx.String(RollupValidatorAddrFlag.Name))
-		validatorPassphrase = pwList[0]
-		pwList = pwList[1:]
-	}
-	var indexerAddr common.Address
-	var indexerPassphrase string
-	if ctx.String(RollupIndexerAddrFlag.Name) != "" {
-		indexerAddr = common.HexToAddress(ctx.String(RollupIndexerAddrFlag.Name))
-		indexerPassphrase = pwList[0]
-		pwList = pwList[1:]
+	clefEndpoint := ctx.String(RollupL2ClefEndpointFlag.Name)
+	if clefEndpoint == "" {
+		if len(pwList) == 0 {
+			utils.Fatalf("Failed to register rollup services: no clef endpoint or password provided")
+		}
+		if ctx.String(RollupSequencerAddrFlag.Name) != "" {
+			sequencerAddr = common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))
+			sequencerPassphrase = pwList[0]
+			pwList = pwList[1:]
+		}
+		if ctx.String(RollupValidatorAddrFlag.Name) != "" {
+			validatorAddr = common.HexToAddress(ctx.String(RollupValidatorAddrFlag.Name))
+			validatorPassphrase = pwList[0]
+			pwList = pwList[1:]
+		}
+		if ctx.String(RollupIndexerAddrFlag.Name) != "" {
+			indexerAddr = common.HexToAddress(ctx.String(RollupIndexerAddrFlag.Name))
+			indexerPassphrase = pwList[0]
+			pwList = pwList[1:]
+		}
 	}
 
 	return &rollup.SystemConfig{
@@ -203,6 +214,9 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 			L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlockFlag.Name),
 			SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
 			RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
+		},
+		L2Config: rollup.L2Config{
+			L2ClefEndpoint: clefEndpoint,
 		},
 		SequencerConfig: rollup.SequencerConfig{
 			SequencerAccountAddr: sequencerAddr,
@@ -214,10 +228,10 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 		ValidatorConfig: rollup.ValidatorConfig{
 			ValidatorAccountAddr: validatorAddr,
 			ValidatorPassphrase:  validatorPassphrase,
-			RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmountFlag.Name),
 			IsActiveCreator:      ctx.Bool(RollupValidatorIsActiveCreatorFlag.Name),
 			IsActiveChallenger:   ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
 			IsResolver:           ctx.Bool(RollupValidatorIsResolverFlag.Name),
+			RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmountFlag.Name),
 		},
 		IndexerConfig: rollup.IndexerConfig{
 			IndexerAccountAddr: indexerAddr,

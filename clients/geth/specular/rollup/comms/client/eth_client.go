@@ -15,7 +15,19 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
-const DefaultRetries = 3
+const (
+	DefaultRetryAttempts = 3
+	DefaultRetryDelay    = 5 * time.Second
+)
+
+var DefaultRetryOpts = []retry.Option{
+	retry.Attempts(DefaultRetryAttempts),
+	retry.Delay(DefaultRetryDelay),
+	retry.LastErrorOnly(true),
+	retry.OnRetry(func(n uint, err error) {
+		log.Error("Failed attempt", "attempt", n, "err", err)
+	}),
+}
 
 type EthClient struct {
 	*ethclient.Client
@@ -26,19 +38,9 @@ func NewEthClient(c *rpc.Client) *EthClient {
 	return &EthClient{ethclient.NewClient(c), c}
 }
 
-func DialWithRetry(ctx context.Context, endpoint string, numAttempts uint) (*EthClient, error) {
+func DialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*EthClient, error) {
 	var client *EthClient
-	var err error
-	retryOpts := []retry.Option{
-		retry.Context(ctx),
-		retry.Attempts(numAttempts),
-		retry.Delay(5 * time.Second),
-		retry.LastErrorOnly(true),
-		retry.OnRetry(func(n uint, err error) {
-			log.Error("Failed to connect to node", "endpoint", endpoint, "attempt", n, "err", err)
-		}),
-	}
-	err = retry.Do(func() error {
+	err := retry.Do(func() error {
 		rpcClient, err := rpc.DialContext(ctx, endpoint)
 		client = NewEthClient(rpcClient)
 		return err
