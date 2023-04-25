@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
 // TODO: cleanup; use Engine API
@@ -110,7 +111,7 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 }
 
 // Sorts transactions to be committed.
-func (b *ExecutionBackend) Prepare(txs []*types.Transaction) *types.TransactionsByPriceAndNonce {
+func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce {
 	sortedTxs := make(map[common.Address]types.Transactions)
 	signer := types.MakeSigner(b.chainConfig, b.header.Number)
 	for _, tx := range txs {
@@ -120,16 +121,10 @@ func (b *ExecutionBackend) Prepare(txs []*types.Transaction) *types.Transactions
 	return types.NewTransactionsByPriceAndNonce(signer, sortedTxs, b.header.BaseFee)
 }
 
-type ExecutionPayload interface {
-	BlockNumber() uint64
-	Timestamp() uint64
-	Txs() [][]byte
-}
-
 // CommitBlock executes and commits a block to local blockchain *deterministically*
-// TODO: dedup with CommitTransactions
+// TODO: dedup with CommitTransactions & commitStoredBlock
 // TODO: use StateProcessor::Process() instead
-func (b *ExecutionBackend) CommitBlock(payload ExecutionPayload) error {
+func (b *ExecutionBackend) CommitPayload(payload services.ExecutionPayload) error {
 	parent := b.chain.CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")
@@ -198,7 +193,7 @@ func (b *ExecutionBackend) CommitBlock(payload ExecutionPayload) error {
 	return nil
 }
 
-// commitBlock will assemble the pending block, insert it into the blockchain
+// commitStoredBlock will assemble the pending block, insert it into the blockchain
 // and start a new block
 func (b *ExecutionBackend) commitStoredBlock() error {
 	// TODO: return if nothing to be committed

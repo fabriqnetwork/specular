@@ -34,7 +34,8 @@ type IndexerConfig struct {
 type SequencerConfig struct {
 	SequencerAccountAddr common.Address
 	SequencerPassphrase  string        // The passphrase of the sequencer account
-	ExecutionInterval    time.Duration // Maximum time between block execution
+	MinExecutionInterval time.Duration // Minimum time between block production. If 0, txs executed immediately -- FCFS.
+	MaxExecutionInterval time.Duration // Maximum time between block production. Must be >= `MinExecutionInterval`.
 	SequencingInterval   time.Duration // Time between batch sequencing attempts
 }
 

@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
@@ -77,12 +76,14 @@ func (v *Validator) APIs() []rpc.API {
 
 func (v *Validator) eventLoop(ctx context.Context) {
 	defer v.Wg.Done()
-	createdCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionCreated](
-		ctx,
-		v.l1Syncer.LatestHeaderBroker,
-		v.l1Client.FilterAssertionCreated,
-		v.l1State.Head().Number.Uint64(),
-	)
+	// createdCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionCreated](
+	// 	ctx,
+	// 	v.l1Syncer.LatestHeaderBroker,
+	// 	v.l1Client.FilterAssertionCreated,
+	// 	v.l1State.Head().Number.Uint64(),
+	// )
+	var createdCh = make(chan *bindings.IRollupAssertionCreated)
+
 	// TODO: configure.
 	var ticker = time.NewTicker(interval)
 	defer ticker.Stop()
@@ -138,12 +139,13 @@ func (v *Validator) eventLoop(ctx context.Context) {
 
 func (v *Validator) challengeLoop(ctx context.Context) {
 	defer v.Wg.Done()
-	challengeCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
-		ctx,
-		v.L1Syncer.LatestHeaderBroker,
-		v.l1Client.FilterAssertionCreated,
-		v.L1State.Head().Number.Uint64(),
-	)
+	// challengeCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
+	// 	ctx,
+	// 	v.L1Syncer.LatestHeaderBroker,
+	// 	v.l1Client.FilterAssertionCreated,
+	// 	v.L1State.Head().Number.Uint64(),
+	// )
+	challengeCh := make(chan *bindings.IRollupAssertionChallenged)
 
 	for {
 		select {
@@ -169,14 +171,15 @@ func (v *Validator) validate() error {
 // Tries to resolve as many assertions as possible, starting from last resolved.
 // TODO: timeout early if too many to resolve.
 func (v *Validator) tryResolve(ctx context.Context) error {
+	tail := big.NewInt(1)
 	for id := new(big.Int); id.Cmp(tail) < 0; id.Add(id, common.Big1) {
-		assertion, err := v.assertionMgr.GetAssertion(ctx, id)
+		_, err := v.assertionMgr.GetAssertion(ctx, id)
 		if err != nil {
 			return err
 		}
-		if v.SysState.L1State.Number.Uint64() < assertion.Deadline.Uint64() {
-			break
-		}
+		// if v.SysState.L1State.Number.Uint64() < assertion.Deadline.Uint64() {
+		// 	break
+		// }
 		// TODO: confirm OR reject.
 		// Or possibly issue a challenge if necessary---although any
 		// challenges should have been issued during validation.

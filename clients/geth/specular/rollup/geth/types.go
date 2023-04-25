@@ -2,12 +2,10 @@ package geth
 
 import (
 	"bytes"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/data"
 )
 
 // Header
@@ -28,26 +26,10 @@ func (h *Header) ParentHash() common.Hash {
 	return h.header.ParentHash
 }
 
-func (h *Header) Coinbase() common.Address {
-	return h.header.Coinbase
-}
-
-func (h *Header) Root() common.Hash {
-	return h.header.Root
-}
-
-func (h *Header) Time() uint64 {
-	return h.header.Time
-}
-
-func (h *Header) Number() *big.Int {
-	return h.header.Number
-}
-
 // Transaction
 
-func EncodeRLP(txs types.Transactions) ([]data.EncodedTransaction, error) {
-	var encodedTxs []data.EncodedTransaction
+func EncodeRLP(txs types.Transactions) ([][]byte, error) {
+	var encodedTxs [][]byte
 	for _, tx := range txs {
 		var txBuf bytes.Buffer
 		if err := tx.EncodeRLP(&txBuf); err != nil {

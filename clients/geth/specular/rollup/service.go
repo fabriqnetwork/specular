@@ -46,7 +46,10 @@ func RegisterRollupServices(
 	// Register services
 	if (cfg.SequencerAccountAddr != common.Address{}) {
 		// TODO: fix.
-		syncer.SyncL2ChainToL1Head(ctx, cfg.L1RollupGenesisBlock)
+		_, err := syncer.SyncL2ChainToL1Head(ctx, cfg.L1RollupGenesisBlock)
+		if err != nil {
+			return fmt.Errorf("Failed to sync l2 chain to l1 head: %w", err)
+		}
 		sequencer, err := createSequencer(ctx, cfg, stack.AccountManager(), execBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create sequencer: %w", err)
@@ -55,7 +58,10 @@ func RegisterRollupServices(
 	}
 	if (cfg.ValidatorAccountAddr != common.Address{}) {
 		// TODO: fix.
-		syncer.SyncL2ChainToL1Head(ctx, cfg.L1RollupGenesisBlock)
+		_, err := syncer.SyncL2ChainToL1Head(ctx, cfg.L1RollupGenesisBlock)
+		if err != nil {
+			return fmt.Errorf("Failed to sync l2 chain to l1 head: %w", err)
+		}
 		validator, err := createValidator(ctx, cfg, stack.AccountManager(), proofBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create validator: %w", err)

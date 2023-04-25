@@ -113,7 +113,7 @@ func (s *Syncer) processTxBatchAppendedEvent(
 	}
 	log.Info("Decoded batch", "#blocks", len(blocks))
 	for _, block := range blocks {
-		s.backend.CommitBlock(block)
+		s.backend.CommitPayload(block)
 	}
 	return nil
 }

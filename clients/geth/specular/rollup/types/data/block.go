@@ -8,10 +8,8 @@ import (
 // `DerivationBlock` represents a block from which the L2 chain can be derived.
 type DerivationBlock struct {
 	DerivationContext
-	txs []EncodedTransaction
+	txs [][]byte
 }
-
-type EncodedTransaction []byte
 
 // DerivationContext is the relevent context of each block sequenced to
 // L1 SeqeuncerInbox to ensure deterministic recomputation.
@@ -23,7 +21,7 @@ type DerivationContext struct {
 
 type DecodeTxBatchError struct{ msg string }
 
-func NewDerivationBlock(blockNumber, timestamp uint64, txs []EncodedTransaction) DerivationBlock {
+func NewDerivationBlock(blockNumber, timestamp uint64, txs [][]byte) DerivationBlock {
 	return DerivationBlock{
 		DerivationContext: DerivationContext{
 			numTxs:      uint64(len(txs)),
@@ -42,7 +40,7 @@ func (b *DerivationBlock) Timestamp() uint64 {
 	return b.timestamp
 }
 
-func (b *DerivationBlock) Txs() []EncodedTransaction {
+func (b *DerivationBlock) Txs() [][]byte {
 	return b.txs
 }
 
@@ -68,12 +66,12 @@ func BlocksFromDecoded(decoded []interface{}) ([]*DerivationBlock, error) {
 	blocks := make([]*DerivationBlock, 0, len(contexts)/3)
 	for i := 0; i < len(contexts); i += 3 {
 		// For each context, decode a block.
-		var txs []EncodedTransaction
 		ctx := DerivationContext{
 			numTxs:      contexts[i].Uint64(),
 			blockNumber: contexts[i+1].Uint64(),
 			timestamp:   contexts[i+2].Uint64(),
 		}
+		var txs [][]byte
 		for j := uint64(0); j < ctx.numTxs; j++ {
 			encodedTx := txBatch[batchOffset : batchOffset+txLengths[numTxs].Uint64()]
 			txs = append(txs, encodedTx)

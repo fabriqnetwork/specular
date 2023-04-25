@@ -74,7 +74,12 @@ var (
 		Usage: "The sequencer address to be unlocked (pass passphrash via --password)",
 		Value: "",
 	}
-	RollupSequencerExecutionIntervalFlag = &cli.Uint64Flag{
+	RollupSequencerMinExecutionIntervalFlag = &cli.Uint64Flag{
+		Name:  "rollup.sequencer-execution-interval",
+		Usage: "Minimum time between block executions (seconds)",
+		Value: 0,
+	}
+	RollupSequencerMaxExecutionIntervalFlag = &cli.Uint64Flag{
 		Name:  "rollup.sequencer-execution-interval",
 		Usage: "Maximum time between block executions (seconds)",
 		Value: 1,
@@ -156,6 +161,7 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	return backend.APIBackend, backend
 }
 
+// <specular modification>
 func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.DeveloperFlag)
@@ -201,7 +207,8 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 		SequencerConfig: rollup.SequencerConfig{
 			SequencerAccountAddr: sequencerAddr,
 			SequencerPassphrase:  sequencerPassphrase,
-			ExecutionInterval:    time.Duration(ctx.Uint64(RollupSequencerExecutionIntervalFlag.Name)) * time.Second,
+			MinExecutionInterval: time.Duration(ctx.Uint64(RollupSequencerMinExecutionIntervalFlag.Name)) * time.Second,
+			MaxExecutionInterval: time.Duration(ctx.Uint64(RollupSequencerMaxExecutionIntervalFlag.Name)) * time.Second,
 			SequencingInterval:   time.Duration(ctx.Uint64(RollupSequencerSequencingIntervalFlag.Name)) * time.Second,
 		},
 		ValidatorConfig: rollup.ValidatorConfig{
@@ -218,3 +225,5 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 		},
 	}
 }
+
+// <specular modification/>

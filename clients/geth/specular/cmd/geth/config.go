@@ -196,7 +196,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	// <specular modification>
 	if ctx.IsSet(specularUtils.RollupL1EndpointFlag.Name) {
 		cfg := specularUtils.MakeRollupConfig(ctx)
-		execBackend, err := specularGeth.NewExecutionBackend(eth.BlockChain(), eth.TxPool(), cfg.SequencerAccountAddr)
+		execBackend, err := specularGeth.NewExecutionBackend(eth, cfg.SequencerAccountAddr)
 		proofBackend := eth.APIBackend
 		if err != nil {
 			utils.Fatalf("Failed to create execution backend", "err", err)
