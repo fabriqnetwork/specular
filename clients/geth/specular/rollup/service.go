@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"context"
 	"math/big"
+	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts"
+	"github.com/ethereum/go-ethereum/accounts/external"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
@@ -35,14 +38,48 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)
 	}
-	auth, err := bind.NewTransactorWithChainID(bytes.NewReader(json), cfg.Passphrase, chainID)
-	if err != nil {
-		log.Crit("Failed to register the Rollup service", "err", err)
+
+	var auth *bind.TransactOpts
+	if cfg.ClefEndpoint != "" {
+		clef, err := external.NewExternalSigner(cfg.ClefEndpoint)
+		if err != nil {
+			log.Crit("Failed to create external signer from clef endpoint", "err", err)
+		}
+		auth = bind.NewClefTransactor(clef, accounts.Account{Address: cfg.Coinbase})
+	} else {
+		log.Warn("no external signer specified, using geth signer")
+		auth, err = bind.NewTransactorWithChainID(bytes.NewReader(json), cfg.Passphrase, chainID)
+		if err != nil {
+			log.Crit("Failed to register the Rollup service", "err", err)
+		}
 	}
 
 	// Register services
 	ctx := context.Background()
-	l1Client, err := client.NewEthBridgeClient(ctx, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, auth)
+	retryOpts := []retry.Option{
+		retry.Context(ctx),
+		retry.Attempts(3),
+		retry.Delay(5 * time.Second),
+		retry.LastErrorOnly(true),
+		retry.RetryIf(func(err error) bool {
+			// limit retry to connection error, nonce error
+			// if err == ? {
+			// 	return false
+			return true
+		}),
+		retry.OnRetry(func(n uint, err error) {
+			log.Error("Failed attempt", "attempt", n, "err", err)
+		}),
+	}
+	l1Client, err := client.NewEthBridgeClient(
+		ctx,
+		cfg.L1Endpoint,
+		cfg.L1RollupGenesisBlock,
+		cfg.SequencerInboxAddr,
+		cfg.RollupAddr,
+		auth,
+		retryOpts,
+	)
 	var service node.Lifecycle
 	switch cfg.Node {
 	case services.NODE_SEQUENCER:

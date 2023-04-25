@@ -45,10 +45,6 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 func (b *BaseService) Start() (context.Context, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b.Cancel = cancel
-	// Check if we are at genesis. TODO: remove.
-	if b.Eth.BlockChain().CurrentBlock().NumberU64() != 0 {
-		return nil, fmt.Errorf("Service can only start from clean history")
-	}
 	b.L1Syncer = client.NewL1Syncer(ctx, b.L1Client)
 	b.L1Syncer.Start(ctx)
 	return ctx, nil
@@ -244,7 +240,14 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	log.Info("Decoded batch", "#txs", len(batch.Txs))
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
-	b.commitBlocks(blocks)
+	// Commit only blocks ahead of the current L2 chain.
+	for i, block := range blocks {
+		if block.BlockNumber > b.Eth.BlockChain().CurrentBlock().Number().Uint64() {
+			blocks = blocks[i:]
+			b.commitBlocks(blocks)
+			break
+		}
+	}
 	return nil
 }
 

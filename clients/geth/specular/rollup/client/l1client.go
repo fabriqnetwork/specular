@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -84,10 +85,11 @@ type L1BridgeClient interface {
 }
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
-// TODO: acquire lock in all methods to support concurrent access
+// TODO: clean up retries
 type EthBridgeClient struct {
 	client       *EthClient
 	transactOpts *bind.TransactOpts
+	retryOpts    []retry.Option
 	// Lock, conservatively on all functions.
 	mu sync.Mutex
 	// ISequencerInbox.sol
@@ -108,8 +110,9 @@ func NewEthBridgeClient(
 	sequencerInboxAddress common.Address,
 	rollupAddress common.Address,
 	auth *bind.TransactOpts,
+	retryOpts []retry.Option,
 ) (*EthBridgeClient, error) {
-	client, err := dialWithRetry(ctx, l1Endpoint, 3)
+	client, err := dialWithRetry(ctx, l1Endpoint, retryOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +233,8 @@ func (c *EthBridgeClient) Close() {
 func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.inbox.AppendTxBatch(contexts, txLengths, txBatch)
+	f := func() (*types.Transaction, error) { return c.inbox.AppendTxBatch(contexts, txLengths, txBatch) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) WatchTxBatchAppended(
@@ -279,31 +283,38 @@ func (c *EthBridgeClient) Stake(amount *big.Int) error {
 func (c *EthBridgeClient) AdvanceStake(assertionID *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.AdvanceStake(assertionID)
+	f := func() (*types.Transaction, error) { return c.rollup.AdvanceStake(assertionID) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) CreateAssertion(vmHash [32]byte, inboxSize *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.CreateAssertion(vmHash, inboxSize)
+	f := func() (*types.Transaction, error) {
+		return c.rollup.CreateAssertion(vmHash, inboxSize)
+	}
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) ChallengeAssertion(players [2]common.Address, assertionIDs [2]*big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.ChallengeAssertion(players, assertionIDs)
+	f := func() (*types.Transaction, error) { return c.rollup.ChallengeAssertion(players, assertionIDs) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) ConfirmFirstUnresolvedAssertion() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.ConfirmFirstUnresolvedAssertion()
+	f := func() (*types.Transaction, error) { return c.rollup.ConfirmFirstUnresolvedAssertion() }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) RejectFirstUnresolvedAssertion(stakerAddress common.Address) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress)
+	f := func() (*types.Transaction, error) { return c.rollup.RejectFirstUnresolvedAssertion(stakerAddress) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 // Returns the last assertion ID that was validated *by us*.
@@ -440,7 +451,8 @@ func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challenge
 func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.InitializeChallengeLength(numSteps)
+	f := func() (*types.Transaction, error) { return c.challenge.InitializeChallengeLength(numSteps) }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) CurrentChallengeResponder() (common.Address, error) {
@@ -458,7 +470,8 @@ func (c *EthBridgeClient) CurrentChallengeResponderTimeLeft() (*big.Int, error) 
 func (c *EthBridgeClient) TimeoutChallenge() (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.Timeout()
+	f := func() (*types.Transaction, error) { return c.challenge.Timeout() }
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) BisectExecution(
@@ -470,13 +483,16 @@ func (c *EthBridgeClient) BisectExecution(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.BisectExecution(
-		bisection,
-		challengedSegmentIndex,
-		prevBisection,
-		prevChallengedSegmentStart,
-		prevChallengedSegmentLength,
-	)
+	f := func() (*types.Transaction, error) {
+		return c.challenge.BisectExecution(
+			bisection,
+			challengedSegmentIndex,
+			prevBisection,
+			prevChallengedSegmentStart,
+			prevChallengedSegmentLength,
+		)
+	}
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) VerifyOneStepProof(
@@ -490,15 +506,18 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 ) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.challenge.VerifyOneStepProof(
-		proof,
-		txInclusionProof,
-		verificationRawCtx,
-		challengedStepIndex,
-		prevBisection,
-		prevChallengedSegmentStart,
-		prevChallengedSegmentLength,
-	)
+	f := func() (*types.Transaction, error) {
+		return c.challenge.VerifyOneStepProof(
+			proof,
+			txInclusionProof,
+			verificationRawCtx,
+			challengedStepIndex,
+			prevBisection,
+			prevChallengedSegmentStart,
+			prevChallengedSegmentLength,
+		)
+	}
+	return retryTransactingFunction(f, c.retryOpts)
 }
 
 func (c *EthBridgeClient) WatchBisected(
@@ -537,4 +556,14 @@ func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]i
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
+}
+
+func retryTransactingFunction(f func() (*types.Transaction, error), retryOpts []retry.Option) (*types.Transaction, error) {
+	var result *types.Transaction
+	var err error
+	err = retry.Do(func() error {
+		result, err = f()
+		return err
+	}, retryOpts...)
+	return result, err
 }
