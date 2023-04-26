@@ -10,12 +10,17 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
+// Responsible for executing transactions.
 type executor struct {
 	cfg     SequencerServiceConfig
 	backend ExecutionBackend
 	orderer orderer
 }
 
+// Responsible for ordering transactions (prior to their execution).
+// TODO: Support:
+// - PBS-style ordering: publicize current mempool and call remote engine API.
+// - remote ordering +  DA in single call (some systems conflate these roles -- e.g. Espresso)
 type orderer interface {
 	OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error)
 	RegisterL2Client(l2Client L2Client)

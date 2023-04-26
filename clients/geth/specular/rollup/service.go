@@ -16,7 +16,6 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/state"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
@@ -31,9 +30,6 @@ type Node interface {
 	RegisterLifecycle(lifecycle node.Lifecycle)
 	AccountManager() *accounts.Manager
 }
-
-// TODO: use cfg
-const localhost = "ws://0.0.0.0:4012"
 
 // RegisterRollupService registers rollup service configured by ctx
 // Either a sequncer service or a validator service will be registered
@@ -59,13 +55,6 @@ func RegisterRollupServices(
 		}
 		stack.RegisterLifecycle(validator)
 	}
-	if (cfg.IndexerAccountAddr != common.Address{}) {
-		syncer, err := createSyncer(ctx, cfg, stack.AccountManager(), execBackend)
-		if err != nil {
-			return fmt.Errorf("Failed to create syncer: %w", err)
-		}
-		stack.RegisterLifecycle(indexer.NewIndexer(cfg, syncer))
-	}
 	return nil
 }
 
@@ -86,7 +75,7 @@ func createSequencer(
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
-		return client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
+		return client.DialWithRetry(ctx, cfg.L2Endpoint, client.DefaultRetryOpts)
 	}
 	return sequencer.NewSequencer(cfg, execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
@@ -118,7 +107,7 @@ func createValidator(
 		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
-		return client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
+		return client.DialWithRetry(ctx, cfg.L2Endpoint, client.DefaultRetryOpts)
 	}
 	return validator.NewValidator(cfg, l2ClientCreatorFn, l1TxMgr, l1BridgeClient, proofBackend, assertionMgr), nil
 }
@@ -134,7 +123,7 @@ func createSyncer(
 	// if err != nil {
 	// 	return nil, fmt.Errorf("Failed to connect to L1 node: %w", err)
 	// }
-	// l2Client, err := client.DialWithRetry(ctx, localhost, client.DefaultRetryOpts)
+	// l2Client, err := client.DialWithRetry(ctx, cfg.L2Endpoint, client.DefaultRetryOpts)
 	// if err != nil {
 	// 	return nil, fmt.Errorf("Failed to connect to L2 node: %w", err)
 	// }

@@ -10,10 +10,6 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
-// TODO: Support:
-// - PBS-style ordering: publicize current mempool and call remote engine API.
-// - remote ordering +  DA in single call (some systems conflate these roles -- e.g. Espresso)
-
 type ordererByFee struct {
 	backend  ExecutionBackend
 	l2Client L2Client

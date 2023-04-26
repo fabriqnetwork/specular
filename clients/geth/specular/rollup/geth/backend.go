@@ -57,6 +57,10 @@ func (b *ExecutionBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) even
 	return b.txPool.SubscribeNewTxsEvent(ch)
 }
 
+func (b *ExecutionBackend) ForkchoiceUpdate(update services.ForkchoiceState) error {
+	return nil
+}
+
 // CommitTransactions will try fill transactions into blocks, and insert
 // full blocks into the blockchain
 // TODO: recover from failed commitBlock, rewind blockchain
@@ -124,7 +128,7 @@ func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.Transactio
 // CommitBlock executes and commits a block to local blockchain *deterministically*
 // TODO: dedup with CommitTransactions & commitStoredBlock
 // TODO: use StateProcessor::Process() instead
-func (b *ExecutionBackend) CommitPayload(payload services.ExecutionPayload) error {
+func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error {
 	parent := b.chain.CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")

@@ -11,14 +11,12 @@ type SystemConfig struct {
 	L2Config
 	SequencerConfig
 	ValidatorConfig
-	IndexerConfig
 }
 
 func (c *SystemConfig) L1() *L1Config               { return &c.L1Config }
 func (c *SystemConfig) L2() *L2Config               { return &c.L2Config }
 func (c *SystemConfig) Sequencer() *SequencerConfig { return &c.SequencerConfig }
 func (c *SystemConfig) Validator() *ValidatorConfig { return &c.ValidatorConfig }
-func (c *SystemConfig) Indexer() *IndexerConfig     { return &c.IndexerConfig }
 
 type L1Config struct {
 	L1Endpoint           string         // L1 API endpoint
@@ -29,12 +27,8 @@ type L1Config struct {
 }
 
 type L2Config struct {
+	L2Endpoint     string // L2 API endpoint
 	L2ClefEndpoint string // The Clef Endpoint used for signing TXs
-}
-
-type IndexerConfig struct {
-	IndexerAccountAddr common.Address
-	IndexerPassphrase  string // The passphrase of the indexer account
 }
 
 type SequencerConfig struct {
@@ -48,8 +42,9 @@ type SequencerConfig struct {
 type ValidatorConfig struct {
 	ValidatorAccountAddr common.Address
 	ValidatorPassphrase  string // The passphrase of the validator account
+	IsActiveStaker       bool   // Iff true, actively stakes on rollup contract
 	IsActiveCreator      bool   // Iff true, actively tries to create new assertions (not just for a challenge).
 	IsActiveChallenger   bool   // Iff true, actively issues challenges as challenger. *Defends* against challenges regardless.
 	IsResolver           bool   // Iff true, attempts to resolve assertions (by confirming or rejecting)
-	RollupStakeAmount    uint64 // Size of stake to deposit to rollup contract
+	StakeAmount          uint64 // Size of stake to deposit to rollup contract
 }

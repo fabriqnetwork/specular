@@ -226,12 +226,11 @@ var (
 		specularUtils.RollupSequencerSequencingIntervalFlag,
 		// Validator config flags
 		specularUtils.RollupValidatorAddrFlag,
+		specularUtils.RollupValidatorIsActiveStakerFlag,
 		specularUtils.RollupValidatorIsActiveCreatorFlag,
 		specularUtils.RollupValidatorIsActiveChallengerFlag,
 		specularUtils.RollupValidatorIsResolverFlag,
 		specularUtils.RollupRollupStakeAmountFlag,
-		// Indexer config flags
-		specularUtils.RollupIndexerAddrFlag,
 	}
 	// <specular modification/>
 )

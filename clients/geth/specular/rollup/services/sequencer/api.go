@@ -21,10 +21,10 @@ type SequencerServiceConfig interface {
 
 type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce
-	// TODO: dedup
-	CommitTransactions(txs []*types.Transaction) error
-	// CommitPayload(payload services.ExecutionPayload) error
+	ForkchoiceUpdate(update services.ForkchoiceState) error
+	BuildPayload(payload services.ExecutionPayload) error
+	CommitTransactions(txs []*types.Transaction) error                     // TODO: remove
+	Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce // TODO: probably remove
 }
 
 type BatchBuilder interface {

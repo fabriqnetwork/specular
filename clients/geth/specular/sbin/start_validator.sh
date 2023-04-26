@@ -20,8 +20,9 @@ args=(
     --rollup.l1-sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
     --rollup.l1-rollup-addr $ROLLUP_ADDR
     --rollup.validator-addr $VALIDATOR_ADDR
+    --rollup.validator-is-active-staker
     --rollup.validator-is-active-challenger
-    --rollup.rollup-stake-amount $ROLLUP_STAKE_AMOUNT
+    --rollup.validator-stake-amount $ROLLUP_STAKE_AMOUNT
 )
 
 if $USE_CLEF == 'true'; then

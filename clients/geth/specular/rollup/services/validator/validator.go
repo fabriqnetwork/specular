@@ -364,7 +364,7 @@ func (v *Validator) Stake(ctx context.Context) error {
 		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
 	}
 	if !staker.IsStaked {
-		err = v.l1Client.Stake(big.NewInt(int64(v.cfg.Validator().RollupStakeAmount)))
+		err = v.l1Client.Stake(big.NewInt(int64(v.cfg.Validator().StakeAmount)))
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to stake, err: %w", err)

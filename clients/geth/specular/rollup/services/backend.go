@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
@@ -9,10 +10,16 @@ import (
 // TODO: generalize
 type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	Prepare(txs []*types.Transaction) TransactionsByPriceAndNonce
-	// TODO: dedup
-	CommitTransactions(txs []*types.Transaction) error
-	CommitPayload(payload ExecutionPayload) error
+	ForkchoiceUpdate(update ForkchoiceState) error
+	BuildPayload(payload ExecutionPayload) error
+	CommitTransactions(txs []*types.Transaction) error            // TODO: remove
+	Prepare(txs []*types.Transaction) TransactionsByPriceAndNonce // TODO: probably remove
+}
+
+type ForkchoiceState interface {
+	HeadBlockHash() common.Hash
+	SafeBlockHash() common.Hash
+	FinalizedBlockHash() common.Hash
 }
 
 type ExecutionPayload interface {

@@ -29,15 +29,14 @@ func NewRollupState() *RollupState {
 	}
 }
 
-//
 // Sequencer:      tx -> Execute
 // L1State -> L2State ->    |->     Sequence (unsafe l2 blocks)
 // Validator:
 // L1State -> L2State -> 			CreateAssertion (safe l2 blocks)
-//         -> read existing assertions -> validate -^
-//         -> sync    -> Execute
-//         -> L2State -> ChallengeAssertion
-
+//
+//	-> read existing assertions -> validate -^
+//	-> sync    -> Execute
+//	-> L2State -> ChallengeAssertion
 func (r *RollupState) StartSync(ctx context.Context, l1Client, l2Client client.EthPollingClient) {
 	// Sync headers from L1.
 	r.L1Syncer.Start(ctx, l1Client)

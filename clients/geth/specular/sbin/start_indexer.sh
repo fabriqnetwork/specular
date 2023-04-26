@@ -21,7 +21,8 @@ args=(
     --rollup.l1-rollup-genesis-block 0
     --rollup.l1-sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
     --rollup.l1-rollup-addr $ROLLUP_ADDR
-    --rollup.indexer-addr $INDEXER_ADDR
+    # Validator with no active validation functionality enabled.
+    --rollup.validator-addr $VALIDATOR_ADDR
 )
 
 if $USE_CLEF == 'true'; then

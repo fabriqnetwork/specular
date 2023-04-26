@@ -101,6 +101,11 @@ var (
 		Usage: "The validator address to be unlocked (pass passphrash via --password)",
 		Value: "",
 	}
+	RollupValidatorIsActiveStakerFlag = &cli.BoolFlag{
+		Name:  "rollup.validator-is-active-staker",
+		Usage: "Whether the validator should be an active staker",
+		Value: false,
+	}
 	RollupValidatorIsActiveCreatorFlag = &cli.BoolFlag{
 		Name:  "rollup.validator-is-active-creator",
 		Usage: "Whether the validator should be an active assertion creator",
@@ -118,15 +123,9 @@ var (
 	}
 	// TODO: read this from the contract
 	RollupRollupStakeAmountFlag = &cli.Uint64Flag{
-		Name:  "rollup.rollup-stake-amount",
+		Name:  "rollup.stake-amount",
 		Usage: "Required staking amount",
 		Value: 1000000000000000000,
-	}
-	// Indexer config flags
-	RollupIndexerAddrFlag = &cli.StringFlag{
-		Name:  "rollup.indexer-addr",
-		Usage: "The indexer address to be unlocked (pass passphrash via --password)",
-		Value: "",
 	}
 	// <specular modification/>
 )
@@ -166,22 +165,15 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	return backend.APIBackend, backend
 }
 
-// <<<<<<< HEAD
 // <specular modification>
 func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.DeveloperFlag)
-	// Indexer must run standalone (for now).
-	utils.CheckExclusive(ctx, RollupSequencerAddrFlag, RollupIndexerAddrFlag)
-	utils.CheckExclusive(ctx, RollupValidatorAddrFlag, RollupIndexerAddrFlag)
-
 	var (
 		sequencerAddr       common.Address
 		validatorAddr       common.Address
-		indexerAddr         common.Address
 		sequencerPassphrase string
 		validatorPassphrase string
-		indexerPassphrase   string
 	)
 	pwList := utils.MakePasswordList(ctx)
 	clefEndpoint := ctx.String(RollupL2ClefEndpointFlag.Name)
@@ -199,11 +191,6 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 			validatorPassphrase = pwList[0]
 			pwList = pwList[1:]
 		}
-		if ctx.String(RollupIndexerAddrFlag.Name) != "" {
-			indexerAddr = common.HexToAddress(ctx.String(RollupIndexerAddrFlag.Name))
-			indexerPassphrase = pwList[0]
-			pwList = pwList[1:]
-		}
 	}
 
 	return &rollup.SystemConfig{
@@ -215,6 +202,7 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 			RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
 		},
 		L2Config: rollup.L2Config{
+			L2Endpoint:     "ws://0.0.0.0:4012", // TODO: read this from http params? or from a separate flag
 			L2ClefEndpoint: clefEndpoint,
 		},
 		SequencerConfig: rollup.SequencerConfig{
@@ -227,14 +215,11 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 		ValidatorConfig: rollup.ValidatorConfig{
 			ValidatorAccountAddr: validatorAddr,
 			ValidatorPassphrase:  validatorPassphrase,
+			IsActiveStaker:       ctx.Bool(RollupValidatorIsActiveStakerFlag.Name),
 			IsActiveCreator:      ctx.Bool(RollupValidatorIsActiveCreatorFlag.Name),
 			IsActiveChallenger:   ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
 			IsResolver:           ctx.Bool(RollupValidatorIsResolverFlag.Name),
-			RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmountFlag.Name),
-		},
-		IndexerConfig: rollup.IndexerConfig{
-			IndexerAccountAddr: indexerAddr,
-			IndexerPassphrase:  indexerPassphrase,
+			StakeAmount:          ctx.Uint64(RollupRollupStakeAmountFlag.Name),
 		},
 	}
 }
