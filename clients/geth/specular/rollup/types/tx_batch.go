@@ -46,7 +46,6 @@ func NewTxBatch(blocks []*types.Block, maxBatchSize uint64) *TxBatch {
 	var txs []*types.Transaction
 	gasUsed := new(big.Int)
 
-	// TODO: do we need to handle the case where blocks is empty
 	firstL2BlockNumber := blocks[0].Number()
 
 	for _, block := range blocks {

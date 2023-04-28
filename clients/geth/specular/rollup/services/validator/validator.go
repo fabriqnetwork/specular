@@ -26,8 +26,24 @@ type challengeCtx struct {
 	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-var errAssertionOverflowedLocalInbox = fmt.Errorf("assertion overflowed inbox")
 var errValidationFailed = fmt.Errorf("validation failed")
+
+type errAssertionOverflowedLocalInbox struct {
+	Msg string
+}
+
+func (e *errAssertionOverflowedLocalInbox) Error() string {
+	return fmt.Sprint("assertion overflowed local inbox with msg:", e.Msg)
+}
+
+func (e *errAssertionOverflowedLocalInbox) Is(tgt error) bool {
+	_, ok := tgt.(*errAssertionOverflowedLocalInbox)
+	return ok
+}
+
+
+
+
 
 type Validator struct {
 	*services.BaseService
@@ -75,14 +91,13 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 		)
 
 		if currentBlockNum > currentChainHeight {
-			return errAssertionOverflowedLocalInbox
+			return &errAssertionOverflowedLocalInbox{"current block number is greater than local chain height"}
 		}
 
 		block = v.Chain().GetBlockByNumber(currentBlockNum)
 
 		if block == nil {
-			log.Warn("Could not get current block by number")
-			return errAssertionOverflowedLocalInbox
+			return &errAssertionOverflowedLocalInbox{"could not get current block by number"}
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
@@ -149,7 +164,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				// Validation failed, challenge
 				isInChallenge = true
 				return nil
-			case errors.Is(err, errAssertionOverflowedLocalInbox):
+			case errors.Is(err, &errAssertionOverflowedLocalInbox{}):
 				// Assertion overflowed local inbox, wait for next batch event
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil
