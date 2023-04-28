@@ -18,6 +18,7 @@
 
 pragma solidity ^0.8.13;
 
+import "forge-std/console.sol";
 import "forge-std/Test.sol";
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
@@ -279,5 +280,131 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         assertGt(inboxSizeFinal, inboxSizeInitial);
         assertEq(inboxSizeFinal, numTxnsPerBlock); // Since the timestamp and block.number were not included for the 2nd block, only 1st block's 3 txns are included.
+    }
+
+    //////////////////////////////
+    // verifyTxInclusion
+    // commit a batch and verify the Nth transaction
+    //////////////////////////////
+    function test_verifyTxInclusion_positive(uint256 numTxPerBlock, uint256 numBlocks, uint256 txToVerify) public {
+        numTxPerBlock = bound(numTxPerBlock, 1, 30);
+        numBlocks = bound(numBlocks, 1, 5);
+        uint256 numTx = numTxPerBlock * numBlocks;
+
+        // append a batch of transactions to the sequencer
+        assertEq(seqIn.getInboxSize(), 0);
+        vm.warp(block.timestamp + (4 * numBlocks));
+
+        uint256[] memory contexts = generateContexts(numBlocks, numTxPerBlock);
+
+        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
+
+        vm.prank(sequencerAddress);
+        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        assertEq(seqIn.getInboxSize(), numTx);
+
+        // randomly choose a transaction to verify and prepare the proof
+        txToVerify = bound(txToVerify, 0, numTx - 1);
+        uint256 batchNum = 0;
+        uint256 numTxBefore = txToVerify;
+        uint256 numTxAfter = numTx - txToVerify - 1;
+
+        bytes memory txAfterData = generateTxAfterData(txToVerify, numTx, numTxPerBlock, contexts);
+
+        // prepare the encoded transaction we want to verify and its context hash
+        bytes memory encodedTx = rlpEncodedTransactions[txToVerify % 10];
+
+        bytes32 proofContextHash = generateProofContextHash(txToVerify, numTxPerBlock, contexts);
+
+        // prepare the accumulator hash of the preceding transactions in the batch
+        bytes32 accBefore = generateAccumulator(txToVerify, numTxPerBlock, contexts);
+
+        bytes memory batchInfo = abi.encodePacked(batchNum, numTxBefore, numTxAfter, accBefore);
+
+        bytes memory proof = abi.encodePacked(proofContextHash, batchInfo, txAfterData);
+
+        seqIn.verifyTxInclusion(encodedTx, proof);
+    }
+
+    function generateContexts(uint256 numBlocks, uint256 numTxPerBlock) public view returns (uint256[] memory) {
+        uint256 txBlockTimestamp = block.timestamp - (2 * numBlocks);
+        uint256 numContextsArrEntries = numBlocks * 3;
+
+        uint256[] memory contexts = new uint256[](numContextsArrEntries);
+        for (uint256 i = 0; i < numContextsArrEntries; i += 3) {
+            contexts[i] = numTxPerBlock;
+            contexts[i + 1] = txBlockTimestamp / 20;
+            contexts[i + 2] = txBlockTimestamp;
+            txBlockTimestamp++;
+        }
+
+        return contexts;
+    }
+
+    function generateTxAfterData(uint256 txToVerify, uint256 numTx, uint256 numTxPerBlock, uint256[] memory contexts)
+        public
+        view
+        returns (bytes memory)
+    {
+        bytes memory txAfterData;
+        bytes32 txContextHash;
+
+        for (uint256 i = txToVerify + 1; i < numTx; i++) {
+            uint256 currentBlock = i / numTxPerBlock;
+
+            txContextHash = keccak256(
+                abi.encodePacked(
+                    sequencerAddress,
+                    contexts[(3 * currentBlock) + 1], // L2 Block Number
+                    contexts[(3 * currentBlock) + 2] // L2 Timestamp
+                )
+            );
+
+            bytes memory txData = rlpEncodedTransactions[i % 10];
+            bytes32 txDataHash = keccak256(txData);
+
+            txAfterData = abi.encodePacked(txAfterData, abi.encodePacked(abi.encodePacked(txContextHash, txDataHash)));
+        }
+
+        return txAfterData;
+    }
+
+    function generateProofContextHash(uint256 txToVerify, uint256 numTxPerBlock, uint256[] memory contexts)
+        public
+        view
+        returns (bytes32)
+    {
+        uint256 blockToVerify = txToVerify / numTxPerBlock;
+        uint256 txL2BlockNumber = contexts[(3 * blockToVerify) + 1];
+        uint256 txL2Timestamp = contexts[(3 * blockToVerify) + 2];
+
+        return keccak256(abi.encodePacked(sequencerAddress, txL2BlockNumber, txL2Timestamp));
+    }
+
+    function generateAccumulator(uint256 txToVerify, uint256 numTxPerBlock, uint256[] memory contexts)
+        public
+        view
+        returns (bytes32)
+    {
+        bytes32 txContextHash;
+        bytes32 accBefore;
+
+        for (uint256 i = 0; i < txToVerify; i++) {
+            uint256 currentBlock = i / numTxPerBlock;
+
+            txContextHash = keccak256(
+                abi.encodePacked(
+                    sequencerAddress,
+                    contexts[(3 * currentBlock) + 1], // L2 Block Number
+                    contexts[(3 * currentBlock) + 2] // L2 Timestamp
+                )
+            );
+
+            bytes memory txData = rlpEncodedTransactions[i % 10];
+            bytes32 txDataHash = keccak256(txData);
+            accBefore = keccak256(abi.encodePacked(accBefore, i, txContextHash, txDataHash));
+        }
+
+        return accBefore;
     }
 }

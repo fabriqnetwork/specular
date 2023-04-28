@@ -73,32 +73,27 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             runningAccumulator = accumulators[accumulators.length - 1];
         }
 
-        uint256 initialDataOffset;
-
-        assembly {
-            initialDataOffset := txBatch.offset
-        }
-
-        uint256 dataOffset = initialDataOffset;
+        uint256 dataOffset = 0;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
             // TODO: consider adding L1 context.
             uint256 l2BlockNumber = contexts[i + 1];
             uint256 l2Timestamp = contexts[i + 2];
+
             bytes32 txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
 
             uint256 numCtxTxs = contexts[i];
+
             for (uint256 j = 0; j < numCtxTxs; j++) {
                 uint256 txLength = txLengths[numTxs - inboxSize];
-                bytes32 txDataHash;
-                assembly {
-                    txDataHash := keccak256(dataOffset, txLength)
-                }
-                runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, txDataHash));
-                dataOffset += txLength;
-                if (dataOffset - initialDataOffset > txBatch.length) {
+                if (dataOffset + txLength > txBatch.length) {
                     revert TxBatchDataOverflow();
                 }
+                bytes32 txDataHash = keccak256(txBatch[dataOffset:dataOffset + txLength]);
+
+                runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, txDataHash));
+
+                dataOffset += txLength;
                 numTxs++;
             }
         }
@@ -139,6 +134,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         // Start accumulator at the tx.
         bytes32 txDataHash = keccak256(encodedTx);
+
         acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
         numTxs++;
 
@@ -146,6 +142,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         for (uint256 i = 0; i < numTxsAfterInBatch; i++) {
             (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
             (offset, txDataHash) = DeserializationLib.deserializeBytes32(proof, offset);
+
             acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
             numTxs++;
         }
