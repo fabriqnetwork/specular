@@ -153,6 +153,197 @@ contract SequencerInboxTest is SequencerBaseSetup {
         );
 
         assertEq(seqIn.delayedMessagesRead(), 1);
+    }
+
+
+ /////////////////////////////////
+    // verifyTxInclusion
+    /////////////////////////////////
+
+    // List of variables used inside of the test: test_verifyTxInclusion_positiveCase_1. Declared globally so as to avoid the *stack too deep* error while compilation.
+    address txnSender;
+    uint256 txnL2BlockNumber;
+    uint256 txnL2Timestamp;
+    uint256 txnDataLength;
+    bytes txnDataBytes;
+
+    uint256 batchNum;
+    uint256 numTxsBefore;
+    uint256 numTxsAfterInBatch;
+    bytes32 accBefore;
+
+    bytes encodedTxn; // This is the transaction whose inclusion we want to check
+    uint currentBlock;
+
+    uint256 inboxSizeInitial;
+    uint256 numTxns;
+    uint256 numContextsArrEntries;
+    uint256 inboxSizeFinal;
+    uint256 expectedInboxSize;
+
+    function test_verifyTxInclusion_firstTransactionIncluded_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
+        // We have to test this function's correctness by passing a correct bytes `proof` to ensure
+        // that the function works correctly.
+
+        // For the particular transaction whose inclusion needs to be verified, among others, we need the following data
+        /**
+            proof := txContextHash || batchInfo || {foreach tx in batch: (txContextHash || KEC(txData)), ...} where,
+            * {foreach tx in batch: (txContextHash || KEC(txData)), ...} = txContextHash1 || KEC(txData1) || ... || txContextHash10 || KEC(txData10) if you have 10 txs ✅
+            * batchInfo := (batchNum || numTxsBefore || numTxsAfterInBatch || accBefore) ✅
+            * txContextHash := KEC(sequencerAddress || l2BlockNumber || l2Timestamp) ✅
+        */
+
+        // Let us first create a batch, append that txn batch and then check for the inclusion of a particular txn
+
+        //////////////////////////////
+        // Appending a txn batch
+        //////////////////////////////
+
+        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
+
+        numTxnsPerBlock = bound(numTxnsPerBlock, 5, 10);
+        txnBlocks = bound(txnBlocks, 1, 1);
+
+        inboxSizeInitial = seqIn.getInboxSize();
+
+        // Each context corresponds to a single "L2 block"
+        numTxns = numTxnsPerBlock * txnBlocks;
+        numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 triplet: (numTxs, l2BlockNumber, l2Timestamp)
+
+        // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
+        vm.warp(block.timestamp + (4 * txnBlocks));
+        uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
+            // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+
+        // Let's create an array of contexts
+        uint256[] memory contexts = new uint256[](numContextsArrEntries);
+        for (uint256 i; i < numContextsArrEntries; i += 3) {
+            // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
+            contexts[i] = numTxnsPerBlock;
+
+            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
+            contexts[i + 1] = txnBlockTimestamp / 20;
+
+            // Formula used for blockTimestamp: (current block.timestamp) / 5x
+            contexts[i + 2] = txnBlockTimestamp;
+
+            // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
+            // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
+            ++txnBlockTimestamp;
+
+            // Similarly for txnBlockNumbers. They should be different for different contexts.
+            // ++txnBlockNumber;
+        }
+
+        bytes memory batchTransactionsMetadata;
+
+        {
+            // Let's construct the blockTransactionsHashArray and the txnDataHashArray
+            bytes32[] memory blockTransactionsHashArray = new bytes32[](numTxns);
+            bytes32[] memory txnDataHashArray = new bytes32[](numTxns);
+
+            // There will be numTxns number of entries, ie, one entry for one transaction and we know: numTxns = numTxnsPerBlock * txnBlocks
+            // And every txnBlock will have the same block.timestamp and block.number for each of it's own transactions
+            // And that is how we will populate this array, so that it contains the block.number and block.timestamp for each transaction that will be used.
+            for(uint i; i < numTxns; i++) {
+                ( txnDataBytes, , , ) = _helper_getTxnInfo_fromTxnID(i % 10); // Since we have only 10 sample RLPEncodedTransactions (we could increase them in the future)
+                console.log("i", i);
+                console.logBytes(txnDataBytes);
+                txnDataHashArray[i] = keccak256(txnDataBytes);
+                console.log("hash: ");
+                console.logBytes32(txnDataHashArray[i]);
+
+                currentBlock = i / numTxnsPerBlock;
+
+                blockTransactionsHashArray[i] = keccak256 (
+                    abi.encodePacked(
+                        sequencerAddress,
+                        contexts[(3 * currentBlock) + 1],
+                        contexts[(3 * currentBlock) + 2]
+                    )
+                );
+
+                // Since we are trying to verify the presence of the first transaction and the proof
+                // should include the txns after the tx you’re proving inclusion for
+                if(i != 0) {
+                    batchTransactionsMetadata = abi.encodePacked(
+                        batchTransactionsMetadata,
+                        abi.encodePacked(
+                            blockTransactionsHashArray[i],
+                            txnDataHashArray[i]
+                        )
+                    );
+                }
+            }
+
+            assertEq(blockTransactionsHashArray.length, numTxns, "blockTransactionsHashArray should have the txContextHash for every transaction of the block");
+        }
+
+        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
+        // txBatch is defined as: Batch of RLP-encoded transactions
+        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
+        console.log("txBatch");
+        console.logBytes(txBatch);
+
+        // Pranking as the sequencer and calling appendTxBatch
+        vm.prank(sequencerAddress);
+        seqIn.appendTxBatch(contexts, txLengths, txBatch, 0);
+
+        inboxSizeFinal = seqIn.getInboxSize();
+        assertGt(inboxSizeFinal, inboxSizeInitial);
+
+        expectedInboxSize = numTxns;
+        assertEq(inboxSizeFinal, expectedInboxSize);
+
+        ////////////////////////////////////////
+        // Verify Transaction Inclusion
+        ///////////////////////////////////////
+
+        // We will be verifying the inclusion of the very first transaction
+        (encodedTxn , txnDataBytes, txnSender, txnDataLength) = _helper_getTxnInfo_fromTxnID(0);
+        console.log("encodedTxn: " );
+        console.logBytes(encodedTxn);
+
+        // Since, we will be verifying the inclusion of the very first transaction. blockNumber and timestamp can be fetched from 1 and 2 indices of the contexts array.
+        txnL2BlockNumber = contexts[1];
+        txnL2Timestamp = contexts[2];
+
+        bytes32 txContextHash = keccak256(
+            abi.encodePacked(
+                sequencerAddress,
+                txnL2BlockNumber,
+                txnL2Timestamp
+            )
+        );
+
+        batchNum = 0; //seqIn.accumulators(0) returns a non-zero value while seqIn.accumulators(1) reverts.
+        numTxsBefore = 0; // since we are verifying the inclusion of the 1st transaction of the first block.
+        numTxsAfterInBatch = numTxns - 1; // since we are verifying the inclusion of the 1st transaction of the first block and the total number of transactions are numTxnsPerBlock * txnBlocks
+        accBefore = 0; // again, since this is our first inclusion, acc before that would have been empty bytes too.
+
+        bytes memory batchInfo = abi.encodePacked(
+            batchNum,
+            numTxsBefore,
+            numTxsAfterInBatch,
+            accBefore
+        );
+        console.log("PROOOFFFFF: ");
+        console.logBytes(batchTransactionsMetadata);
+        bytes memory proof = abi.encodePacked(
+            txContextHash,
+            batchInfo,
+            batchTransactionsMetadata
+        );
+
+        bytes memory test;
+        vm.prank(alice); // Alice wants to verify if the 1st transaction is indeed included or not
+        seqIn.verifyTxInclusion(
+            encodedTxn,
+            proof
+        );
+
+    }
+
 
 
         // uint256 baseFee;
@@ -229,7 +420,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // assertEq(seqIn.delayedMessagesRead(), 1);
 
-    }
+    // }
 
 
 
@@ -500,197 +691,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     // }
 
-
-
-
-    /////////////////////////////////
-    // verifyTxInclusion
-    /////////////////////////////////
-
-    // List of variables used inside of the test: test_verifyTxInclusion_positiveCase_1. Declared globally so as to avoid the *stack too deep* error while compilation.
-    address txnSender;
-    uint256 txnL2BlockNumber;
-    uint256 txnL2Timestamp;
-    uint256 txnDataLength;
-    bytes txnDataBytes;
-
-    uint256 batchNum;
-    uint256 numTxsBefore;
-    uint256 numTxsAfterInBatch;
-    bytes32 accBefore;
-
-    bytes encodedTxn; // This is the transaction whose inclusion we want to check
-    uint currentBlock;
-
-    uint256 inboxSizeInitial;
-    uint256 numTxns;
-    uint256 numContextsArrEntries;
-    uint256 inboxSizeFinal;
-    uint256 expectedInboxSize;
-
-    function test_verifyTxInclusion_firstTransactionIncluded_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
-        // We have to test this function's correctness by passing a correct bytes `proof` to ensure
-        // that the function works correctly.
-
-        // For the particular transaction whose inclusion needs to be verified, among others, we need the following data
-        /**
-            proof := txContextHash || batchInfo || {foreach tx in batch: (txContextHash || KEC(txData)), ...} where,
-            * {foreach tx in batch: (txContextHash || KEC(txData)), ...} = txContextHash1 || KEC(txData1) || ... || txContextHash10 || KEC(txData10) if you have 10 txs ✅
-            * batchInfo := (batchNum || numTxsBefore || numTxsAfterInBatch || accBefore) ✅
-            * txContextHash := KEC(sequencerAddress || l2BlockNumber || l2Timestamp) ✅
-        */
-
-        // Let us first create a batch, append that txn batch and then check for the inclusion of a particular txn
-
-        //////////////////////////////
-        // Appending a txn batch
-        //////////////////////////////
-
-        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
-
-        // the ^ comment is incorrect, as per the code the txsPerBlock = 5 and the blocks = 2
-        numTxnsPerBlock = bound(numTxnsPerBlock, 5, 10);
-        txnBlocks = bound(txnBlocks, 1, 1);
-
-        inboxSizeInitial = seqIn.getInboxSize();
-
-        // Each context corresponds to a single "L2 block"
-        numTxns = numTxnsPerBlock * txnBlocks;
-        numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 triplet: (numTxs, l2BlockNumber, l2Timestamp)
-
-        // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
-        vm.warp(block.timestamp + (4 * txnBlocks));
-        uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
-            // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
-
-        // Let's create an array of contexts
-        uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i; i < numContextsArrEntries; i += 3) {
-            // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
-            contexts[i] = numTxnsPerBlock;
-
-            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-            contexts[i + 1] = txnBlockTimestamp / 20;
-
-            // Formula used for blockTimestamp: (current block.timestamp) / 5x
-            contexts[i + 2] = txnBlockTimestamp;
-
-            // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
-            // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
-            ++txnBlockTimestamp;
-
-            // Similarly for txnBlockNumbers. They should be different for different contexts.
-            // ++txnBlockNumber;
-        }
-
-        bytes memory batchTransactionsMetadata;
-
-        {
-            // Let's construct the blockTransactionsHashArray and the txnDataHashArray
-            bytes32[] memory blockTransactionsHashArray = new bytes32[](numTxns);
-            bytes32[] memory txnDataHashArray = new bytes32[](numTxns);
-
-            // There will be numTxns number of entries, ie, one entry for one transaction and we know: numTxns = numTxnsPerBlock * txnBlocks
-            // And every txnBlock will have the same block.timestamp and block.number for each of it's own transactions
-            // And that is how we will populate this array, so that it contains the block.number and block.timestamp for each transaction that will be used.
-            for(uint i; i < numTxns; i++) {
-                ( txnDataBytes, , , ) = _helper_getTxnInfo_fromTxnID(i % 10); // Since we have only 10 sample RLPEncodedTransactions (we could increase them in the future)
-                console.log("i", i);
-                console.logBytes(txnDataBytes);
-                txnDataHashArray[i] = keccak256(txnDataBytes);
-                console.log("hash: ");
-                console.logBytes32(txnDataHashArray[i]);
-
-                currentBlock = i / numTxnsPerBlock;
-
-                blockTransactionsHashArray[i] = keccak256 (
-                    abi.encodePacked(
-                        sequencerAddress,
-                        contexts[(3 * currentBlock) + 1],
-                        contexts[(3 * currentBlock) + 2]
-                    )
-                );
-
-                // Since we are trying to verify the presence of the first transaction and the proof
-                // should include the txns after the tx you’re proving inclusion for
-                if(i != 0) {
-                    batchTransactionsMetadata = abi.encodePacked(
-                        batchTransactionsMetadata,
-                        abi.encodePacked(
-                            blockTransactionsHashArray[i],
-                            txnDataHashArray[i]
-                        )
-                    );
-                }
-            }
-
-            assertEq(blockTransactionsHashArray.length, numTxns, "blockTransactionsHashArray should have the txContextHash for every transaction of the block");
-        }
-
-        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
-        // txBatch is defined as: Batch of RLP-encoded transactions
-        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
-        console.log("txBatch");
-        console.logBytes(txBatch);
-
-        // Pranking as the sequencer and calling appendTxBatch
-        vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch, 0);
-
-        inboxSizeFinal = seqIn.getInboxSize();
-        assertGt(inboxSizeFinal, inboxSizeInitial);
-
-        expectedInboxSize = numTxns;
-        assertEq(inboxSizeFinal, expectedInboxSize);
-
-        ////////////////////////////////////////
-        // Verify Transaction Inclusion
-        ///////////////////////////////////////
-
-        // We will be verifying the inclusion of the very first transaction
-        (encodedTxn , txnDataBytes, txnSender, txnDataLength) = _helper_getTxnInfo_fromTxnID(0);
-        console.log("encodedTxn: " );
-        console.logBytes(encodedTxn);
-
-        // Since, we will be verifying the inclusion of the very first transaction. blockNumber and timestamp can be fetched from 1 and 2 indices of the contexts array.
-        txnL2BlockNumber = contexts[1];
-        txnL2Timestamp = contexts[2];
-
-        bytes32 txContextHash = keccak256(
-            abi.encodePacked(
-                sequencerAddress,
-                txnL2BlockNumber,
-                txnL2Timestamp
-            )
-        );
-
-        batchNum = 0; //seqIn.accumulators(0) returns a non-zero value while seqIn.accumulators(1) reverts.
-        numTxsBefore = 0; // since we are verifying the inclusion of the 1st transaction of the first block.
-        numTxsAfterInBatch = numTxns - 1; // since we are verifying the inclusion of the 1st transaction of the first block and the total number of transactions are numTxnsPerBlock * txnBlocks
-        accBefore = 0; // again, since this is our first inclusion, acc before that would have been empty bytes too.
-
-        bytes memory batchInfo = abi.encodePacked(
-            batchNum,
-            numTxsBefore,
-            numTxsAfterInBatch,
-            accBefore
-        );
-        console.log("PROOOFFFFF: ");
-        console.logBytes(batchTransactionsMetadata);
-        bytes memory proof = abi.encodePacked(
-            txContextHash,
-            batchInfo,
-            batchTransactionsMetadata
-        );
-
-        bytes memory test;
-        vm.prank(alice); // Alice wants to verify if the 1st transaction is indeed included or not
-        seqIn.verifyTxInclusion(
-            encodedTxn,
-            proof
-        );
-
-    }
 
 
 

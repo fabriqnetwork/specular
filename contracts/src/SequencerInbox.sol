@@ -47,7 +47,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
     address public sequencerAddress;
 
-    uint64[2] public l2BlockAndTime; // proof
     // for testing purposes
     uint64[2] public l1BlockAndTime;
 
@@ -72,20 +71,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     function getInboxSize() external view override returns (uint256) {
         return inboxSize;
     }
-
-    // function sendUnsignedTx(
-    //     uint256 gasLimit,
-    //     uint256 maxFeePerGas,
-    //     uint256 nonce,
-    //     address to,
-    //     uint256 value,
-    //     bytes calldata data
-    // ) external {
-    //     console.log("something");
-    //     if (gasLimit > type(uint256).max) revert();
-
-    //     addToDelayedInbox(msg.sender, keccak256(abi.encodePacked(gasLimit, maxFeePerGas, nonce, to, value, data)));
-    // }
 
     function sendRLPEncodedTx(
         bytes calldata messageDataHash
@@ -119,38 +104,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     }
 
 
-    // function addToDelayedInbox(address _sender, bytes32 _messageDataHash)
-    //     internal
-    //     returns (uint256 delayedMessageCount)
-    // {
-    //     messageDataHashes.push(_messageDataHash);
-    //     delayedMessageCount = delayedInboxAccumulator.length;
-    //     // console.log("delayed message count %d", delayedMessageCount);
-    //     // generating a message hash
-    //     bytes memory messageHash_1 =
-    //         abi.encodePacked(
-    //             _sender, uint64(block.number), uint64(block.timestamp), delayedMessageCount, block.basefee, _messageDataHash
-    //         );
-
-    //     bytes32 messageHash = keccak256(messageHash_1);
-    //     console.logBytes32(messageHash);
-    //     bytes32 prevAcc = 0;
-    //     if (delayedMessageCount > 0) {
-    //         prevAcc = delayedInboxAccumulator[delayedMessageCount - 1];
-    //     }
-
-    //     // saving the block data for forceInclusion (it is for testing purposes as of now)
-    //     l1BlockAndTime[0] = uint64(block.number);
-    //     l1BlockAndTime[1] = uint64(block.timestamp);
-    //     baseFee = block.basefee;
-
-    //     // adding the message to delayedInbox
-    //     delayedInboxAccumulator.push(keccak256(abi.encodePacked(prevAcc, messageHash)));
-    //     delayedMessageCounter++;
-    //     return delayedMessageCount;
-    // }
-
-
     // proof => prevAcc || numTxs || txContextHash || txDataHash
     // txContextHash = (sequencerAddress || l2Block || l2time)
     function forceInclusion(
@@ -170,14 +123,10 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
                  _l1BlockAndTime[0], _l1BlockAndTime[1], delayedMessageIndex, messageDataHash
             )
         );
-        // console.logBytes32(messageHash);
 
         // enforcing the 1 day time limit
         if (_l1BlockAndTime[0] + 5760 >= block.number) revert ();
         if (_l1BlockAndTime[1] + 86400 >= block.timestamp) revert ();
-
-        // console.logBytes32(messageHash);
-        // console.logBytes32(delayedInboxAccumulator[delayedMessageIndex]);
 
         bytes32 prevDelayedAcc = 0;
         if (delayedInboxAccumulator.length > 1) {
@@ -214,9 +163,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         }
 
-
-        // bytes32 txContentHash = keccak256(abi.encodePacked(_sender, l2BlockAndTime[0], l2BlockAndTime[1]));
-
         bytes32 runningAccumulator;
         if (accumulators.length > 0) {
             runningAccumulator = accumulators[accumulators.length - 1];
@@ -243,8 +189,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         bytes calldata txBatch,
         uint256 _totalDelayedMessagesRead
     ) external override {
-        console.log("AppendTxBatch");
-        console.logBytes(txBatch);
+
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
@@ -263,23 +208,14 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         uint256 offset = 0;
 
-        // uint256 initialDataOffset = 0;
-        // // assembly {
-        // //     initialDataOffset := txBatch.offset
-        // // }
 
-
-        // uint256 dataOffset = initialDataOffset;
-        // console.log("dataOffset", dataOffset);
-
-        uint256 l2BlockNumber;
-        uint256 l2Timestamp;
         bytes32 txContextHash;
 
         for (uint256 i = 0; i + 3 <= contexts.length; i += 3) {
+
             // TODO: consider adding L1 context.
-            l2BlockNumber = contexts[i + 1];
-            l2Timestamp = contexts[i + 2];
+            uint256 l2BlockNumber = contexts[i + 1];
+            uint256 l2Timestamp = contexts[i + 2];
 
             txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
 
@@ -295,24 +231,17 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
                 offset += txLength;
 
                 txDataHash = keccak256(trx);
-                // assembly {
-                //     txDataHash := keccak256(dataOffset, txLength)
-                // }
-                console.log("TxData Hash:  ");
-                console.logBytes32(txDataHash);
 
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, txDataHash));
 
-                // dataOffset += txLength;
-                // if (dataOffset - initialDataOffset > txBatch.length) {
-                //     revert TxBatchDataOverflow();
-                // }
+                if (offset > txBatch.length) {
+                    revert TxBatchDataOverflow();
+                }
 
                 numTxs++;
             }
         }
-        // console.log("APPENDTX BATCH DATA::::: ");
-        // console.logBytes32(runningAccumulator);
+
 
         testRunAcc = runningAccumulator;
 
@@ -323,14 +252,8 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             if (delayedInboxAccumulator.length > 0) {
                 prevDelayedAccumulator = delayedInboxAccumulator[delayedInboxAccumulator.length - 1];
             }
-
             // number of delayed Tx being added.
             numTxs +=  _totalDelayedMessagesRead - delayedMessagesRead;
-
-            // console.log(numTxs);
-            // console.log("PrevDelayedAccumulator: " );
-            // console.logBytes32(txContextHash);
-            // console.logBytes32(prevDelayedAccumulator);
 
             runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, prevDelayedAccumulator));
         }
@@ -341,12 +264,8 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
         accumulators.push(runningAccumulator);
 
-        console.log("ACCUMULATOR ::::::");
-        console.logBytes32(runningAccumulator);
 
         delayedMessagesRead = _totalDelayedMessagesRead;
-        // l2BlockAndTime[0] = uint64(l2BlockNumber);
-        // l2BlockAndTime[1] = uint64(l2Timestamp);
 
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
     }
@@ -363,14 +282,12 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
      * txContextHash := KEC(sequencerAddress || l2BlockNumber || l2Timestamp)
      */
     function verifyTxInclusion(bytes calldata encodedTx, bytes calldata proof) external view override {
-        console.logBytes(proof);
-        console.log("VERIFICATION :: ");
+
         uint256 offset = 0;
         // Deserialize tx context of `encodedTx`.
         bytes32 txContextHash;
         (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
-        console.log("txContextHash: ");
-        console.logBytes32(txContextHash);
+
         // Deserialize batch info.
         uint256 batchNum;
         uint256 numTxs;
@@ -378,25 +295,13 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         bytes32 acc;
 
         (offset, batchNum) = DeserializationLib.deserializeUint256(proof, offset);
-        console.log("batch Number: ",batchNum);
-
         (offset, numTxs) = DeserializationLib.deserializeUint256(proof, offset);
-        console.log("Num of txs: ",numTxs);
-
         (offset, numTxsAfterInBatch) = DeserializationLib.deserializeUint256(proof, offset);
-        console.log("Txs after in batch: ",numTxsAfterInBatch);
-
         (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
-        console.log("Accumulator before value: ");
-        console.logBytes32(acc);
 
         bytes32 txDataHash = keccak256(encodedTx);
-        console.log("Tx Data Hash:  ");
-        console.logBytes32(txDataHash);
 
         acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
-        console.log("Accumulator after value: ");
-        console.logBytes32(acc);
 
         numTxs++;
 
@@ -409,17 +314,9 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             numTxs++;
         }
 
-        console.log("Accumulator final value: ");
-        console.logBytes32(acc);
-
-        console.log("Accumulator real value: ");
-        console.logBytes32(accumulators[batchNum]);
-
         if (acc != accumulators[batchNum]) {
             revert ProofVerificationFailed();
         }
-
-        console.log("ENDED");
     }
 
     /**
@@ -435,28 +332,20 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256 offset = 0;
         // Deserialize tx context of `encodedTx`.
         bytes32 txContextHash;
-        // console.log("TxContexHash: ");
-        // console.logBytes32(txContextHash);
+
         (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
-        // console.logBytes32(txContextHash);
+
 
         // Deserialize batch info.
         uint256 batchNum;
-        // console.log("BatchNum", batchNum);
+
         uint256 numTxs; // num txs before  // might not need it for delayed verification
-        // console.log("numTxsBefore", numTxs);
+
         bytes32 acc; // main accumulator before
-        // console.log("acc before");
-        // console.logBytes32(acc);
+
         (offset, batchNum) = DeserializationLib.deserializeUint256(proof, offset);
-        // console.log("BatchNum", batchNum);
-
         (offset, numTxs) = DeserializationLib.deserializeUint256(proof, offset);
-        // console.log("numTxsBefore", numTxs);
-
         (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
-        // console.log("acc before");
-        // console.logBytes32(acc);
 
         // delayed txs related data
         uint256 numTxsBefore;
@@ -464,20 +353,12 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         bytes32 delayedAcc; // before
 
         (offset, numTxsBefore) = DeserializationLib.deserializeUint256(proof, offset);
-        // console.log("Delayed: numTxsBefore", numTxsBefore);
         (offset, numTxsAfter) = DeserializationLib.deserializeUint256(proof, offset);
-        // console.log("Delayed: numTxsAfter", numTxsAfter);
         (offset, delayedAcc) = DeserializationLib.deserializeBytes32(proof, offset);
-        // console.log("Delayed: delayedAcc before");
-        // console.logBytes32(delayedAcc);
-
 
         // Start accumulator at the tx.
         bytes32 txDataHash = keccak256(encodedTx);
         delayedAcc = keccak256(abi.encodePacked(delayedAcc, txDataHash));
-        // console.log("VERIFICATION DATAAAAAAAA::");
-        // console.log("Verification Delayed Accumulator");
-        // console.logBytes32(delayedAcc);
 
         // Compute final delayed accumulator value.
         for (uint256 i = 0; i < numTxsAfter; i++) {
@@ -486,15 +367,8 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         }
         uint256 totalDelayedTxs = numTxsBefore + numTxsAfter + 1 + numTxs;
 
-        // console.logBytes32(acc);
-        // console.log(totalDelayedTxs);
-        // console.logBytes32(txContextHash);
-        // console.logBytes32(delayedAcc);
-
         acc = keccak256(abi.encodePacked(acc, totalDelayedTxs, txContextHash, delayedAcc));
 
-        // console.log("VERFICATION ACCUMULATOR RESULT");
-        // console.logBytes32(acc);
 
         if (acc != accumulators[batchNum]) {
             revert ProofVerificationFailed();
