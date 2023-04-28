@@ -22,7 +22,6 @@
 
 pragma solidity ^0.8.0;
 
-import "forge-std/console.sol";
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
