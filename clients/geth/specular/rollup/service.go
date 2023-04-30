@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
@@ -160,7 +161,10 @@ func createTxManager(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
-	return txmgr.NewTxManager(txmgr.DefaultConfig(transactor.From), l1Client, transactor.Signer), nil
+	signer := func(ctx context.Context, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+		return transactor.Signer(address, tx)
+	}
+	return txmgr.NewTxManager(txmgr.DefaultConfig(transactor.From), l1Client, signer), nil
 }
 
 // createTransactor creates a transactor for the given account address,

@@ -165,11 +165,7 @@ func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
 	}
 	receipt, err := d.l1TxMgr.Send(
 		ctx,
-		txmgr.TxCandidate{
-			TxData:   data,
-			To:       d.cfg.L1().SequencerInboxAddr,
-			GasLimit: intrinsicGas,
-		},
+		txmgr.TxCandidate{TxData: data, To: &d.cfg.L1().SequencerInboxAddr, GasLimit: intrinsicGas},
 	)
 	if err != nil {
 		return fmt.Errorf("Failed to send batch transaction: %w", err)

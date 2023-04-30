@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -26,20 +25,11 @@ const priceBump int64 = 15
 var priceBumpPercent = big.NewInt(100 + priceBump)
 var oneHundred = big.NewInt(100)
 
-// TxCandidate is a transaction candidate that can be submitted to ask the
-// [TxManager] to construct a transaction with gas price bounds.
-type TxCandidate struct {
-	// TxData is the transaction data to be used in the constructed tx.
-	TxData []byte
-	// To is the recipient of the constructed tx.
-	To common.Address
-	// GasLimit is the gas limit to be used in the constructed tx.
-	GasLimit uint64
-}
+var ResetErr = errors.New("transaction manager reset")
 
-// EthClient is the set of methods that the transaction manager uses
-// to resubmit gas & determine when transactions are included on L1.
-type EthClient interface {
+// ETHBackend is the set of methods that the transaction manager uses to resubmit gas & determine
+// when transactions are included on L1.
+type ETHBackend interface {
 	// BlockNumber returns the most recent block number.
 	BlockNumber(ctx context.Context) (uint64, error)
 
@@ -58,41 +48,64 @@ type EthClient interface {
 	// NonceAt returns the account nonce of the given account.
 	// The block number can be nil, in which case the nonce is taken from the latest known block.
 	NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error)
-	// PendingNonce returns the pending nonce.
+	// PendingNonceAt returns the pending nonce.
 	PendingNonceAt(ctx context.Context, account common.Address) (uint64, error)
-	/// EstimateGas returns an estimate of the amount of gas needed to execute the given
-	/// transaction against the current pending block.
+	// EstimateGas returns an estimate of the amount of gas needed to execute the given
+	// transaction against the current pending block.
 	EstimateGas(ctx context.Context, msg ethereum.CallMsg) (uint64, error)
 }
 
-// TxManager allows callers to reliably publish txs,
-// bumping the gas price if needed, and obtain the receipt of the resulting tx.
+// TxManager performs linear fee bumping of a tx until it confirms.
 type TxManager struct {
-	cfg    Config
-	client EthClient
-	signer bind.SignerFn
+	cfg     Config
+	backend ETHBackend
+	signer  SignerFn
+
+	nonce     *uint64
+	nonceLock sync.RWMutex
 }
 
-// NewTxManager initializes a new TxManager.
-func NewTxManager(cfg Config, client EthClient, signer bind.SignerFn) *TxManager {
+type SignerFn func(ctx context.Context, address common.Address, tx *types.Transaction) (*types.Transaction, error)
+
+// NewTxManager initializes a new TxManager with the passed Config.
+func NewTxManager(cfg Config, backend ETHBackend, signer SignerFn) *TxManager {
 	return &TxManager{
-		cfg:    cfg,
-		client: client,
-		signer: signer,
+		cfg:     cfg,
+		backend: backend,
+		signer:  signer,
 	}
+}
+
+// TxCandidate is a transaction candidate that can be submitted to ask the
+// [TxManager] to construct a transaction with gas price bounds.
+type TxCandidate struct {
+	// TxData is the transaction data to be used in the constructed tx.
+	TxData []byte
+	// To is the recipient of the constructed tx. Nil means contract creation.
+	To *common.Address
+	// GasLimit is the gas limit to be used in the constructed tx.
+	GasLimit uint64
 }
 
 // Send is used to publish a transaction with incrementally higher gas prices
 // until the transaction eventually confirms. This method blocks until an
 // invocation of sendTx returns (called with differing gas prices). The method
-// may be canceled using the passed context; however, the transaction
-// may be included on L1 even if the context is cancelled.
+// may be canceled using the passed context.
 //
 // The transaction manager handles all signing. If and only if the gas limit is 0, the
 // transaction manager will do a gas estimation.
 //
-// NOTE: Send should be called by AT MOST one caller at a time.
+// NOTE: Send can be called concurrently, the nonce will be managed internally.
 func (m *TxManager) Send(ctx context.Context, candidate TxCandidate) (*types.Receipt, error) {
+	receipt, err := m.send(ctx, candidate)
+	if err != nil {
+		m.resetNonce()
+	}
+	return receipt, err
+}
+
+// send performs the actual transaction creation and sending.
+func (m *TxManager) send(ctx context.Context, candidate TxCandidate) (*types.Receipt, error) {
 	if m.cfg.TxSendTimeout != 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, m.cfg.TxSendTimeout)
@@ -102,12 +115,95 @@ func (m *TxManager) Send(ctx context.Context, candidate TxCandidate) (*types.Rec
 	if err != nil {
 		return nil, fmt.Errorf("failed to create the tx: %w", err)
 	}
-	return m.send(ctx, tx)
+	return m.sendTx(ctx, tx)
+}
+
+// craftTx creates the signed transaction
+// It queries L1 for the current fee market conditions as well as for the nonce.
+// NOTE: This method SHOULD NOT publish the resulting transaction.
+// NOTE: If the [TxCandidate.GasLimit] is non-zero, it will be used as the transaction's gas.
+// NOTE: Otherwise, the [TxManager] will query the specified backend for an estimate.
+func (m *TxManager) craftTx(ctx context.Context, candidate TxCandidate) (*types.Transaction, error) {
+	gasTipCap, basefee, err := m.suggestGasPriceCaps(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gas price info: %w", err)
+	}
+	gasFeeCap := calcGasFeeCap(basefee, gasTipCap)
+
+	nonce, err := m.nextNonce(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rawTx := &types.DynamicFeeTx{
+		ChainID:   m.cfg.ChainID,
+		Nonce:     nonce,
+		To:        candidate.To,
+		GasTipCap: gasTipCap,
+		GasFeeCap: gasFeeCap,
+		Data:      candidate.TxData,
+	}
+
+	log.Info("creating tx", "to", rawTx.To, "from", m.cfg.From)
+
+	// If the gas limit is set, we can use that as the gas
+	if candidate.GasLimit != 0 {
+		rawTx.Gas = candidate.GasLimit
+	} else {
+		// Calculate the intrinsic gas for the transaction
+		gas, err := m.backend.EstimateGas(ctx, ethereum.CallMsg{
+			From:      m.cfg.From,
+			To:        candidate.To,
+			GasFeeCap: gasFeeCap,
+			GasTipCap: gasTipCap,
+			Data:      rawTx.Data,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to estimate gas: %w", err)
+		}
+		rawTx.Gas = gas
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
+	defer cancel()
+	return m.signer(ctx, m.cfg.From, types.NewTx(rawTx))
+}
+
+// nextNonce returns a nonce to use for the next transaction. It uses
+// eth_getTransactionCount with "latest" once, and then subsequent calls simply
+// increment this number. If the transaction manager is reset, it will query the
+// eth_getTransactionCount nonce again.
+func (m *TxManager) nextNonce(ctx context.Context) (uint64, error) {
+	m.nonceLock.Lock()
+	defer m.nonceLock.Unlock()
+
+	if m.nonce == nil {
+		// Fetch the sender's nonce from the latest known block (nil `blockNumber`)
+		childCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
+		defer cancel()
+		nonce, err := m.backend.NonceAt(childCtx, m.cfg.From, nil)
+		if err != nil {
+			return 0, fmt.Errorf("failed to get nonce: %w", err)
+		}
+		m.nonce = &nonce
+	} else {
+		*m.nonce++
+	}
+
+	return *m.nonce, nil
+}
+
+// resetNonce resets the internal nonce tracking. This is called if any pending send
+// returns an error.
+func (m *TxManager) resetNonce() {
+	m.nonceLock.Lock()
+	defer m.nonceLock.Unlock()
+	m.nonce = nil
 }
 
 // send submits the same transaction several times with increasing gas prices as necessary.
 // It waits for the transaction to be confirmed on chain.
-func (m *TxManager) send(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
+func (m *TxManager) sendTx(ctx context.Context, tx *types.Transaction) (*types.Receipt, error) {
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	ctx, cancel := context.WithCancel(ctx)
@@ -153,58 +249,6 @@ func (m *TxManager) send(ctx context.Context, tx *types.Transaction) (*types.Rec
 	}
 }
 
-// craftTx creates the signed transaction
-// It queries L1 for the current fee market conditions as well as for the nonce.
-// NOTE: This method SHOULD NOT publish the resulting transaction.
-// NOTE: If the [TxCandidate.GasLimit] is non-zero, it will be used as the transaction's gas.
-// NOTE: Otherwise, the [SimpleTxManager] will query the specified backend for an estimate.
-func (m *TxManager) craftTx(ctx context.Context, candidate TxCandidate) (*types.Transaction, error) {
-	gasTipCap, basefee, err := m.suggestGasPriceCaps(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get gas price info: %w", err)
-	}
-	gasFeeCap := calcGasFeeCap(basefee, gasTipCap)
-
-	// Fetch the sender's nonce from the latest known block (nil `blockNumber`)
-	childCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
-	defer cancel()
-	nonce, err := m.client.NonceAt(childCtx, m.cfg.From, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get nonce: %w", err)
-	}
-
-	rawTx := &types.DynamicFeeTx{
-		ChainID:   m.cfg.ChainID,
-		Nonce:     nonce,
-		To:        &candidate.To,
-		GasTipCap: gasTipCap,
-		GasFeeCap: gasFeeCap,
-		Data:      candidate.TxData,
-	}
-
-	log.Info("creating tx", "to", rawTx.To, "from", m.cfg.From)
-
-	// If the gas limit is set, we can use that as the gas
-	if candidate.GasLimit != 0 {
-		rawTx.Gas = candidate.GasLimit
-	} else {
-		// Calculate the intrinsic gas for the transaction
-		gas, err := m.client.EstimateGas(ctx, ethereum.CallMsg{
-			From:      m.cfg.From,
-			To:        &candidate.To,
-			GasFeeCap: gasFeeCap,
-			GasTipCap: gasTipCap,
-			Data:      rawTx.Data,
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to estimate gas: %w", err)
-		}
-		rawTx.Gas = gas
-	}
-
-	return m.signer(m.cfg.From, types.NewTx(rawTx))
-}
-
 // publishAndWaitForTx publishes the transaction to the transaction pool and then waits for it with [waitMined].
 // It should be called in a new go-routine. It will send the receipt to receiptChan in a non-blocking way if a receipt is found
 // for the transaction.
@@ -214,7 +258,7 @@ func (m *TxManager) publishAndWaitForTx(ctx context.Context, tx *types.Transacti
 
 	cCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
-	err := m.client.SendTransaction(cCtx, tx)
+	err := m.backend.SendTransaction(cCtx, tx)
 	sendState.ProcessSendError(err)
 
 	// Properly log & exit if there is an error
@@ -222,14 +266,14 @@ func (m *TxManager) publishAndWaitForTx(ctx context.Context, tx *types.Transacti
 		switch {
 		case errStringMatch(err, core.ErrNonceTooLow):
 			log.Warn("nonce too low", "err", err)
+		case errStringMatch(err, context.Canceled):
+			log.Warn("transaction send cancelled", "err", err)
 		case errStringMatch(err, core.ErrAlreadyKnown):
 			log.Warn("resubmitted already known transaction", "err", err)
 		case errStringMatch(err, core.ErrReplaceUnderpriced):
 			log.Warn("transaction replacement is underpriced", "err", err)
 		case errStringMatch(err, core.ErrUnderpriced):
 			log.Warn("transaction is underpriced", "err", err)
-		case errStringMatch(err, context.Canceled):
-			log.Warn("transaction send cancelled", "err", err)
 		default:
 			log.Error("unable to publish transaction", "err", err)
 		}
@@ -271,7 +315,7 @@ func (m *TxManager) waitMined(ctx context.Context, tx *types.Transaction, sendSt
 func (m *TxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendState *SendState) *types.Receipt {
 	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
-	receipt, err := m.client.TransactionReceipt(ctx, txHash)
+	receipt, err := m.backend.TransactionReceipt(ctx, txHash)
 	if errors.Is(err, ethereum.NotFound) {
 		sendState.TxNotMined(txHash)
 		log.Trace("Transaction not yet mined", "hash", txHash)
@@ -288,7 +332,7 @@ func (m *TxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendSt
 	sendState.TxMined(txHash)
 
 	txHeight := receipt.BlockNumber.Uint64()
-	tipHeight, err := m.client.BlockNumber(ctx)
+	tipHeight, err := m.backend.BlockNumber(ctx)
 	if err != nil {
 		log.Error("Unable to fetch block number", "err", err)
 		return nil
@@ -347,7 +391,9 @@ func (m *TxManager) increaseGasPrice(ctx context.Context, tx *types.Transaction)
 		Data:       tx.Data(),
 		AccessList: tx.AccessList(),
 	}
-	newTx, err := m.signer(m.cfg.From, types.NewTx(rawTx))
+	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
+	defer cancel()
+	newTx, err := m.signer(ctx, m.cfg.From, types.NewTx(rawTx))
 	if err != nil {
 		log.Warn("failed to sign new transaction", "err", err)
 		return tx
@@ -359,7 +405,7 @@ func (m *TxManager) increaseGasPrice(ctx context.Context, tx *types.Transaction)
 func (m *TxManager) suggestGasPriceCaps(ctx context.Context) (*big.Int, *big.Int, error) {
 	cCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
-	tip, err := m.client.SuggestGasTipCap(cCtx)
+	tip, err := m.backend.SuggestGasTipCap(cCtx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch the suggested gas tip cap: %w", err)
 	} else if tip == nil {
@@ -367,7 +413,7 @@ func (m *TxManager) suggestGasPriceCaps(ctx context.Context) (*big.Int, *big.Int
 	}
 	cCtx, cancel = context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
-	head, err := m.client.HeaderByNumber(cCtx, nil)
+	head, err := m.backend.HeaderByNumber(cCtx, nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch the suggested basefee: %w", err)
 	} else if head.BaseFee == nil {
