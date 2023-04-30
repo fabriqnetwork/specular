@@ -55,27 +55,30 @@ func NewValidator(
 
 func (v *Validator) Start() error {
 	log.Info("Starting validator...")
-	ctx, err := v.BaseService.Start()
-	if err != nil {
-		return err
-	}
+	ctx := v.BaseService.Start()
 	// Connect to L2 client.
 	l2Client, err := v.l2ClientCreatorFn(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to create L2 client: %w", err)
 	}
 	v.l2Client = l2Client
-	if err := v.Stake(ctx); err != nil {
-		return fmt.Errorf("Failed to stake: %w", err)
+	if v.cfg.Validator().IsActiveStaker {
+		if err := v.Stake(ctx); err != nil {
+			return fmt.Errorf("Failed to stake: %w", err)
+		}
 	}
 	// end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
-	if err != nil {
-		return fmt.Errorf("Failed to sync L2 chain to head: %w", err)
-	}
-	v.Wg.Add(3)
+	// if err != nil {
+	// 	return fmt.Errorf("Failed to sync L2 chain to head: %w", err)
+	// }
+	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
-	go v.eventLoop(ctx)
-	go v.challengeLoop(ctx)
+	if v.cfg.Validator().IsActiveStaker {
+		v.Eg.Go(func() error { return v.eventLoop(ctx) })
+	}
+	if v.cfg.Validator().IsActiveChallenger {
+		v.Eg.Go(func() error { return v.challengeLoop(ctx) })
+	}
 	return nil
 }
 
@@ -83,8 +86,7 @@ func (v *Validator) APIs() []rpc.API {
 	return []rpc.API{}
 }
 
-func (v *Validator) eventLoop(ctx context.Context) {
-	defer v.Wg.Done()
+func (v *Validator) eventLoop(ctx context.Context) error {
 	// createdCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionCreated](
 	// 	ctx,
 	// 	v.l1Syncer.LatestHeaderBroker,
@@ -106,13 +108,13 @@ func (v *Validator) eventLoop(ctx context.Context) {
 			if v.cfg.Validator().IsResolver {
 				err := v.tryResolve(ctx)
 				if err != nil {
-					log.Crit("Failed while trying to resolve assertions", "error", err)
+					return fmt.Errorf("Failed to resolve assertions: %w", err)
 				}
 			}
 			if v.cfg.Validator().IsActiveCreator {
 				_, err := v.createAssertion(ctx)
 				if errors.Is(err, core.ErrInsufficientFunds) {
-					log.Crit("Insufficient Funds to send tx", "error", err)
+					return fmt.Errorf("Insufficient funds to send tx: %w", err)
 				} else if err != nil {
 					log.Error("Failed to create DA", "error", err)
 					continue // Try again...
@@ -123,7 +125,7 @@ func (v *Validator) eventLoop(ctx context.Context) {
 			// Validate. This blocks assertion creation, but that's fine.
 			if common.Address(ev.AsserterAddr) == v.cfg.Validator().ValidatorAccountAddr {
 				// No need to validate, advance stake or resolve (already done above).
-				return
+				return nil
 			}
 			err := v.validate()
 			if err != nil {
@@ -136,18 +138,17 @@ func (v *Validator) eventLoop(ctx context.Context) {
 				// If correct, advance stake.
 				_, err := v.l1Client.AdvanceStake(ev.AssertionID)
 				if err != nil {
-					log.Crit("Failed to advance stake", "error", err)
+					return fmt.Errorf("Failed to advance stake: %w", err)
 				}
 			}
 		case <-ctx.Done():
 			log.Warn("Aborting")
-			return
+			return nil
 		}
 	}
 }
 
-func (v *Validator) challengeLoop(ctx context.Context) {
-	defer v.Wg.Done()
+func (v *Validator) challengeLoop(ctx context.Context) error {
 	// challengeCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
 	// 	ctx,
 	// 	v.L1Syncer.LatestHeaderBroker,
@@ -163,7 +164,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 			continue
 		case <-ctx.Done():
 			log.Warn("Aborting")
-			return
+			return nil
 		}
 	}
 }

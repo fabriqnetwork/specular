@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"math/big"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core"
@@ -26,6 +25,12 @@ type batchDisseminator struct {
 	l2Client     L2Client
 }
 
+type unexpectedStateError struct{ msg string }
+
+func (e *unexpectedStateError) Error() string {
+	return fmt.Sprintf("service in unexpected state: %s", e.msg)
+}
+
 func newBatchDisseminator(
 	cfg SequencerServiceConfig,
 	batchBuilder BatchBuilder,
@@ -34,8 +39,7 @@ func newBatchDisseminator(
 	return &batchDisseminator{cfg: cfg, batchBuilder: batchBuilder, l1TxMgr: l1TxMgr}
 }
 
-func (d *batchDisseminator) start(ctx context.Context, wg *sync.WaitGroup, l2Client L2Client) {
-	defer wg.Done()
+func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error {
 	d.l2Client = l2Client
 	// Start with latest safe state.
 	d.revertToSafe()
@@ -48,7 +52,7 @@ func (d *batchDisseminator) start(ctx context.Context, wg *sync.WaitGroup, l2Cli
 			d.sequencingStep(ctx)
 		case <-ctx.Done():
 			log.Info("Aborting.")
-			return
+			return nil
 		}
 	}
 }
@@ -117,6 +121,8 @@ func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint6
 		return 0, 0, &unexpectedStateError{msg: "Safe header exceeds last appended header"}
 	} else if safe.Number.Uint64() < lastAppended {
 		// Hasn't caught up yet... OR re-org.
+		// TODO: allow continue to appending blocks.
+		return 0, 0, &utils.L2ReorgDetectedError{Msg: "Safe header is behind last appended header"}
 	}
 	end, err := d.l2Client.BlockNumber(ctx)
 	if err != nil {
@@ -127,17 +133,18 @@ func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint6
 
 func (d *batchDisseminator) sequenceBatches(ctx context.Context) error {
 	for {
+		// Non-blocking ctx check.
 		select {
 		case <-ctx.Done():
 			return nil
 		default:
-		}
-		if err := d.sequenceBatch(ctx); err != nil {
-			if errors.Is(err, io.EOF) {
-				log.Info("No more batches to sequence")
-				return nil
+			if err := d.sequenceBatch(ctx); err != nil {
+				if errors.Is(err, io.EOF) {
+					log.Info("No more batches to sequence")
+					return nil
+				}
+				return fmt.Errorf("Failed to sequence batch: %w", err)
 			}
-			return fmt.Errorf("Failed to sequence batch: %w", err)
 		}
 	}
 }

@@ -2,11 +2,11 @@ package sequencer
 
 import (
 	"context"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
@@ -30,8 +30,7 @@ type orderer interface {
 // Commits an empty block if no txs are received within an interval
 // TODO: handle reorgs in the decentralized sequencer case.
 // TODO: commit a msg-passing tx in empty block.
-func (e *executor) start(ctx context.Context, wg *sync.WaitGroup, l2Client L2Client) {
-	defer wg.Done()
+func (e *executor) start(ctx context.Context, l2Client L2Client) error {
 	e.orderer.RegisterL2Client(l2Client)
 	// Watch transactions in TxPool
 	txsCh := make(chan core.NewTxsEvent, 4096)
@@ -52,7 +51,7 @@ func (e *executor) start(ctx context.Context, wg *sync.WaitGroup, l2Client L2Cli
 				var err error
 				txs, err = e.orderer.OrderTransactions(ctx, txs)
 				if err != nil {
-					log.Crit("Failed to order txs", "err", err)
+					return fmt.Errorf("Failed to order txs: %w", err)
 				}
 			}
 			if len(txs) == 0 {
@@ -61,12 +60,12 @@ func (e *executor) start(ctx context.Context, wg *sync.WaitGroup, l2Client L2Cli
 			}
 			err := e.backend.CommitTransactions(txs)
 			if err != nil {
-				log.Crit("Failed to commit txs", "err", err)
+				return fmt.Errorf("Failed to commit txs: %w", err)
 			}
 			log.Info("Committed txs", "num_txs", len(txs))
 		case <-ctx.Done():
 			log.Info("Aborting.")
-			return
+			return nil
 		}
 	}
 }

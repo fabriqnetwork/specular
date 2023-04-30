@@ -2,28 +2,28 @@ package services
 
 import (
 	"context"
-	"sync"
 
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"golang.org/x/sync/errgroup"
 )
 
 type BaseService struct {
-	cancel context.CancelFunc
-	Wg     sync.WaitGroup
+	Eg *errgroup.Group
 }
 
 // Starts the rollup service.
-func (b *BaseService) Start() (context.Context, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	b.cancel = cancel
-	return ctx, nil
+func (b *BaseService) Start() context.Context {
+	eg, ctx := errgroup.WithContext(context.Background())
+	b.Eg = eg
+	return ctx
 }
 
 func (b *BaseService) Stop() error {
 	log.Info("Stopping service...")
-	b.cancel()
-	b.Wg.Wait()
+	b.Eg.Go(func() error { return fmt.Errorf("Force-stopping service.") })
+	b.Eg.Wait()
 	log.Info("Service stopped.")
 	return nil
 }

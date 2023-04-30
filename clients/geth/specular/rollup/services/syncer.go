@@ -26,7 +26,7 @@ func NewSyncer(
 	return &Syncer{backend, l1Client, l1Syncer}
 }
 
-func (s *Syncer) SyncLoop(ctx context.Context, start uint64, newBatchCh chan<- struct{}) {
+func (s *Syncer) SyncLoop(ctx context.Context, start uint64, newBatchCh chan<- struct{}) error {
 	// Start watching for new TxBatchAppended events.
 	subCtx, cancel := context.WithCancel(ctx)
 	batchEventCh := client.SubscribeHeaderMapped[*bindings.ISequencerInboxTxBatchAppended](
@@ -40,13 +40,13 @@ func (s *Syncer) SyncLoop(ctx context.Context, start uint64, newBatchCh chan<- s
 			log.Info("Processing `TxBatchAppended` event", "l1Block", ev.Raw.BlockNumber)
 			err := s.processTxBatchAppendedEvent(ctx, ev)
 			if err != nil {
-				log.Crit("Failed to process event", "err", err)
+				return fmt.Errorf("Failed to process event: %w", err)
 			}
 			if newBatchCh != nil {
 				newBatchCh <- struct{}{}
 			}
 		case <-ctx.Done():
-			return
+			return nil
 		}
 	}
 }

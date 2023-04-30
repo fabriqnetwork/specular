@@ -110,7 +110,7 @@ func mapCh[T any, U any](
 		case ev := <-inCh:
 			out, err := mapFn(ctx, ev)
 			if err != nil {
-				log.Error("Failed to map, err: %w", err)
+				log.Error("Failed to map", "error", err)
 				return
 			}
 			outCh <- out
@@ -133,7 +133,7 @@ func mapChToMany[T any, U any](
 		case ev := <-inCh:
 			out, err := mapFn(ctx, ev)
 			if err != nil {
-				log.Error("Failed to map, err: %w", err)
+				log.Error("Failed to map", "error", err)
 				return
 			}
 			for _, ev := range out {
