@@ -6,6 +6,7 @@ RUN apk add --no-cache make git
 COPY . /specular
 
 WORKDIR /specular/clients/geth/specular
+
 RUN apk add --no-cache python3 make g++
 RUN make contracts
 
