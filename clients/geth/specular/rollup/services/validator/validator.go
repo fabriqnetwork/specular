@@ -36,15 +36,6 @@ func (e *errAssertionOverflowedLocalInbox) Error() string {
 	return fmt.Sprint("assertion overflowed local inbox with msg:", e.Msg)
 }
 
-func (e *errAssertionOverflowedLocalInbox) Is(tgt error) bool {
-	_, ok := tgt.(*errAssertionOverflowedLocalInbox)
-	return ok
-}
-
-
-
-
-
 type Validator struct {
 	*services.BaseService
 

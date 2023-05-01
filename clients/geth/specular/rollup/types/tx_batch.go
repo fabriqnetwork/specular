@@ -14,11 +14,11 @@ import (
 // TxBatch represents a transaction batch to be sequenced to L1 sequencer inbox
 // It may contain multiple blocks
 type TxBatch struct {
-	Blocks				types.Blocks
-	FirstL2BlockNumber  *big.Int
-	Contexts			[]SequenceContext
-	Txs					types.Transactions
-	GasUsed				*big.Int
+	Blocks             types.Blocks
+	FirstL2BlockNumber *big.Int
+	Contexts           []SequenceContext
+	Txs                types.Transactions
+	GasUsed            *big.Int
 }
 
 // SequenceBlock represents a block sequenced to L1 sequencer inbox
@@ -30,8 +30,8 @@ type SequenceBlock struct {
 
 // SequenceContext is the relavent context of each block sequenced to L1 sequncer inbox
 type SequenceContext struct {
-	NumTxs      uint64
-	Timestamp   uint64
+	NumTxs    uint64
+	Timestamp uint64
 }
 
 type DecodeTxBatchError struct{ msg string }
@@ -51,8 +51,8 @@ func NewTxBatch(blocks []*types.Block, maxBatchSize uint64) *TxBatch {
 	for _, block := range blocks {
 		blockTxs := block.Transactions()
 		ctx := SequenceContext{
-			NumTxs:      uint64(len(blockTxs)),
-			Timestamp:   block.Time(),
+			NumTxs:    uint64(len(blockTxs)),
+			Timestamp: block.Time(),
 		}
 		contexts = append(contexts, ctx)
 		txs = append(txs, blockTxs...)
@@ -143,7 +143,7 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	firstL2BlockNumber := decoded[2].(*big.Int)
 	txBatch := decoded[3].([]byte)
 
-	if len(contexts) % 2 != 0 {
+	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
 	}
 
@@ -153,8 +153,8 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	var numTxs uint64
 	for i := 0; i < len(contexts); i += 2 {
 		ctx := SequenceContext{
-			NumTxs:      contexts[i].Uint64(),
-			Timestamp:   contexts[i+1].Uint64(),
+			NumTxs:    contexts[i].Uint64(),
+			Timestamp: contexts[i+1].Uint64(),
 		}
 		ctxs = append(ctxs, ctx)
 		for j := uint64(0); j < ctx.NumTxs; j++ {
@@ -171,8 +171,8 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	}
 	batch := &TxBatch{
 		FirstL2BlockNumber: firstL2BlockNumber,
-		Contexts: ctxs,
-		Txs:      txs,
+		Contexts:           ctxs,
+		Txs:                txs,
 	}
 	return batch, nil
 }

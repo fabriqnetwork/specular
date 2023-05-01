@@ -297,7 +297,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
 
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, 0, txBatch);
         assertEq(seqIn.getInboxSize(), numTx);
 
         // randomly choose a transaction to verify and prepare the proof
@@ -325,13 +325,12 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     function generateContexts(uint256 numBlocks, uint256 numTxPerBlock) public view returns (uint256[] memory) {
         uint256 txBlockTimestamp = block.timestamp - (2 * numBlocks);
-        uint256 numContextsArrEntries = numBlocks * 3;
+        uint256 numContextsArrEntries = numBlocks * 2;
 
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i = 0; i < numContextsArrEntries; i += 3) {
+        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
             contexts[i] = numTxPerBlock;
-            contexts[i + 1] = txBlockTimestamp / 20;
-            contexts[i + 2] = txBlockTimestamp;
+            contexts[i + 1] = txBlockTimestamp;
             txBlockTimestamp++;
         }
 
@@ -352,8 +351,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
             txContextHash = keccak256(
                 abi.encodePacked(
                     sequencerAddress,
-                    contexts[(3 * currentBlock) + 1], // L2 Block Number
-                    contexts[(3 * currentBlock) + 2] // L2 Timestamp
+                    currentBlock,
+                    contexts[(2 * currentBlock) + 1] // L2 Timestamp
                 )
             );
 
@@ -372,10 +371,9 @@ contract SequencerInboxTest is SequencerBaseSetup {
         returns (bytes32)
     {
         uint256 blockToVerify = txToVerify / numTxPerBlock;
-        uint256 txL2BlockNumber = contexts[(3 * blockToVerify) + 1];
-        uint256 txL2Timestamp = contexts[(3 * blockToVerify) + 2];
+        uint256 txL2Timestamp = contexts[(2 * blockToVerify) + 1];
 
-        return keccak256(abi.encodePacked(sequencerAddress, txL2BlockNumber, txL2Timestamp));
+        return keccak256(abi.encodePacked(sequencerAddress, blockToVerify, txL2Timestamp));
     }
 
     function generateAccumulator(uint256 txToVerify, uint256 numTxPerBlock, uint256[] memory contexts)
@@ -392,8 +390,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
             txContextHash = keccak256(
                 abi.encodePacked(
                     sequencerAddress,
-                    contexts[(3 * currentBlock) + 1], // L2 Block Number
-                    contexts[(3 * currentBlock) + 2] // L2 Timestamp
+                    currentBlock, // L2 Block Number
+                    contexts[(2 * currentBlock) + 1] // L2 Timestamp
                 )
             );
 
