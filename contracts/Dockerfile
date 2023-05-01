@@ -4,6 +4,7 @@ COPY ./contracts /specular/contracts
 RUN apk add --no-cache git
 
 WORKDIR /specular/contracts
+RUN apk add --no-cache python3 make g++
 RUN yarn install --frozen-lockfile && npx hardhat compile
 
 EXPOSE 8545
