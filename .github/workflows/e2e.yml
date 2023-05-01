@@ -16,6 +16,7 @@ jobs:
           yarn install
           yarn run ts-node scripts/docker_start.ts
 
+
 # jobs:
 #   e2e:
 #     runs-on: ubuntu-latest
