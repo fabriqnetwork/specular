@@ -14,7 +14,7 @@ jobs:
         run: |
           cd contracts
           yarn install
-#          yarn run ts-node scripts/docker_get_genesis_hash.ts
+          yarn run ts-node scripts/docker_get_genesis_hash.ts
           yarn run ts-node scripts/docker_start.ts
 
 
