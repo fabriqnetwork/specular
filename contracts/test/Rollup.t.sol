@@ -578,24 +578,21 @@ contract RollupTest is RollupBaseSetup {
     // This function increases the inbox size by 6
     function _increaseSequencerInboxSize() internal {
         uint256 numTxnsPerBlock = 3;
+        uint256 firstL2BlockNumber = block.timestamp / 20;
 
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
         // Let's create an array of contexts
         uint256 timeStamp1 = block.timestamp / 10;
         uint256 timeStamp2 = block.timestamp / 5;
-        uint256 blockNumber1 = timeStamp1 / 20;
-        uint256 blockNumber2 = timeStamp2 / 20;
 
-        uint256[] memory contexts = new uint256[](6);
+        uint256[] memory contexts = new uint256[](4);
 
         // Let's assume that we had 2 blocks and each had 3 transactions
         contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (blockNumber1);
-        contexts[2] = (timeStamp1);
-        contexts[3] = (numTxnsPerBlock);
-        contexts[4] = (blockNumber2);
-        contexts[5] = (timeStamp2);
+        contexts[1] = (timeStamp1);
+        contexts[2] = (numTxnsPerBlock);
+        contexts[3] = (timeStamp2);
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
@@ -604,7 +601,7 @@ contract RollupTest is RollupBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
     }
 
     function _initializeRollup(

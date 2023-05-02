@@ -92,7 +92,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
-        seqIn.appendTxBatch(contexts, txLengths, "0x");
+        seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
     }
 
     function test_RevertWhen_EmptyBatch() public {
@@ -100,7 +100,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerAddress);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
-        seqIn.appendTxBatch(contexts, txLengths, "0x");
+        seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
     }
 
     //////////////////////////////
@@ -115,24 +115,24 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
-        uint256 numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        // Each `context` is represented with uint256 2-tuple: (numTxs, l2Timestamp)
+        uint256 numContextsArrEntries = 2 * txnBlocks;
 
         // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
         vm.warp(block.timestamp + (4 * txnBlocks));
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
-            // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+        // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+
+        uint256 firstL2BlockNumber = block.timestamp / 20;
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i; i < numContextsArrEntries; i += 3) {
+        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
 
-            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-            contexts[i + 1] = txnBlockTimestamp / 20;
-
             // Formula used for blockTimestamp: (current block.timestamp) / 5x
-            contexts[i + 2] = txnBlockTimestamp;
+            contexts[i + 1] = txnBlockTimestamp;
 
             // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
             // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
@@ -145,7 +145,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
         assertGt(inboxSizeFinal, inboxSizeInitial);
@@ -162,24 +162,22 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 numTxnsPerBlock = 3;
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
+        uint256 firstL2BlockNumber = block.timestamp / 20;
+
         // Each context corresponds to a single "L2 block"
-        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        // `contexts` is represented with uint256 2-tuple: (numTxs, l2Timestamp)
         // Let's create an array of contexts
         uint256 numTxns = numTxnsPerBlock * 2;
         uint256 timeStamp1 = block.timestamp / 10;
         uint256 timeStamp2 = block.timestamp / 5;
-        uint256 blockNumber1 = timeStamp1 / 20;
-        uint256 blockNumber2 = timeStamp2 / 20;
 
         uint256[] memory contexts = new uint256[](6);
 
         // Let's assume that we had 2 blocks and each had 3 transactions
         contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (blockNumber1);
-        contexts[2] = (timeStamp1);
-        contexts[3] = (numTxnsPerBlock);
-        contexts[4] = (blockNumber2);
-        contexts[5] = (timeStamp2);
+        contexts[1] = (timeStamp1);
+        contexts[2] = (numTxnsPerBlock);
+        contexts[3] = (timeStamp2);
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
@@ -188,7 +186,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -205,24 +203,23 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
-        uint256 numContextsArrEntries = 3 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
+        uint256 numContextsArrEntries = 2 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
 
         // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
         vm.warp(block.timestamp + (4 * txnBlocks));
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
-            // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+        // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
+
+        uint256 firstL2BlockNumber = block.timestamp / 20;
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i; i < numContextsArrEntries; i += 3) {
+        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
             // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
             contexts[i] = numTxnsPerBlock;
 
-            // Formual Used for blockNumber: (txnBlock's block.timestamp) / 20;
-            contexts[i + 1] = txnBlockTimestamp / 20;
-
             // Formula used for blockTimestamp: (current block.timestamp) / 5x
-            contexts[i + 2] = txnBlockTimestamp;
+            contexts[i + 1] = txnBlockTimestamp;
 
             // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
             // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
@@ -241,7 +238,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
         vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -253,20 +250,20 @@ contract SequencerInboxTest is SequencerBaseSetup {
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 150);
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
+        uint256 firstL2BlockNumber = block.timestamp / 20;
+
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
         // Let's create an array of contexts
         uint256 numTxns = numTxnsPerBlock * 2;
         uint256 timeStamp1 = block.timestamp / 10;
-        uint256 blockNumber1 = timeStamp1 / 20;
 
-        uint256[] memory contexts = new uint256[](4);
+        uint256[] memory contexts = new uint256[](3);
 
         // Let's assume that we had 2 blocks and each had 3 transactions, but we fail to pass the block.timestamp and block.number of the 2nd transaction block.
         contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (blockNumber1);
-        contexts[2] = (timeStamp1);
-        contexts[3] = (numTxnsPerBlock);
+        contexts[1] = (timeStamp1);
+        contexts[2] = (numTxnsPerBlock);
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
@@ -274,7 +271,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -300,7 +297,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
 
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, 0, txBatch);
         assertEq(seqIn.getInboxSize(), numTx);
 
         // randomly choose a transaction to verify and prepare the proof
@@ -328,13 +325,12 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
     function generateContexts(uint256 numBlocks, uint256 numTxPerBlock) public view returns (uint256[] memory) {
         uint256 txBlockTimestamp = block.timestamp - (2 * numBlocks);
-        uint256 numContextsArrEntries = numBlocks * 3;
+        uint256 numContextsArrEntries = numBlocks * 2;
 
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i = 0; i < numContextsArrEntries; i += 3) {
+        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
             contexts[i] = numTxPerBlock;
-            contexts[i + 1] = txBlockTimestamp / 20;
-            contexts[i + 2] = txBlockTimestamp;
+            contexts[i + 1] = txBlockTimestamp;
             txBlockTimestamp++;
         }
 
@@ -355,8 +351,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
             txContextHash = keccak256(
                 abi.encodePacked(
                     sequencerAddress,
-                    contexts[(3 * currentBlock) + 1], // L2 Block Number
-                    contexts[(3 * currentBlock) + 2] // L2 Timestamp
+                    currentBlock,
+                    contexts[(2 * currentBlock) + 1] // L2 Timestamp
                 )
             );
 
@@ -375,10 +371,9 @@ contract SequencerInboxTest is SequencerBaseSetup {
         returns (bytes32)
     {
         uint256 blockToVerify = txToVerify / numTxPerBlock;
-        uint256 txL2BlockNumber = contexts[(3 * blockToVerify) + 1];
-        uint256 txL2Timestamp = contexts[(3 * blockToVerify) + 2];
+        uint256 txL2Timestamp = contexts[(2 * blockToVerify) + 1];
 
-        return keccak256(abi.encodePacked(sequencerAddress, txL2BlockNumber, txL2Timestamp));
+        return keccak256(abi.encodePacked(sequencerAddress, blockToVerify, txL2Timestamp));
     }
 
     function generateAccumulator(uint256 txToVerify, uint256 numTxPerBlock, uint256[] memory contexts)
@@ -395,8 +390,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
             txContextHash = keccak256(
                 abi.encodePacked(
                     sequencerAddress,
-                    contexts[(3 * currentBlock) + 1], // L2 Block Number
-                    contexts[(3 * currentBlock) + 2] // L2 Timestamp
+                    currentBlock, // L2 Block Number
+                    contexts[(2 * currentBlock) + 1] // L2 Timestamp
                 )
             );
 
