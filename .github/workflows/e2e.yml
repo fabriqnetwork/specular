@@ -35,7 +35,7 @@ jobs:
           cp ../../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../../clients/geth/specular/data/password.txt .
           cp ../../../clients/geth/specular/data/base_genesis.json ./genesis.json
-           pwd
+          pwd
 
       - name: Install node
         uses: actions/setup-node@v2
