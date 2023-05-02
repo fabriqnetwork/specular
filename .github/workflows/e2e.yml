@@ -43,3 +43,5 @@ jobs:
           cd ../contracts
           yarn install
           yarn run ts-node scripts/docker_start.ts
+          yarn run ts-node scripts/run_e2e.ts
+          yarn run ts-node scripts/docker_stop.ts
