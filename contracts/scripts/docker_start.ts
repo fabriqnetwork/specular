@@ -1,7 +1,7 @@
 import { executeCommand } from "./docker_utils";
 import path from "path";
 
-const ROOT_DIR = path.join(__dirname, "../../");
+const ROOT_DIR = path.join(__dirname, "/../../");
 const SPECULAR_DATADIR =
   process.env.SPECULAR_DATADIR || path.join(ROOT_DIR, "specular-datadir");
 
