@@ -27,20 +27,13 @@ async function installDockerCompose(version: string): Promise<void> {
   await execAsync("sudo chmod +x /usr/local/bin/docker-compose");
 }
 
-// List files in current dir
-async function listFilesInCurrentDir(): Promise<void> {
-  console.log("Running listFilesInCurrentDir()");
-  const { stdout } = await execAsync("pwd && ls -la");
-  console.log(stdout);
-}
-
 // Start up the containers
 async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
   const { stdout: pwdOutput } = await execAsync("pwd && ls -la");
   console.log(pwdOutput);
   await execAsync("cd project");
-  await execAsync("npx ts-node scripts/docker_start.ts");
+  await execAsync("npx ts-node ../scripts/docker_start.ts");
   await execAsync(
     "wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh"
   );
@@ -91,7 +84,6 @@ async function stopAndRemoveContainers(): Promise<void> {
 async function runE2E(): Promise<void> {
   await checkDockerVersion();
   await installDockerCompose("1.29.2");
-  await listFilesInCurrentDir();
   await startupContainers();
   await runTestingScript();
   await stopAndRemoveContainers();
