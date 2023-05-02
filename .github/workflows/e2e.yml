@@ -3,7 +3,7 @@ name: e2e
 on: [push, pull_request]
 
 jobs:
-  e2e:
+  test:
     runs-on: ubuntu-latest
 
     services:
@@ -11,6 +11,16 @@ jobs:
         image: docker:dind
 
     steps:
+      - name: Check machine OS
+        run: |
+          echo "Machine OS: ${{ runner.os }}"
+      - name: Check Docker version
+        run: |
+          docker version
+      - name: Install Docker Compose
+        uses: ndeloof/install-compose-action@v0.0.1
+        with:
+          version: v2.5.1
 
       - name: Checkout code
         uses: actions/checkout@v3
@@ -20,19 +30,57 @@ jobs:
           git submodule init
           git submodule update --recursive
 
+      - name: List files in current dir
+        run: |
+          pwd
+          ls -la
+
+      - name: Create proj folder and add keys and genesis.json
+        run: |
+          ls -la clients/geth/specular/data
+          mkdir project && cd project
+          mkdir specular-datadir && cd specular-datadir
+          cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
+          cp ../../clients/geth/specular/data/password.txt .
+          cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
+
       - name: Install node
         uses: actions/setup-node@v2
         with:
           node-version: "18.x"
 
-      - name: Install dependencies
+      - name: Start up containers
         run: |
-          npm install ts-node
+          pwd
+          ls -la
+          cd project
+          rm -rf project/specular-datadir/geth/
+          docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
+          wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
+          chmod +x wait-for-it.sh
+          sleep 30
+          docker ps
+          docker logs hardhat
+          docker logs sequencer
+          ./wait-for-it.sh -t 240 127.0.0.1:8545
+          ./wait-for-it.sh -t 240 127.0.0.1:4011
+          docker logs hardhat
+          docker logs sequencer
 
-      - name: Run end-to-end tests
+      - name: Run testing script
         run: |
           pwd
           ls -la
           cd contracts
           yarn install
-          yarn run ts-node scripts/run_e2e.ts
+          npx hardhat deploy --network localhost
+          cd scripts
+          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
+          docker logs hardhat
+          docker logs sequencer
+
+      - name: Stop and remove containers
+        run: |
+          pwd
+          ls -la
+          docker-compose -f docker/docker-compose-integration-test.yml down
