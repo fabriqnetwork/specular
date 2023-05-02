@@ -55,8 +55,10 @@ async function checkoutCode(): Promise<void> {
 // Create project folder
 async function createProjectFolder(): Promise<void> {
   console.log("Running createProjectFolder()");
-  await execAsync("mkdir project && cd project");
-  await execAsync("mkdir specular-datadir && cd specular-datadir");
+  await execAsync("mkdir project");
+  await execAsync("cd project");
+  await execAsync("mkdir specular-datadir");
+  await execAsync("cd specular-datadir");
   const { stdout: pwdOutput } = await execAsync("ls ../../clients/geth/specular/data/");
   console.log(pwdOutput);
   await execAsync(
