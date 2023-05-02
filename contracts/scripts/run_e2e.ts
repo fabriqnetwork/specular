@@ -27,6 +27,31 @@ async function installDockerCompose(version: string): Promise<void> {
   await execAsync("sudo chmod +x /usr/local/bin/docker-compose");
 }
 
+// Update git submodules
+async function updateGitSubmodules() {
+  console.log("Running updateGitSubmodules()");
+  return new Promise<void>((resolve, reject) => {
+    exec(
+      "git submodule init && git submodule update --recursive",
+      (error, stdout, stderr) => {
+        if (error) {
+          console.log("updateGitSubmodules stderr: ", stderr);
+          reject(error);
+        } else {
+          console.log("updateGitSubmodules stdout: ", stdout);
+          resolve();
+        }
+      }
+    );
+  });
+}
+
+// Checkout code
+async function checkoutCode(): Promise<void> {
+  console.log("Running checkoutCode()");
+  await execAsync("git submodule init");
+  await execAsync("git submodule update --recursive");
+}
 // Create project folder
 async function createProjectFolder(): Promise<void> {
   console.log("Running createProjectFolder()");
@@ -101,6 +126,8 @@ async function stopAndRemoveContainers(): Promise<void> {
 async function runE2E(): Promise<void> {
   await checkDockerVersion();
   await installDockerCompose("1.29.2");
+  await checkoutCode();
+  await updateGitSubmodules();
   await createProjectFolder();
   await startupContainers();
   await runTestingScript();
