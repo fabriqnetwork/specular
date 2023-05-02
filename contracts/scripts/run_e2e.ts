@@ -27,32 +27,6 @@ async function installDockerCompose(version: string): Promise<void> {
   await execAsync("sudo chmod +x /usr/local/bin/docker-compose");
 }
 
-// Update git submodules
-async function updateGitSubmodules() {
-  console.log("Running updateGitSubmodules()");
-  return new Promise<void>((resolve, reject) => {
-    exec(
-      "git submodule init && git submodule update --recursive",
-      (error, stdout, stderr) => {
-        if (error) {
-          console.log("updateGitSubmodules stderr: ", stderr);
-          reject(error);
-        } else {
-          console.log("updateGitSubmodules stdout: ", stdout);
-          resolve();
-        }
-      }
-    );
-  });
-}
-
-// Checkout code
-async function checkoutCode(): Promise<void> {
-  console.log("Running checkoutCode()");
-  await execAsync("git submodule init");
-  await execAsync("git submodule update --recursive");
-}
-
 // List files in current dir
 async function listFilesInCurrentDir(): Promise<void> {
   console.log("Running listFilesInCurrentDir()");
@@ -65,7 +39,9 @@ async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
   const { stdout: pwdOutput } = await execAsync("pwd && ls -la");
   console.log(pwdOutput);
-  await execAsync("npx ts-node scripts/docker_start.ts");
+  await execAsync("cd contracts && cd scripts && cd .. && cd .. && cd project");
+  await execAsync("rm -rf project/specular-datadir/geth/");
+  await execAsync("npx ts-node ../contracts/scripts/docker_start.ts");
   await execAsync(
     "wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh"
   );
@@ -116,8 +92,6 @@ async function stopAndRemoveContainers(): Promise<void> {
 async function runE2E(): Promise<void> {
   await checkDockerVersion();
   await installDockerCompose("1.29.2");
-  await checkoutCode();
-  await updateGitSubmodules();
   await listFilesInCurrentDir();
   await startupContainers();
   await runTestingScript();
