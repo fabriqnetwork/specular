@@ -15,6 +15,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Update Git submodules
+        run: |
+          git submodule init
+          git submodule update --recursive
+          
+      - name: List files in current dir
+        run: |
+          pwd
+          ls -la
+
       - name: Create proj folder and add keys and genesis.json
         run: |
           ls -la clients/geth/specular/data
@@ -24,7 +34,7 @@ jobs:
           cp ../../clients/geth/specular/data/password.txt .
           cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
 
-      - name: Start up containers
+      - name: Run end-to-end tests
         run: |
           pwd
           ls -la
@@ -33,3 +43,5 @@ jobs:
           cd ../contracts
           yarn install
           yarn run ts-node scripts/docker_start.ts
+          yarn run ts-node scripts/run_e2e.ts
+          yarn run ts-node scripts/docker_stop.ts
