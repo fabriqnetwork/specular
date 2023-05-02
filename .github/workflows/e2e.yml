@@ -19,9 +19,9 @@ jobs:
           cp ../../clients/geth/specular/data/password.txt .
           cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
           rm -rf geth/
-          cd ../..
+          cd ../../contracts
           yarn install
-          yarn run ts-node contracts/scripts/docker_start.ts
+          yarn run ts-node scripts/docker_start.ts
 
 
 # jobs:
