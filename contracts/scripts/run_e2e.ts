@@ -37,8 +37,14 @@ async function listFilesInCurrentDir(): Promise<void> {
 // Start up the containers
 async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
+  console.log("Ola 1");
+  await execAsync("cd ..");
   const { stdout: pwdOutput } = await execAsync("pwd && ls -la");
   console.log(pwdOutput);
+  console.log("Ola 2");
+  await execAsync("cd ..");
+  const { stdout: pwd1Output } = await execAsync("pwd && ls -la");
+  console.log(pwd1Output);
   await execAsync("npx ts-node scripts/docker_start.ts");
   await execAsync(
     "wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh"
