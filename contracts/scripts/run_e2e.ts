@@ -59,14 +59,14 @@ async function createProjectFolder(): Promise<void> {
   await execAsync("cd project");
   await execAsync("mkdir specular-datadir");
   await execAsync("cd specular-datadir");
-  const { stdout: pwdOutput } = await execAsync("ls ../../clients/geth/specular/data/");
+  const { stdout: pwdOutput } = await execAsync("ls clients/geth/specular/data/");
   console.log(pwdOutput);
   await execAsync(
-    "cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv"
+    "cp clients/geth/specular/data/keys/sequencer.prv ./key.prv"
   );
-  await execAsync("cp ../../clients/geth/specular/data/password.txt .");
+  await execAsync("cp clients/geth/specular/data/password.txt .");
   await execAsync(
-    "cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json"
+    "cp clients/geth/specular/data/base_genesis.json ./genesis.json"
   );
 }
 
