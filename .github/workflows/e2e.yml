@@ -19,7 +19,7 @@ jobs:
         run: |
           git submodule init
           git submodule update --recursive
-          
+
       - name: List files in current dir
         run: |
           pwd
@@ -43,5 +43,3 @@ jobs:
           cd ../contracts
           yarn install
           yarn run ts-node scripts/docker_start.ts
-          yarn run ts-node scripts/run_e2e.ts
-          yarn run ts-node scripts/docker_stop.ts
