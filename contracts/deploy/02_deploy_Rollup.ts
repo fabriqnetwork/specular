@@ -1,6 +1,11 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 import { Manifest } from "@openzeppelin/upgrades-core";
+import { exec } from "child_process";
+import util from "node:util";
+import path from "node:path";
+
+const CLIENT_SBIN_DIR = "../clients/geth/specular/sbin";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
@@ -8,10 +13,22 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { sequencer, deployer } = await getNamedAccounts();
   const deployerSigner = await ethers.getSigner(deployer);
   const { provider } = network;
+  const execPromise = util.promisify(exec);
 
   const sequencerInboxProxyAddress = (await deployments.get("SequencerInbox"))
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
+
+  const { err, stdout } = await execPromise(
+    path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
+  );
+  const initialVmHash = JSON.parse(stdout).root;
+
+  if (err !== undefined || !initialVmHash) {
+    throw Error("could not export genesis hash", err);
+  }
+
+  console.log("initial VM hash:", initialVmHash);
 
   const rollupArgs = [
     sequencer, // address _vault
@@ -23,7 +40,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    "0x20a3a2c9bb2f8d4409598cd92a94b4aa567bb2f906e9bcfa104f6c4cee9eb4a4", // bytes32 _initialVMhash
+    initialVmHash, // bytes32_initialVMhash
   ];
 
   const Rollup = await ethers.getContractFactory("Rollup", deployer);
