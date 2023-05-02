@@ -27,15 +27,26 @@ async function installDockerCompose(version: string): Promise<void> {
   await execAsync("sudo chmod +x /usr/local/bin/docker-compose");
 }
 
+// Create project folder
+async function createProjectFolder(): Promise<void> {
+  console.log("Running createProjectFolder()");
+  await execAsync("mkdir project && cd project");
+  await execAsync("mkdir specular-datadir && cd specular-datadir");
+  await execAsync(
+    "cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv"
+  );
+  await execAsync("cp ../../clients/geth/specular/data/password.txt .");
+  await execAsync(
+    "cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json"
+  );
+}
+
 // Start up the containers
 async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
   const { stdout: pwdOutput } = await execAsync("pwd && ls -la");
   console.log(pwdOutput);
-
   await execAsync("cd contracts && cd scripts && cd .. && cd .. && cd project");
-  const { stdout: pw1dOutput } = await execAsync("pwd && ls -la");
-  console.log(pw1dOutput);
   await execAsync("rm -rf project/specular-datadir/geth/");
   await execAsync("npx ts-node ../contracts/scripts/docker_start.ts");
   await execAsync(
@@ -88,6 +99,7 @@ async function stopAndRemoveContainers(): Promise<void> {
 async function runE2E(): Promise<void> {
   await checkDockerVersion();
   await installDockerCompose("1.29.2");
+  await createProjectFolder();
   await startupContainers();
   await runTestingScript();
   await stopAndRemoveContainers();

@@ -20,16 +20,6 @@ jobs:
           git submodule init
           git submodule update --recursive
 
-      - name: Create proj folder and add keys and genesis.json
-        run: |
-          cd contracts
-          ls -la ../clients/geth/specular/data
-          mkdir project && cd project
-          mkdir specular-datadir && cd specular-datadir
-          cp ../../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
-          cp ../../../clients/geth/specular/data/password.txt .
-          cp ../../../clients/geth/specular/data/base_genesis.json ./genesis.json
-
       - name: Install node
         uses: actions/setup-node@v2
         with:
@@ -43,8 +33,6 @@ jobs:
         run: |
           pwd
           ls -la
-          cd contracts/project
-          rm -rf project/specular-datadir/geth/
-          cd ..
+          cd contracts
           yarn install
           yarn run ts-node scripts/run_e2e.ts
