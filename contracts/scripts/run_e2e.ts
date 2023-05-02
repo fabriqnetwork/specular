@@ -60,12 +60,6 @@ async function listFilesInCurrentDir(): Promise<void> {
   console.log(stdout);
 }
 
-// Install dependencies
-async function installDependencies(): Promise<void> {
-  console.log("Running installDependencies()");
-  await execAsync("npm install ts-node");
-}
-
 // Start up the containers
 async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
@@ -127,7 +121,6 @@ async function runE2E(): Promise<void> {
   await checkoutCode();
   await updateGitSubmodules();
   await listFilesInCurrentDir();
-  await installDependencies();
   await startupContainers();
   await runTestingScript();
   await stopAndRemoveContainers();
