@@ -60,6 +60,20 @@ async function listFilesInCurrentDir(): Promise<void> {
   console.log(stdout);
 }
 
+// Create project folder
+async function createProjectFolder(): Promise<void> {
+  console.log("Running createProjectFolder()");
+  await execAsync("mkdir project && cd project");
+  await execAsync("mkdir specular-datadir && cd specular-datadir");
+  await execAsync(
+    "cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv"
+  );
+  await execAsync("cp ../../clients/geth/specular/data/password.txt .");
+  await execAsync(
+    "cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json"
+  );
+}
+
 // Install node
 async function installNode(version: string): Promise<void> {
   console.log("Running installNode()");
@@ -133,7 +147,8 @@ async function runE2E(): Promise<void> {
   await checkoutCode();
   await updateGitSubmodules();
   await listFilesInCurrentDir();
-  await installNode("19.1.0");
+  await createProjectFolder();
+  await installNode("18.x");
   await installDependencies();
   await startupContainers();
   await runTestingScript();
