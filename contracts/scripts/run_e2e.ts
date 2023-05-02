@@ -39,11 +39,7 @@ async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
   const { stdout: pwdOutput } = await execAsync("pwd && ls -la");
   console.log(pwdOutput);
-  await execAsync("cd ..");
-  const { stdout: tempOutput } = await execAsync("pwd && ls");
-  console.log(tempOutput);
-  await execAsync("rm -rf project/specular-datadir/geth/");
-  await execAsync("npx ts-node ../contracts/scripts/docker_start.ts");
+  await execAsync("npx ts-node scripts/docker_start.ts");
   await execAsync(
     "wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh"
   );
