@@ -64,6 +64,7 @@ async function listFilesInCurrentDir(): Promise<void> {
 async function startupContainers(): Promise<void> {
   console.log("Running startupContainers()");
   const { stdout: pwdOutput } = await execAsync("pwd && ls -la");
+  console.log(pwdOutput);
   await execAsync("cd project");
   await execAsync("rm -rf project/specular-datadir/geth/");
   await execAsync("npx ts-node ../contracts/scripts/docker_start.ts");
