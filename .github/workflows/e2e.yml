@@ -55,32 +55,34 @@ jobs:
           ls -la
           cd project
           rm -rf project/specular-datadir/geth/
-          docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
-          wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
-          chmod +x wait-for-it.sh
-          sleep 30
-          docker ps
-          docker logs hardhat
-          docker logs sequencer
-          ./wait-for-it.sh -t 240 127.0.0.1:8545
-          ./wait-for-it.sh -t 240 127.0.0.1:4011
-          docker logs hardhat
-          docker logs sequencer
-
-      - name: Run testing script
-        run: |
-          pwd
-          ls -la
-          cd contracts
           yarn install
-          npx hardhat deploy --network localhost
-          cd scripts
-          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
-          docker logs hardhat
-          docker logs sequencer
+          yarn run ts-node scripts/docker_start.ts
+      # docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
+      # wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
+      # chmod +x wait-for-it.sh
+      # sleep 30
+      # docker ps
+      # docker logs hardhat
+      # docker logs sequencer
+      # ./wait-for-it.sh -t 240 127.0.0.1:8545
+      # ./wait-for-it.sh -t 240 127.0.0.1:4011
+      # docker logs hardhat
+      # docker logs sequencer
 
-      - name: Stop and remove containers
-        run: |
-          pwd
-          ls -la
-          docker-compose -f docker/docker-compose-integration-test.yml down
+      # - name: Run testing script
+      #   run: |
+      #     pwd
+      #     ls -la
+      #     cd contracts
+      #     yarn install
+      #     npx hardhat deploy --network localhost
+      #     cd scripts
+      #     yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
+      #     docker logs hardhat
+      #     docker logs sequencer
+
+      # - name: Stop and remove containers
+      #   run: |
+      #     pwd
+      #     ls -la
+      #     docker-compose -f docker/docker-compose-integration-test.yml down
