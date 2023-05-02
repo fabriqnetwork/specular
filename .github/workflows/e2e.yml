@@ -55,6 +55,7 @@ jobs:
           ls -la
           cd project
           rm -rf project/specular-datadir/geth/
+          cd ../contracts
           yarn install
           yarn run ts-node scripts/docker_start.ts
       # docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
