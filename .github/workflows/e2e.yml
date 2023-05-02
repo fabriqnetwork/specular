@@ -22,10 +22,6 @@ jobs:
 
       - name: Run end-to-end tests
         run: |
-          pwd
-          ls -la
-          cd project
-          rm -rf project/specular-datadir/geth/
           cd contracts
           yarn install
           yarn run ts-node scripts/run_e2e.ts
