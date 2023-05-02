@@ -10,7 +10,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Create proj folder and add keys and genesis.json
+      - name: Run end-to-end tests
         run: |
           ls -la clients/geth/specular/data
           mkdir project && cd project
@@ -18,12 +18,10 @@ jobs:
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
           cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
-
-      - name: Run end-to-end tests
-        run: |
-          cd contracts
+          rm -rf geth/
+          cd ../..
           yarn install
-          yarn run ts-node scripts/docker_start.ts
+          yarn run ts-node contracts/scripts/docker_start.ts
 
 
 # jobs:
