@@ -22,13 +22,13 @@ jobs:
 
       - name: List files in current dir
         run: |
-          cd contracts
           pwd
           ls -la
 
       - name: Create proj folder and add keys and genesis.json
         run: |
-          ls -la clients/geth/specular/data
+          cd contracts
+          ls -la ../clients/geth/specular/data
           mkdir project && cd project
           pwd
           mkdir specular-datadir && cd specular-datadir
@@ -52,6 +52,5 @@ jobs:
           ls -la
           cd project
           rm -rf project/specular-datadir/geth/
-          cd ../contracts
           yarn install
           yarn run ts-node scripts/run_e2e.ts
