@@ -17,16 +17,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
 
-  const { err, stdout } = await execPromise("../clients/geth/specular/sbin/export_genesis.sh");
-  const initialVmHash = JSON.parse(stdout).root;
+  // const { err, stdout } = await execPromise("../clients/geth/specular/sbin/export_genesis.sh");
+  // const initialVmHash = JSON.parse(stdout).root;
 
-  if (err !== undefined || !initialVmHash) {
-    throw Error("could not export genesis hash", err);
-  }
-  if (err !== undefined || !initialVmHash) {
-    throw Error("could not export genesis hash", err);
-  }
-  console.log("initial VM hash:", initialVmHash);
+  // if (err !== undefined || !initialVmHash) {
+  //   throw Error("could not export genesis hash", err);
+  // }
+  // if (err !== undefined || !initialVmHash) {
+  //   throw Error("could not export genesis hash", err);
+  // }
+  // console.log("initial VM hash:", initialVmHash);
 
   const rollupArgs = [
     sequencer, // address _vault
@@ -39,7 +39,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    initialVmHash, // bytes32_initialVMhash
+    "0x744c19d2e8593c97867b3b6a3588f51cd9dbc5010a395cf199be4bbb353848b8", // bytes32_initialVMhash
   ];
 
   const Rollup = await ethers.getContractFactory("Rollup", deployer);
