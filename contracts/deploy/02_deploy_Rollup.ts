@@ -1,6 +1,10 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 import { Manifest } from "@openzeppelin/upgrades-core";
+import { exec } from "child_process";
+import util from "node:util";
+import path from "node:path";
+
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
@@ -13,19 +17,16 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
 
-  const { stdout: pwdOutput } = await execPromise( path.join("pwd && ls -la ",CLIENT_SBIN_DIR));
-  console.log("export_genesis path at ../clients/geth/specular/sbin:",pwdOutput);
+  const { err, stdout } = await execPromise("../clients/geth/specular/sbin/export_genesis.sh");
+  const initialVmHash = JSON.parse(stdout).root;
 
-  // const { err, stdout } = await execPromise(
-  //   path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
-  // );
-  // const initialVmHash = JSON.parse(stdout).root;
-
-  // if (err !== undefined || !initialVmHash) {
-  //   throw Error("could not export genesis hash", err);
-  // }
-
-  // console.log("initial VM hash:", initialVmHash);
+  if (err !== undefined || !initialVmHash) {
+    throw Error("could not export genesis hash", err);
+  }
+  if (err !== undefined || !initialVmHash) {
+    throw Error("could not export genesis hash", err);
+  }
+  console.log("initial VM hash:", initialVmHash);
 
   const rollupArgs = [
     sequencer, // address _vault
@@ -38,7 +39,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    "0x744c19d2e8593c97867b3b6a3588f51cd9dbc5010a395cf199be4bbb353848b8", // bytes32_initialVMhash
+    initialVmHash, // bytes32_initialVMhash
   ];
 
   const Rollup = await ethers.getContractFactory("Rollup", deployer);
