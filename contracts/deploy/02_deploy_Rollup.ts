@@ -12,6 +12,19 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const sequencerInboxProxyAddress = (await deployments.get("SequencerInbox"))
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
+  const { stdout: pwdOutput } = await execPromise("pwd && ls -la ../clients/geth/specular/sbin");
+  console.log("export_genesis path at ../clients/geth/specular/sbin:",pwdOutput);
+
+  const { err, stdout } = await execPromise(
+    path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
+  );
+  const initialVmHash = JSON.parse(stdout).root;
+
+  if (err !== undefined || !initialVmHash) {
+    throw Error("could not export genesis hash", err);
+  }
+
+  console.log("initial VM hash:", initialVmHash);
 
   const rollupArgs = [
     sequencer, // address _vault
