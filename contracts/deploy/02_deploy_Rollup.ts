@@ -13,8 +13,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
 
-  // const { stdout: pwdOutput } = await execPromise("pwd && ls -la ../clients/geth/specular/sbin");
-  // console.log("export_genesis path at ../clients/geth/specular/sbin:",pwdOutput);
+  const { stdout: pwdOutput } = await execPromise( path.join("pwd && ls -la ",CLIENT_SBIN_DIR));
+  console.log("export_genesis path at ../clients/geth/specular/sbin:",pwdOutput);
 
   // const { err, stdout } = await execPromise(
   //   path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
