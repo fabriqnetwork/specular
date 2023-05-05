@@ -13,15 +13,36 @@
   "difficulty": "1",
   "gasLimit": "8000000",
   "extradata": "",
-  "alloc": {
-    "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266": {
+  "preDeploy": [
+    {
+      "address": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
       "balance": "10000000000000000000"
     },
-    "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": {
+    {
+      "address": "0x70997970c51812dc3a010c7d01b50e0d17dc79c8",
       "balance": "10000000000000000000"
     },
-    "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": {
+    {
+      "address": "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc",
       "balance": "10000000000000000000"
+    },
+    {
+      "address": "0x0000000000000000000000000000000000000020",
+      "contract": "Faucet",
+      "balance": "100000000000000000000",
+      "storage": {
+        "_owner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "amountAllowed": "10000000000000000",
+        "lockTime": "0"
+      }
+    },
+    {
+      "address": "0xff00000000000000000000000000000000000000",
+      "contract": "ERC1967Proxy",
+      "balance": "0",
+      "storage": {
+        "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+      }
     }
-  }
+  ]
 }

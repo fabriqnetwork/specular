@@ -1,78 +1,46 @@
 import { BigNumber, ethers } from "ethers";
+import { exec } from "child_process";
 import fs from "fs";
-import FaucetJson from "../artifacts/src/pre-deploy/Faucet.sol/Faucet.json";
-import assert from "assert";
-let GenesisJson;
+import path from "path";
+import util from "node:util";
 
-interface contractObject {
-  code: string;
+type PreDeploy = {
+  address: string;
   balance: string;
-  storage: any;
+  contract: string | undefined;
+  storage: { [key: string]: string };
+};
+
+async function main() {
+  const { baseGenesisPath, genesisPath } = parseArgs();
+  await generateGenesisFile(baseGenesisPath, genesisPath);
 }
 
-const createContractObject = (
-  deployedBytecode: string,
-  contractBalance: BigNumber,
-  storageSlots: Array<string>,
-  valueAtSlots: Array<string>
-): contractObject => {
-  assert(
-    storageSlots.length == valueAtSlots.length,
-    "incorrect storage-values array lengths"
+export async function generateGenesisFile(
+  baseGenesisPath: string,
+  genesisPath: string
+) {
+  const baseGenesis = JSON.parse(fs.readFileSync(baseGenesisPath, "utf-8"));
+
+  const alloc = new Map();
+  await Promise.all(
+    baseGenesis.preDeploy.map((p: any) => parsePreDeploy(p, alloc))
   );
 
-  const storageSlotsObj: any = {};
-  for (let i = 0; i < storageSlots.length; i++) {
-    storageSlotsObj[storageSlots[i].toString()] = valueAtSlots[i];
-  }
+  baseGenesis.preDeploy = undefined;
+  baseGenesis.alloc = Object.fromEntries(alloc);
 
-  const contractObject = {
-    code: deployedBytecode,
-    balance: Number(contractBalance).toString(),
-    storage: storageSlotsObj,
-  };
-  return contractObject;
-};
+  fs.writeFileSync(genesisPath, JSON.stringify(baseGenesis, null, 2), "utf-8");
+}
 
-const createFaucetContractObject = (): contractObject => {
-  const faucetDeployedBytecode = FaucetJson.deployedBytecode;
-  const faucetBalance = ethers.BigNumber.from("10").pow(20);
-
-  const storageSlots = [];
-  const valueAtSlots = [];
-
-  // Storage Slot 0 stores the address of the owner
-  storageSlots[0] =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
-  // Storage Slot 1 stores the amountAllowed
-  storageSlots[1] =
-    "0x0000000000000000000000000000000000000000000000000000000000000001";
-
-  // Owner Address - 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
-  valueAtSlots[0] =
-    "0x000000000000000000000000f39fd6e51aad88f6f4ce6ab8827279cfffb92266";
-  // Amount Allowed - 0.01 ETH
-  valueAtSlots[1] =
-    "0x000000000000000000000000000000000000000000000000002386f26fc10000";
-
-  const faucetObject = createContractObject(
-    faucetDeployedBytecode,
-    faucetBalance,
-    storageSlots,
-    valueAtSlots
-  );
-  return faucetObject;
-};
-
-const main = () => {
+function parseArgs() {
   const inFlagIndex = process.argv.indexOf("--in");
   let baseGenesisPath;
 
   if (inFlagIndex > -1) {
     baseGenesisPath = process.argv[inFlagIndex + 1];
-    GenesisJson = JSON.parse(fs.readFileSync(baseGenesisPath, "utf-8"));
   } else {
-    throw new Error("Please specify the base genesis path");
+    throw Error("Please specify the base genesis path");
   }
 
   const outFlagIndex = process.argv.indexOf("--out");
@@ -82,14 +50,78 @@ const main = () => {
     genesisPath = process.argv[outFlagIndex + 1];
   } else {
     console.log("Setting out genesis path same as base genesis path");
-    genesisPath = baseGenesisPath;
+    genesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
   }
 
-  // Address the faucet will be deployed to - address(20)
-  const faucetAddress = "0x0000000000000000000000000000000000000020";
+  return { baseGenesisPath, genesisPath };
+}
 
-  GenesisJson.alloc[faucetAddress.toString()] = createFaucetContractObject();
-  fs.writeFileSync(genesisPath, JSON.stringify(GenesisJson, null, 2));
-};
+async function parsePreDeploy(p: PreDeploy, alloc: any) {
+  const execPromise = util.promisify(exec);
+  const data = new Map();
 
-main();
+  if (p.balance) data.set("balance", p.balance);
+  if (p.contract) {
+    // this allows us to specify any contract within the forge project as pre deploy
+    // and makes no assumption about compilation state at the time of genesis file generation
+    const { stderr, stdout } = await execPromise(
+      `forge inspect ${p.contract} bytes`
+    );
+    if (stderr || !stdout) Error(stderr);
+
+    data.set("code", stdout.trim());
+  }
+  if (p.storage && p.contract) {
+    const { stderr, stdout } = await execPromise(
+      `forge inspect ${p.contract} storage`
+    );
+
+    const storageLayout = JSON.parse(stdout);
+    if (stderr || !storageLayout) Error(stderr);
+
+    const storage = new Map();
+    for (const s of storageLayout.storage) {
+      if (!p.storage[s.label]) continue;
+
+      const slot = ethers.utils.hexZeroPad(
+        BigNumber.from(s.slot).toHexString(),
+        32
+      );
+
+      let value = new Uint8Array(32);
+      if (storage.has(slot)) {
+        value = storage.get(slot);
+      }
+
+      const newStorage = ethers.utils.arrayify(
+        BigNumber.from(p.storage[s.label]).toHexString()
+      );
+
+      for (let i = 0; i < newStorage.length; i++) {
+        value[value.length - s.offset - newStorage.length + i] = newStorage[i];
+      }
+
+      storage.set(slot, ethers.utils.hexZeroPad(value, 32));
+    }
+
+    // add non variable slots
+    for (const s of Object.entries(p.storage)) {
+      if (!ethers.utils.isHexString(s[0])) continue;
+
+      const slot = ethers.utils.hexZeroPad(s[0], 32);
+      const value = ethers.utils.hexZeroPad(s[1], 32);
+      storage.set(slot, value);
+    }
+
+    data.set("storage", Object.fromEntries(storage));
+  }
+
+  alloc.set(p.address, Object.fromEntries(data));
+}
+
+if (!require.main!.loaded) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
