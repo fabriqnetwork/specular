@@ -19,11 +19,11 @@ type bridgeSerializationUtil struct {
 	challengeAbi *abi.ABI
 }
 
-func PackAppendTxBatchInput(contexts, txLengths []*big.Int, txs []byte) ([]byte, error) {
+func PackAppendTxBatchInput(contexts, txLengths []*big.Int, firstL2BlockNumber *big.Int, txs []byte) ([]byte, error) {
 	if err := ensureUtilInit(); err != nil {
 		return nil, fmt.Errorf("Failed to init serialization util: %w", err)
 	}
-	return serializationUtil.inboxAbi.Pack("appendTxBatch", contexts, txLengths, txs)
+	return serializationUtil.inboxAbi.Pack("appendTxBatch", contexts, txLengths, firstL2BlockNumber, txs)
 }
 
 func UnpackAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error) {

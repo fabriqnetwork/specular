@@ -77,30 +77,30 @@ func (b *BatchBuilder) Advance() {
 }
 
 func (b *BatchBuilder) serializeToBytes() ([]byte, error) {
-	contexts, txLengths, txs, err := b.serializeToArgs()
+	contexts, txLengths, firstL2BlockNumber, txs, err := b.serializeToArgs()
 	if err != nil {
 		return nil, err
 	}
-	return client.PackAppendTxBatchInput(contexts, txLengths, txs)
+	return client.PackAppendTxBatchInput(contexts, txLengths, firstL2BlockNumber, txs)
 }
 
-func (b *BatchBuilder) serializeToArgs() ([]*big.Int, []*big.Int, []byte, error) {
+func (b *BatchBuilder) serializeToArgs() ([]*big.Int, []*big.Int, *big.Int, []byte, error) {
+	firstL2BlockNumber := big.NewInt(0).SetUint64(b.pendingBlocks[0].blockNumber)
 	var contexts, txLengths []*big.Int
 	buf := new(bytes.Buffer)
 	var numBytes uint64
 	var block DerivationBlock
 	var idx int
 	for idx, block = range b.pendingBlocks {
-		// Construct context (`contexts` is a flat array of 3-tuples)
+		// Construct context (`contexts` is a flat array of 2-tuples)
 		contexts = append(contexts, big.NewInt(0).SetUint64(block.numTxs))
-		contexts = append(contexts, big.NewInt(0).SetUint64(block.blockNumber))
 		contexts = append(contexts, big.NewInt(0).SetUint64(block.timestamp))
-		numBytes += 3 * 8
+		numBytes += 2 * 8
 		// Construct txData.
 		for _, tx := range block.txs {
 			curLen := buf.Len()
 			if _, err := buf.Write(tx); err != nil {
-				return nil, nil, nil, err
+				return nil, nil, nil, nil, err
 			}
 			txSize := buf.Len() - curLen
 			txLengths = append(txLengths, big.NewInt(int64(txSize)))
@@ -113,7 +113,7 @@ func (b *BatchBuilder) serializeToArgs() ([]*big.Int, []*big.Int, []byte, error)
 	}
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[idx:]
-	return contexts, txLengths, buf.Bytes(), nil
+	return contexts, txLengths, firstL2BlockNumber, buf.Bytes(), nil
 }
 
 // TODO: unused
