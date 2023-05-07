@@ -30,6 +30,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
+          timeout-minutes: 10
           version: nightly
 
       - name: Run forge install
@@ -37,7 +38,7 @@ jobs:
 
       - name: Install yarn dependencies
         run: yarn install
-        
+
       - name: Run tests
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
