@@ -38,10 +38,18 @@
     },
     {
       "address": "0xff00000000000000000000000000000000000000",
-      "contract": "ERC1967Proxy",
+      "contract": "UUPSPlaceholder",
       "balance": "0",
       "storage": {
-        "0xb53127684a568b3173ae13b9f8a6016e243e63b6e8ee1178d6a717850b5d6103": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+        "_owner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+      }
+    },
+    {
+      "address": "0xff00000000000000000000000000000000000001",
+      "contract": "ERC1967Mod",
+      "balance": "0",
+      "storage": {
+        "0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc": "0xff00000000000000000000000000000000000000"
       }
     }
   ]

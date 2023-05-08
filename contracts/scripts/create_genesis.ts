@@ -104,6 +104,7 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
       storage.set(slot, ethers.utils.hexZeroPad(value, 32));
     }
 
+    // TODO: check if this is needed
     // add non variable slots
     for (const s of Object.entries(p.storage)) {
       if (!ethers.utils.isHexString(s[0])) continue;
