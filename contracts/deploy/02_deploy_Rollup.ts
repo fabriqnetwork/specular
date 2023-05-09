@@ -17,8 +17,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
 
-  // const { err, stdout } = await execPromise("../clients/geth/specular/sbin/export_genesis.sh");
-  // const initialVmHash = JSON.parse(stdout).root;
+  const { err, stdout } = await execPromise("../clients/geth/specular/sbin/configure.sh");
+  //const initialVmHash = JSON.parse(stdout).root;
 
   // if (err !== undefined || !initialVmHash) {
   //   throw Error("could not export genesis hash", err);
