@@ -38,6 +38,7 @@ jobs:
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
+          timeout-minutes: 15
           version: nightly
 
       - name: Run forge install
