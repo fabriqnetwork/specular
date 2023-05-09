@@ -18,9 +18,17 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract UUPSPlaceholder is UUPSUpgradeable, Ownable {
+contract UUPSPlaceholder is UUPSUpgradeable, OwnableUpgradeable {
+    function initialize() public initializer {
+        __Ownable_init();
+    }
+
+    function greet() public view returns (string memory) {
+        return "hello";
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 }

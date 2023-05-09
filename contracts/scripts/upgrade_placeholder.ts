@@ -1,15 +1,15 @@
+// run with: npx hardhat run <this file> --network local
 import dotenv from "dotenv";
-import { ethers } from "ethers";
-// import Proxy from "../artifacts/@openzeppelin"
-import Proxy from "../artifacts/src/pre-deploy/ERC1967Mod.sol/ERC1967Mod.json";
-import Placeholder from "../artifacts/src/pre-deploy/UUPSPlaceholder.sol/UUPSPlaceholder.json";
-import TinyFaucet from "../artifacts/src/pre-deploy/Faucet.sol/Faucet.json";
+import { keccak256 } from "ethereumjs-util";
+import { ethers, upgrades } from "hardhat";
 
 dotenv.config({ path: __dirname + "/../.env" });
 
 const main = async () => {
   const proxyAddress = "0xff00000000000000000000000000000000000001";
-  const implAddress = "0xff00000000000000000000000000000000000000";
+
+  const implSlot = toEip1967Hash("eip1967.proxy.implementation");
+
   const provider = new ethers.providers.JsonRpcProvider(
     "http://localhost:4011"
   );
@@ -18,58 +18,28 @@ const main = async () => {
     provider
   );
 
-  const proxy = new ethers.Contract(proxyAddress, Proxy.abi, provider);
+  const PlaceholderFactory = await ethers.getContractFactory("UUPSPlaceholder");
 
-  const impl = new ethers.Contract(implAddress, Placeholder.abi, provider);
+  const implementationAddress = await provider.getStorageAt(
+    proxyAddress,
+    implSlot
+  );
+  console.log({ implementationAddress });
 
-  const gasPrice = await provider.getGasPrice();
+  const proxy = await upgrades.forceImport(proxyAddress, PlaceholderFactory);
 
-  const contractBalance = await provider.getBalance(proxyAddress);
-  console.log("contract Balance: ", ethers.utils.formatEther(contractBalance));
-
-  console.log(Proxy.abi);
-
-  const r = await proxy.connect(sequencer).getImp({ gasLimit: "300000" });
-  console.log({ r });
-
-  // const owner = await impl.connect(proxy).owner();
-  // console.log(owner);
-
-  // console.log({ TinyFaucet });
-  // contract.connect(sequencer).upgradeTo(TinyFaucet.bytecode);
-
-  // const allowedAmount = await contract.amountAllowed();
-  // console.log("amount allowed: ", allowedAmount);
-
-  // // Transfers amountAllowed from faucet to signer address
-  // const requestFundTx = await contract
-  //   .connect(signer)
-  //   .requestFunds(signer.address, {
-  //     gasLimit: "300000",
-  //   });
-  // await requestFundTx.wait();
-
-  // // checks balance after requestFunds request
-  // signerbalance = await provider.getBalance(signer.address);
-  // console.log("sequencer Balance: ", ethers.utils.formatEther(signerbalance));
-
-  // contractBalance = await provider.getBalance(contractAddress);
-  // console.log("contract Balance: ", ethers.utils.formatEther(contractBalance));
-
-  // // Transfers faucet balance to sequencer
-  // const retrieve = await contract.connect(signer).retrieve({
-  //   gasLimit: "260000",
-  //   gasPrice,
-  // });
-  // await retrieve.wait();
-
-  // // checking balance after retrieving complete balance from faucet
-  // signerbalance = await provider.getBalance(signer.address);
-  // console.log("sequencer Balance: ", ethers.utils.formatEther(signerbalance));
-
-  // contractBalance = await provider.getBalance(contractAddress);
-  // console.log("contract Balance: ", ethers.utils.formatEther(contractBalance));
+  const updateTx = await upgrades.upgradeProxy(
+    proxy.address,
+    PlaceholderFactory
+  );
+  console.log({ updateTx });
 };
+
+function toEip1967Hash(label: string): string {
+  const hash = keccak256(Buffer.from(label));
+  const bigNumber = BigInt("0x" + hash.toString("hex")) - 1n;
+  return "0x" + bigNumber.toString(16);
+}
 
 main()
   .then(() => process.exit(0))

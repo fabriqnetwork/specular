@@ -12,7 +12,7 @@ import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Upgrade.sol";
  * https://eips.ethereum.org/EIPS/eip-1967[EIP1967], so that it doesn't conflict with the storage layout of the
  * implementation behind the proxy.
  */
-contract ERC1967Mod is Proxy, ERC1967Upgrade {
+contract ERC1967Proxy is Proxy, ERC1967Upgrade {
     /**
      * @dev Initializes the upgradeable proxy with an initial implementation specified by `_logic`.
      *
@@ -27,10 +27,6 @@ contract ERC1967Mod is Proxy, ERC1967Upgrade {
      * @dev Returns the current implementation address.
      */
     function _implementation() internal view virtual override returns (address impl) {
-        return ERC1967Upgrade._getImplementation();
-    }
-
-    function getImp() public view returns (address impl) {
         return ERC1967Upgrade._getImplementation();
     }
 }

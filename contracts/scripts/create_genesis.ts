@@ -65,7 +65,7 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
     // this allows us to specify any contract within the forge project as pre deploy
     // and makes no assumption about compilation state at the time of genesis file generation
     const { stderr, stdout } = await execPromise(
-      `forge inspect ${p.contract} bytes`
+      `forge inspect ${p.contract} deployedBytecode --optimize --optimizer-runs 8`
     );
     if (stderr || !stdout) Error(stderr);
 
