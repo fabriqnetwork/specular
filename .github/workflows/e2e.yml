@@ -53,7 +53,6 @@ jobs:
         run: |
           pwd
           ls -la
-          ./clients/geth/specular/sbin/export_genesis.sh
           cd project
           rm -rf project/specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
