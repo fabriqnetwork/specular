@@ -5,7 +5,6 @@ import { exec } from "child_process";
 import util from "node:util";
 import path from "node:path";
 
-
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
   const { save } = deployments;
@@ -17,7 +16,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     .address;
   const verifierProxyAddress = (await deployments.get("Verifier")).address;
 
-  //const { err, stdout } = await execPromise("../clients/geth/specular/sbin/export_genesis.sh");
+  const { err, stdout } = await execPromise(
+    "../clients/geth/specular/sbin/export_genesis.sh"
+  );
   //const initialVmHash = JSON.parse(stdout).root;
 
   // if (err !== undefined || !initialVmHash) {
