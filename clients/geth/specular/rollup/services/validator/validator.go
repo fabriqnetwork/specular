@@ -26,8 +26,15 @@ type challengeCtx struct {
 	lastValidatedAssertion *rollupTypes.Assertion
 }
 
-var errAssertionOverflowedLocalInbox = fmt.Errorf("assertion overflowed inbox")
 var errValidationFailed = fmt.Errorf("validation failed")
+
+type errAssertionOverflowedLocalInbox struct {
+	Msg string
+}
+
+func (e *errAssertionOverflowedLocalInbox) Error() string {
+	return fmt.Sprint("assertion overflowed local inbox with msg:", e.Msg)
+}
 
 type Validator struct {
 	*services.BaseService
@@ -59,18 +66,35 @@ func (v *Validator) tryValidateAssertion(lastValidatedAssertion, assertion *roll
 	currentBlockNum := assertion.StartBlock
 	currentChainHeight := v.Chain().CurrentBlock().NumberU64()
 	var block *types.Block
+
+	log.Trace(
+		"Trying to validate assertion",
+		"#currentBlockNum", currentBlockNum,
+		"#currentChainHeight", currentChainHeight,
+		"#inboxSizeDiff", inboxSizeDiff.Uint64(),
+	)
+
 	for inboxSizeDiff.Cmp(common.Big0) > 0 {
+		log.Trace(
+			"Looping through inbox",
+			"#inboxSizeDiff", inboxSizeDiff.Uint64(),
+			"#currentBlockNum", currentBlockNum,
+		)
+
 		if currentBlockNum > currentChainHeight {
-			return errAssertionOverflowedLocalInbox
+			return &errAssertionOverflowedLocalInbox{"current block number is greater than local chain height"}
 		}
+
 		block = v.Chain().GetBlockByNumber(currentBlockNum)
+
 		if block == nil {
-			return errAssertionOverflowedLocalInbox
+			return &errAssertionOverflowedLocalInbox{"could not get current block by number"}
 		}
 		numTxs := uint64(len(block.Transactions()))
 		if numTxs > inboxSizeDiff.Uint64() {
 			return fmt.Errorf("UNHANDLED: Assertion created in the middle of block, validator state corrupted!")
 		}
+
 		inboxSizeDiff = new(big.Int).Sub(inboxSizeDiff, new(big.Int).SetUint64(numTxs))
 		currentBlockNum++
 	}
@@ -131,7 +155,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 				// Validation failed, challenge
 				isInChallenge = true
 				return nil
-			case errors.Is(err, errAssertionOverflowedLocalInbox):
+			case errors.Is(err, &errAssertionOverflowedLocalInbox{}):
 				// Assertion overflowed local inbox, wait for next batch event
 				log.Warn("Assertion overflowed local inbox, wait for next batch event", "expected size", currentAssertion.InboxSize)
 				return nil

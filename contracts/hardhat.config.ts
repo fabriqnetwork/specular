@@ -22,26 +22,41 @@ const SEQUENCER_ADDRESS = process.env.SEQUENCER_ADDRESS ?? wallet.address;
 const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY;
 const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS ?? wallet.address;
 
+// Network list:
+//   - `localhost`: L1 network at localhost:8545 (L1 for `specularLocalDev)
+//      - `hardhat`: L1 network simulated by hardhat network
+//      - Note: `localhost` may not always be `hardhat`, e.g. a geth L1
+//   - `specularLocalDev`: network at localhost:4011 (L2 for `localhost`)
+//   - `chiado`: Chiado network (L1 for `specularDev`)
+//   - `specularDev`: Specular Devnet (L2 for `chiado`)
+
 function createConfig(network: string) {
+  // Live networks mean non-localhost networks
   const live = network !== "localhost" && network !== "specularLocalDev";
   const config: HttpNetworkUserConfig = {
     url: getNetworkURL(network),
     accounts: getNetworkAccounts(network),
     live,
-    saveDeployments: live,
+    saveDeployments: live, // Do not save deployments on localhost
   };
+
+  // Set deploy scripts for L1 or L2
   if (network.startsWith("specular")) {
     config.deploy = ["deploy/l2/"];
   } else {
     config.deploy = ["deploy/l1/"];
   }
+
+  // Set companionNetworks and chainID
+  // Note: companionNetworks only need to be set for L2 networks
+  //       they are used to interact with L1 contracts in L2 deploy scripts
   if (network === "specularLocalDev") {
     config.companionNetworks = { l1: "localhost" };
   } else if (network === "specularDev") {
     config.companionNetworks = { l1: "chiado" };
-    config.chainId = 93481;
+    config.chainId = 93481; // Specular Devnet chain ID
   } else if (network === "chiado") {
-    config.chainId = 10200;
+    config.chainId = 10200; // Chiado chain ID
   }
   return config;
 }
@@ -52,9 +67,13 @@ function getNetworkAccounts(network: string) {
     network === "chiado" ||
     network === "specularDev"
   ) {
-    return DEPLOYER_PRIVATE_KEY
-      ? [`0x${DEPLOYER_PRIVATE_KEY}`, `0x${SEQUENCER_PRIVATE_KEY}`]
-      : { mnemonic };
+    if (
+      DEPLOYER_PRIVATE_KEY === undefined ||
+      SEQUENCER_PRIVATE_KEY === undefined
+    ) {
+      return { mnemonic };
+    }
+    return [`0x${DEPLOYER_PRIVATE_KEY}`, `0x${SEQUENCER_PRIVATE_KEY}`];
   } else {
     return { mnemonic };
   }

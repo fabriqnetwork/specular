@@ -31,6 +31,7 @@ jobs:
           node-version: 16
           target: ./contracts
           fail-on: none
+          slither-args: '--filter-paths "(lib/|@openzeppelin|hardhat|src/libraries/BytesLib.sol|test/)"'
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v2

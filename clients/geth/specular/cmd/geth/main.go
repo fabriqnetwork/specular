@@ -213,6 +213,7 @@ var (
 	rollupFlags = []cli.Flag{
 		specularUtils.RollupNodeFlag,
 		specularUtils.RollupCoinBaseFlag,
+		specularUtils.RollupClefEndpointFlag,
 		specularUtils.RollupL1EndpointFlag,
 		specularUtils.RollupL1ChainIDFlag,
 		specularUtils.RollupSequencerAddrFlag,
