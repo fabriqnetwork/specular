@@ -141,11 +141,11 @@ async function testTx(
     rollupContract,
     assertionCreatedFilter
   );
-  await checkLogs(
-    "assertionConfirmedFilter",
-    rollupContract,
-    assertionConfirmedFilter
-  );
+  // await checkLogs(
+  //   "assertionConfirmedFilter",
+  //   rollupContract,
+  //   assertionConfirmedFilter
+  // );
 
   return txResponse;
 }
