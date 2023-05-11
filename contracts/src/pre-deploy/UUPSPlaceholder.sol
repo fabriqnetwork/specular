@@ -26,9 +26,5 @@ contract UUPSPlaceholder is UUPSUpgradeable, OwnableUpgradeable {
         __Ownable_init();
     }
 
-    function greet() public view returns (string memory) {
-        return "hello";
-    }
-
     function _authorizeUpgrade(address) internal override onlyOwner {}
 }
