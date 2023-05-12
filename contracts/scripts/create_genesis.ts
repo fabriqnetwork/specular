@@ -69,7 +69,7 @@ async function getArtifact(contractName: string) {
   return JSON.parse(fs.readFileSync(artifactPath[0], "utf-8"));
 }
 
-// TODO: this seems really inefficient,
+// TODO: this is not very efficient,
 // we should be able to narrow down the search once we know
 // where the file will live / how it will be run
 async function getStorageLayout(contractName: string) {
