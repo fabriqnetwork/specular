@@ -192,36 +192,31 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 			pwList = pwList[1:]
 		}
 	}
-
-	return &rollup.SystemConfig{
-		L1Config: rollup.L1Config{
-			L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
-			L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
-			L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlockFlag.Name),
-			SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
-			RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
-		},
-		L2Config: rollup.L2Config{
-			L2Endpoint:     "ws://0.0.0.0:4012", // TODO: read this from http params? or from a separate flag
-			L2ClefEndpoint: clefEndpoint,
-		},
-		SequencerConfig: rollup.SequencerConfig{
-			SequencerAccountAddr: sequencerAddr,
-			SequencerPassphrase:  sequencerPassphrase,
-			MinExecutionInterval: time.Duration(ctx.Uint64(RollupSequencerMinExecutionIntervalFlag.Name)) * time.Second,
-			MaxExecutionInterval: time.Duration(ctx.Uint64(RollupSequencerMaxExecutionIntervalFlag.Name)) * time.Second,
-			SequencingInterval:   time.Duration(ctx.Uint64(RollupSequencerSequencingIntervalFlag.Name)) * time.Second,
-		},
-		ValidatorConfig: rollup.ValidatorConfig{
-			ValidatorAccountAddr: validatorAddr,
-			ValidatorPassphrase:  validatorPassphrase,
-			IsActiveStaker:       ctx.Bool(RollupValidatorIsActiveStakerFlag.Name),
-			IsActiveCreator:      ctx.Bool(RollupValidatorIsActiveCreatorFlag.Name),
-			IsActiveChallenger:   ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
-			IsResolver:           ctx.Bool(RollupValidatorIsResolverFlag.Name),
-			StakeAmount:          ctx.Uint64(RollupRollupStakeAmountFlag.Name),
-		},
-	}
+	return rollup.NewSystemConfig(
+		// L1 params
+		ctx.String(RollupL1EndpointFlag.Name),
+		ctx.Uint64(RollupL1ChainIDFlag.Name),
+		ctx.Uint64(RollupL1RollupGenesisBlockFlag.Name),
+		common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
+		common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
+		// L2 params
+		"ws://0.0.0.0:4012", // TODO: read this from http params? or from a separate flag
+		clefEndpoint,
+		// Sequencer params
+		sequencerAddr,
+		sequencerPassphrase,
+		time.Duration(ctx.Uint64(RollupSequencerMinExecutionIntervalFlag.Name))*time.Second,
+		time.Duration(ctx.Uint64(RollupSequencerMaxExecutionIntervalFlag.Name))*time.Second,
+		time.Duration(ctx.Uint64(RollupSequencerSequencingIntervalFlag.Name))*time.Second,
+		// Validator params
+		validatorAddr,
+		validatorPassphrase,
+		ctx.Bool(RollupValidatorIsActiveStakerFlag.Name),
+		ctx.Bool(RollupValidatorIsActiveCreatorFlag.Name),
+		ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
+		ctx.Bool(RollupValidatorIsResolverFlag.Name),
+		ctx.Uint64(RollupRollupStakeAmountFlag.Name),
+	)
 }
 
 // <specular modification/>

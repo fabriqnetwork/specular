@@ -23,6 +23,7 @@ func (b *BaseService) Start() context.Context {
 func (b *BaseService) Stop() error {
 	log.Info("Stopping service...")
 	b.Eg.Go(func() error { return fmt.Errorf("Force-stopping service.") })
+	// Ignore error (we raised it in the above goroutine).
 	b.Eg.Wait()
 	log.Info("Service stopped.")
 	return nil

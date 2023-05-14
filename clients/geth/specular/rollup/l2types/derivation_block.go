@@ -1,4 +1,4 @@
-package data
+package l2types
 
 import (
 	"fmt"
@@ -19,7 +19,9 @@ type DerivationContext struct {
 	timestamp   uint64
 }
 
-type DecodeTxBatchError struct{ msg string }
+func (c *DerivationContext) NumTxs() uint64      { return c.numTxs }
+func (c *DerivationContext) BlockNumber() uint64 { return c.blockNumber }
+func (c *DerivationContext) Timestamp() uint64   { return c.timestamp }
 
 func NewDerivationBlock(blockNumber, timestamp uint64, txs [][]byte) DerivationBlock {
 	return DerivationBlock{
@@ -32,24 +34,18 @@ func NewDerivationBlock(blockNumber, timestamp uint64, txs [][]byte) DerivationB
 	}
 }
 
-func (b *DerivationBlock) BlockNumber() uint64 {
-	return b.blockNumber
-}
+func (b *DerivationBlock) BlockNumber() uint64 { return b.blockNumber }
+func (b *DerivationBlock) Timestamp() uint64   { return b.timestamp }
+func (b *DerivationBlock) Txs() [][]byte       { return b.txs }
 
-func (b *DerivationBlock) Timestamp() uint64 {
-	return b.timestamp
-}
-
-func (b *DerivationBlock) Txs() [][]byte {
-	return b.txs
-}
+type DecodeTxBatchError struct{ msg string }
 
 func (e *DecodeTxBatchError) Error() string {
 	return fmt.Sprintf("Failed to create TxBatch from decoded tx data - %s", e.msg)
 }
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
-func BlocksFromDecoded(decoded []interface{}) ([]*DerivationBlock, error) {
+func BlocksFromDecoded(decoded []interface{}) ([]DerivationBlock, error) {
 	if len(decoded) != 3 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
 	}
@@ -63,7 +59,7 @@ func BlocksFromDecoded(decoded []interface{}) ([]*DerivationBlock, error) {
 	var batchOffset uint64
 	var numTxs uint64
 
-	blocks := make([]*DerivationBlock, 0, len(contexts)/3)
+	blocks := make([]DerivationBlock, 0, len(contexts)/3)
 	for i := 0; i < len(contexts); i += 3 {
 		// For each context, decode a block.
 		ctx := DerivationContext{
@@ -78,7 +74,7 @@ func BlocksFromDecoded(decoded []interface{}) ([]*DerivationBlock, error) {
 			numTxs++
 			batchOffset += txLengths[numTxs-1].Uint64()
 		}
-		blocks = append(blocks, &DerivationBlock{ctx, txs})
+		blocks = append(blocks, DerivationBlock{ctx, txs})
 	}
 	return blocks, nil
 }

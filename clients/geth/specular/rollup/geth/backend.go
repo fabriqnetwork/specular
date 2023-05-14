@@ -125,7 +125,7 @@ func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.Transactio
 	return types.NewTransactionsByPriceAndNonce(signer, sortedTxs, b.header.BaseFee)
 }
 
-// CommitBlock executes and commits a block to local blockchain *deterministically*
+// BuildPayload executes and commits a block to local blockchain *deterministically*
 // TODO: dedup with CommitTransactions & commitStoredBlock
 // TODO: use StateProcessor::Process() instead
 func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error {

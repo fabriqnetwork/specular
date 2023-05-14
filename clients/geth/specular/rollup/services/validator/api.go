@@ -4,10 +4,13 @@ import (
 	"context"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
 )
 
 type ValidatorServiceConfig interface {
@@ -15,15 +18,47 @@ type ValidatorServiceConfig interface {
 	L1() *services.L1Config
 }
 
-type AssertionManager interface {
-	GetAssertion(ctx context.Context, assertionID *big.Int) (*bindings.IRollupAssertion, error)
+type RollupState interface {
+	GetStaker(ctx context.Context, stakerAddr common.Address) (*derivation.Staker, error)
+	GetAssertion(ctx context.Context, assertionID *big.Int) (*derivation.Assertion, error)
 }
 
 type TxManager interface {
-	Send(ctx context.Context, candidate txmgr.TxCandidate) (*types.Receipt, error)
+	Stake(ctx context.Context, stakeAmount *big.Int) (*types.Receipt, error)
+	AdvanceStake(ctx context.Context, assertionID *big.Int) (*types.Receipt, error)
+	CreateAssertion(ctx context.Context, vmHash common.Hash, inboxSize *big.Int) (*types.Receipt, error)
+	ConfirmFirstUnresolvedAssertion(ctx context.Context) (*types.Receipt, error)
+	RejectFirstUnresolvedAssertion(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error)
 }
 
 type L2Client interface {
 	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
-	Close()
+}
+
+type ChallengeClient interface {
+	TransactionByHash(context.Context, common.Hash) (*types.Transaction, bool, error)
+
+	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
+	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
+	CurrentChallengeResponder() (common.Address, error)
+	CurrentChallengeResponderTimeLeft() (*big.Int, error)
+	TimeoutChallenge() (*types.Transaction, error)
+	BisectExecution(
+		bisection [][32]byte,
+		challengedSegmentIndex *big.Int,
+		prevBisection [][32]byte,
+		prevChallengedSegmentStart *big.Int,
+		prevChallengedSegmentLength *big.Int,
+	) (*types.Transaction, error)
+	VerifyOneStepProof(
+		proof []byte,
+		txInclusionProof []byte,
+		verificationRawCtx bindings.VerificationContextLibRawContext,
+		challengedStepIndex *big.Int,
+		prevBisection [][32]byte,
+		prevChallengedSegmentStart *big.Int,
+		prevChallengedSegmentLength *big.Int,
+	) (*types.Transaction, error)
+	WatchChallengeCompleted(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeCompleted) (event.Subscription, error)
+	FilterChallengeCompleted(opts *bind.FilterOpts) (*bindings.ISymChallengeCompletedIterator, error)
 }

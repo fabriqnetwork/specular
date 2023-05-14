@@ -7,11 +7,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/geth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/data"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
@@ -23,11 +22,13 @@ type batchDisseminator struct {
 	batchBuilder BatchBuilder
 	l1TxMgr      TxManager
 	l2Client     L2Client
+
+	driver derivation.Driver[interface{}]
 }
 
-type unexpectedStateError struct{ msg string }
+type unexpectedSystemStateError struct{ msg string }
 
-func (e *unexpectedStateError) Error() string {
+func (e *unexpectedSystemStateError) Error() string {
 	return fmt.Sprintf("service in unexpected state: %s", e.msg)
 }
 
@@ -43,7 +44,7 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 	d.l2Client = l2Client
 	// Start with latest safe state.
 	d.revertToSafe()
-	var ticker = time.NewTicker(d.cfg.Sequencer().SequencingInterval)
+	var ticker = time.NewTicker(d.cfg.Sequencer().SequencingInterval())
 	defer ticker.Stop()
 	d.sequencingStep(ctx)
 	for {
@@ -60,7 +61,7 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 func (d *batchDisseminator) sequencingStep(ctx context.Context) {
 	if err := d.appendToBuilder(ctx); err != nil {
 		log.Error("Failed to append to batch builder", "error", err)
-		if errors.Is(err, &utils.L2ReorgDetectedError{}) {
+		if errors.As(err, &utils.L2ReorgDetectedError{}) {
 			log.Error("Reorg detected, reverting to safe state.")
 			d.revertToSafe()
 			return
@@ -76,7 +77,7 @@ func (d *batchDisseminator) revertToSafe() error {
 	if err != nil {
 		return fmt.Errorf("Failed to get safe header: %w", err)
 	}
-	d.batchBuilder.Reset(safeHeader.Number.Uint64(), safeHeader.Hash())
+	d.batchBuilder.Reset(l2types.NewBlockIDFromHeader(safeHeader))
 	return nil
 }
 
@@ -99,7 +100,7 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("Failed to encode txs: %w", err)
 		}
-		dBlock := data.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
+		dBlock := l2types.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
 		err = d.batchBuilder.Append(dBlock, geth.NewHeader(block.Header()))
 		if err != nil {
 			return fmt.Errorf("Failed to append block (num=%s): %w", i, err)
@@ -111,19 +112,20 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 // Determines first and last unsafe block numbers.
 func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint64, error) {
 	lastAppended := d.batchBuilder.LastAppended()
-	start := lastAppended + 1 // TODO: fix assumption
+	start := lastAppended.Number() + 1 // TODO: fix assumption
 	safe, err := d.l2Client.HeaderByTag(ctx, client.Safe)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed to get l2 safe header: %w", err)
 	}
-	if safe.Number.Uint64() > lastAppended {
+	if safe.Number.Uint64() > lastAppended.Number() {
 		// This should currently not be possible. TODO: handle restart case?
-		return 0, 0, &unexpectedStateError{msg: "Safe header exceeds last appended header"}
-	} else if safe.Number.Uint64() < lastAppended {
-		// Hasn't caught up yet... OR re-org.
-		// TODO: allow continue to appending blocks.
-		return 0, 0, &utils.L2ReorgDetectedError{Msg: "Safe header is behind last appended header"}
+		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
 	}
+	// else if safe.Number.Uint64() < lastAppended {
+	// 	// Hasn't caught up yet... OR re-org.
+	// 	// TODO: allow continue to appending blocks.
+	// 	return 0, 0, &utils.L2ReorgDetectedError{Msg: "Safe header is behind last appended header"}
+	// }
 	end, err := d.l2Client.BlockNumber(ctx)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed to get most recent l2 block number: %w", err)
@@ -154,23 +156,23 @@ func (d *batchDisseminator) sequenceBatches(ctx context.Context) error {
 // Note: this does not guarantee safety (re-org resistance) but should make re-orgs less likely.
 func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
 	// Construct tx data.
-	data, err := d.batchBuilder.Build()
+	batchAttrs, err := d.batchBuilder.Build()
 	if err != nil {
 		return fmt.Errorf("Failed to build batch: %w", err)
 	}
-	// Estimate gas.
-	intrinsicGas, err := core.IntrinsicGas(data, nil, false, true, true)
-	if err != nil {
-		return fmt.Errorf("Failed to calculate intrinsic gas: %w", err)
-	}
-	receipt, err := d.l1TxMgr.Send(
-		ctx,
-		txmgr.TxCandidate{TxData: data, To: &d.cfg.L1().SequencerInboxAddr, GasLimit: intrinsicGas},
-	)
+	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, batchAttrs.contexts, batchAttrs.txLengths, batchAttrs.txs)
 	if err != nil {
 		return fmt.Errorf("Failed to send batch transaction: %w", err)
 	}
 	log.Info("Sequenced batch successfully", "tx hash", receipt.TxHash)
+	// relation := l2types.BlockRelation{
+	// 	L1BlockID: l2types.NewBlockID(receipt.BlockNumber.Uint64(), receipt.BlockHash),
+	// 	L2BlockID: d.batchBuilder.LastAppended(),
+	// }
+	err = d.driver.Step(ctx)
+	if err != nil {
+		// TODO
+	}
 	d.batchBuilder.Advance()
 	return nil
 }

@@ -14,14 +14,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/txmgr"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/state"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/data"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
@@ -42,14 +41,14 @@ func RegisterRollupServices(
 ) error {
 	ctx := context.Background()
 	// Register services
-	if (cfg.SequencerAccountAddr != common.Address{}) {
+	if (cfg.Sequencer().AccountAddr() != common.Address{}) {
 		sequencer, err := createSequencer(ctx, cfg, stack.AccountManager(), execBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create sequencer: %w", err)
 		}
 		stack.RegisterLifecycle(sequencer)
 	}
-	if (cfg.ValidatorAccountAddr != common.Address{}) {
+	if (cfg.Validator().AccountAddr() != common.Address{}) {
 		validator, err := createValidator(ctx, cfg, stack.AccountManager(), proofBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create validator: %w", err)
@@ -66,17 +65,17 @@ func createSequencer(
 	execBackend services.ExecutionBackend,
 ) (*sequencer.Sequencer, error) {
 	l1TxMgr, err := createTxManager(
-		ctx, accountMgr, cfg.L1ChainID, cfg.L1Endpoint, cfg.SequencerAccountAddr, cfg.L2ClefEndpoint, cfg.SequencerPassphrase,
+		ctx, cfg.L1(), accountMgr, cfg.Sequencer().AccountAddr(), cfg.L2().ClefEndpoint(), cfg.Sequencer().Passphrase(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 tx manager: %w", err)
 	}
-	batchBuilder, err := data.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
+	batchBuilder, err := sequencer.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
-		return client.DialWithRetry(ctx, cfg.L2Endpoint, client.DefaultRetryOpts)
+		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
 	return sequencer.NewSequencer(cfg, execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
@@ -87,84 +86,86 @@ func createValidator(
 	accountMgr *accounts.Manager,
 	proofBackend proof.Backend,
 ) (*validator.Validator, error) {
-	transactor, err := createTransactor(accountMgr, cfg.ValidatorAccountAddr, cfg.L2ClefEndpoint, cfg.ValidatorPassphrase, cfg.L1ChainID)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
-	}
-	l1BridgeClient, err := client.NewEthBridgeClient(
-		ctx, nil, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, transactor, client.DefaultRetryOpts,
-	)
+	l1Client, err := client.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
 	}
-	l1TxMgr, err := createTxManager(
-		ctx, accountMgr, cfg.L1ChainID, cfg.L1Endpoint, cfg.ValidatorAccountAddr, cfg.L2ClefEndpoint, cfg.ValidatorPassphrase,
-	)
+	bridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.L1())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create tx manager: %w", err)
+		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
 	}
-	assertionMgr, err := assertion.NewAssertionManager(l1BridgeClient)
+	rollupState := derivation.NewRollupState(bridgeClient)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
-		return client.DialWithRetry(ctx, cfg.L2Endpoint, client.DefaultRetryOpts)
+		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
-	return validator.NewValidator(cfg, l2ClientCreatorFn, l1TxMgr, l1BridgeClient, proofBackend, assertionMgr), nil
+	// Create tx manager, used to send transactions to L1.
+	l1TxMgr, err := createTxManager(
+		ctx, cfg.L1(), accountMgr, cfg.Validator().AccountAddr(), cfg.L2().ClefEndpoint(), cfg.Validator().Passphrase(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create tx manager: %w", err)
+	}
+	return validator.NewValidator(cfg, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
 }
 
-func createSyncer(
-	ctx context.Context,
-	cfg *services.SystemConfig,
-	accountMgr *accounts.Manager,
-	execBackend services.ExecutionBackend,
-) (*services.Syncer, error) {
-	rollupState := state.NewRollupState()
-	// l1Client, err := client.DialWithRetry(ctx, cfg.L1Endpoint, client.DefaultRetryOpts)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Failed to connect to L1 node: %w", err)
-	// }
-	// l2Client, err := client.DialWithRetry(ctx, cfg.L2Endpoint, client.DefaultRetryOpts)
-	// if err != nil {
-	// 	return nil, fmt.Errorf("Failed to connect to L2 node: %w", err)
-	// }
-	// rollupState.StartSync(ctx, l1Client, l2Client)
-	transactor, err := createTransactor(
-		accountMgr, cfg.ValidatorAccountAddr, cfg.L2ClefEndpoint, cfg.ValidatorPassphrase, cfg.L1ChainID,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
-	}
-	l1BridgeClient, err := client.NewEthBridgeClient(
-		ctx, nil, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, transactor, client.DefaultRetryOpts,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
-	}
-	return services.NewSyncer(execBackend, l1BridgeClient, rollupState.L1Syncer), nil
-}
+// func createSyncer(
+// 	ctx context.Context,
+// 	cfg *services.SystemConfig,
+// 	accountMgr *accounts.Manager,
+// 	execBackend services.ExecutionBackend,
+// ) (*derivation.Syncer, error) {
+// l1Client, err := client.DialWithRetry(ctx, cfg.L1Endpoint, nil)
+// if err != nil {
+// 	return nil, fmt.Errorf("Failed to connect to L1 node: %w", err)
+// }
+// l2Client, err := client.DialWithRetry(ctx, cfg.L2Endpoint, nil)
+// if err != nil {
+// 	return nil, fmt.Errorf("Failed to connect to L2 node: %w", err)
+// }
+// rollupState.StartSync(ctx, l1Client, l2Client)
+////////////////////////////////////////////////////////////
+// transactor, err := createTransactor(
+// 	accountMgr, cfg.ValidatorAccountAddr, cfg.L2ClefEndpoint, cfg.ValidatorPassphrase, cfg.L1ChainID,
+// )
+// if err != nil {
+// 	return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
+// }
+// l1BridgeClient, err := client.NewEthBridgeClient(
+// 	ctx, nil, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, transactor, nil,
+// )
+// if err != nil {
+// 	return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
+// }
+// return derivation.NewSyncer(execBackend, l1BridgeClient, rollupState.L1Syncer), nil
+// }
 
 func createTxManager(
 	ctx context.Context,
+	cfg *services.L1Config,
 	accountMgr *accounts.Manager,
-	l1ChainID uint64,
-	l1Endpoint string,
 	accountAddr common.Address,
 	clefEndpoint string,
 	passphrase string,
-) (*txmgr.TxManager, error) {
-	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, l1ChainID)
+) (*bridge.TxManager, error) {
+	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, cfg.ChainID())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
+		return nil, fmt.Errorf("Failed to initialize transactor for tx manager: %w", err)
 	}
-	l1Client, err := client.DialWithRetry(ctx, l1Endpoint, client.DefaultRetryOpts)
+	l1Client, err := client.DialWithRetry(ctx, cfg.Endpoint(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
+		return nil, fmt.Errorf("Failed to initialize l1 client for tx manager: %w", err)
 	}
 	signer := func(ctx context.Context, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
-	return txmgr.NewTxManager(txmgr.DefaultConfig(transactor.From), l1Client, signer), nil
+	// TODO: config
+	return bridge.NewTxManager(
+		txmgr.NewTxManager(txmgr.DefaultConfig(transactor.From), l1Client, signer),
+		cfg,
+	)
 }
 
 // createTransactor creates a transactor for the given account address,

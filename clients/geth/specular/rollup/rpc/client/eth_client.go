@@ -39,6 +39,9 @@ func NewEthClient(c *rpc.Client) *EthClient {
 }
 
 func DialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*EthClient, error) {
+	if retryOpts == nil {
+		retryOpts = DefaultRetryOpts
+	}
 	var client *EthClient
 	err := retry.Do(func() error {
 		rpcClient, err := rpc.DialContext(ctx, endpoint)
@@ -98,4 +101,17 @@ func (c *EthClient) SubscribeNewHeadByPolling(
 			}
 		}
 	})
+}
+
+func (c *EthClient) ResubscribeErrNewHead(ctx context.Context, headCh chan<- *types.Header) event.Subscription {
+	sub := event.ResubscribeErr(
+		time.Second*10,
+		func(ctx context.Context, err error) (event.Subscription, error) {
+			if err != nil {
+				log.Warn("Error in NewHead subscription, resubscribing", "err", err)
+			}
+			return c.SubscribeNewHead(ctx, headCh)
+		},
+	)
+	return sub
 }

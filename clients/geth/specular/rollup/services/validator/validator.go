@@ -7,14 +7,13 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
@@ -27,8 +26,7 @@ type Validator struct {
 	l2ClientCreatorFn l2ClientCreatorFn
 	l2Client          L2Client
 	l1TxMgr           TxManager
-	l1Client          services.EthBridgeClient
-	assertionMgr      AssertionManager
+	rollupState       RollupState
 	proofBackend      proof.Backend
 }
 
@@ -38,18 +36,16 @@ func NewValidator(
 	cfg ValidatorServiceConfig,
 	l2ClientCreatorFn l2ClientCreatorFn,
 	l1TxMgr TxManager,
-	l1Client services.EthBridgeClient,
 	proofBackend proof.Backend,
-	assertionMgr AssertionManager,
+	rollupState RollupState,
 ) *Validator {
 	return &Validator{
 		BaseService:  &services.BaseService{},
 		cfg:          cfg,
 		l2Client:     nil, // Initialized in `Start()`
 		l1TxMgr:      l1TxMgr,
-		l1Client:     l1Client,
 		proofBackend: proofBackend,
-		assertionMgr: assertionMgr,
+		rollupState:  rollupState,
 	}
 }
 
@@ -62,7 +58,7 @@ func (v *Validator) Start() error {
 		return fmt.Errorf("Failed to create L2 client: %w", err)
 	}
 	v.l2Client = l2Client
-	if v.cfg.Validator().IsActiveStaker {
+	if v.cfg.Validator().IsActiveStaker() {
 		if err := v.Stake(ctx); err != nil {
 			return fmt.Errorf("Failed to stake: %w", err)
 		}
@@ -73,10 +69,10 @@ func (v *Validator) Start() error {
 	// }
 	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
-	if v.cfg.Validator().IsActiveStaker {
+	if v.cfg.Validator().IsActiveStaker() {
 		v.Eg.Go(func() error { return v.eventLoop(ctx) })
 	}
-	if v.cfg.Validator().IsActiveChallenger {
+	if v.cfg.Validator().IsActiveChallenger() {
 		v.Eg.Go(func() error { return v.challengeLoop(ctx) })
 	}
 	return nil
@@ -105,13 +101,13 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 			// Note: assertions are created/resolved relatively infrequently,
 			// compared to batch sequencing. However, the queue may grow larger
 			// particularly during disputes.
-			if v.cfg.Validator().IsResolver {
+			if v.cfg.Validator().IsResolver() {
 				err := v.tryResolve(ctx)
 				if err != nil {
 					return fmt.Errorf("Failed to resolve assertions: %w", err)
 				}
 			}
-			if v.cfg.Validator().IsActiveCreator {
+			if v.cfg.Validator().IsActiveCreator() {
 				_, err := v.createAssertion(ctx)
 				if errors.Is(err, core.ErrInsufficientFunds) {
 					return fmt.Errorf("Insufficient funds to send tx: %w", err)
@@ -123,20 +119,20 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 		case ev := <-createdCh:
 			log.Info("Received `AssertionCreated` event.", "assertion id", ev.AssertionID)
 			// Validate. This blocks assertion creation, but that's fine.
-			if common.Address(ev.AsserterAddr) == v.cfg.Validator().ValidatorAccountAddr {
+			if common.Address(ev.AsserterAddr) == v.cfg.Validator().AccountAddr() {
 				// No need to validate, advance stake or resolve (already done above).
 				return nil
 			}
 			err := v.validate()
 			if err != nil {
 				log.Error("Failed to validate assertion", "error", err)
-				if v.cfg.Validator().IsActiveChallenger {
+				if v.cfg.Validator().IsActiveChallenger() {
 					// If incorrect, challenge (fork assertion chain if necessary).
 					// Note: we can continue to resolve prior assertions concurrently.
 				}
 			} else {
 				// If correct, advance stake.
-				_, err := v.l1Client.AdvanceStake(ev.AssertionID)
+				_, err := v.l1TxMgr.AdvanceStake(ctx, ev.AssertionID)
 				if err != nil {
 					return fmt.Errorf("Failed to advance stake: %w", err)
 				}
@@ -183,7 +179,7 @@ func (v *Validator) validate() error {
 func (v *Validator) tryResolve(ctx context.Context) error {
 	tail := big.NewInt(1)
 	for id := new(big.Int); id.Cmp(tail) < 0; id.Add(id, common.Big1) {
-		_, err := v.assertionMgr.GetAssertion(ctx, id)
+		_, err := v.rollupState.GetAssertion(ctx, id)
 		if err != nil {
 			return err
 		}
@@ -193,7 +189,7 @@ func (v *Validator) tryResolve(ctx context.Context) error {
 		// TODO: confirm OR reject.
 		// Or possibly issue a challenge if necessary---although any
 		// challenges should have been issued during validation.
-		_, err = v.l1Client.ConfirmFirstUnresolvedAssertion()
+		_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(ctx)
 		if err != nil {
 			return fmt.Errorf("Failed to confirm, err: %w", err)
 		}
@@ -204,11 +200,11 @@ func (v *Validator) tryResolve(ctx context.Context) error {
 func (v *Validator) createAssertion(ctx context.Context) (*assertion.Assertion, error) {
 	vmHash, inboxSize := v.getNextAssertion(ctx)
 	// TODO: assertion mgr
-	_, err := v.l1Client.CreateAssertion(vmHash, inboxSize)
+	_, err := v.l1TxMgr.CreateAssertion(ctx, vmHash, inboxSize)
 	if err != nil {
 		return nil, err
 	}
-	staker, err := v.l1Client.GetStaker()
+	staker, err := v.rollupState.GetStaker(ctx, v.cfg.Validator().AccountAddr())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get assertion ID (through staker), err: %w", err)
 	}
@@ -232,64 +228,64 @@ func (v *Validator) getNextAssertion(ctx context.Context) (common.Hash, *big.Int
 }
 
 // Gets the last validated assertion.
-func (v *Validator) GetLastValidatedAssertion(ctx context.Context) (*assertion.Assertion, error) {
-	opts := bind.FilterOpts{Start: v.cfg.L1().L1RollupGenesisBlock, Context: ctx}
-	assertionID, err := v.l1Client.GetLastValidatedAssertionID(&opts)
+// func (v *Validator) GetLastValidatedAssertion(ctx context.Context) (*assertion.Assertion, error) {
+// 	opts := bind.FilterOpts{Start: v.cfg.L1().RollupGenesisBlock(), Context: ctx}
+// 	assertionID, err := v.rollupState.GetLastValidatedAssertionID(&opts)
 
-	var assertionCreatedEvent *bindings.IRollupAssertionCreated
-	var lastValidatedAssertion bindings.IRollupAssertion
-	if err != nil {
-		// If no assertion was validated (or other errors encountered), try to use the genesis assertion.
-		log.Warn("No validated assertions found, using genesis assertion", "err", err)
-		assertionCreatedEvent, err = v.l1Client.GetGenesisAssertionCreated(&opts)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-		}
-		// Check that the genesis assertion is correct.
-		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
-		genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get genesis root, err: %w", err)
-		}
-		genesisRoot := genesisBlock.Root()
-		if vmHash != genesisRoot {
-			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
-		}
-		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
-		// Get assertion.
-		lastValidatedAssertion, err = v.l1Client.GetAssertion(assertionCreatedEvent.AssertionID)
-	} else {
-		// If an assertion was validated, use it.
-		log.Info("Last validated assertion ID found", "assertionID", assertionID)
-		lastValidatedAssertion, err = v.l1Client.GetAssertion(assertionID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
-		}
-		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
-		assertionCreatedIter, err := v.l1Client.FilterAssertionCreated(&opts)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-		}
-		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
-	}
-	// Initialize assertion.
-	assertion := services.NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
-	// Set its boundaries using parent. TODO: move this out. Use local caching.
-	opts = bind.FilterOpts{Start: v.cfg.L1().L1RollupGenesisBlock, Context: ctx}
-	parentAssertionCreatedIter, err := v.l1Client.FilterAssertionCreated(&opts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
-	}
-	parentAssertionCreatedEvent, err := filterAssertionCreatedWithID(parentAssertionCreatedIter, lastValidatedAssertion.Parent)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
-	}
-	err = v.setL2BlockBoundaries(ctx, assertion, parentAssertionCreatedEvent)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to set L2 block boundaries for last validated assertion, err: %w", err)
-	}
-	return assertion, nil
-}
+// 	var assertionCreatedEvent *bindings.IRollupAssertionCreated
+// 	var lastValidatedAssertion bindings.IRollupAssertion
+// 	if err != nil {
+// 		// If no assertion was validated (or other errors encountered), try to use the genesis assertion.
+// 		log.Warn("No validated assertions found, using genesis assertion", "err", err)
+// 		assertionCreatedEvent, err = v.rollupState.GetGenesisAssertionCreated(&opts)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+// 		}
+// 		// Check that the genesis assertion is correct.
+// 		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
+// 		genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("Failed to get genesis root, err: %w", err)
+// 		}
+// 		genesisRoot := genesisBlock.Root()
+// 		if vmHash != genesisRoot {
+// 			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
+// 		}
+// 		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
+// 		// Get assertion.
+// 		lastValidatedAssertion, err = v.rollupState.GetAssertion(ctx, assertionCreatedEvent.AssertionID)
+// 	} else {
+// 		// If an assertion was validated, use it.
+// 		log.Info("Last validated assertion ID found", "assertionID", assertionID)
+// 		lastValidatedAssertion, err = v.rollupState.GetAssertion(ctx, assertionID)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
+// 		}
+// 		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
+// 		assertionCreatedIter, err := v.rollupState.FilterAssertionCreated(&opts)
+// 		if err != nil {
+// 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+// 		}
+// 		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
+// 	}
+// 	// Initialize assertion.
+// 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
+// 	// Set its boundaries using parent. TODO: move this out. Use local caching.
+// 	opts = bind.FilterOpts{Start: v.cfg.L1().RollupGenesisBlock(), Context: ctx}
+// 	parentAssertionCreatedIter, err := v.rollupState.FilterAssertionCreated(&opts)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
+// 	}
+// 	parentAssertionCreatedEvent, err := filterAssertionCreatedWithID(parentAssertionCreatedIter, lastValidatedAssertion.Parent)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
+// 	}
+// 	err = v.setL2BlockBoundaries(ctx, assertion, parentAssertionCreatedEvent)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("Failed to set L2 block boundaries for last validated assertion, err: %w", err)
+// 	}
+// 	return assertion, nil
+// }
 
 func filterAssertionCreatedWithID(iter *bindings.IRollupAssertionCreatedIterator, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error) {
 	var assertionCreated *bindings.IRollupAssertionCreated
@@ -360,15 +356,15 @@ func (v *Validator) setL2BlockBoundaries(
 }
 
 func (v *Validator) Stake(ctx context.Context) error {
-	staker, err := v.l1Client.GetStaker()
+	staker, err := v.rollupState.GetStaker(ctx, v.cfg.Validator().AccountAddr())
 	if err != nil {
 		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
 	}
 	if !staker.IsStaked {
-		err = v.l1Client.Stake(big.NewInt(int64(v.cfg.Validator().StakeAmount)))
-	}
-	if err != nil {
-		return fmt.Errorf("Failed to stake, err: %w", err)
+		_, err = v.l1TxMgr.Stake(ctx, big.NewInt(int64(v.cfg.Validator().StakeAmount())))
+		if err != nil {
+			return fmt.Errorf("Failed to stake, err: %w", err)
+		}
 	}
 	return nil
 }

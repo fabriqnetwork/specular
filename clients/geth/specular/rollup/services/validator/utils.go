@@ -1,4 +1,4 @@
-package services
+package validator
 
 import (
 	"context"
@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types/assertion"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 )
 
 func NewAssertionFrom(
@@ -28,7 +28,7 @@ func NewAssertionFrom(
 func SubmitOneStepProof(
 	ctx context.Context,
 	proofBackend proof.Backend,
-	l1Client EthBridgeClient,
+	l1Client ChallengeClient,
 	state *proof.ExecutionState,
 	challengedStepIndex *big.Int,
 	prevBisection [][32]byte,
@@ -58,7 +58,7 @@ func SubmitOneStepProof(
 func RespondBisection(
 	ctx context.Context,
 	proofBackend proof.Backend,
-	l1Client EthBridgeClient,
+	l1Client ChallengeClient,
 	ev *bindings.ISymChallengeBisected,
 	states []*proof.ExecutionState,
 	opponentEndStateHash common.Hash,
@@ -74,7 +74,7 @@ func RespondBisection(
 		log.Error("Failed to get challenge data", "error", err)
 		return nil
 	}
-	decoded, err := client.UnpackBisectExecutionInput(tx)
+	decoded, err := bridge.UnpackBisectExecutionInput(tx)
 	if err != nil {
 		if isDefender {
 			// Defender always starts first

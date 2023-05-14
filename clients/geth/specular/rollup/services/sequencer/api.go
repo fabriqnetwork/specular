@@ -8,10 +8,9 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/comms/txmgr"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types/data"
 )
 
 type SequencerServiceConfig interface {
@@ -24,19 +23,24 @@ type ExecutionBackend interface {
 	ForkchoiceUpdate(update services.ForkchoiceState) error
 	BuildPayload(payload services.ExecutionPayload) error
 	CommitTransactions(txs []*types.Transaction) error                     // TODO: remove
-	Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce // TODO: probably remove
+	Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce // TODO: remove
 }
 
 type BatchBuilder interface {
-	Append(block data.DerivationBlock, header data.Header) error
-	LastAppended() uint64
-	Build() ([]byte, error)
+	Append(block l2types.DerivationBlock, header Header) error
+	LastAppended() l2types.BlockID
+	Build() (*batchAttributes, error)
 	Advance()
-	Reset(lastAppendedBlockNumber uint64, lastAppendedBlockHash common.Hash)
+	Reset(lastAppended l2types.BlockID)
 }
 
 type TxManager interface {
-	Send(ctx context.Context, candidate txmgr.TxCandidate) (*types.Receipt, error)
+	AppendTxBatch(
+		ctx context.Context,
+		contexts []*big.Int,
+		txLengths []*big.Int,
+		txs []byte,
+	) (*types.Receipt, error)
 }
 
 type L2Client interface {

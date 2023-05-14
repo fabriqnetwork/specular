@@ -20,7 +20,7 @@ type executor struct {
 // Responsible for ordering transactions (prior to their execution).
 // TODO: Support:
 // - PBS-style ordering: publicize current mempool and call remote engine API.
-// - remote ordering +  DA in single call (some systems conflate these roles -- e.g. Espresso)
+// - remote ordering + weak DA in single call (some systems conflate these roles -- e.g. Espresso)
 type orderer interface {
 	OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error)
 	RegisterL2Client(l2Client L2Client)
@@ -36,7 +36,7 @@ func (e *executor) start(ctx context.Context, l2Client L2Client) error {
 	txsCh := make(chan core.NewTxsEvent, 4096)
 	txsSub := e.backend.SubscribeNewTxsEvent(txsCh)
 	defer txsSub.Unsubscribe()
-	batchCh := utils.SubscribeBatched(ctx, txsCh, e.cfg.Sequencer().MinExecutionInterval, e.cfg.Sequencer().MaxExecutionInterval)
+	batchCh := utils.SubscribeBatched(ctx, txsCh, e.cfg.Sequencer().MinExecutionInterval(), e.cfg.Sequencer().MaxExecutionInterval())
 	for {
 		select {
 		case evs := <-batchCh:

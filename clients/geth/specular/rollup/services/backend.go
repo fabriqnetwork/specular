@@ -13,7 +13,7 @@ type ExecutionBackend interface {
 	ForkchoiceUpdate(update ForkchoiceState) error
 	BuildPayload(payload ExecutionPayload) error
 	CommitTransactions(txs []*types.Transaction) error            // TODO: remove
-	Prepare(txs []*types.Transaction) TransactionsByPriceAndNonce // TODO: probably remove
+	Prepare(txs []*types.Transaction) TransactionsByPriceAndNonce // TODO: remove
 }
 
 type ForkchoiceState interface {
