@@ -1,9 +1,32 @@
+import { exec } from "child_process";
+import util from "node:util";
+import path from "node:path";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
 
+const CLIENT_SBIN_DIR = "../clients/geth/specular/sbin";
+
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
+  // Calculate initial VM hash
+  const execPromise = util.promisify(exec);
+  let initialVMHash = "";
+  try {
+    const { stdout } = await execPromise(
+      path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
+    );
+    initialVMHash = (JSON.parse(stdout).root || "") as string;
+    if (!initialVMHash) {
+      throw Error(
+        `could not export genesis hash, root field not found\n${stdout}`
+      );
+    }
+    console.log("initial VM hash:", initialVMHash);
+  } catch (err) {
+    throw Error(`could not export genesis hash${err}`);
+  }
+
   const { deployments, getNamedAccounts } = hre;
   const { sequencer, deployer } = await getNamedAccounts();
   const sequencerInboxProxyAddress = (
@@ -22,7 +45,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    "0x20a3a2c9bb2f8d4409598cd92a94b4aa567bb2f906e9bcfa104f6c4cee9eb4a4", // bytes32 _initialVMhash
+    initialVMHash, // bytes32 _initialVMhash
   ];
 
   await deployUUPSProxiedContract(hre, deployer, "Rollup", args);

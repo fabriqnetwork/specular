@@ -4,14 +4,40 @@ import inquirer from "inquirer";
 import ERC1967Proxy from "@openzeppelin/contracts/build/contracts/ERC1967Proxy.json";
 import UUPSUpgradeable from "@openzeppelin/contracts-upgradeable/build/contracts/UUPSUpgradeable.json";
 
+/**
+ * Deploy options for UUPS proxied contracts
+ * @member initializer - name of the initializer function
+ */
 interface DeployOpts {
+  /**
+   * Name of the initializer function
+   * @default "initialize"
+   */
   initializer?: string;
 }
 
+/**
+ * Returns the name of the proxy contract to avoid name collisions in `deployments`
+ *
+ * @param name name of the contract
+ * @returns name of the proxy contract
+ *
+ * @example
+ * getProxyName("MyContract") // "Proxy__MyContract"
+ */
 export function getProxyName(name: string): string {
   return `Proxy__${name}`;
 }
 
+/**
+ * Deploy both a contract implementation and a proxy contract pointing to it
+ *
+ * @param hre Hardhat runtime environment
+ * @param deployer the address of the deployer
+ * @param name the contract name
+ * @param args arguements passed into the contract initializer
+ * @param opts deploy options
+ */
 export async function deployUUPSProxiedContract(
   hre: HardhatRuntimeEnvironment,
   deployer: string,
@@ -21,7 +47,7 @@ export async function deployUUPSProxiedContract(
 ) {
   const { ethers, upgrades, deployments, network } = hre;
   const { deploy, getOrNull } = deployments;
-  const initializer = opts?.initializer ?? "initialize";
+  const initializer = opts?.initializer ?? "initialize"; // default to "initialize"
   const deployerSigner = await ethers.getSigner(deployer);
 
   const Factory = await ethers.getContractFactory(name);
