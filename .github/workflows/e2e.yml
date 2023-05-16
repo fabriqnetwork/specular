@@ -24,8 +24,16 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
+
+      - name: Update Git submodules
+        run: |
+          git submodule init
+          git submodule update --recursive
+
+      - name: List files in current dir
+        run: |
+          pwd
+          ls -la
 
       - name: Create proj folder and add keys and genesis.json
         run: |
@@ -43,7 +51,11 @@ jobs:
 
       - name: Start up containers
         run: |
-          docker-compose -f docker/docker-compose-integration-test.yml up -d --build
+          pwd
+          ls -la
+          cd project
+          rm -rf specular-datadir/geth/
+          docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
           sleep 30
@@ -57,9 +69,11 @@ jobs:
 
       - name: Run testing script
         run: |
+          pwd
+          ls -la
           cd contracts
           yarn install
-          npx hardhat compile
+          npx hardhat deploy --network localhost
           cd scripts
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
           docker logs hardhat
@@ -67,4 +81,6 @@ jobs:
 
       - name: Stop and remove containers
         run: |
+          pwd
+          ls -la
           docker-compose -f docker/docker-compose-integration-test.yml down
