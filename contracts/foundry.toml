@@ -9,6 +9,9 @@ remappings = [
 ]
 test = 'test'
 cache_path  = 'forge-cache'
+allow_paths = [
+    '../node_modules',
+]
 
 [fmt]
 line_length = 120
