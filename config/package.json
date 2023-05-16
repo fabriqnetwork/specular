@@ -1,0 +1,13 @@
+{
+  "name": "specular-config-generation",
+  "version": "1.0.0",
+  "description": "utils to generate configuration for the specular mono repo",
+  "main": "index.js",
+  "author": "Specular contributors",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "ethereumjs-util": "^7.1.5",
+    "ethers": "^5.7.2",
+    "glob": "^10.2.4"
+  }
+}

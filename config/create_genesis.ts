@@ -1,9 +1,12 @@
 import { BigNumber, ethers } from "ethers";
 import { exec } from "child_process";
 import { glob } from "glob";
+import { keccak256 } from "ethereumjs-util";
 import fs from "fs";
 import path from "path";
 import util from "node:util";
+
+const CONTRACTS_PATH = "../contracts";
 
 type PreDeploy = {
   address: string;
@@ -58,9 +61,7 @@ function parseArgs() {
 }
 
 async function getArtifact(contractName: string) {
-  const artifactPath = await glob(`**/artifacts/**/${contractName}.json`, {
-    ignore: "node_modules/**",
-  });
+  const artifactPath = await glob(`${CONTRACTS_PATH}/artifacts/**/${contractName}.json`);
 
   if (artifactPath.length !== 1) {
     throw Error(`could not find unique artifact for ${contractName}`);
@@ -69,74 +70,44 @@ async function getArtifact(contractName: string) {
   return JSON.parse(fs.readFileSync(artifactPath[0], "utf-8"));
 }
 
-// TODO: this is not very efficient,
-// we should be able to narrow down the search once we know
-// where the file will live / how it will be run
-async function getStorageLayout(contractName: string) {
-  // we can read the storage layout from the HH artifacts like this:
-  // 1. read the contracts debug file to get the build-info hash of the most recent compilation
-  // 2. get the full source path of the contract
-  // 3. use the full source path to look up the storage layout in the build-info file
+async function getStorageLayout(contractName: string, artifact: any) {
+  const validationsPath = `${CONTRACTS_PATH}/cache/validations.json`;
+  const validations = JSON.parse(fs.readFileSync(validationsPath, "utf-8"));
 
-  const debugFile = await glob(`**/artifacts/**/${contractName}.dbg.json`, {
-    ignore: "node_modules/**",
-  });
+  // the version of the validation is the keccak hash of the contracts bytecode
+  const buf = Buffer.from(artifact.bytecode.replace(/^0x/, ''), 'hex');
+  const version = keccak256(buf).toString('hex');
 
-  if (debugFile.length !== 1) {
-    throw Error(`could not find unique build info for ${contractName}`);
-  }
+  let storageLayout;
+  let fullContractName;
 
-  const debug = JSON.parse(fs.readFileSync(debugFile[0], "utf-8"));
-  const buildInfoName = path.basename(debug.buildInfo);
-  const buildInfoPath = await glob(`**/artifacts/build-info/${buildInfoName}`);
-
-  if (buildInfoPath.length !== 1) {
-    throw Error(`could not find unique build info for ${contractName}`);
-  }
-
-  const possibleSourcePaths = (
-    await glob(`**/${contractName}.sol`, {
-      ignore: ["artifacts/**", "out/**", "abi/**"],
-    })
-  ).map((p: string) => {
-    if (p.includes("node_modules/")) {
-      return p.split("node_modules/")[1];
-    } else {
-      return p;
-    }
-  });
-
-  const foundLayouts = [];
-  const buildInfo = JSON.parse(fs.readFileSync(buildInfoPath[0], "utf-8"));
-  for (const s of possibleSourcePaths) {
-    const storageLayout =
-      buildInfo.output.contracts[s]?.[contractName]?.storageLayout.storage;
-    if (storageLayout) {
-      foundLayouts.push(storageLayout);
+  for (const validation of validations.log) {
+    fullContractName = Object.keys(validation).find(
+      name => validation[name].version?.withMetadata === version,
+    );
+    if (fullContractName !== undefined) {
+      storageLayout = validation[fullContractName].layout.storage;
+      break;
     }
   }
 
-  if (foundLayouts.length !== 1) {
-    throw Error(`could not find unique storage layout for ${contractName}`);
-  }
-
-  return foundLayouts[0];
+  return storageLayout;
 }
 
 async function parsePreDeploy(p: PreDeploy, alloc: any) {
   const execPromise = util.promisify(exec);
   const data = new Map();
+  let artifact;
 
   if (p.balance) data.set("balance", p.balance);
 
   if (p.contract) {
-    const artifact = await getArtifact(p.contract);
+    artifact = await getArtifact(p.contract);
     data.set("code", artifact.deployedBytecode);
   }
 
   if (p.storage && p.contract) {
-    await getStorageLayout(p.contract);
-    const storageLayout = await getStorageLayout(p.contract);
+    const storageLayout = await getStorageLayout(p.contract, artifact);
 
     const storage = new Map();
     for (const s of storageLayout) {
