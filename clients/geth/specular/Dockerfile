@@ -1,13 +1,12 @@
 # Compile contracts for binding generation
 FROM node:16-alpine3.17 as contracts-builder
 
-RUN apk add --no-cache make git
+RUN apk add --no-cache make git python3 g++
 
 COPY . /specular
 
 WORKDIR /specular/clients/geth/specular
 
-RUN apk add --no-cache python3 make g++
 RUN make contracts
 
 # Build geth binary

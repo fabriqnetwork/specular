@@ -24,25 +24,8 @@ jobs:
 
       - name: Checkout code
         uses: actions/checkout@v3
-
-      - name: Update Git submodules
-        run: |
-          git submodule init
-          git submodule update --recursive
-
-      - name: List files in current dir
-        run: |
-          pwd
-          ls -la
-
-      - name: Create proj folder and add keys and genesis.json
-        run: |
-          ls -la clients/geth/specular/data
-          mkdir project && cd project
-          mkdir specular-datadir && cd specular-datadir
-          cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
-          cp ../../clients/geth/specular/data/password.txt .
-          cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
+        with:
+          submodules: 'recursive'
 
       - name: Install node
         uses: actions/setup-node@v2
@@ -51,8 +34,6 @@ jobs:
 
       - name: Start up containers
         run: |
-          pwd
-          ls -la
           cd project
           rm -rf specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
@@ -69,11 +50,10 @@ jobs:
 
       - name: Run testing script
         run: |
-          pwd
-          ls -la
           cd contracts
+          ../clients/geth/specular/sbin/configure_system.sh
           yarn install
-          npx hardhat deploy --network localhost
+          npx hardhat compile
           cd scripts
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
           docker logs hardhat
@@ -81,6 +61,4 @@ jobs:
 
       - name: Stop and remove containers
         run: |
-          pwd
-          ls -la
           docker-compose -f docker/docker-compose-integration-test.yml down
