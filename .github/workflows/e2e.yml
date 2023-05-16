@@ -34,8 +34,6 @@ jobs:
 
       - name: Start up containers
         run: |
-          cd project
-          rm -rf specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
@@ -51,7 +49,6 @@ jobs:
       - name: Run testing script
         run: |
           cd contracts
-          ../clients/geth/specular/sbin/configure_system.sh
           yarn install
           npx hardhat compile
           cd scripts
