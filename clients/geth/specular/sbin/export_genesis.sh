@@ -9,5 +9,5 @@ args=(
     --datadir ./data_sequencer
     --verbosity 0
 )
-
+$GETH_SPECULAR_DIR/build/bin/geth init --datadir ./data_sequencer ./base_genesis.json
 $GETH_SPECULAR_DIR/build/bin/geth "${args[@]}" dump 0
