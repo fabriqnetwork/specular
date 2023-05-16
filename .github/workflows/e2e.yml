@@ -18,7 +18,7 @@ jobs:
       - name: Check Docker version
         run: |
           docker version
-          
+
       - name: Install Docker Compose
         uses: ndeloof/install-compose-action@v0.0.1
         with:
@@ -62,6 +62,7 @@ jobs:
         run: |
           cd contracts
           yarn install
+          npx hardhat compile
           cd scripts
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
           docker logs hardhat
