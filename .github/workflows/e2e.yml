@@ -54,7 +54,7 @@ jobs:
           pwd
           ls -la
           cd project
-          rm -rf project/specular-datadir/geth/
+          rm -rf specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
