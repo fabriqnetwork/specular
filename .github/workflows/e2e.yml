@@ -62,7 +62,7 @@ jobs:
         run: |
           cd contracts
           yarn install
-          npx hardhat compile
+          npx hardhat deploy --network localhost
           cd scripts
           yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
           docker logs hardhat
