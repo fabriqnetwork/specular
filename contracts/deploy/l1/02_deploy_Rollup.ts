@@ -6,26 +6,36 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
 
-// const CLIENT_SBIN_DIR = "../clients/geth/specular/sbin";
+const CLIENT_SBIN_DIR = `${__dirname}/../../../clients/geth/specular/sbin`;
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
-  // const execPromise = util.promisify(exec);
-  // let initialVMHash = "";
-  // try {
-  //   const { stdout } = await execPromise(
-  //     path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
-  //   );
-  //   initialVMHash = (JSON.parse(stdout).root || "") as string;
-  //   if (!initialVMHash) {
-  //     throw Error(
-  //       `could not export genesis hash, root field not found\n${stdout}`
-  //     );
-  //   }
-  //   console.log("initial VM hash:", initialVMHash);
-  // } catch (err) {
-  //   throw Error(`could not export genesis hash${err}`);
-  // }
+  const execPromise = util.promisify(exec);
+
+  const ls = await execPromise(`ls ${CLIENT_SBIN_DIR}`);
+  console.log({ ls });
+
+  await execPromise(
+    `chmod +x ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
+  );
+  let initialVMHash;
+  try {
+    const genesis = await execPromise(
+      `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
+    );
+
+    console.log({ genesis });
+
+    initialVMHash = (JSON.parse(genesis.stdout).root || "") as string;
+    if (!initialVMHash) {
+      throw Error(
+        `could not export genesis hash, root field not found\n${stdout}`
+      );
+    }
+    console.log("initial VM hash:", initialVMHash);
+  } catch (err) {
+    throw Error(`could not export genesis hash: ${err}`);
+  }
 
   const { deployments, getNamedAccounts } = hre;
   const { sequencer, deployer } = await getNamedAccounts();
@@ -45,7 +55,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    "0x744c19d2e8593c97867b3b6a3588f51cd9dbc5010a395cf199be4bbb353848b8", // bytes32 _initialVMhash
+    initialVMHash, // bytes32 _initialVMhash
   ];
 
   await deployUUPSProxiedContract(hre, deployer, "Rollup", args);

@@ -29,13 +29,20 @@ jobs:
         with:
           submodules: 'recursive'
 
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 6.32.9
+          run_install: |
+            - recursive: true
+            - args: [--frozen-lockfile, --strict-peer-dependencies]
+
       - name: Create proj folder and add keys and genesis.json
         run: |
           mkdir project && cd project
           mkdir specular-datadir && cd specular-datadir
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
-          cp ../../clients/geth/specular/data/base_genesis.json ./genesis.json
+          cd ../../contracts/ && npx hardhat compile && npx ts-node scripts/create_genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out ../project/specular-datadir/genesis.json
 
       - name: Install node
         uses: actions/setup-node@v2
@@ -61,9 +68,7 @@ jobs:
       - name: Run testing script
         run: |
           cd contracts
-          yarn install
-          cd scripts
-          yarn run ts-node /home/runner/work/specular/specular/contracts/scripts/testing.ts
+          npx ts-node scripts/testing.ts
           docker logs hardhat
           docker logs sequencer
 
