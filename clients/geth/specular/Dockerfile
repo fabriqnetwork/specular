@@ -6,6 +6,11 @@ RUN npm install -g pnpm
 
 COPY . /specular
 
+WORKDIR /specular
+
+RUN rm pnpm-lock.yaml
+RUN rm pnpm-workspace.yaml
+
 WORKDIR /specular/clients/geth/specular
 
 RUN make contracts
