@@ -6,7 +6,7 @@ function ApproveTx(r) {
   // TODO: do we need additional / more fine grained rules?
 
   // this file can't access env variables so addresses have to be hardcoded
-  // if (r.transaction.to.toLowerCase() == '0x5fc8d32690cc91d4c39d9d3abcbd16989f875707') {
+  // if (r.transaction.to.toLowerCase() == '0xF6168876932289D073567f347121A267095f3DD6') {
   //   return 'Approve';
   // }
 
