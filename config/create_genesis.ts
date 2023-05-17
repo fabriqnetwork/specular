@@ -2,11 +2,10 @@ import { BigNumber, ethers } from "ethers";
 import { exec } from "child_process";
 import { glob } from "glob";
 import { keccak256 } from "ethereumjs-util";
+import hre from "hardhat";
 import fs from "fs";
 import path from "path";
 import util from "node:util";
-
-const CONTRACTS_PATH = "../contracts";
 
 type PreDeploy = {
   address: string;
@@ -61,17 +60,14 @@ function parseArgs() {
 }
 
 async function getArtifact(contractName: string) {
-  const artifactPath = await glob(`${CONTRACTS_PATH}/artifacts/**/${contractName}.json`);
-
-  if (artifactPath.length !== 1) {
-    throw Error(`could not find unique artifact for ${contractName}`);
-  }
-
-  return JSON.parse(fs.readFileSync(artifactPath[0], "utf-8"));
+  return hre.artifacts.readArtifact(contractName);
 }
 
 async function getStorageLayout(contractName: string, artifact: any) {
-  const validationsPath = `${CONTRACTS_PATH}/cache/validations.json`;
+  // unfortunately this is not exposed through the hre so we have to get it manually
+  // this is following the approach taken by OZ in the HH upgrade plugin, see:
+  // https://github.com/OpenZeppelin/openzeppelin-upgrades/blob/1e28bce2b6bae17c024350c98c6e0c511f3091d3/packages/core/src/validate/query.ts#L81
+  const validationsPath = path.join(hre.config.paths.cache, "validations.json");
   const validations = JSON.parse(fs.readFileSync(validationsPath, "utf-8"));
 
   // the version of the validation is the keccak hash of the contracts bytecode

@@ -8,6 +8,7 @@
   "dependencies": {
     "ethereumjs-util": "^7.1.5",
     "ethers": "^5.7.2",
-    "glob": "^10.2.4"
+    "glob": "^10.2.4",
+    "hardhat": "^2.14.0"
   }
 }
