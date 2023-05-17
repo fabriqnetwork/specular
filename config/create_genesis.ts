@@ -60,7 +60,22 @@ function parseArgs() {
 }
 
 async function getArtifact(contractName: string) {
-  return hre.artifacts.readArtifact(contractName);
+  let artifacts;
+  try {
+    artifacts = await hre.artifacts.readArtifact(contractName);
+  } catch (error) {
+    console.warn(
+      `could not find artifacts for ${contractName}, checking in node_modules/@openzeppelin`
+    );
+    const paths =
+      await glob(`../contracts/node_modules/@openzeppelin/**/build/**/${contractName}.json`);
+
+    if (paths.length !== 1) throw Error("no unique artifacts found");
+
+    artifacts = JSON.parse(fs.readFileSync(paths[0], "utf-8"));
+  }
+
+  return artifacts;
 }
 
 async function getStorageLayout(contractName: string, artifact: any) {
@@ -94,18 +109,25 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
   const execPromise = util.promisify(exec);
   const data = new Map();
   let artifact;
+  let storageLayout;
 
   if (p.balance) data.set("balance", p.balance);
 
   if (p.contract) {
     artifact = await getArtifact(p.contract);
+    storageLayout = await getStorageLayout(p.contract, artifact);
     data.set("code", artifact.deployedBytecode);
   }
 
-  if (p.storage && p.contract) {
-    const storageLayout = await getStorageLayout(p.contract, artifact);
+  if (!storageLayout && p.contract) {
+    console.warn(
+      `could not get storage layout for ${p.contract}, please ensure this is intentional`
+    );
+    ;
+  }
 
-    const storage = new Map();
+  const storage = new Map();
+  if (storageLayout) {
     for (const s of storageLayout) {
       if (!p.storage[s.label]) continue;
 
@@ -129,7 +151,9 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
 
       storage.set(slot, ethers.utils.hexZeroPad(value, 32));
     }
+  }
 
+  if (p.storage) {
     for (const s of Object.entries(p.storage)) {
       if (!ethers.utils.isHexString(s[0])) continue;
 
