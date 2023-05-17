@@ -18,9 +18,16 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract Faucet is Ownable {
+contract Faucet is UUPSUpgradeable, OwnableUpgradeable {
+    function initialize() public initializer {
+        __Ownable_init();
+    }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
+
     // amountAllowed is initialized in the genesis.json
     // amountAllowed is set to 0.01 ETH
     uint256 public amountAllowed;
@@ -29,8 +36,6 @@ contract Faucet is Ownable {
 
     event DepositReceived(address, uint256);
     event RequestFunds(address, uint256);
-
-    constructor() payable {}
 
     receive() external payable {
         emit DepositReceived(msg.sender, msg.value);

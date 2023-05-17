@@ -6,40 +6,29 @@ import { ethers, upgrades } from "hardhat";
 dotenv.config({ path: __dirname + "/../.env" });
 
 const main = async () => {
+  const UUPSPlaceholderFactory = await ethers.getContractFactory(
+    "UUPSPlaceholder"
+  );
+  const FaucetFactory = await ethers.getContractFactory("Faucet");
+
   const proxyAddress = "0xff00000000000000000000000000000000000001";
-
-  const implSlot = toEip1967Hash("eip1967.proxy.implementation");
-
-  const provider = new ethers.providers.JsonRpcProvider(
-    "http://localhost:4011"
+  console.log(
+    "Implementation address: " +
+      (await upgrades.erc1967.getImplementationAddress(proxyAddress))
   );
-  const sequencer = new ethers.Wallet(
-    `0x${process.env.SEQUENCER_PRIVATE_KEY}`,
-    provider
+  console.log(
+    "Admin address: " + (await upgrades.erc1967.getAdminAddress(proxyAddress))
   );
 
-  const PlaceholderFactory = await ethers.getContractFactory("UUPSPlaceholder");
-
-  const implementationAddress = await provider.getStorageAt(
+  const proxy = await upgrades.forceImport(
     proxyAddress,
-    implSlot
+    UUPSPlaceholderFactory
   );
-  console.log({ implementationAddress });
 
-  const proxy = await upgrades.forceImport(proxyAddress, PlaceholderFactory);
+  const updateTx = await upgrades.upgradeProxy(proxy.address, FaucetFactory);
 
-  const updateTx = await upgrades.upgradeProxy(
-    proxy.address,
-    PlaceholderFactory
-  );
   console.log({ updateTx });
 };
-
-function toEip1967Hash(label: string): string {
-  const hash = keccak256(Buffer.from(label));
-  const bigNumber = BigInt("0x" + hash.toString("hex")) - 1n;
-  return "0x" + bigNumber.toString(16);
-}
 
 main()
   .then(() => process.exit(0))

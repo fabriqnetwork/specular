@@ -165,6 +165,10 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
     data.set("storage", Object.fromEntries(storage));
   }
 
+  if (alloc.has(p.address)) {
+    throw Error(`multiple pre-deploys specified for address: ${p.address}`);
+  }
+
   alloc.set(p.address, Object.fromEntries(data));
 }
 
