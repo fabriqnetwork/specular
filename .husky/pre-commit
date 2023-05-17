@@ -2,7 +2,7 @@
 . "$(dirname -- "$0")/_/husky.sh"
 
 cd contracts
-yarn lint-staged
+pnpm lint-staged
 
 GO_DIRECTORY="../clients/geth/specular"
 if git diff --cached --quiet -- "$GO_DIRECTORY"; then

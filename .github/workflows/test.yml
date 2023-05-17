@@ -35,6 +35,9 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-foundry-
 
+      - name: Setup Node
+        uses: ./.github/actions/node
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -42,9 +45,6 @@ jobs:
 
       - name: Run forge install
         run: forge install
-
-      - name: Install yarn dependencies
-        run: yarn install
 
       - name: Run tests
         env:
