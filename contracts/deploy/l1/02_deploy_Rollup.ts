@@ -45,7 +45,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    "initialVMHash", // bytes32 _initialVMhash
+    initialVMHash, // bytes32 _initialVMhash
   ];
 
   await deployUUPSProxiedContract(hre, deployer, "Rollup", args);
