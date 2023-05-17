@@ -116,7 +116,6 @@ async function sendTx(sequencerSigner: any, toAddress: any, value: number) {
 // Check logs
 async function checkLogs(name: string, contract: any, filter: any) {
   const logs = await contract.queryFilter(filter);
-  console.log("logs = ", logs);
   assert(logs.length > 0, `No matching logs found for ${name}`);
 }
 
