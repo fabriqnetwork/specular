@@ -2,6 +2,7 @@ FROM node:16-alpine3.17
 COPY . /specular
 
 RUN apk add --no-cache git python3 make g++
+RUN npm install -g pnpm
 
 WORKDIR /specular/contracts
 
