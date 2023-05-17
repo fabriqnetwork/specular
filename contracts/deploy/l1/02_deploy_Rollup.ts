@@ -6,7 +6,7 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
 
-const CLIENT_SBIN_DIR = "../clients/geth/specular/sbin";
+const CLIENT_SBIN_DIR = "../../../clients/geth/specular/sbin";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
