@@ -210,11 +210,14 @@ contract StorageOpVerifier is IVerifier {
             bytes memory readContent =
                 codeProof.getCodeSlice(encoded, uint64(stackProof.pops[2]), uint64(stackProof.pops[3]));
             bytes memory writeContent;
-            (offset, writeContent) = MemoryLib.decodeAndVerifyMemoryWriteProof(
+            bytes32 updatedRoot;
+            (offset, updatedRoot, writeContent) = MemoryLib.decodeAndVerifyMemoryWriteProof(
                 stateProof, encoded, offset, uint64(stackProof.pops[1]), uint64(stackProof.pops[3])
             );
 
             require(readContent.equal(writeContent), "Inconsistent Copy");
+
+            stateProof.memRoot = updatedRoot;
         }
 
         stateProof.pc += 1;

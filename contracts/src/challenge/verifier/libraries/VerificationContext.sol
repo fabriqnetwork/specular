@@ -21,7 +21,6 @@ pragma solidity ^0.8.0;
 import "../../../ISequencerInbox.sol";
 import "../../../libraries/DeserializationLib.sol";
 import "../../../libraries/BytesLib.sol";
-import "../../../libraries/MerkleLib.sol";
 
 import "./MemoryLib.sol";
 import "./EVMTypesLib.sol";

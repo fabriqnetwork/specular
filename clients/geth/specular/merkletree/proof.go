@@ -16,119 +16,67 @@ package merkletree
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/holiman/uint256"
 )
 
-func (t *MerkleTree) generateSingleProof(index uint64) []common.Hash {
-	leafCount := uint64(len(t.tree)) >> 1
-	var decommitments []common.Hash
-	for i := leafCount + index; i > 1; i >>= 1 {
-		if i&1 == 1 {
-			if i-1 < uint64(len(t.tree)) {
-				decommitments = append(decommitments, t.tree[i-1])
+func (t *MerkleTree) GetRangeProof(start, length uint64) []common.Hash {
+	// Add elementNum to get the index in the tree
+	start += t.elementNum
+	end := start + length - 1
+	proof := make([]common.Hash, 0)
+	for start != 1 {
+		if start&1 == 1 {
+			proof = append(proof, t.tree[start-1])
+		}
+		if end&1 == 0 {
+			proof = append(proof, t.tree[end+1])
+		}
+		start >>= 1
+		end >>= 1
+	}
+	return proof
+}
+
+func (t *MerkleTree) GetProof(offset uint64) []common.Hash {
+	return t.GetRangeProof(offset, 1)
+}
+
+func VerifyProof(root common.Hash, elementNum, start uint64, elements []*uint256.Int, proof []common.Hash) bool {
+	elementsAsHash := make([]common.Hash, len(elements))
+	for i := 0; i < len(elements); i++ {
+		elementsAsHash[i] = elements[i].Bytes32()
+	}
+	// Add elementNum to get the index in the tree
+	start += elementNum
+	end := start + uint64(len(elements)) - 1
+	proofOffset := 0
+	for start != 1 {
+		hashRange := end - start + 1
+		if start&1 == 1 {
+			elementsAsHash[0] = hashNode(proof[proofOffset], elementsAsHash[0])
+			proofOffset++
+			for i := uint64(1); i < hashRange/2; i++ {
+				elementsAsHash[i] = hashNode(elementsAsHash[2*i-1], elementsAsHash[2*i])
+			}
+			last := hashRange / 2
+			if end&1 == 0 {
+				elementsAsHash[last] = hashNode(elementsAsHash[2*last-1], proof[proofOffset])
+				proofOffset++
+			} else if last > 0 {
+				elementsAsHash[last] = hashNode(elementsAsHash[2*last-1], elementsAsHash[2*last])
 			}
 		} else {
-			if i+1 < uint64(len(t.tree)) {
-				decommitments = append(decommitments, t.tree[i+1])
+			for i := uint64(0); i < hashRange/2; i++ {
+				elementsAsHash[i] = hashNode(elementsAsHash[2*i], elementsAsHash[2*i+1])
+			}
+			if end&1 == 0 {
+				last := hashRange / 2
+				elementsAsHash[last] = hashNode(elementsAsHash[2*last], proof[proofOffset])
+				proofOffset++
 			}
 		}
+		start >>= 1
+		end >>= 1
 	}
-	proof := []common.Hash{uint256.NewInt(t.ElementCount()).Bytes32()}
-	for i := len(decommitments) - 1; i >= 0; i-- {
-		if decommitments[i] != (common.Hash{}) {
-			proof = append(proof, decommitments[i])
-		}
-	}
-	return proof
-}
-
-func (t *MerkleTree) generateMultiProof(indices []uint64) []common.Hash {
-	elementCount := t.ElementCount()
-	proof := []common.Hash{uint256.NewInt(elementCount).Bytes32()}
-	known := make([]bool, len(t.tree))
-	relevant := make([]bool, len(t.tree))
-	leafcount := uint64(len(t.tree)) >> 1
-	var flags, orders, skips []bool
-	var decommitments []common.Hash
-
-	for _, index := range indices {
-		known[leafcount+index] = true
-		relevant[(leafcount+index)>>1] = true
-	}
-	for i := leafcount - 1; i > 0; i-- {
-		leftChildIndex := i << 1
-		left := known[leftChildIndex]
-		right := known[leftChildIndex+1]
-		sibling := t.tree[leftChildIndex]
-		if left {
-			sibling = t.tree[leftChildIndex+1]
-		}
-		if left != right {
-			decommitments = append(decommitments, sibling)
-		}
-		if relevant[i] {
-			flags = append(flags, left == right)
-			skips = append(skips, sibling == (common.Hash{}))
-			orders = append(orders, left)
-			relevant[i>>1] = true
-		}
-		known[i] = left || right
-	}
-	if len(flags) > 255 {
-		log.Error("too many flags")
-	}
-	stopMask := uint256.NewInt(1)
-	stopMask.Lsh(stopMask, uint(len(flags)))
-	flagBits := boolSetToUint256(flags)
-	flagBits.Or(flagBits, stopMask)
-	proof = append(proof, flagBits.Bytes32())
-	skipBits := boolSetToUint256(skips)
-	skipBits.Or(skipBits, stopMask)
-	proof = append(proof, skipBits.Bytes32())
-	proof = append(proof, boolSetToBytes32(orders))
-	for _, decommitment := range decommitments {
-		if decommitment != (common.Hash{}) {
-			proof = append(proof, decommitment)
-		}
-	}
-	return proof
-}
-
-func (t *MerkleTree) GenerateProof(indices []uint64) []common.Hash {
-	if len(indices) == 1 {
-		return t.generateSingleProof(indices[0])
-	}
-	return t.generateMultiProof(indices)
-}
-
-func (t *MerkleTree) GenerateAppendProof() []common.Hash {
-	elementCount := t.ElementCount()
-	proof := []common.Hash{uint256.NewInt(elementCount).Bytes32()}
-	if elementCount == 0 {
-		return proof
-	}
-	leafCount := uint64(len(t.tree)) >> 1
-	var decommitments []common.Hash
-	for i := leafCount + elementCount; i > 1; i >>= 1 {
-		if i&1 == 1 || i == 2 {
-			decommitments = append(decommitments, t.tree[i-1])
-		}
-	}
-	for i := len(decommitments) - 1; i >= 0; i-- {
-		if decommitments[i] != (common.Hash{}) {
-			proof = append(proof, decommitments[i])
-		}
-	}
-	return proof
-}
-
-func (t *MerkleTree) GenerateCombinedProof(indices []uint64) ([]common.Hash, error) {
-	if len(t.tree) == 0 {
-		return nil, ErrEmptyTree
-	}
-	if indices[len(indices)-1] < minimalCombinedProofIndex(t.ElementCount()) {
-		return nil, ErrIndexTooSmallForCombinedProof
-	}
-	return t.GenerateProof(indices), nil
+	return root == elementsAsHash[0]
 }

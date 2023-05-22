@@ -8,6 +8,7 @@ import "hardhat-abi-exporter";
 import "hardhat-deploy";
 import "@openzeppelin/hardhat-upgrades";
 import "@typechain/hardhat";
+import "hardhat-contract-sizer";
 
 import "./tasks/deployVerifierDriver";
 import "./tasks/generateOsp";

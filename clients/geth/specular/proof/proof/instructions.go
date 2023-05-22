@@ -98,7 +98,7 @@ func (osp *OneStepProof) addMemoryLikeReadProofNoAppend(offset, size uint64, mem
 	if memoryLike.CellNum() == 0 {
 		return nil
 	}
-	pf, err := generateMemoryReadProofNoAppend(memoryLike, offset, size)
+	pf, err := generateMemoryReadProof(memoryLike, offset, size)
 	if err != nil {
 		return err
 	}

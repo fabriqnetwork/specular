@@ -14,9 +14,26 @@
 
 package merkletree
 
-import "errors"
-
-var (
-	ErrEmptyTree                     = errors.New("empty tree")
-	ErrIndexTooSmallForCombinedProof = errors.New("index too small for combined proof")
+import (
+	"testing"
 )
+
+func TestRoundUpToPowerOf2(t *testing.T) {
+	testCases := []struct {
+		input uint64
+		want  uint64
+	}{
+		{0, 1},
+		{1, 1},
+		{5, 8},
+		{8, 8},
+	}
+	for _, testCase := range testCases {
+		t.Run("", func(t *testing.T) {
+			got := roundUpToPowerOf2(testCase.input)
+			if got != testCase.want {
+				t.Errorf("got %d, want %d", got, testCase.want)
+			}
+		})
+	}
+}

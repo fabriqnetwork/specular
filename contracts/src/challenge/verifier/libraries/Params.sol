@@ -75,4 +75,5 @@ library Params {
     bytes32 constant EMPTY_CODE_HASH = 0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470;
     bytes32 constant EMPTY_UNCLE_HASH = 0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347;
     uint64 constant RECENT_BLOCK_HASHES_LENGTH = 256;
+    uint256 constant MAX_MEMORY_SIZE = 2**17;
 }

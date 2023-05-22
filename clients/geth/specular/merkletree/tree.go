@@ -15,64 +15,105 @@
 package merkletree
 
 import (
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
 )
 
-var PREFIX []byte = []byte{0x00}
+// Given a list of elements (2^n), construct a merkle tree with size 2^(n+1)
+// tree[0]: temp
+// tree[1]: root
+// in depth d, the first element is tree[2^d], the last element is tree[2^(d+1)-1]
+// elements start from tree[2^n] to tree[2^(n+1)-1]
 
 type MerkleTree struct {
-	elements []*uint256.Int
-	tree     []common.Hash
+	elementNum uint64
+	nonEmpty   uint64
+	tree       []common.Hash
+}
+
+func (t *MerkleTree) buildTree() {
+	for i := t.elementNum - 1; i > 0; i-- {
+		t.tree[i] = hashNode(t.tree[i<<1], t.tree[i<<1+1])
+	}
 }
 
 func New(elements []*uint256.Int) *MerkleTree {
-	if len(elements) == 0 {
-		return &MerkleTree{}
-	}
-	balancedLeafCount := roundUpToPowerOf2(uint64(len(elements)))
-	tree := make([]common.Hash, balancedLeafCount<<1)
+	elementNum := roundUpToPowerOf2(uint64(len(elements)))
+	tree := make([]common.Hash, elementNum*2)
 	for i := uint64(0); i < uint64(len(elements)); i++ {
-		tree[balancedLeafCount+i] = hashLeaf(elements[i])
+		tree[elementNum+i] = elements[i].Bytes32()
 	}
-
-	lowerBound := balancedLeafCount
-	upperBound := balancedLeafCount + uint64(len(elements)) - 1
-
-	for i := balancedLeafCount - 1; i > 0; i-- {
-		index := i << 1
-		if index > upperBound {
-			continue
-		}
-		if index <= lowerBound {
-			lowerBound >>= 1
-			upperBound >>= 1
-		}
-		if index == upperBound {
-			tree[i] = tree[index]
-			continue
-		}
-		tree[i] = hashNode(tree[index], tree[index+1])
+	t := &MerkleTree{
+		elementNum: elementNum,
+		nonEmpty:   uint64(len(elements)),
+		tree:       tree,
 	}
-	tree[0] = hashMixedRoot(uint64(len(elements)), tree[1])
-
-	return &MerkleTree{
-		elements: elements,
-		tree:     tree,
-	}
+	t.buildTree()
+	return t
 }
 
-func (m *MerkleTree) Root() common.Hash {
-	if len(m.elements) == 0 {
-		return common.Hash{}
+func NewWithCapacity(elements []*uint256.Int, capacity uint64) *MerkleTree {
+	elementNum := roundUpToPowerOf2(uint64(len(elements)))
+	tree := make([]common.Hash, capacity*2)
+	for i := uint64(0); i < uint64(len(elements)); i++ {
+		tree[elementNum+i] = elements[i].Bytes32()
 	}
-	return m.tree[0]
+	t := &MerkleTree{
+		elementNum: elementNum,
+		nonEmpty:   uint64(len(elements)),
+		tree:       tree,
+	}
+	t.buildTree()
+	return t
 }
 
-func (m *MerkleTree) ElementCount() uint64 {
-	return uint64(len(m.elements))
+func NewWithPrealloc(elements []uint256.Int, prealloc []common.Hash) (*MerkleTree, error) {
+	elementNum := roundUpToPowerOf2(uint64(len(elements)))
+	if len(prealloc) < int(elementNum*2) {
+		return nil, errors.New("prealloc size is too small")
+	}
+	tree := prealloc
+	for i := uint64(0); i < uint64(len(elements)); i++ {
+		tree[elementNum+i] = elements[i].Bytes32()
+	}
+	t := &MerkleTree{
+		elementNum: elementNum,
+		nonEmpty:   uint64(len(elements)),
+		tree:       tree,
+	}
+	t.buildTree()
+	return t, nil
 }
 
-func (m *MerkleTree) Element(index uint64) *uint256.Int {
-	return m.elements[index]
+func (t *MerkleTree) Rebuild(elements []*uint256.Int) error {
+	elementNum := roundUpToPowerOf2(uint64(len(elements)))
+	if elementNum != t.elementNum {
+		return errors.New("element number mismatch")
+	}
+	for i := uint64(0); i < uint64(len(elements)); i++ {
+		t.tree[elementNum+i] = elements[i].Bytes32()
+	}
+	for i := uint64(len(elements)); i < t.nonEmpty; i++ {
+		t.tree[elementNum+i] = common.Hash{}
+	}
+	t.elementNum = elementNum
+	t.nonEmpty = uint64(len(elements))
+	t.buildTree()
+	return nil
+}
+
+func (t *MerkleTree) GetElement(offset uint64) *uint256.Int {
+	element := &uint256.Int{}
+	element.SetBytes(t.tree[t.elementNum+offset][:])
+	return element
+}
+
+func (t *MerkleTree) ElementCount() uint64 {
+	return t.elementNum
+}
+
+func (t *MerkleTree) GetRoot() common.Hash {
+	return t.tree[1]
 }

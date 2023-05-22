@@ -23,34 +23,47 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/merkletree"
 )
 
+const MaxMemoryCell uint64 = 1 << 17
+
 type Memory struct {
 	content []byte
 	size    uint64
 	tree    *merkletree.MerkleTree
 }
 
-func NewMemoryFromBytes(values []byte) *Memory {
-	if len(values) == 0 {
-		return &Memory{tree: merkletree.New([]*uint256.Int{})}
-	}
+func bytesToMemoryCells(values []byte) []*uint256.Int {
 	size := len(values)
 	bytesToPad := 32 - size%32
 	if bytesToPad != 32 {
 		values = append(values, make([]byte, bytesToPad)...)
 	}
-	elements := make([]*uint256.Int, len(values)/32)
-	for idx := range elements {
-		elements[idx] = new(uint256.Int).SetBytes(values[idx*32 : (idx+1)*32])
+	cells := make([]*uint256.Int, len(values)/32)
+	for idx := range cells {
+		cells[idx] = new(uint256.Int).SetBytes(values[idx*32 : (idx+1)*32])
 	}
+	return cells
+}
+
+func NewMemoryFromBytesWithCapacity(values []byte, capacity uint64) *Memory {
+	cells := bytesToMemoryCells(values)
 	return &Memory{
 		content: values,
-		size:    uint64(size),
-		tree:    merkletree.New(elements),
+		size:    uint64(len(values)),
+		tree:    merkletree.NewWithCapacity(cells, capacity),
+	}
+}
+
+func NewMemoryFromBytes(values []byte) *Memory {
+	cells := bytesToMemoryCells(values)
+	return &Memory{
+		content: values,
+		size:    uint64(len(values)),
+		tree:    merkletree.New(cells),
 	}
 }
 
 func MemoryFromEVMMemory(mem *vm.Memory) *Memory {
-	return NewMemoryFromBytes(mem.Data())
+	return NewMemoryFromBytesWithCapacity(mem.Data(), MaxMemoryCell)
 }
 
 func (m *Memory) Size() uint64 {
@@ -70,23 +83,15 @@ func (m *Memory) Empty() bool {
 }
 
 func (m *Memory) Cell(i uint64) *uint256.Int {
-	return m.tree.Element(i)
+	return m.tree.GetElement(i)
 }
 
 func (m *Memory) Root() common.Hash {
-	return m.tree.Root()
+	return m.tree.GetRoot()
 }
 
-func (m *Memory) GetProof(indices []uint64) []common.Hash {
-	return m.tree.GenerateProof(indices)
-}
-
-func (m *Memory) GetAppendProof() []common.Hash {
-	return m.tree.GenerateAppendProof()
-}
-
-func (m *Memory) GetCombinedProof(indices []uint64) ([]common.Hash, error) {
-	return m.tree.GenerateCombinedProof(indices)
+func (m *Memory) GetProof(start, length uint64) []common.Hash {
+	return m.tree.GetRangeProof(start, length)
 }
 
 func (m *Memory) EncodeState() []byte {

@@ -96,181 +96,18 @@ func (m *MemoryWriteProof) Encode() []byte {
 	return encoded
 }
 
-type MemoryAppendProof struct {
-	AppendCells []uint256.Int
-	Proof       []common.Hash
-}
-
-func (m *MemoryAppendProof) Encode() []byte {
-	encoded := make([]byte, 32*len(m.AppendCells)+8+32*len(m.Proof))
-	for idx, cell := range m.AppendCells {
-		cellBytes := cell.Bytes32()
-		copy(encoded[32*idx:], cellBytes[:])
-	}
-	lenBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(lenBytes, uint64(len(m.Proof)))
-	copy(encoded[32*len(m.AppendCells):], lenBytes)
-	encodedOffset := 32*len(m.AppendCells) + 8
-	for _, hash := range m.Proof {
-		copy(encoded[encodedOffset:], hash.Bytes())
-		encodedOffset += 32
-	}
-	return encoded
-}
-
-type MemoryCombinedReadProof struct {
-	Cells       []uint256.Int
-	AppendCells []uint256.Int
-	Proof       []common.Hash
-}
-
-func (m *MemoryCombinedReadProof) Encode() []byte {
-	encoded := make([]byte, 32*len(m.Cells)+32*len(m.AppendCells)+8+32*len(m.Proof))
-	for idx, cell := range m.Cells {
-		cellBytes := cell.Bytes32()
-		copy(encoded[32*idx:], cellBytes[:])
-	}
-	encodedOffset := 32 * len(m.Cells)
-	for idx, cell := range m.AppendCells {
-		cellBytes := cell.Bytes32()
-		copy(encoded[32*idx+encodedOffset:], cellBytes[:])
-	}
-	lenBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(lenBytes, uint64(len(m.Proof)))
-	copy(encoded[32*(len(m.Cells)+len(m.AppendCells)):], lenBytes)
-	encodedOffset += 32*len(m.AppendCells) + 8
-	for _, hash := range m.Proof {
-		copy(encoded[encodedOffset:], hash.Bytes())
-		encodedOffset += 32
-	}
-	return encoded
-}
-
-type MemoryCombinedWriteProof struct {
-	Cells        []uint256.Int
-	UpdatedCells []uint256.Int
-	AppendCells  []uint256.Int
-	Proof        []common.Hash
-}
-
-func (m *MemoryCombinedWriteProof) Encode() []byte {
-	encoded := make([]byte, 32*len(m.Cells)+32*len(m.UpdatedCells)+32*len(m.AppendCells)+8+32*len(m.Proof))
-	for idx, cell := range m.Cells {
-		cellBytes := cell.Bytes32()
-		copy(encoded[32*idx:], cellBytes[:])
-	}
-	encodedOffset := 32 * len(m.Cells)
-	for idx, cell := range m.UpdatedCells {
-		cellBytes := cell.Bytes32()
-		copy(encoded[32*idx+encodedOffset:], cellBytes[:])
-	}
-	encodedOffset += 32 * len(m.UpdatedCells)
-	for idx, cell := range m.AppendCells {
-		cellBytes := cell.Bytes32()
-		copy(encoded[32*idx+encodedOffset:], cellBytes[:])
-	}
-	lenBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(lenBytes, uint64(len(m.Proof)))
-	copy(encoded[32*(len(m.Cells)+len(m.UpdatedCells)+len(m.AppendCells)):], lenBytes)
-	encodedOffset += 32*len(m.AppendCells) + 8
-	for _, hash := range m.Proof {
-		copy(encoded[encodedOffset:], hash.Bytes())
-		encodedOffset += 32
-	}
-	return encoded
-}
-
 func generateMemoryReadProof(memory *state.Memory, offset uint64, size uint64) (Proof, error) {
 	if size == 0 {
+		// TODO[zhe]: clean up
 		return nil, nil
 	}
 	startCell := offset / 32
 	cellNum := calcCellNum(offset, size)
-	if memory.CellNum() <= startCell {
-		// The start position pasts the end of the memory
-		// AppendProof
-		pf := memory.GetAppendProof()
-		cellNum += startCell - memory.CellNum()
-		return &MemoryAppendProof{
-			AppendCells: make([]uint256.Int, cellNum), // All empty
-			Proof:       pf,
-		}, nil
+	cells := make([]uint256.Int, cellNum)
+	for i := uint64(0); i < cellNum; i++ {
+		cells[i] = *memory.Cell(startCell + i)
 	}
-	if memory.CellNum() >= startCell+cellNum {
-		// The end position is within the memory
-		// ReadProof
-		indices := make([]uint64, cellNum)
-		for i := uint64(0); i < cellNum; i++ {
-			indices[i] = startCell + i
-		}
-		pf := memory.GetProof(indices)
-		cells := make([]uint256.Int, cellNum)
-		for i := uint64(0); i < cellNum; i++ {
-			cells[i] = *memory.Cell(startCell + i)
-		}
-		return &MemoryReadProof{
-			Cells: cells,
-			Proof: pf,
-		}, nil
-	}
-	// The start position is within the memory, but the end position is not
-	// CombinedReadProof
-	indices := make([]uint64, memory.CellNum()-startCell)
-	for i := startCell; i < memory.CellNum(); i++ {
-		indices[i-startCell] = i
-	}
-	pf, err := memory.GetCombinedProof(indices)
-	if err != nil {
-		return nil, err
-	}
-	cells := make([]uint256.Int, memory.CellNum()-startCell)
-	for i := startCell; i < memory.CellNum(); i++ {
-		cells[i-startCell] = *memory.Cell(i)
-	}
-	appendCells := make([]uint256.Int, cellNum-(memory.CellNum()-startCell))
-	return &MemoryCombinedReadProof{
-		Cells:       cells,
-		AppendCells: appendCells,
-		Proof:       pf,
-	}, nil
-}
-
-func generateMemoryReadProofNoAppend(memory *state.Memory, offset uint64, size uint64) (Proof, error) {
-	if size == 0 {
-		return nil, nil
-	}
-	startCell := offset / 32
-	cellNum := calcCellNum(offset, size)
-	if memory.CellNum() <= startCell {
-		// The start position pasts the end of the memory
-		return nil, nil
-	}
-	if memory.CellNum() >= startCell+cellNum {
-		// The end position is within the memory
-		indices := make([]uint64, cellNum)
-		for i := uint64(0); i < cellNum; i++ {
-			indices[i] = startCell + i
-		}
-		pf := memory.GetProof(indices)
-		cells := make([]uint256.Int, cellNum)
-		for i := uint64(0); i < cellNum; i++ {
-			cells[i] = *memory.Cell(startCell + i)
-		}
-		return &MemoryReadProof{
-			Cells: cells,
-			Proof: pf,
-		}, nil
-	}
-	// The start position is within the memory, but the end position is not
-	indices := make([]uint64, memory.CellNum()-startCell)
-	for i := startCell; i < memory.CellNum(); i++ {
-		indices[i-startCell] = i
-	}
-	pf := memory.GetProof(indices)
-	cells := make([]uint256.Int, memory.CellNum()-startCell)
-	for i := startCell; i < memory.CellNum(); i++ {
-		cells[i-startCell] = *memory.Cell(i)
-	}
+	pf := memory.GetProof(startCell, cellNum)
 	return &MemoryReadProof{
 		Cells: cells,
 		Proof: pf,
@@ -283,65 +120,16 @@ func generateMemoryWriteProof(memory, memoryAfter *state.Memory, offset uint64, 
 	}
 	startCell := offset / 32
 	cellNum := calcCellNum(offset, size)
-	if memory.CellNum() <= startCell {
-		// The start position pasts the end of the memory
-		// AppendProof
-		pf := memory.GetAppendProof()
-		cellNum += startCell - memory.CellNum()
-		appendCells := make([]uint256.Int, cellNum)
-		for i := startCell - memory.CellNum(); i < cellNum; i++ {
-			appendCells[i] = *memoryAfter.Cell(i + memory.CellNum())
-		}
-		return &MemoryAppendProof{
-			AppendCells: appendCells,
-			Proof:       pf,
-		}, nil
+	pf := memory.GetProof(startCell, cellNum)
+	cells := make([]uint256.Int, cellNum)
+	updatecCells := make([]uint256.Int, cellNum)
+	for i := uint64(0); i < cellNum; i++ {
+		cells[i] = *memory.Cell(startCell + i)
+		updatecCells[i] = *memoryAfter.Cell(startCell + i)
 	}
-	if memory.CellNum() >= startCell+cellNum {
-		// The end position is within the memory
-		// WriteProof
-		indices := make([]uint64, cellNum)
-		for i := uint64(0); i < cellNum; i++ {
-			indices[i] = startCell + i
-		}
-		pf := memory.GetProof(indices)
-		cells := make([]uint256.Int, cellNum)
-		updatecCells := make([]uint256.Int, cellNum)
-		for i := uint64(0); i < cellNum; i++ {
-			cells[i] = *memory.Cell(startCell + i)
-			updatecCells[i] = *memoryAfter.Cell(startCell + i)
-		}
-		return &MemoryWriteProof{
-			Cells:        cells,
-			UpdatedCells: updatecCells,
-			Proof:        pf,
-		}, nil
-	}
-	// The start position is within the memory, but the end position is not
-	// CombinedWriteProof
-	existingCellNum := memory.CellNum() - startCell
-	indices := make([]uint64, existingCellNum)
-	for i := startCell; i < memory.CellNum(); i++ {
-		indices[i-startCell] = i
-	}
-	pf, err := memory.GetCombinedProof(indices)
-	if err != nil {
-		return nil, err
-	}
-	cells := make([]uint256.Int, existingCellNum)
-	updatedCells := make([]uint256.Int, existingCellNum)
-	for i := startCell; i < memory.CellNum(); i++ {
-		cells[i-startCell] = *memory.Cell(i)
-		updatedCells[i-startCell] = *memoryAfter.Cell(i)
-	}
-	appendCells := make([]uint256.Int, cellNum-existingCellNum)
-	for i := existingCellNum; i < cellNum; i++ {
-		appendCells[i-existingCellNum] = *memoryAfter.Cell(i + startCell)
-	}
-	return &MemoryCombinedWriteProof{
+	return &MemoryWriteProof{
 		Cells:        cells,
-		UpdatedCells: updatedCells,
-		AppendCells:  appendCells,
+		UpdatedCells: updatecCells,
 		Proof:        pf,
 	}, nil
 }

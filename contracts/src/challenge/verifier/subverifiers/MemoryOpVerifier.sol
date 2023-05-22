@@ -19,7 +19,6 @@
 pragma solidity ^0.8.0;
 
 import "../../../libraries/BytesLib.sol";
-import "../../../libraries/MerkleLib.sol";
 import "../libraries/VerificationContext.sol";
 import "../libraries/OneStepProof.sol";
 import "../libraries/Params.sol";
@@ -158,7 +157,7 @@ contract MemoryOpVerifier is IVerifier {
 
         uint64 memOffset = uint64(stackProof.pops[0]);
         bytes memory readContent;
-        (offset, readContent) = MemoryLib.decodeAndVerifyMemoryLikeReadProofNoAppend(
+        (offset, readContent) = MemoryLib.decodeAndVerifyROMReadProof(
             stateProof.inputDataRoot, stateProof.inputDataSize, encoded, offset, memOffset, 32
         );
 
@@ -188,14 +187,15 @@ contract MemoryOpVerifier is IVerifier {
         }
         stateProof.gas -= cost;
 
+        bytes32 updatedRoot;
         {
             bytes memory readContent;
-            (offset, readContent) = MemoryLib.decodeAndVerifyMemoryLikeReadProofNoAppend(
+            (offset, readContent) = MemoryLib.decodeAndVerifyROMReadProof(
                 stateProof.inputDataRoot, stateProof.inputDataSize, encoded, offset, inputOffset, length
             );
 
             bytes memory writeContent;
-            (offset, writeContent) =
+            (offset, updatedRoot, writeContent) =
                 MemoryLib.decodeAndVerifyMemoryWriteProof(stateProof, encoded, offset, memOffset, length);
 
             require(readContent.equal(writeContent), "Inconsistent Copy");
@@ -203,6 +203,7 @@ contract MemoryOpVerifier is IVerifier {
 
         stateProof.pc += 1;
         stateProof.stackHash = stackProof.stackHashAfterPops;
+        stateProof.memRoot = updatedRoot;
     }
 
     function verifyOpCODECOPY(
@@ -221,21 +222,25 @@ contract MemoryOpVerifier is IVerifier {
         uint64 codeOffset = uint64(stackProof.pops[1]);
         uint64 length = uint64(stackProof.pops[2]);
 
-        uint64 cost = GasTable.gasCopy(stateProof.memSize, memOffset, length);
-        if (stateProof.gas < cost) {
-            VerifierHelper.verifyRevertByError(offset, stateProof, encoded);
-            return;
+        {
+            uint64 cost = GasTable.gasCopy(stateProof.memSize, memOffset, length);
+            if (stateProof.gas < cost) {
+                VerifierHelper.verifyRevertByError(offset, stateProof, encoded);
+                return;
+            }
+            stateProof.gas -= cost;
         }
-        stateProof.gas -= cost;
 
         {
             bytes memory readContent = codeProof.getCodeSlice(encoded, codeOffset, length);
 
+            bytes32 updatedRoot;
             bytes memory writeContent;
-            (offset, writeContent) =
+            (offset, updatedRoot, writeContent) =
                 MemoryLib.decodeAndVerifyMemoryWriteProof(stateProof, encoded, offset, memOffset, length);
 
             require(readContent.equal(writeContent), "Inconsistent Copy");
+            stateProof.memRoot = updatedRoot;
         }
 
         stateProof.pc += 1;
@@ -263,14 +268,15 @@ contract MemoryOpVerifier is IVerifier {
         }
         stateProof.gas -= cost;
 
+        bytes32 updatedRoot;
         {
             bytes memory readContent;
-            (offset, readContent) = MemoryLib.decodeAndVerifyMemoryLikeReadProofNoAppend(
+            (offset, readContent) = MemoryLib.decodeAndVerifyROMReadProof(
                 stateProof.returnDataRoot, stateProof.returnDataSize, encoded, offset, returnOffset, length
             );
 
             bytes memory writeContent;
-            (offset, writeContent) =
+            (offset, updatedRoot, writeContent) =
                 MemoryLib.decodeAndVerifyMemoryWriteProof(stateProof, encoded, offset, memOffset, length);
 
             require(readContent.equal(writeContent), "Inconsistent Copy");
@@ -278,6 +284,7 @@ contract MemoryOpVerifier is IVerifier {
 
         stateProof.pc += 1;
         stateProof.stackHash = stackProof.stackHashAfterPops;
+        stateProof.memRoot = updatedRoot;
     }
 
     function verifyOpMLOAD(uint64 offset, OneStepProof.StateProof memory stateProof, bytes calldata encoded)
@@ -333,9 +340,11 @@ contract MemoryOpVerifier is IVerifier {
             writeContent = abi.encodePacked(new bytes(memOffset), value);
             stateProof.memRoot = MemoryLib.getMemoryRoot(writeContent);
         } else {
-            (offset, writeContent) =
+            bytes32 updatedRoot;
+            (offset, updatedRoot, writeContent) =
                 MemoryLib.decodeAndVerifyMemoryWriteProof(stateProof, encoded, offset, memOffset, 32);
             require(writeContent.toBytes32(0) == value, "Bad MemoryProof");
+            stateProof.memRoot = updatedRoot;
         }
         stateProof.stackHash = stackProof.stackHashAfterPops;
         stateProof.pc += 1;
@@ -367,9 +376,11 @@ contract MemoryOpVerifier is IVerifier {
             writeContent = abi.encodePacked(new bytes(memOffset), value);
             stateProof.memRoot = MemoryLib.getMemoryRoot(writeContent);
         } else {
-            (offset, writeContent) =
+            bytes32 updatedRoot;
+            (offset, updatedRoot, writeContent) =
                 MemoryLib.decodeAndVerifyMemoryWriteProof(stateProof, encoded, offset, memOffset, 1);
             require(writeContent.toUint8(0) == value, "Bad MemoryProof");
+            stateProof.memRoot = updatedRoot;
         }
         stateProof.stackHash = stackProof.stackHashAfterPops;
         stateProof.pc += 1;
