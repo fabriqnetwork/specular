@@ -1,7 +1,7 @@
 FROM node:16-alpine3.17
-COPY ./contracts /specular/contracts
+COPY . /specular
 
-RUN apk add --no-cache git
+RUN apk add --no-cache git python3 make g++ musl-dev linux-headers && corepack enable
 
 WORKDIR /specular/contracts
 RUN pnpm install --frozen-lockfile && npx hardhat compile
