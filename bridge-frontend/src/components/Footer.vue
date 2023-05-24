@@ -70,6 +70,7 @@ export default {
 </script>
 
 <style scoped>
+
 .dark {
   background-color: #333;
   color: #fff;
@@ -101,7 +102,7 @@ export default {
   font-size: 12px;
   opacity: 0.7;
   color: #fff;
-  margin-top: 10px; /* Adjust the space as needed */
+  margin-top: 10px;
   position: absolute;
   bottom: 0;
   left: 50%;

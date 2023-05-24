@@ -1,5 +1,5 @@
-<template padding:100px>
-    <div class="faq-container">
+<template>
+  <div class="faq-container">
     <h2>Frequently Asked Questions</h2>
     <ul>
       <li v-for="entry in faqEntries" :key="entry.question">
@@ -60,6 +60,7 @@ h2 {
   padding: 10px;
   margin-bottom: 10px;
   cursor: pointer;
+  border-radius: 8px;
 }
 
 h3 {
