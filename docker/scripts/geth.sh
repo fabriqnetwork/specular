@@ -1,5 +1,4 @@
 #!/bin/sh
-
 geth --datadir . --password ./password.txt account import ./key.prv
 
 geth --datadir . --networkid $NETWORK_ID init ./genesis.json
