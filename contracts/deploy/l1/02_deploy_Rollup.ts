@@ -12,9 +12,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
   const execPromise = util.promisify(exec);
 
-  const ls = await execPromise(`ls ${CLIENT_SBIN_DIR}`);
-  console.log({ ls });
-
   await execPromise(
     `chmod +x ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
   );
@@ -24,15 +21,12 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
     );
 
-    console.log({ genesis });
-
     initialVMHash = (JSON.parse(genesis.stdout).root || "") as string;
     if (!initialVMHash) {
       throw Error(
         `could not export genesis hash, root field not found\n${stdout}`
       );
     }
-    console.log("initial VM hash:", initialVMHash);
   } catch (err) {
     throw Error(`could not export genesis hash: ${err}`);
   }

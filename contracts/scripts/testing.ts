@@ -198,18 +198,14 @@ async function testTxs(toAddress: string, value: BigNumber) {
   }
 }
 
-// Send multiple Txs
-async function sendMultipleTxs() {
+// Send Txs
+async function sendTxs() {
   const validatorPrivateKey = fs.readFileSync(validatorPrivateKeyPath, "utf8");
   const validatorSigner = new Wallet(validatorPrivateKey, l2Provider);
-
-  for (let i = 0; i < 1; i++) {
-    const res = await testTxs(validatorSigner.address, utils.parseEther("0.1"));
-    console.log("Done sending i = ", i);
-  }
+  await testTxs(validatorSigner.address, utils.parseEther("0.1"));
 }
 
-sendMultipleTxs()
+sendTxs()
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);
