@@ -20,12 +20,12 @@ export default {
       faqEntries: [
         {
           question: 'What is Specular?',
-          answer: 'Specular is an optimistic rollup on Ethereum that offers faster and cheaper transactions than on-chain Ethereum.',
+          answer: 'Specular Network is a Layer 2 scaling solution for Ethereum that uses optimistic rollup technology to scale the Ethereum network. It is still under development, but it has the potential to provide a number of benefits for Ethereum users, including scalability, security, and decentralization.',
           showAnswer: false,
         },
         {
           question: 'What is Specular Bridge?',
-          answer: 'The Specular Network Bridge is a two-way bridge that allows users to transfer assets between Ethereum and Specular Network.',
+          answer: 'The Specular Network Bridge is a two-way bridge that allows users to transfer assets between Ethereum and Specular Network. It is still in beta, but it is expected to be released to the public in the near future. The bridge offers low fees, high throughput, and security.',
           showAnswer: false,
         },
         {
