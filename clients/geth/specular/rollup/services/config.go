@@ -11,6 +11,7 @@ type SystemConfig struct {
 	L2Config
 	SequencerConfig
 	ValidatorConfig
+	DriverConfig
 }
 
 func NewSystemConfig(
@@ -37,12 +38,17 @@ func NewSystemConfig(
 	validatorIsActiveChallenger bool,
 	validatorIsActiveResolver bool,
 	validatorStakeAmount uint64,
+	// driver
+	driverStepInterval time.Duration,
+	driverRetryDelay time.Duration,
+	driverNumAttempts uint,
 ) *SystemConfig {
 	return &SystemConfig{
 		L1Config:        L1Config{l1Endpoint, l1ChainID, l1RollupGenesisBlock, l1SequencerInboxAddr, l1RollupAddr},
 		L2Config:        L2Config{l2Endpoint, l2ClefEndpoint},
 		SequencerConfig: SequencerConfig{sequencerAddr, sequencerPassphrase, minExecutionInterval, maxExecutionInterval, sequencingInterval},
 		ValidatorConfig: ValidatorConfig{validatorAddr, validatorPassphrase, validatorIsActiveStaker, validatorIsActiveCreator, validatorIsActiveChallenger, validatorIsActiveResolver, validatorStakeAmount},
+		DriverConfig:    DriverConfig{driverStepInterval, driverRetryDelay, driverNumAttempts},
 	}
 }
 
@@ -50,6 +56,7 @@ func (c *SystemConfig) L1() *L1Config               { return &c.L1Config }
 func (c *SystemConfig) L2() *L2Config               { return &c.L2Config }
 func (c *SystemConfig) Sequencer() *SequencerConfig { return &c.SequencerConfig }
 func (c *SystemConfig) Validator() *ValidatorConfig { return &c.ValidatorConfig }
+func (c *SystemConfig) Driver() *DriverConfig       { return &c.DriverConfig }
 
 // L1 blockchain configuration
 type L1Config struct {
@@ -106,3 +113,13 @@ func (c *ValidatorConfig) IsActiveCreator() bool       { return c.isActiveCreato
 func (c *ValidatorConfig) IsActiveChallenger() bool    { return c.isActiveChallenger }
 func (c *ValidatorConfig) IsResolver() bool            { return c.isResolver }
 func (c *ValidatorConfig) StakeAmount() uint64         { return c.stakeAmount }
+
+type DriverConfig struct {
+	stepInterval time.Duration // Time between driver steps (in steady state; failures may trigger a longer backoff)
+	retryDelay   time.Duration // Time to wait before retrying a step attempt
+	numAttempts  uint          // Number of attempts to attempt driver step before catastrophically failing. Must be > 0.
+}
+
+func (c *DriverConfig) StepInterval() time.Duration { return c.stepInterval }
+func (c *DriverConfig) RetryDelay() time.Duration   { return c.retryDelay }
+func (c *DriverConfig) NumAttempts() uint           { return c.numAttempts }

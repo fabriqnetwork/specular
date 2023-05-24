@@ -11,8 +11,7 @@ import (
 
 // Retrieves transactions from L1 block associated with block ID returned from previous stage,
 // according to filter query.
-type L1TxRetrievalStage struct {
-	prev     Stage[l2types.BlockID]
+type L1TxRetriever struct {
 	l1Client EthClient
 	filterFn func(tx *types.Transaction) bool
 	// Result queue.
@@ -34,41 +33,37 @@ type TxFilterParam struct {
 	FunctionName    string
 }
 
-// Enqueues relevant transactions from L1 block associated with block ID returned from previous stage.
-// Does not fetch new transactions unless queue is empty.
-// Dequeues and returns one transaction batch.
-func (s *L1TxRetrievalStage) Step(ctx context.Context) (filteredBlock, error) {
-	if len(s.queue) > 0 {
-		return s.dequeue(), nil
-	}
-	// Get the next block ID.
-	l1BlockID, err := s.prev.Step(ctx)
-	if err != nil {
-		return filteredBlock{}, err
-	}
-	// Retrieve the entire block.
-	l1Block, err := s.l1Client.BlockByHash(ctx, l1BlockID.Hash())
-	if err != nil {
-		return filteredBlock{}, &RetryableError{fmt.Errorf("Failed to get L1 block by hash: %w", err)}
-	}
-	// Filter transactions in block by `filterFn`.
-	txs := filterTransactions(l1Block, s.filterFn)
-	s.queue = append(s.queue, filteredBlock{l1BlockID, txs})
-	return s.dequeue(), nil
+func NewL1TxRetriever(l1Client EthClient, filterFn func(tx *types.Transaction) bool) *L1TxRetriever {
+	return &L1TxRetriever{l1Client: l1Client, filterFn: filterFn}
 }
 
-func (s *L1TxRetrievalStage) Recover(ctx context.Context, l1BlockID l2types.BlockID) error {
-	s.queue = nil
-	return s.prev.Recover(ctx, l1BlockID)
+func (s *L1TxRetriever) hasNext() bool {
+	return len(s.queue) > 0
 }
 
-func (s *L1TxRetrievalStage) dequeue() filteredBlock {
-	if len(s.queue) == 0 {
-		return filteredBlock{}
-	}
+func (s *L1TxRetriever) next() filteredBlock {
 	txs := s.queue[0]
 	s.queue = s.queue[1:]
 	return txs
+}
+
+// Enqueues relevant transactions from L1 block associated with block ID returned from previous stage.
+// Does not fetch new transactions unless queue is empty.
+// Dequeues and returns one transaction batch.
+func (s *L1TxRetriever) ingest(ctx context.Context, l1BlockID l2types.BlockID) error {
+	// Retrieve the entire block.
+	l1Block, err := s.l1Client.BlockByHash(ctx, l1BlockID.Hash())
+	if err != nil {
+		return &RetryableError{fmt.Errorf("Failed to get L1 block by hash: %w", err)}
+	}
+	// Filter transactions in block by `filterFn`.
+	s.queue = append(s.queue, filteredBlock{l1BlockID, filterTransactions(l1Block, s.filterFn)})
+	return nil
+}
+
+func (s *L1TxRetriever) recover(ctx context.Context, l1BlockID l2types.BlockID) error {
+	s.queue = nil
+	return nil
 }
 
 func filterTransactions(block *types.Block, filterFn func(tx *types.Transaction) bool) []*types.Transaction {
@@ -112,7 +107,7 @@ func filterTransactions(block *types.Block, filterFn func(tx *types.Transaction)
 // }
 
 // func createFilterQuery(blockHash common.Hash, params FilterQueryParams) (ethereum.FilterQuery, error) {
-// 	topics, err := abi.MakeTopics([]interface{}{params.EventIDs})
+// 	topics, err := abi.MakeTopics([]any{params.EventIDs})
 // 	if err != nil {
 // 		return ethereum.FilterQuery{}, err
 // 	}
@@ -122,11 +117,11 @@ func filterTransactions(block *types.Block, filterFn func(tx *types.Transaction)
 ///////////
 
 // type ExtractionStage struct {
-// 	prev     Stage[interface{}, []types.Transaction]
+// 	prev     Stage[any, []types.Transaction]
 // 	l1Client EthClient
 // }
 
-// func (s *ExtractionStage) Step(ctx context.Context, _ interface{}) (*types.Transaction, error) {
+// func (s *ExtractionStage) Step(ctx context.Context, _ any) (*types.Transaction, error) {
 // 	// s.prev.Step(ctx, _)
 // 	return nil, nil
 // }

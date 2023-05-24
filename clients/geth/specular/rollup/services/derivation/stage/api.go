@@ -11,17 +11,16 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
-// `Stage` defines a stage in a pipeline.
-// TODO: split: Get + Advance to handle failures bette
-type Stage[T any] interface {
-	// `in` is the input from the downstream stage, if any.
-	// Convention: use interface{} for T if no input and U if no output
+// Represents a stage in a pipeline.
+// Generic parameters:
+// `T`: Stage output type.
+type StageOps[T any] interface {
 	// Possible errors returned:
 	// - RetryableError: Indicates caller should retry step.
 	// - RecoverableError: Indicates caller should perform recovery.
 	// - Unrecoverable fatal error (i.e. any other type): Unexpected. Indicates caller should not retry.
-	Step(ctx context.Context) (T, error)
-	// Recover from a re-org to the given L1 block number.
+	Pull(ctx context.Context) (T, error)
+	// Recovers from a re-org to the given L1 block number.
 	Recover(ctx context.Context, l1BlockID l2types.BlockID) error
 }
 
@@ -47,11 +46,11 @@ type L1Config interface {
 	RollupAddr() common.Address
 }
 
-type RetryableError struct{ err error }
-type RecoverableError struct{ err error }
+type RetryableError struct{ Err error }
+type RecoverableError struct{ Err error }
 
-func (e RetryableError) Error() string   { return e.err.Error() }
-func (e RecoverableError) Error() string { return e.err.Error() }
+func (e RetryableError) Error() string   { return e.Err.Error() }
+func (e RecoverableError) Error() string { return e.Err.Error() }
 
 type RollupState interface {
 	OnAssertionCreated(ctx context.Context, l1BlockID l2types.BlockID, tx *types.Transaction) error
@@ -64,30 +63,53 @@ func CreatePipeline(
 	cfg L1Config,
 	execBackend ExecutionBackend,
 	rollupState RollupState,
-	l2Client EthClient,
+	l2ClientCreatorFn func(ctx context.Context) (EthClient, error),
 	l1Client EthClient,
 	l1State L1State,
-) Stage[interface{}] {
+) *TerminalStage[l2types.BlockRelation] {
+	// Define and chain stages together.
+	var (
+		// Processors
+		daHandlers, rollupTxHandlers = createProcessors(cfg, execBackend, rollupState, l2ClientCreatorFn)
+		// Stages
+		l1HeaderRetrievalStage = L1HeaderRetrievalStage{l2types.BlockID{}, l1Client}
+		l1TxRetrievalStage     = NewStage[l2types.BlockID, filteredBlock](
+			&l1HeaderRetrievalStage,
+			NewL1TxRetriever(l1Client, createTxFilterFn(daHandlers, rollupTxHandlers)),
+		)
+		l1TxProcessingStage = NewStage[filteredBlock, l2types.BlockRelation](
+			l1TxRetrievalStage,
+			NewL1TxProcessor(daHandlers, rollupTxHandlers),
+		)
+		l2ForkChoiceUpdateStage = NewTerminalStage[l2types.BlockRelation](
+			l1TxProcessingStage,
+			NewL2ForkChoiceUpdater(execBackend, l1State),
+		)
+	)
+	return l2ForkChoiceUpdateStage
+}
+
+func createProcessors(
+	cfg L1Config,
+	execBackend ExecutionBackend,
+	rollupState RollupState,
+	l2ClientCreatorFn func(ctx context.Context) (EthClient, error),
+) (map[txFilterID]daSourceHandler, map[txFilterID]txHandler) {
 	var (
 		seqInboxABIMethods = bridge.InboxABIMethods()
 		rollupABIMethods   = bridge.RollupABIMethods()
-		payloadBuilder     = payloadBuilder{execBackend, l2Client}
+		payloadBuilder     = payloadBuilder{execBackend: execBackend, l2ClientCreatorFn: l2ClientCreatorFn}
 	)
 	// Define handlers for l1 tx processing.
 	daHandlers := map[txFilterID]daSourceHandler{
-		{cfg.SequencerInboxAddr(), string(seqInboxABIMethods[bridge.AppendTxBatchFnName].ID)}: payloadBuilder.Process,
+		{cfg.SequencerInboxAddr(), string(seqInboxABIMethods[bridge.AppendTxBatchFnName].ID)}: payloadBuilder.BuildPayloads,
 	}
 	rollupTxHandlers := map[txFilterID]txHandler{
 		{cfg.RollupAddr(), string(rollupABIMethods[bridge.CreateAssertionFnName].ID)}:                 rollupState.OnAssertionCreated,
 		{cfg.RollupAddr(), string(rollupABIMethods[bridge.ConfirmFirstUnresolvedAssertionFnName].ID)}: rollupState.OnAssertionConfirmed,
 		{cfg.RollupAddr(), string(rollupABIMethods[bridge.RejectFirstUnresolvedAssertionFnName].ID)}:  rollupState.OnAssertionRejected,
 	}
-	// Define chained stages.
-	l1HeaderRetrievalStage := L1HeaderRetrievalStage{l2types.BlockID{}, l1Client}
-	l1TxRetrievalStage := L1TxRetrievalStage{prev: &l1HeaderRetrievalStage, filterFn: createTxFilterFn(daHandlers, rollupTxHandlers)}
-	l1TxProcStage := L1TxProcessingStage{prev: &l1TxRetrievalStage, daSourceHandlers: daHandlers, rollupTxHandlers: rollupTxHandlers}
-	l2ForkChoiceUpdateStage := NewL2ForkChoiceUpdateStage(&l1TxProcStage, execBackend, l1State)
-	return l2ForkChoiceUpdateStage
+	return daHandlers, rollupTxHandlers
 }
 
 func createTxFilterFn(
@@ -95,8 +117,8 @@ func createTxFilterFn(
 	rollupTxHandlers map[txFilterID]txHandler,
 ) func(*types.Transaction) bool {
 	// Function returns true iff the tx is of a type handled by either a da source or rollup tx handler.
-	filterFn := func(tx *types.Transaction) bool {
-		to := tx.To()
+	return func(tx *types.Transaction) bool {
+		var to = tx.To()
 		if to == nil {
 			return false
 		}
@@ -113,5 +135,4 @@ func createTxFilterFn(
 		}
 		return false
 	}
-	return filterFn
 }

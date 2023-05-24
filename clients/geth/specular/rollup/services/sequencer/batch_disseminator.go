@@ -10,7 +10,6 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/geth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
@@ -22,8 +21,6 @@ type batchDisseminator struct {
 	batchBuilder BatchBuilder
 	l1TxMgr      TxManager
 	l2Client     L2Client
-
-	driver derivation.Driver[interface{}]
 }
 
 type unexpectedSystemStateError struct{ msg string }
@@ -46,11 +43,11 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 	d.revertToSafe()
 	var ticker = time.NewTicker(d.cfg.Sequencer().SequencingInterval())
 	defer ticker.Stop()
-	d.sequencingStep(ctx)
+	d.step(ctx)
 	for {
 		select {
 		case <-ticker.C:
-			d.sequencingStep(ctx)
+			d.step(ctx)
 		case <-ctx.Done():
 			log.Info("Aborting.")
 			return nil
@@ -58,7 +55,7 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 	}
 }
 
-func (d *batchDisseminator) sequencingStep(ctx context.Context) {
+func (d *batchDisseminator) step(ctx context.Context) {
 	if err := d.appendToBuilder(ctx); err != nil {
 		log.Error("Failed to append to batch builder", "error", err)
 		if errors.As(err, &utils.L2ReorgDetectedError{}) {
@@ -133,6 +130,7 @@ func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint6
 	return start, end, nil
 }
 
+// Sequences batches until batch builder runs out (or signal from `ctx`).
 func (d *batchDisseminator) sequenceBatches(ctx context.Context) error {
 	for {
 		// Non-blocking ctx check.
@@ -165,14 +163,6 @@ func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
 		return fmt.Errorf("Failed to send batch transaction: %w", err)
 	}
 	log.Info("Sequenced batch successfully", "tx hash", receipt.TxHash)
-	// relation := l2types.BlockRelation{
-	// 	L1BlockID: l2types.NewBlockID(receipt.BlockNumber.Uint64(), receipt.BlockHash),
-	// 	L2BlockID: d.batchBuilder.LastAppended(),
-	// }
-	err = d.driver.Step(ctx)
-	if err != nil {
-		// TODO
-	}
 	d.batchBuilder.Advance()
 	return nil
 }

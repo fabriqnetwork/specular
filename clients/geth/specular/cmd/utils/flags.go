@@ -216,6 +216,10 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
 		ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
 		ctx.Bool(RollupValidatorIsResolverFlag.Name),
 		ctx.Uint64(RollupRollupStakeAmountFlag.Name),
+		// Driver params
+		time.Duration(6)*time.Second,
+		time.Duration(1)*time.Second,
+		3,
 	)
 }
 

@@ -34,7 +34,6 @@ func NewSequencer(
 	batchBuilder BatchBuilder,
 ) *Sequencer {
 	return &Sequencer{
-		BaseService:       &services.BaseService{},
 		executor:          &executor{cfg, backend, newOrdererByFee(backend)},
 		l1DAProvider:      &batchDisseminator{cfg: cfg, batchBuilder: batchBuilder, l1TxMgr: l1TxMgr},
 		l2ClientCreatorFn: l2ClientCreatorFn,
@@ -48,8 +47,6 @@ func (s *Sequencer) Start() error {
 	if err != nil {
 		return fmt.Errorf("Failed to create L2 client: %w", err)
 	}
-	// We assume a single sequencer (us) for now, so we don't
-	// need to continuously sync sequenced transactions up.
 	s.Eg.Go(func() error { return s.executor.start(ctx, l2Client) })
 	s.Eg.Go(func() error { return s.l1DAProvider.start(ctx, l2Client) })
 	log.Info("Sequencer started")

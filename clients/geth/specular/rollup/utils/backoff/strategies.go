@@ -11,7 +11,7 @@ import (
 // should wait between attempts.
 type Strategy interface {
 	// Duration returns how long to wait for a given retry attempt.
-	Duration(attempt int) time.Duration
+	Duration(attempt uint) time.Duration
 }
 
 // ExponentialStrategy performs exponential backoff. The exponential backoff
@@ -28,7 +28,7 @@ type ExponentialStrategy struct {
 	MaxJitter int
 }
 
-func (e *ExponentialStrategy) Duration(attempt int) time.Duration {
+func (e *ExponentialStrategy) Duration(attempt uint) time.Duration {
 	var jitter int
 	if e.MaxJitter > 0 {
 		jitter = rand.Intn(e.MaxJitter)
@@ -42,23 +42,10 @@ func (e *ExponentialStrategy) Duration(attempt int) time.Duration {
 	return time.Millisecond * time.Duration(dur)
 }
 
-func Exponential() Strategy {
-	return &ExponentialStrategy{
-		Max:       10000,
-		MaxJitter: 250,
-	}
-}
+func Exponential(min, max float64) Strategy { return &ExponentialStrategy{min, max, 250} }
 
-type FixedStrategy struct {
-	Dur time.Duration
-}
+type FixedStrategy struct{ Dur time.Duration }
 
-func (f *FixedStrategy) Duration(attempt int) time.Duration {
-	return f.Dur
-}
+func (f *FixedStrategy) Duration(attempt uint) time.Duration { return f.Dur }
 
-func Fixed(dur time.Duration) Strategy {
-	return &FixedStrategy{
-		Dur: dur,
-	}
-}
+func Fixed(dur time.Duration) Strategy { return &FixedStrategy{Dur: dur} }

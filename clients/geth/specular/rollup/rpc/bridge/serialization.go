@@ -38,6 +38,7 @@ type bridgeSerializationUtil struct {
 func InboxABIMethods() map[string]abi.Method     { return serializationUtil.inboxAbi.Methods }
 func RollupABIMethods() map[string]abi.Method    { return serializationUtil.rollupAbi.Methods }
 func ChallengeABIMethods() map[string]abi.Method { return serializationUtil.challengeAbi.Methods }
+func TxMethodID(tx *types.Transaction) string    { return string(tx.Data()[:MethodNumBytes]) }
 
 // ISequencerInbox.sol
 
@@ -45,7 +46,7 @@ func InboxEvent(name string) abi.Event {
 	return serializationUtil.inboxAbi.Events[name]
 }
 
-func UnpackAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error) {
+func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
@@ -65,7 +66,7 @@ func UnpackCreateAssertionInput(tx *types.Transaction) (common.Hash, *big.Int, e
 	return vmHash, inboxSize, err
 }
 
-func UnpackBisectExecutionInput(tx *types.Transaction) ([]interface{}, error) {
+func UnpackBisectExecutionInput(tx *types.Transaction) ([]any, error) {
 	if err := ensureUtilInit(); err != nil {
 		return nil, err
 	}

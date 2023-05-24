@@ -122,6 +122,6 @@ func writeContext(w *bytes.Buffer, derivCtx *l2types.DerivationContext) error {
 	return writePrimitive(w, derivCtx.Timestamp())
 }
 
-func writePrimitive(w *bytes.Buffer, data interface{}) error {
+func writePrimitive(w *bytes.Buffer, data any) error {
 	return binary.Write(w, binary.BigEndian, data)
 }

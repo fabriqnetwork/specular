@@ -19,6 +19,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
@@ -40,7 +41,18 @@ func RegisterRollupServices(
 	cfg *services.SystemConfig,
 ) error {
 	ctx := context.Background()
-	// Register services
+	rollupState, err := createRollupState(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("Failed to create rollup state: %w", err)
+	}
+	l1State := client.NewL1State()
+	// Register driver
+	driver, err := createDriver(ctx, cfg, execBackend, rollupState, l1State)
+	if err != nil {
+		return fmt.Errorf("Failed to create driver: %w", err)
+	}
+	stack.RegisterLifecycle(driver)
+	// Register sequencer
 	if (cfg.Sequencer().AccountAddr() != common.Address{}) {
 		sequencer, err := createSequencer(ctx, cfg, stack.AccountManager(), execBackend)
 		if err != nil {
@@ -48,14 +60,34 @@ func RegisterRollupServices(
 		}
 		stack.RegisterLifecycle(sequencer)
 	}
+	// Register validator
 	if (cfg.Validator().AccountAddr() != common.Address{}) {
-		validator, err := createValidator(ctx, cfg, stack.AccountManager(), proofBackend)
+		validator, err := createValidator(ctx, cfg, stack.AccountManager(), rollupState, proofBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create validator: %w", err)
 		}
 		stack.RegisterLifecycle(validator)
 	}
 	return nil
+}
+
+func createDriver(
+	ctx context.Context,
+	cfg *services.SystemConfig,
+	execBackend services.ExecutionBackend,
+	rollupState *derivation.RollupState,
+	l1State stage.L1State,
+) (*derivation.Driver, error) {
+	l1Client, err := client.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
+	}
+	l2ClientCreatorFn := func(ctx context.Context) (stage.EthClient, error) {
+		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+	}
+	terminalStage := stage.CreatePipeline(cfg.L1(), execBackend, rollupState, l2ClientCreatorFn, l1Client, l1State)
+	driver := derivation.NewDriver(cfg.Driver(), terminalStage)
+	return driver, nil
 }
 
 func createSequencer(
@@ -84,20 +116,9 @@ func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 	accountMgr *accounts.Manager,
+	rollupState *derivation.RollupState,
 	proofBackend proof.Backend,
 ) (*validator.Validator, error) {
-	l1Client, err := client.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
-	}
-	bridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.L1())
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
-	}
-	rollupState := derivation.NewRollupState(bridgeClient)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
-	}
 	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
 		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
@@ -109,6 +130,18 @@ func createValidator(
 		return nil, fmt.Errorf("Failed to create tx manager: %w", err)
 	}
 	return validator.NewValidator(cfg, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
+}
+
+func createRollupState(ctx context.Context, cfg *services.SystemConfig) (*derivation.RollupState, error) {
+	bridgeClient, err := bridge.DialWithRetry(ctx, cfg.L1())
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
+	}
+	rollupState := derivation.NewRollupState(bridgeClient)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
+	}
+	return rollupState, nil
 }
 
 // func createSyncer(

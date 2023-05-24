@@ -10,9 +10,9 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
-// Thread-safe. Tracks the latest, safe and last finalized L1 headers received.
+// Thread-safe. Tracks the latest, last safe and last finalized L1 headers received.
 type L1State struct {
-	// Thread-safe map from block tag to block ID.
+	// Thread-safe map from BlockTag to last corresponding l2types.BlockID.
 	headers utils.Map[BlockTag, l2types.BlockID]
 }
 

@@ -34,9 +34,7 @@ type EthClient struct {
 	C *rpc.Client
 }
 
-func NewEthClient(c *rpc.Client) *EthClient {
-	return &EthClient{ethclient.NewClient(c), c}
-}
+func NewEthClient(c *rpc.Client) *EthClient { return &EthClient{ethclient.NewClient(c), c} }
 
 func DialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*EthClient, error) {
 	if retryOpts == nil {

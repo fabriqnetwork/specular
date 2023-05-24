@@ -45,7 +45,7 @@ func (e *DecodeTxBatchError) Error() string {
 }
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
-func BlocksFromDecoded(decoded []interface{}) ([]DerivationBlock, error) {
+func BlocksFromDecoded(decoded []any) ([]DerivationBlock, error) {
 	if len(decoded) != 3 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
 	}

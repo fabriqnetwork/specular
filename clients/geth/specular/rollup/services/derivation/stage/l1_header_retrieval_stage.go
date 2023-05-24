@@ -9,12 +9,13 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
 
+// Note: source stage (no prev stage).
 type L1HeaderRetrievalStage struct {
 	currL1BlockID l2types.BlockID
 	l1Client      EthClient
 }
 
-func (s *L1HeaderRetrievalStage) Step(ctx context.Context) (l2types.BlockID, error) {
+func (s *L1HeaderRetrievalStage) Pull(ctx context.Context) (l2types.BlockID, error) {
 	nextHeader, err := s.l1Client.HeaderByNumber(ctx, big.NewInt(0).SetUint64(s.currL1BlockID.Number()+1))
 	if err != nil {
 		return l2types.BlockID{}, &RetryableError{fmt.Errorf("failed to get next L1 header: %w", err)}
@@ -23,7 +24,7 @@ func (s *L1HeaderRetrievalStage) Step(ctx context.Context) (l2types.BlockID, err
 		return l2types.BlockID{}, &utils.L1ReorgDetectedError{Msg: "received parent hash does not match current L1 block hash"}
 	}
 	s.currL1BlockID = l2types.NewBlockIDFromHeader(nextHeader)
-	return l2types.NewBlockIDFromHeader(nextHeader), nil
+	return s.currL1BlockID, nil
 }
 
 func (s *L1HeaderRetrievalStage) Recover(ctx context.Context, l1BlockID l2types.BlockID) error {
