@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
@@ -20,11 +21,14 @@ type SequencerServiceConfig interface {
 
 type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	ForkchoiceUpdate(update services.ForkchoiceState) error
+	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
 	BuildPayload(payload services.ExecutionPayload) error
 	CommitTransactions(txs []*types.Transaction) error                     // TODO: remove
 	Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce // TODO: remove
 }
+
+type ForkChoiceState = beacon.ForkchoiceStateV1
+type ForkChoiceResponse = beacon.ForkChoiceResponse
 
 type BatchBuilder interface {
 	Append(block l2types.DerivationBlock, header Header) error

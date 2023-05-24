@@ -1,8 +1,8 @@
 package services
 
 import (
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 )
@@ -10,17 +10,14 @@ import (
 // TODO: generalize
 type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
-	ForkchoiceUpdate(update ForkchoiceState) error
+	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
 	BuildPayload(payload ExecutionPayload) error
 	CommitTransactions(txs []*types.Transaction) error            // TODO: remove
 	Prepare(txs []*types.Transaction) TransactionsByPriceAndNonce // TODO: remove
 }
 
-type ForkchoiceState interface {
-	HeadBlockHash() common.Hash
-	SafeBlockHash() common.Hash
-	FinalizedBlockHash() common.Hash
-}
+type ForkChoiceState = beacon.ForkchoiceStateV1
+type ForkChoiceResponse = beacon.ForkChoiceResponse
 
 type ExecutionPayload interface {
 	BlockNumber() uint64

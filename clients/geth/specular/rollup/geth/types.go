@@ -4,27 +4,40 @@ import (
 	"bytes"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
+// Engine
+
+type ForkChoiceState = beacon.ForkchoiceStateV1
+type ForkChoiceResponse = beacon.ForkChoiceResponse
+type PayloadStatus = beacon.PayloadStatusV1
+type PayloadID = beacon.PayloadID
+
+var InvalidForkChoiceState = beacon.InvalidForkChoiceState
+var STATUS_INVALID = beacon.STATUS_INVALID
+
+var (
+	// VALID is returned by the engine API in the following calls:
+	//   - newPayloadV1:       if the payload was already known or was just validated and executed
+	//   - forkchoiceUpdateV1: if the chain accepted the reorg (might ignore if it's stale)
+	VALID = "VALID"
+
+	// INVALID is returned by the engine API in the following calls:
+	//   - newPayloadV1:       if the payload failed to execute on top of the local chain
+	//   - forkchoiceUpdateV1: if the new head is unknown, pre-merge, or reorg to it fails
+	INVALID = "INVALID"
+)
+
 // Header
 
-type Header struct {
-	header *types.Header
-}
+type Header struct{ h *types.Header }
 
-func NewHeader(header *types.Header) *Header {
-	return &Header{header: header}
-}
-
-func (h *Header) Hash() common.Hash {
-	return h.header.Hash()
-}
-
-func (h *Header) ParentHash() common.Hash {
-	return h.header.ParentHash
-}
+func NewHeader(header *types.Header) *Header { return &Header{h: header} }
+func (h *Header) Hash() common.Hash          { return h.h.Hash() }
+func (h *Header) ParentHash() common.Hash    { return h.h.ParentHash }
 
 // Transaction
 

@@ -8,9 +8,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -24,12 +26,10 @@ import (
 // mining and blockchain insertion can not happen.
 // TODO: support Berlin+London fork
 type ExecutionBackend struct {
-	coinbase    common.Address
-	chainConfig *params.ChainConfig
+	coinbase common.Address
 
-	chain  *core.BlockChain
-	txPool *core.TxPool
-	state  *state.StateDB // apply state changes here
+	eth   GethBackend
+	state *state.StateDB // apply state changes here
 
 	// pending block
 	header   *types.Header
@@ -40,12 +40,13 @@ type ExecutionBackend struct {
 }
 
 type GethBackend interface {
+	ChainDb() ethdb.Database
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
 }
 
 func NewExecutionBackend(eth GethBackend, coinbase common.Address) (*ExecutionBackend, error) {
-	b := &ExecutionBackend{coinbase: coinbase, chainConfig: eth.BlockChain().Config(), chain: eth.BlockChain(), txPool: eth.TxPool()}
+	b := &ExecutionBackend{coinbase: coinbase, eth: eth}
 	err := b.startNewBlock()
 	if err != nil {
 		return nil, err
@@ -54,11 +55,71 @@ func NewExecutionBackend(eth GethBackend, coinbase common.Address) (*ExecutionBa
 }
 
 func (b *ExecutionBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) event.Subscription {
-	return b.txPool.SubscribeNewTxsEvent(ch)
+	return b.eth.TxPool().SubscribeNewTxsEvent(ch)
 }
 
-func (b *ExecutionBackend) ForkchoiceUpdate(update services.ForkchoiceState) error {
-	return nil
+// See [eth/catalyst/api.go]::ConsensusAPI::forkchoiceUpdated
+func (b *ExecutionBackend) ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error) {
+	if update.HeadBlockHash == (common.Hash{}) {
+		log.Warn("Forkchoice requested update to zero hash")
+		return &STATUS_INVALID, nil
+	}
+	// Check whether we have the block yet in our database or not.
+	block := b.eth.BlockChain().GetBlockByHash(update.HeadBlockHash)
+	if block == nil {
+		return &STATUS_INVALID, nil
+	}
+	valid := ForkChoiceResponse{
+		PayloadStatus: PayloadStatus{Status: VALID, LatestValidHash: &update.HeadBlockHash},
+		PayloadID:     nil,
+	}
+	if rawdb.ReadCanonicalHash(b.eth.ChainDb(), block.NumberU64()) != update.HeadBlockHash {
+		// Block is not canonical, set head.
+		if latestValid, err := b.eth.BlockChain().SetCanonical(block); err != nil {
+			return &ForkChoiceResponse{PayloadStatus: PayloadStatus{Status: INVALID, LatestValidHash: &latestValid}}, err
+		}
+	} else if b.eth.BlockChain().CurrentBlock().Hash() == update.HeadBlockHash {
+		// If the specified head matches with our local head, do nothing.
+		// It's a special corner case that a few slots are missing and we are requested to generate the payload in slot.
+	} else {
+		// If the head block is already in our canonical chain, the beacon client is
+		// probably resyncing. Ignore the update.
+		log.Info(
+			"Ignoring beacon update to old head",
+			"number", block.NumberU64(),
+			"hash", update.HeadBlockHash,
+			"age", common.PrettyAge(time.Unix(int64(block.Time()), 0)),
+			"have", b.eth.BlockChain().CurrentBlock().Number,
+		)
+		return &valid, nil
+	}
+	// If the finalized block is not in our canonical tree, somethings wrong
+	if update.FinalizedBlockHash != (common.Hash{}) {
+		finalBlock := b.eth.BlockChain().GetBlockByHash(update.FinalizedBlockHash)
+		if finalBlock == nil {
+			log.Warn("Final block not available in database", "hash", update.FinalizedBlockHash)
+			return &STATUS_INVALID, InvalidForkChoiceState.With(errors.New("final block not available in database"))
+		} else if rawdb.ReadCanonicalHash(b.eth.ChainDb(), finalBlock.NumberU64()) != update.FinalizedBlockHash {
+			log.Warn("Final block not in canonical chain", "number", block.NumberU64(), "hash", update.HeadBlockHash)
+			return &STATUS_INVALID, InvalidForkChoiceState.With(errors.New("final block not in canonical chain"))
+		}
+		b.eth.BlockChain().SetFinalized(finalBlock)
+	}
+	// Check if the safe block hash is in our canonical tree, if not somethings wrong
+	if update.SafeBlockHash != (common.Hash{}) {
+		safeBlock := b.eth.BlockChain().GetBlockByHash(update.SafeBlockHash)
+		if safeBlock == nil {
+			log.Warn("Safe block not found", "hash", update.SafeBlockHash)
+			return &STATUS_INVALID, InvalidForkChoiceState.With(errors.New("safe block not available in database"))
+		}
+		if rawdb.ReadCanonicalHash(b.eth.ChainDb(), safeBlock.NumberU64()) != safeBlock.Hash() {
+			log.Warn("Safe block not in canonical chain")
+			return &STATUS_INVALID, InvalidForkChoiceState.With(errors.New("safe block not in canonical chain"))
+
+		}
+		b.eth.BlockChain().SetSafe(safeBlock)
+	}
+	return &valid, nil
 }
 
 // CommitTransactions will try fill transactions into blocks, and insert
@@ -83,14 +144,14 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 		tx := txs[i]
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.
-		if tx.Protected() && !b.chainConfig.IsEIP155(b.header.Number) {
-			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", b.chainConfig.EIP155Block)
+		if tx.Protected() && !b.eth.BlockChain().Config().IsEIP155(b.header.Number) {
+			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", b.eth.BlockChain().Config().EIP155Block)
 			continue
 		}
 		// Start executing the transaction
 		b.state.Prepare(tx.Hash(), b.tcount)
 		snap := b.state.Snapshot()
-		receipt, err := core.ApplyTransaction(b.chainConfig, b.chain, &b.coinbase, b.gasPool, b.state, b.header, tx, &b.header.GasUsed, *b.chain.GetVMConfig())
+		receipt, err := core.ApplyTransaction(b.eth.BlockChain().Config(), b.eth.BlockChain(), &b.coinbase, b.gasPool, b.state, b.header, tx, &b.header.GasUsed, *b.eth.BlockChain().GetVMConfig())
 		if err != nil {
 			b.state.RevertToSnapshot(snap)
 		}
@@ -117,7 +178,7 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 // Sorts transactions to be committed.
 func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce {
 	sortedTxs := make(map[common.Address]types.Transactions)
-	signer := types.MakeSigner(b.chainConfig, b.header.Number)
+	signer := types.MakeSigner(b.eth.BlockChain().Config(), b.header.Number)
 	for _, tx := range txs {
 		acc, _ := types.Sender(signer, tx)
 		sortedTxs[acc] = append(sortedTxs[acc], tx)
@@ -129,7 +190,7 @@ func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.Transactio
 // TODO: dedup with CommitTransactions & commitStoredBlock
 // TODO: use StateProcessor::Process() instead
 func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error {
-	parent := b.chain.CurrentBlock()
+	parent := b.eth.BlockChain().CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")
 	}
@@ -137,7 +198,7 @@ func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error
 	if num.Uint64() != payload.BlockNumber()-1 {
 		return fmt.Errorf("rollup services unsynced")
 	}
-	state, err := b.chain.StateAt(parent.Root())
+	state, err := b.eth.BlockChain().StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
@@ -163,14 +224,14 @@ func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error
 	for idx, tx := range txs {
 		state.Prepare(tx.Hash(), idx)
 		receipt, err := core.ApplyTransaction(
-			b.chainConfig, b.chain, &b.coinbase, gasPool, state, header, tx, &header.GasUsed, *b.chain.GetVMConfig())
+			b.eth.BlockChain().Config(), b.eth.BlockChain(), &b.coinbase, gasPool, state, header, tx, &header.GasUsed, *b.eth.BlockChain().GetVMConfig())
 		if err != nil {
 			return err
 		}
 		receipts = append(receipts, receipt)
 	}
 	// Finalize header
-	header.Root = state.IntermediateRoot(b.chain.Config().IsEIP158(header.Number))
+	header.Root = state.IntermediateRoot(b.eth.BlockChain().Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
 	// Assemble block
 	block := types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil))
@@ -190,7 +251,7 @@ func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error
 		}
 		logs = append(logs, receipt.Logs...)
 	}
-	_, err = b.chain.WriteBlockAndSetHead(block, receipts, logs, state, true)
+	_, err = b.eth.BlockChain().WriteBlockAndSetHead(block, receipts, logs, state, true)
 	if err != nil {
 		return err
 	}
@@ -207,7 +268,7 @@ func (b *ExecutionBackend) commitStoredBlock() error {
 		b.state.StopPrefetcher()
 	}
 	// Finalize header
-	b.header.Root = b.state.IntermediateRoot(b.chain.Config().IsEIP158(b.header.Number))
+	b.header.Root = b.state.IntermediateRoot(b.eth.BlockChain().Config().IsEIP158(b.header.Number))
 	b.header.UncleHash = types.CalcUncleHash(nil)
 	// Assemble block
 	block := types.NewBlock(b.header, b.txs, nil, b.receipts, trie.NewStackTrie(nil))
@@ -228,7 +289,7 @@ func (b *ExecutionBackend) commitStoredBlock() error {
 		logs = append(logs, receipt.Logs...)
 	}
 	// Write block to chain
-	_, err := b.chain.WriteBlockAndSetHead(block, b.receipts, logs, b.state, true)
+	_, err := b.eth.BlockChain().WriteBlockAndSetHead(block, b.receipts, logs, b.state, true)
 	if err != nil {
 		return err
 	}
@@ -242,7 +303,7 @@ func (b *ExecutionBackend) commitStoredBlock() error {
 // startNewBlock should be called when a block is full and inserted into the
 // blockchain. It will reset the batcher except batched blocks
 func (b *ExecutionBackend) startNewBlock() error {
-	parent := b.chain.CurrentBlock()
+	parent := b.eth.BlockChain().CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")
 	}
@@ -255,7 +316,7 @@ func (b *ExecutionBackend) startNewBlock() error {
 		Coinbase:   b.coinbase,
 		Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
 	}
-	state, err := b.chain.StateAt(parent.Root())
+	state, err := b.eth.BlockChain().StateAt(parent.Root())
 	if err != nil {
 		return err
 	}
