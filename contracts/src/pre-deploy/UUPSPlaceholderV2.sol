@@ -20,9 +20,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "./PredeployUUPSUpgradeable.sol";
 
-contract UUPSPlaceholder is PredeployUUPSUpgradeable, OwnableUpgradeable {
+contract UUPSPlaceholderV2 is UUPSUpgradeable, OwnableUpgradeable {
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -33,4 +32,8 @@ contract UUPSPlaceholder is PredeployUUPSUpgradeable, OwnableUpgradeable {
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    function greet() public pure returns (string memory) {
+        return "hello!";
+    }
 }

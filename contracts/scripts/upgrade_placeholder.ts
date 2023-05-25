@@ -9,9 +9,10 @@ const main = async () => {
   const UUPSPlaceholderFactory = await ethers.getContractFactory(
     "UUPSPlaceholder"
   );
-  const FaucetFactory = await ethers.getContractFactory("Faucet");
+  const V2Factory = await ethers.getContractFactory("UUPSPlaceholderV2");
 
   const proxyAddress = "0xff00000000000000000000000000000000000001";
+
   console.log(
     "Implementation address: " +
       (await upgrades.erc1967.getImplementationAddress(proxyAddress))
@@ -25,9 +26,16 @@ const main = async () => {
     UUPSPlaceholderFactory
   );
 
-  const updateTx = await upgrades.upgradeProxy(proxy.address, FaucetFactory);
+  const init = await proxy.initialize();
+  console.log({ init });
 
-  console.log({ updateTx });
+  const upgraded = await upgrades.upgradeProxy(proxy.address, V2Factory);
+  console.log({ upgraded });
+
+  // this function is only availabe in the V2 contract, so this serves as a simple test
+  // to check if the upgrade was successful
+  const greeting = await upgraded.greet();
+  console.log({ greeting });
 };
 
 main()

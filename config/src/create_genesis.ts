@@ -19,46 +19,11 @@ async function main() {
   await generateGenesisFile(baseGenesisPath, genesisPath);
 }
 
-export async function generateGenesisFile(
-  baseGenesisPath: string,
-  genesisPath: string
-) {
-  const baseGenesis = JSON.parse(fs.readFileSync(baseGenesisPath, "utf-8"));
-
-  const alloc = new Map();
-  await Promise.all(
-    baseGenesis.preDeploy.map((p: any) => parsePreDeploy(p, alloc))
-  );
-
-  baseGenesis.preDeploy = undefined;
-  baseGenesis.alloc = Object.fromEntries(alloc);
-
-  fs.writeFileSync(genesisPath, JSON.stringify(baseGenesis, null, 2), "utf-8");
-}
-
-function parseArgs() {
-  const inFlagIndex = process.argv.indexOf("--in");
-  let baseGenesisPath;
-
-  if (inFlagIndex > -1) {
-    baseGenesisPath = process.argv[inFlagIndex + 1];
-  } else {
-    throw Error("Please specify the base genesis path");
-  }
-
-  const outFlagIndex = process.argv.indexOf("--out");
-  let genesisPath;
-
-  if (outFlagIndex > -1) {
-    genesisPath = process.argv[outFlagIndex + 1];
-  } else {
-    console.log("Setting out genesis path same as base genesis path");
-    genesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
-  }
-
-  return { baseGenesisPath, genesisPath };
-}
-
+/**
+ * Reads the compilation artifact of a contract compiled with hardhat
+ * If no artifact is found, the function will look in the artifacts shipped with the @openzeppelin package
+ * @param {string} contractName - unique name of the contract
+ */
 async function getArtifact(contractName: string) {
   let artifacts;
   try {
@@ -78,10 +43,15 @@ async function getArtifact(contractName: string) {
   return artifacts;
 }
 
+/**
+ * Reads the storage layout from a contract compiled with hardhat
+ * unfortunately this is not exposed through the hre directly so we have to get it manually
+ * this is following the approach taken by OZ in the HH upgrade plugin, see:
+ * https://github.com/OpenZeppelin/openzeppelin-upgrades/blob/1e28bce2b6bae17c024350c98c6e0c511f3091d3/packages/core/src/validate/query.ts#L81
+ * @param {string} contractName - unique name of the contract
+ * @param {any} artifact - the contracts compilation artifact
+ */
 async function getStorageLayout(contractName: string, artifact: any) {
-  // unfortunately this is not exposed through the hre so we have to get it manually
-  // this is following the approach taken by OZ in the HH upgrade plugin, see:
-  // https://github.com/OpenZeppelin/openzeppelin-upgrades/blob/1e28bce2b6bae17c024350c98c6e0c511f3091d3/packages/core/src/validate/query.ts#L81
   const validationsPath = path.join(hre.config.paths.cache, "validations.json");
   const validations = JSON.parse(fs.readFileSync(validationsPath, "utf-8"));
 
@@ -105,6 +75,11 @@ async function getStorageLayout(contractName: string, artifact: any) {
   return storageLayout;
 }
 
+/**
+ * Turn a PreDeploy object into a well formated genesis.json alloc entry
+ * @param {PreDeploy} p - the configuration of the PreDeploy
+ * @param {any} alloc - a map containing all alloc entries to be written in the genesis file
+ */
 async function parsePreDeploy(p: PreDeploy, alloc: any) {
   if (alloc.has(p.address)) {
     throw Error(`multiple pre-deploys specified for address: ${p.address}`);
@@ -133,7 +108,7 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
   const storage = new Map();
   if (storageLayout) {
     for (const s of storageLayout) {
-      if (!p.storage[s.label]) continue;
+      if (!p.storage || !p.storage[s.label]) continue;
 
       const slot = ethers.utils.hexZeroPad(
         BigNumber.from(s.slot).toHexString(),

@@ -52,8 +52,6 @@ function createConfig(network: string) {
   //       they are used to interact with L1 contracts in L2 deploy scripts
   if (network === "specularLocalDev") {
     config.companionNetworks = { l1: "localhost" };
-    config.gas = 2100000;
-    config.gasPrice = 8000000000;
   } else if (network === "specularDev") {
     config.companionNetworks = { l1: "chiado" };
     config.chainId = 93481; // Specular Devnet chain ID
