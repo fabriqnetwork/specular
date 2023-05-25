@@ -45,13 +45,3 @@ type Config struct {
 
 	From common.Address
 }
-
-func DefaultConfig(from common.Address) Config {
-	return Config{
-		ResubmissionTimeout:       8 * time.Second,
-		ReceiptQueryInterval:      16 * time.Second,
-		NumConfirmations:          4, // 12 confirmations considered safe
-		SafeAbortNonceTooLowCount: 2,
-		From:                      from,
-	}
-}
