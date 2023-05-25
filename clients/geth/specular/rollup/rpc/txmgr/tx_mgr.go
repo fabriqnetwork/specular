@@ -25,8 +25,6 @@ const priceBump int64 = 15
 var priceBumpPercent = big.NewInt(100 + priceBump)
 var oneHundred = big.NewInt(100)
 
-var ResetErr = errors.New("transaction manager reset")
-
 // ETHBackend is the set of methods that the transaction manager uses to resubmit gas & determine
 // when transactions are included on L1.
 type ETHBackend interface {

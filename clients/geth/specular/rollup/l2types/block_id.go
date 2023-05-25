@@ -6,6 +6,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
 
+// TODO: tags
 type BlockID struct {
 	number uint64
 	hash   common.Hash
@@ -46,8 +47,8 @@ func (ref L2BlockRef) L1Origin() BlockID { return ref.l1Origin }
 
 // Mapping from L2 block to the L1 block it corresponds to.
 type BlockRelation struct {
-	L1BlockID BlockID
-	L2BlockID BlockID
+	L1BlockID BlockID `json:"l1_block_id"`
+	L2BlockID BlockID `json:"l2_block_id"`
 }
 
 type BlockRelations []BlockRelation

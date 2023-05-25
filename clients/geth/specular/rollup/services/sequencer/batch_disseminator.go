@@ -98,7 +98,7 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 			return fmt.Errorf("Failed to encode txs: %w", err)
 		}
 		dBlock := l2types.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
-		err = d.batchBuilder.Append(dBlock, geth.NewHeader(block.Header()))
+		err = d.batchBuilder.Append(dBlock, l2types.NewBlockRefFromHeader(block.Header()))
 		if err != nil {
 			return fmt.Errorf("Failed to append block (num=%s): %w", i, err)
 		}

@@ -3,7 +3,6 @@ package geth
 import (
 	"bytes"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -30,14 +29,6 @@ var (
 	//   - forkchoiceUpdateV1: if the new head is unknown, pre-merge, or reorg to it fails
 	INVALID = "INVALID"
 )
-
-// Header
-
-type Header struct{ h *types.Header }
-
-func NewHeader(header *types.Header) *Header { return &Header{h: header} }
-func (h *Header) Hash() common.Hash          { return h.h.Hash() }
-func (h *Header) ParentHash() common.Hash    { return h.h.ParentHash }
 
 // Transaction
 

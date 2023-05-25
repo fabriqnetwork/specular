@@ -59,6 +59,7 @@ func (b *ExecutionBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) even
 }
 
 // See [eth/catalyst/api.go]::ConsensusAPI::forkchoiceUpdated
+// Only updates fork-choice, does not build payloads.
 func (b *ExecutionBackend) ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error) {
 	if update.HeadBlockHash == (common.Hash{}) {
 		log.Warn("Forkchoice requested update to zero hash")

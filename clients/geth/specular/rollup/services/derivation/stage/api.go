@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
@@ -25,9 +26,12 @@ type StageOps[T any] interface {
 }
 
 type ExecutionBackend interface {
-	ForkchoiceUpdate(update services.ForkchoiceState) error
+	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
 	BuildPayload(payload services.ExecutionPayload) error
 }
+
+type ForkChoiceState = beacon.ForkchoiceStateV1
+type ForkChoiceResponse = beacon.ForkChoiceResponse
 
 type EthClient interface {
 	BlockNumber(ctx context.Context) (uint64, error)
@@ -44,6 +48,7 @@ type L1State interface {
 type L1Config interface {
 	SequencerInboxAddr() common.Address
 	RollupAddr() common.Address
+	RollupGenesisBlock() uint64
 }
 
 type RetryableError struct{ Err error }
@@ -72,7 +77,8 @@ func CreatePipeline(
 		// Processors
 		daHandlers, rollupTxHandlers = createProcessors(cfg, execBackend, rollupState, l2ClientCreatorFn)
 		// Stages
-		l1HeaderRetrievalStage = L1HeaderRetrievalStage{l2types.BlockID{}, l1Client}
+		genesisBlockID         = l2types.NewBlockID(cfg.RollupGenesisBlock(), common.Hash{})
+		l1HeaderRetrievalStage = L1HeaderRetrievalStage{genesisBlockID, l1Client}
 		l1TxRetrievalStage     = NewStage[l2types.BlockID, filteredBlock](
 			&l1HeaderRetrievalStage,
 			NewL1TxRetriever(l1Client, createTxFilterFn(daHandlers, rollupTxHandlers)),

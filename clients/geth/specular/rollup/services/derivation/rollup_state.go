@@ -14,22 +14,24 @@ import (
 )
 
 // Tracks L2 state as a function of synced L1 state.
+// Mirrors `Rollup.sol`.
 type RollupState struct {
-	stakers         map[common.Address]*Staker
+	l1Client *bridge.BridgeClient
+
+	lastResolvedAssertionID  *big.Int
+	lastConfirmedAssertionID *big.Int
+	lastCreatedAssertionID   *big.Int
+	// Assertion state
 	assertions      map[*big.Int]*Assertion
 	assertionsState map[*big.Int]*AssertionState
-	assertionsAux   map[*big.Int]*AssertionAux
-
-	l1Client *bridge.BridgeClient
+	// Staking state
+	numStakers *big.Int
+	stakers    map[common.Address]*Staker
 }
 
 type Staker struct{ bindings.IRollupStaker }
 type Assertion struct{ bindings.IRollupAssertion }
 type AssertionState struct{ stakers map[common.Address]bool }
-type AssertionAux struct {
-	vmHash    common.Hash
-	inboxSize *big.Int
-}
 
 func NewRollupState(l1Client *bridge.BridgeClient) *RollupState {
 	return &RollupState{l1Client: l1Client}
@@ -69,6 +71,16 @@ func (s *RollupState) OnAssertionCreated(
 	l1BlockID l2types.BlockID,
 	tx *types.Transaction,
 ) error {
+	receipt, err := s.l1Client.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		return fmt.Errorf("failed to get receipt for `createAssertion` tx %v: %w", tx.Hash(), err)
+	}
+	var assertionID = big.NewInt(receipt.BlockNumber.Int64()) // TODO
+	_, err = s.GetAssertion(ctx, assertionID)
+	if err != nil {
+		return fmt.Errorf("failed to get assertion %v: %w", assertionID, err)
+	}
+	s.lastCreatedAssertionID = assertionID
 	return nil
 }
 
@@ -77,6 +89,7 @@ func (s *RollupState) OnAssertionConfirmed(
 	l1BlockID l2types.BlockID,
 	tx *types.Transaction,
 ) error {
+	// s.lastResolvedAssertionID
 	return nil
 }
 
@@ -86,6 +99,10 @@ func (s *RollupState) OnAssertionRejected(
 	tx *types.Transaction,
 ) error {
 	return nil
+}
+
+func (s *RollupState) OnReorg(l1BlockID l2types.BlockID) {
+	return
 }
 
 // func (r *RollupState) StartSync(ctx context.Context, l1Client, l2Client client.EthPollingClient) {

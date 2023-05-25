@@ -30,6 +30,7 @@ func (s *L2ForkchoiceUpdater) next() any     { return nil }
 // 3. Derives the corresponding L2 fork-choice.
 func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation l2types.BlockRelation) error {
 	// TODO: handle 'old' block relations (older than the fc marking)
+	// TODO: update fork choice for latest
 	if relation != (l2types.BlockRelation{}) {
 		err := s.blockRelations.Append(relation)
 		if err != nil {
