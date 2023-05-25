@@ -158,7 +158,7 @@ func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Failed to build batch: %w", err)
 	}
-	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, batchAttrs.contexts, batchAttrs.txLengths, batchAttrs.txs)
+	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, batchAttrs.contexts, batchAttrs.txLengths, batchAttrs.firstL2BlockNumber, batchAttrs.txs)
 	if err != nil {
 		return fmt.Errorf("Failed to send batch transaction: %w", err)
 	}

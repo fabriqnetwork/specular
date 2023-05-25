@@ -8,7 +8,7 @@ Currently, Hardhat is used for deployment and Froundry is used for testing.
 Install following tools:
 
 - [`Node.js v16`](https://nodejs.org/en/)
-- [`yarn`](https://yarnpkg.com/getting-started/install)
+- [`pnpm`](https://pnpm.io/installation#using-corepack)
 - [`foundry`](https://book.getfoundry.sh/getting-started/installation)
 
 Clone the repository:
@@ -16,13 +16,18 @@ Clone the repository:
 ```sh
 git clone https://github.com/SpecularL2/specular
 git submodule update --init
-cd contracts
 ```
 
 Install `npm` packages and git hooks:
 
 ```sh
-yarn install
+pnpm install
+```
+
+Go to `contracts` directory:
+
+```sh
+cd contracts
 ```
 
 ## Run Tests

@@ -16,6 +16,7 @@ import (
 )
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
+// TODO: delete
 type EthBridgeClient struct {
 	client       *client.EthClient
 	transactOpts *bind.TransactOpts

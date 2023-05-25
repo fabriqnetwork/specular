@@ -50,8 +50,8 @@ func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
-func packAppendTxBatchInput(contexts, txLengths []*big.Int, txs []byte) ([]byte, error) {
-	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, contexts, txLengths, txs)
+func packAppendTxBatchInput(contexts, txLengths []*big.Int, firstL2BlockNumber *big.Int, txs []byte) ([]byte, error) {
+	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, contexts, txLengths, firstL2BlockNumber, txs)
 }
 
 // IRollup.sol

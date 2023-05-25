@@ -15,9 +15,11 @@ type ordererByFee struct {
 	l2Client L2Client
 }
 
-func newOrdererByFee(backend ExecutionBackend) *ordererByFee {
-	return &ordererByFee{backend: backend}
-}
+type txValidationError struct{ err error }
+
+func (e *txValidationError) Error() string { return e.err.Error() }
+
+func newOrdererByFee(backend ExecutionBackend) *ordererByFee { return &ordererByFee{backend: backend} }
 
 func (o *ordererByFee) RegisterL2Client(l2Client L2Client) {
 	o.l2Client = l2Client
@@ -63,7 +65,7 @@ func (o *ordererByFee) validateTx(ctx context.Context, tx *types.Transaction) er
 		return fmt.Errorf("Failed to query for tx by hash: %w", err)
 	}
 	if prevTx != nil {
-		return &txValidationError{"tx already exists on-chain"}
+		return &txValidationError{fmt.Errorf("tx already exists on-chain")}
 	}
 	return nil
 }

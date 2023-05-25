@@ -22,9 +22,10 @@ type batchBuilder struct {
 }
 
 type batchAttributes struct {
-	contexts  []*big.Int
-	txLengths []*big.Int
-	txs       []byte
+	contexts           []*big.Int
+	txLengths          []*big.Int
+	firstL2BlockNumber *big.Int
+	txs                []byte
 }
 
 type Header interface {
@@ -80,11 +81,13 @@ func (b *batchBuilder) Advance() {
 }
 
 func (b *batchBuilder) serializeToAttrs() (*batchAttributes, error) {
-	var contexts, txLengths []*big.Int
-	buf := new(bytes.Buffer)
-	var numBytes uint64
-	var block l2types.DerivationBlock
-	var idx int
+	var (
+		contexts, txLengths []*big.Int
+		buf                 = new(bytes.Buffer)
+		numBytes            uint64
+		block               l2types.DerivationBlock
+		idx                 int
+	)
 	for idx, block = range b.pendingBlocks {
 		// Construct context (`contexts` is a flat array of 3-tuples)
 		contexts = append(contexts, big.NewInt(0).SetUint64(block.NumTxs()))
@@ -108,7 +111,8 @@ func (b *batchBuilder) serializeToAttrs() (*batchAttributes, error) {
 	}
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[idx:]
-	return &batchAttributes{contexts, txLengths, buf.Bytes()}, nil
+	firstL2BlockNumber := big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
+	return &batchAttributes{contexts, txLengths, firstL2BlockNumber, buf.Bytes()}, nil
 }
 
 // TODO: unused

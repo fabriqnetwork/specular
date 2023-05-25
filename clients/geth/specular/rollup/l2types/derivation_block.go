@@ -46,26 +46,29 @@ func (e *DecodeTxBatchError) Error() string {
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
 func BlocksFromDecoded(decoded []any) ([]DerivationBlock, error) {
-	if len(decoded) != 3 {
+	if len(decoded) != 4 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
 	}
-	contexts := decoded[0].([]*big.Int)
-	txLengths := decoded[1].([]*big.Int)
-	txBatch := decoded[2].([]byte)
-	if len(contexts)%3 != 0 {
+	var (
+		contexts           = decoded[0].([]*big.Int)
+		txLengths          = decoded[1].([]*big.Int)
+		firstL2BlockNumber = decoded[2].(big.Int)
+		txBatch            = decoded[3].([]byte)
+	)
+	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
 	}
-
-	var batchOffset uint64
-	var numTxs uint64
-
-	blocks := make([]DerivationBlock, 0, len(contexts)/3)
-	for i := 0; i < len(contexts); i += 3 {
+	var (
+		batchOffset, numTxs uint64
+		blocks              = make([]DerivationBlock, 0, len(contexts)/2)
+		blockNumber         = firstL2BlockNumber.Uint64()
+	)
+	for i := 0; i < len(contexts); i += 2 {
 		// For each context, decode a block.
 		ctx := DerivationContext{
 			numTxs:      contexts[i].Uint64(),
-			blockNumber: contexts[i+1].Uint64(),
-			timestamp:   contexts[i+2].Uint64(),
+			blockNumber: blockNumber + uint64(i),
+			timestamp:   contexts[i+1].Uint64(),
 		}
 		var txs [][]byte
 		for j := uint64(0); j < ctx.numTxs; j++ {

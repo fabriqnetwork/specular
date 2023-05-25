@@ -43,6 +43,7 @@ type TxManager interface {
 		ctx context.Context,
 		contexts []*big.Int,
 		txLengths []*big.Int,
+		firstL2BlockNumber *big.Int,
 		txs []byte,
 	) (*types.Receipt, error)
 }

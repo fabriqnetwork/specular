@@ -23,6 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Setup Node
+        uses: ./.github/actions/node
+      
+      - name: Generate Lock File
+        working-directory: ./contracts
+        run: pnpm make-dedicated-lockfile
+
       - name: Run Slither
         uses: crytic/slither-action@v0.3.0
         id: slither
@@ -31,6 +38,7 @@ jobs:
           node-version: 16
           target: ./contracts
           fail-on: none
+          slither-args: '--filter-paths "(lib/|@openzeppelin|hardhat|src/libraries/BytesLib.sol|test/)"'
 
       - name: Upload SARIF file
         uses: github/codeql-action/upload-sarif@v2

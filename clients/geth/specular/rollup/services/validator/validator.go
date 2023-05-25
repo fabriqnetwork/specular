@@ -19,6 +19,14 @@ import (
 
 const interval = 10 * time.Second
 
+type errAssertionOverflowedLocalInbox struct {
+	Msg string
+}
+
+func (e *errAssertionOverflowedLocalInbox) Error() string {
+	return fmt.Sprint("assertion overflowed local inbox with msg:", e.Msg)
+}
+
 type Validator struct {
 	*services.BaseService
 

@@ -39,8 +39,8 @@ See [here](https://github.com/SpecularL2/specular/tree/main/contracts) for more 
 
 ```sh
 # Terminal #1: start L1 node
+pnpm install
 cd contracts
-yarn install
 npx hardhat node
 
 # Terminal #2: start sequencer

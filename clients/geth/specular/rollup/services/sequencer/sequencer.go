@@ -20,12 +20,6 @@ type Sequencer struct {
 
 type l2ClientCreatorFn func(ctx context.Context) (L2Client, error)
 
-type txValidationError struct{ msg string }
-
-func (e *txValidationError) Error() string {
-	return fmt.Sprintf("Tx validation failed: %s", e.msg)
-}
-
 func NewSequencer(
 	cfg SequencerServiceConfig,
 	backend ExecutionBackend,
