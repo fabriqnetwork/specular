@@ -49,7 +49,7 @@ func (c *EthClient) HeaderByTag(ctx context.Context, tag BlockTag) (*types.Heade
 	return header, err
 }
 
-func dialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*EthClient, error) {
+func DialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Option) (*EthClient, error) {
 	var client *EthClient
 	err := retry.Do(func() error {
 		rpcClient, err := rpc.DialContext(ctx, endpoint)
