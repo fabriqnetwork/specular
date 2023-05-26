@@ -57,20 +57,13 @@ jobs:
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
           sleep 30
-          docker ps
-          docker logs hardhat
-          docker logs sequencer
           ./wait-for-it.sh -t 240 127.0.0.1:8545
           ./wait-for-it.sh -t 240 127.0.0.1:4011
-          docker logs hardhat
-          docker logs sequencer
 
       - name: Run testing script
         run: |
           cd contracts
           npx ts-node scripts/testing.ts
-          docker logs hardhat
-          docker logs sequencer
 
       - name: Stop and remove containers
         run: |
