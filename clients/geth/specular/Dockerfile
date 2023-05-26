@@ -1,8 +1,7 @@
 # Compile contracts for binding generation
 FROM node:16-alpine3.17 as contracts-builder
 
-RUN apk add --no-cache make git python3 g++
-RUN npm install -g pnpm
+RUN apk add --no-cache git python3 make g++ musl-dev linux-headers && corepack enable
 
 COPY . /specular
 
