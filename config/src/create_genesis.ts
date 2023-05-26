@@ -19,6 +19,46 @@ async function main() {
   await generateGenesisFile(baseGenesisPath, genesisPath);
 }
 
+export async function generateGenesisFile(
+  baseGenesisPath: string,
+  genesisPath: string
+) {
+  const baseGenesis = JSON.parse(fs.readFileSync(baseGenesisPath, "utf-8"));
+
+  const alloc = new Map();
+  await Promise.all(
+    baseGenesis.preDeploy.map((p: any) => parsePreDeploy(p, alloc))
+  );
+
+  baseGenesis.preDeploy = undefined;
+  baseGenesis.alloc = Object.fromEntries(alloc);
+
+  fs.writeFileSync(genesisPath, JSON.stringify(baseGenesis, null, 2), "utf-8");
+}
+
+function parseArgs() {
+  const inFlagIndex = process.argv.indexOf("--in");
+  let baseGenesisPath;
+
+  if (inFlagIndex > -1) {
+    baseGenesisPath = process.argv[inFlagIndex + 1];
+  } else {
+    throw Error("Please specify the base genesis path");
+  }
+
+  const outFlagIndex = process.argv.indexOf("--out");
+  let genesisPath;
+
+  if (outFlagIndex > -1) {
+    genesisPath = process.argv[outFlagIndex + 1];
+  } else {
+    console.log("Setting out genesis path same as base genesis path");
+    genesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
+  }
+
+  return { baseGenesisPath, genesisPath };
+}
+
 /**
  * Reads the compilation artifact of a contract compiled with hardhat
  * If no artifact is found, the function will look in the artifacts shipped with the @openzeppelin package
