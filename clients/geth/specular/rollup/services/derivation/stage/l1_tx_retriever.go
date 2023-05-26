@@ -5,22 +5,22 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 // Retrieves transactions from L1 block associated with block ID returned from previous stage,
 // according to filter query.
 type L1TxRetriever struct {
 	l1Client EthClient
-	filterFn func(tx *types.Transaction) bool
+	filterFn func(tx *ethTypes.Transaction) bool
 	// Result queue.
 	queue []filteredBlock
 }
 
 type filteredBlock struct {
-	blockID l2types.BlockID
-	txs     []*types.Transaction
+	blockID types.BlockID
+	txs     []*ethTypes.Transaction
 }
 
 type FilterQueryParams struct {
@@ -33,7 +33,7 @@ type TxFilterParam struct {
 	FunctionName    string
 }
 
-func NewL1TxRetriever(l1Client EthClient, filterFn func(tx *types.Transaction) bool) *L1TxRetriever {
+func NewL1TxRetriever(l1Client EthClient, filterFn func(tx *ethTypes.Transaction) bool) *L1TxRetriever {
 	return &L1TxRetriever{l1Client: l1Client, filterFn: filterFn}
 }
 
@@ -50,9 +50,9 @@ func (s *L1TxRetriever) next() filteredBlock {
 // Enqueues relevant transactions from L1 block associated with block ID returned from previous stage.
 // Does not fetch new transactions unless queue is empty.
 // Dequeues and returns one transaction batch.
-func (s *L1TxRetriever) ingest(ctx context.Context, l1BlockID l2types.BlockID) error {
+func (s *L1TxRetriever) ingest(ctx context.Context, l1BlockID types.BlockID) error {
 	// Retrieve the entire block.
-	l1Block, err := s.l1Client.BlockByHash(ctx, l1BlockID.Hash())
+	l1Block, err := s.l1Client.BlockByHash(ctx, l1BlockID.GetHash())
 	if err != nil {
 		return &RetryableError{fmt.Errorf("Failed to get L1 block by hash: %w", err)}
 	}
@@ -61,13 +61,13 @@ func (s *L1TxRetriever) ingest(ctx context.Context, l1BlockID l2types.BlockID) e
 	return nil
 }
 
-func (s *L1TxRetriever) recover(ctx context.Context, l1BlockID l2types.BlockID) error {
+func (s *L1TxRetriever) recover(ctx context.Context, l1BlockID types.BlockID) error {
 	s.queue = nil
 	return nil
 }
 
-func filterTransactions(block *types.Block, filterFn func(tx *types.Transaction) bool) []*types.Transaction {
-	var txs []*types.Transaction
+func filterTransactions(block *ethTypes.Block, filterFn func(tx *ethTypes.Transaction) bool) []*ethTypes.Transaction {
+	var txs []*ethTypes.Transaction
 	for _, tx := range block.Transactions() {
 		if filterFn(tx) {
 			txs = append(txs, tx)

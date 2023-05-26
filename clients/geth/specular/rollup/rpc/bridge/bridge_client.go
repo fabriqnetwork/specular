@@ -6,11 +6,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 )
 
 type BridgeClient struct {
-	*client.EthClient
+	*eth.EthClient
 	*bindings.ISequencerInbox
 	*bindings.IRollup
 }
@@ -21,7 +21,7 @@ type L1Config interface {
 	RollupAddr() common.Address
 }
 
-func NewBridgeClient(client *client.EthClient, cfg L1Config) (*BridgeClient, error) {
+func NewBridgeClient(client *eth.EthClient, cfg L1Config) (*BridgeClient, error) {
 	inbox, err := bindings.NewISequencerInbox(cfg.SequencerInboxAddr(), client)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func NewBridgeClient(client *client.EthClient, cfg L1Config) (*BridgeClient, err
 }
 
 func DialWithRetry(ctx context.Context, cfg L1Config) (*BridgeClient, error) {
-	l1Client, err := client.DialWithRetry(ctx, cfg.Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial L1 client: %v", err)
 	}

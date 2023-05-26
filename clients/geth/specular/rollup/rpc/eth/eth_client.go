@@ -1,8 +1,7 @@
-package client
+package eth
 
 import (
 	"context"
-	"math/big"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -16,13 +15,13 @@ import (
 )
 
 const (
-	DefaultRetryAttempts = 3
-	DefaultRetryDelay    = 5 * time.Second
+	defaultRetryAttempts = 3
+	defaultRetryDelay    = 5 * time.Second
 )
 
 var DefaultRetryOpts = []retry.Option{
-	retry.Attempts(DefaultRetryAttempts),
-	retry.Delay(DefaultRetryDelay),
+	retry.Attempts(defaultRetryAttempts),
+	retry.Delay(defaultRetryDelay),
 	retry.LastErrorOnly(true),
 	retry.OnRetry(func(n uint, err error) {
 		log.Error("Failed attempt", "attempt", n, "err", err)
@@ -71,21 +70,16 @@ func (c *EthClient) SubscribeNewHeadByPolling(
 	return event.NewSubscription(func(unsub <-chan struct{}) error {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		lastHeaderNumber := big.NewInt(-1)
-		poll := func() {
+		poll := func() error {
 			reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
 			header, err := c.HeaderByTag(reqCtx, tag)
 			cancel()
 			if err != nil {
 				log.Warn("Failed to poll for latest L1 block header", "err", err)
-				return
-			}
-			if header.Number.Cmp(lastHeaderNumber) <= 0 {
-				log.Warn("Polled header is not new", "number", header.Number, "newest", lastHeaderNumber)
-				return
+				return err
 			}
 			headCh <- header
-			lastHeaderNumber = header.Number
+			return nil
 		}
 		poll()
 		for {

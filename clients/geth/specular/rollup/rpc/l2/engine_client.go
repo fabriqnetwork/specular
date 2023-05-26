@@ -5,13 +5,13 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/beacon"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 )
 
 // TODO: Use EngineClient in place of ExecutionBackend
 // TODO: upgrade Geth to use new Engine types
 
-type EngineClient struct{ *client.EthClient }
+type EngineClient struct{ *eth.EthClient }
 
 type L2Config interface{ Endpoint() string }
 
@@ -26,10 +26,10 @@ type (
 	ExecutionPayload = beacon.ExecutableDataV1
 )
 
-func NewEngineClient(c client.EthClient) *EngineClient { return &EngineClient{&c} }
+func NewEngineClient(c eth.EthClient) *EngineClient { return &EngineClient{&c} }
 
 func DialWithRetry(ctx context.Context, cfg L2Config) (*EngineClient, error) {
-	l2Client, err := client.DialWithRetry(ctx, cfg.Endpoint(), nil)
+	l2Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial L2 client: %v", err)
 	}

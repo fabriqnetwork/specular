@@ -6,10 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
@@ -68,8 +68,8 @@ func (s *RollupState) GetAssertion(ctx context.Context, assertionID *big.Int) (*
 
 func (s *RollupState) OnAssertionCreated(
 	ctx context.Context,
-	l1BlockID l2types.BlockID,
-	tx *types.Transaction,
+	l1BlockID types.BlockID,
+	tx *ethTypes.Transaction,
 ) error {
 	receipt, err := s.l1Client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
@@ -86,8 +86,8 @@ func (s *RollupState) OnAssertionCreated(
 
 func (s *RollupState) OnAssertionConfirmed(
 	ctx context.Context,
-	l1BlockID l2types.BlockID,
-	tx *types.Transaction,
+	l1BlockID types.BlockID,
+	tx *ethTypes.Transaction,
 ) error {
 	// s.lastResolvedAssertionID
 	return nil
@@ -95,13 +95,13 @@ func (s *RollupState) OnAssertionConfirmed(
 
 func (s *RollupState) OnAssertionRejected(
 	ctx context.Context,
-	l1BlockID l2types.BlockID,
-	tx *types.Transaction,
+	l1BlockID types.BlockID,
+	tx *ethTypes.Transaction,
 ) error {
 	return nil
 }
 
-func (s *RollupState) OnReorg(l1BlockID l2types.BlockID) {
+func (s *RollupState) OnReorg(l1BlockID types.BlockID) {
 	return
 }
 

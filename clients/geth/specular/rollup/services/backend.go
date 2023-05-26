@@ -12,8 +12,8 @@ type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
 	BuildPayload(payload ExecutionPayload) error
-	CommitTransactions(txs []*types.Transaction) error            // TODO: remove
-	Prepare(txs []*types.Transaction) TransactionsByPriceAndNonce // TODO: remove
+	CommitTransactions(txs []*types.Transaction) error // TODO: remove
+	Prepare(txs []*types.Transaction) TransactionQueue // TODO: remove
 }
 
 type ForkChoiceState = beacon.ForkchoiceStateV1
@@ -25,7 +25,7 @@ type ExecutionPayload interface {
 	Txs() [][]byte
 }
 
-type TransactionsByPriceAndNonce interface {
+type TransactionQueue interface {
 	Peek() *types.Transaction
 	Pop()
 }

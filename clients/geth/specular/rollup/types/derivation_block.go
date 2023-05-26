@@ -1,4 +1,4 @@
-package l2types
+package types
 
 import (
 	"fmt"

@@ -99,22 +99,7 @@ func (b *Broker[T]) SubscribeWithCallback(
 	callbackFn func(context.Context, T) error,
 ) {
 	inCh := b.Subscribe()
-	go func() {
-		defer b.Unsubscribe(inCh)
-		for {
-			select {
-			case head := <-inCh:
-				err := callbackFn(ctx, head)
-				if err != nil {
-					log.Error("Failed triggering callback, err: %w", err)
-					return
-				}
-			case <-ctx.Done():
-				log.Info("Aborting.")
-				return
-			}
-		}
-	}()
+	go func() { defer b.Unsubscribe(inCh); applyCh(ctx, inCh, callbackFn) }()
 }
 
 func (b *Broker[T]) Unsubscribe(msgCh chan T) {

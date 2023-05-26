@@ -42,9 +42,7 @@ func TxMethodID(tx *types.Transaction) string    { return string(tx.Data()[:Meth
 
 // ISequencerInbox.sol
 
-func InboxEvent(name string) abi.Event {
-	return serializationUtil.inboxAbi.Events[name]
-}
+func InboxEvent(name string) abi.Event { return serializationUtil.inboxAbi.Events[name] }
 
 func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
@@ -67,9 +65,6 @@ func UnpackCreateAssertionInput(tx *types.Transaction) (common.Hash, *big.Int, e
 }
 
 func UnpackBisectExecutionInput(tx *types.Transaction) ([]any, error) {
-	if err := ensureUtilInit(); err != nil {
-		return nil, err
-	}
 	return serializationUtil.challengeAbi.Methods[bisectExecutionFn].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 

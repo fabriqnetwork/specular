@@ -1,4 +1,4 @@
-package l2types
+package types
 
 import (
 	"github.com/ethereum/go-ethereum/common"
@@ -8,8 +8,8 @@ import (
 
 // TODO: tags
 type BlockID struct {
-	number uint64
-	hash   common.Hash
+	Number uint64      `json:"number"`
+	Hash   common.Hash `json:"hash"`
 }
 
 func NewBlockID(number uint64, hash common.Hash) BlockID { return BlockID{number, hash} }
@@ -18,13 +18,13 @@ func NewBlockIDFromHeader(header *types.Header) BlockID {
 	return NewBlockID(header.Number.Uint64(), header.Hash())
 }
 
-func (id BlockID) Number() uint64    { return id.number }
-func (id BlockID) Hash() common.Hash { return id.hash }
+func (id BlockID) GetNumber() uint64    { return id.Number }
+func (id BlockID) GetHash() common.Hash { return id.Hash }
 
 // TODO: unused
 type BlockRef struct {
 	BlockID
-	parentHash common.Hash
+	ParentHash common.Hash `json:"parent_hash"`
 }
 
 func NewBlockRef(number uint64, hash common.Hash, parentHash common.Hash) BlockRef {
@@ -35,7 +35,7 @@ func NewBlockRefFromHeader(header *types.Header) BlockRef {
 	return BlockRef{NewBlockIDFromHeader(header), header.ParentHash}
 }
 
-func (ref BlockRef) ParentHash() common.Hash { return ref.parentHash }
+func (ref BlockRef) GetParentHash() common.Hash { return ref.ParentHash }
 
 // TODO: unused
 type L2BlockRef struct {
@@ -92,6 +92,6 @@ func (r BlockRelations) MarkReorgedOut(existingL1BlockNumber uint64) {
 
 func indexOfLastBlockRelationOrPrior(relations []BlockRelation, targetL1BlockNumber uint64) int {
 	return utils.IndexOfMappedLEq(
-		relations, targetL1BlockNumber, func(relation BlockRelation) uint64 { return relation.L1BlockID.Number() },
+		relations, targetL1BlockNumber, func(relation BlockRelation) uint64 { return relation.L1BlockID.GetNumber() },
 	)
 }

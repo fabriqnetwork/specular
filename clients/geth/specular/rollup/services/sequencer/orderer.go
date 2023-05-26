@@ -36,7 +36,7 @@ func (o *ordererByFee) OrderTransactions(ctx context.Context, txs []*types.Trans
 
 func (o *ordererByFee) sanitize(
 	ctx context.Context,
-	sortedTxs services.TransactionsByPriceAndNonce,
+	sortedTxs services.TransactionQueue,
 ) ([]*types.Transaction, error) {
 	var sanitizedTxs []*types.Transaction
 	for {

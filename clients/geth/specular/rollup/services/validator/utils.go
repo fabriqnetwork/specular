@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
 )
 
 func NewAssertionFrom(

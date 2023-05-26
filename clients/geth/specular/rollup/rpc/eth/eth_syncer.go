@@ -1,4 +1,4 @@
-package client
+package eth
 
 import (
 	"context"
@@ -8,6 +8,12 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"golang.org/x/sync/errgroup"
+)
+
+// TODO: move to config
+const (
+	EthSlotInterval  = 12 * time.Second
+	EthEpochInterval = 6*time.Minute + 24*time.Second
 )
 
 type EthSyncer struct {
@@ -44,12 +50,9 @@ func NewEthSyncer(handler OnNewHandler) *EthSyncer {
 }
 
 func (s *EthSyncer) Start(ctx context.Context, client EthPollingClient) {
-	s.subscribeNewHead(ctx, client, s.LatestHeaderBroker, Latest)
-	s.LatestHeaderBroker.SubscribeWithCallback(ctx, s.OnLatest)
-	s.subscribeNewHead(ctx, client, s.SafeHeaderBroker, Safe)
-	s.SafeHeaderBroker.SubscribeWithCallback(ctx, s.OnSafe)
-	s.subscribeNewHead(ctx, client, s.FinalizedHeaderBroker, Finalized)
-	s.FinalizedHeaderBroker.SubscribeWithCallback(ctx, s.OnFinalized)
+	s.subscribeNewHead(ctx, client, Latest, s.LatestHeaderBroker, s.OnLatest, EthSlotInterval)
+	s.subscribeNewHead(ctx, client, Safe, s.SafeHeaderBroker, s.OnSafe, EthEpochInterval)
+	s.subscribeNewHead(ctx, client, Finalized, s.FinalizedHeaderBroker, s.OnFinalized, EthEpochInterval)
 }
 
 func (s *EthSyncer) Stop(ctx context.Context) {
@@ -62,9 +65,12 @@ func (s *EthSyncer) Stop(ctx context.Context) {
 func (s *EthSyncer) subscribeNewHead(
 	ctx context.Context,
 	client EthPollingClient,
-	broker *utils.Broker[*types.Header],
 	tag BlockTag,
+	broker *utils.Broker[*types.Header],
+	fn func(context.Context, *types.Header) error,
+	pollInterval time.Duration,
 ) {
-	sub := client.SubscribeNewHeadByPolling(ctx, broker.PubCh(), tag, 10*time.Second, 10*time.Second)
+	sub := client.SubscribeNewHeadByPolling(ctx, broker.PubCh(), tag, pollInterval, 10*time.Second)
 	s.eg.Go(func() error { return broker.Start(ctx, sub) })
+	broker.SubscribeWithCallback(ctx, fn)
 }

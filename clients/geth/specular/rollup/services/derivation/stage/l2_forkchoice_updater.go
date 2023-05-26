@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
@@ -14,7 +14,7 @@ type L2ForkchoiceUpdater struct {
 
 	l1ForkChoice   ForkChoiceState
 	l2ForkChoice   ForkChoiceState
-	blockRelations l2types.BlockRelations
+	blockRelations types.BlockRelations
 }
 
 func NewL2ForkChoiceUpdater(execBackend ExecutionBackend, l1State L1State) *L2ForkchoiceUpdater {
@@ -28,10 +28,10 @@ func (s *L2ForkchoiceUpdater) next() any     { return nil }
 // 1. Ingests a new block relation.
 // 2. Gets an updated L1 fork-choice.
 // 3. Derives the corresponding L2 fork-choice.
-func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation l2types.BlockRelation) error {
+func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation types.BlockRelation) error {
 	// TODO: handle 'old' block relations (older than the fc marking)
 	// TODO: update fork choice for latest
-	if relation != (l2types.BlockRelation{}) {
+	if relation != (types.BlockRelation{}) {
 		err := s.blockRelations.Append(relation)
 		if err != nil {
 			return fmt.Errorf("Failed to append block relation: %w", err)
@@ -43,7 +43,9 @@ func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation l2types.Block
 		l1Safe              = s.l1State.Safe()
 		l1Finalized         = s.l1State.Finalized()
 		updatedL1ForkChoice = ForkChoiceState{
-			HeadBlockHash: l1Head.Hash(), SafeBlockHash: l1Safe.Hash(), FinalizedBlockHash: l1Finalized.Hash(),
+			HeadBlockHash:      l1Head.GetHash(),
+			SafeBlockHash:      l1Safe.GetHash(),
+			FinalizedBlockHash: l1Finalized.GetHash(),
 		}
 	)
 	// Skip if no change.
@@ -53,12 +55,12 @@ func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation l2types.Block
 	}
 	// Derive l2 fork-choice from l1 fork-choice.
 	var (
-		safeL2BlockID      = s.blockRelations.MarkSafe(uint64(l1Head.Number()))
-		finalizedL2BlockID = s.blockRelations.MarkFinal(uint64(l1Finalized.Number()))
+		safeL2BlockID      = s.blockRelations.MarkSafe(uint64(l1Head.GetNumber()))
+		finalizedL2BlockID = s.blockRelations.MarkFinal(uint64(l1Finalized.GetNumber()))
 		l2Forkchoice       = ForkChoiceState{
 			HeadBlockHash:      s.l2ForkChoice.HeadBlockHash,
-			SafeBlockHash:      safeL2BlockID.Hash(),
-			FinalizedBlockHash: finalizedL2BlockID.Hash(),
+			SafeBlockHash:      safeL2BlockID.GetHash(),
+			FinalizedBlockHash: finalizedL2BlockID.GetHash(),
 		}
 	)
 	// Skip if no change.
@@ -77,13 +79,13 @@ func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation l2types.Block
 	return nil
 }
 
-func (s *L2ForkchoiceUpdater) recover(ctx context.Context, l1BlockID l2types.BlockID) error {
-	s.blockRelations.MarkReorgedOut(l1BlockID.Number())
+func (s *L2ForkchoiceUpdater) recover(ctx context.Context, l1BlockID types.BlockID) error {
+	s.blockRelations.MarkReorgedOut(l1BlockID.GetNumber())
 	return nil
 }
 
-func (s *L2ForkchoiceUpdater) findRecoveryPoint(ctx context.Context) (l2types.BlockID, error) {
-	return l2types.BlockID{}, nil
+func (s *L2ForkchoiceUpdater) findRecoveryPoint(ctx context.Context) (types.BlockID, error) {
+	return types.BlockID{}, nil
 }
 
 // func (d *Driver[T]) recover(ctx context.Context) error {
@@ -98,10 +100,10 @@ func (s *L2ForkchoiceUpdater) findRecoveryPoint(ctx context.Context) (l2types.Bl
 
 // Finds the "plausible" tip of the canonical chain, walking back from the latest L1 head.
 // Plausible <=> block number is known and canonical, OR unknown
-// func findLatestPlausibleL1BlockID(ctx context.Context, l1Client EthClient) (l2types.BlockID, error) {
+// func findLatestPlausibleL1BlockID(ctx context.Context, l1Client EthClient) (types.BlockID, error) {
 // 	latest, err := l1Client.HeaderByTag(ctx, client.Latest)
 // 	if err != nil {
-// 		return l2types.BlockID{}, RetryableError{fmt.Errorf("Could not get latest L1 block header: %w", err)}
+// 		return types.BlockID{}, RetryableError{fmt.Errorf("Could not get latest L1 block header: %w", err)}
 // 	}
-// 	return l2types.NewBlockIDFromHeader(header), nil
+// 	return types.NewBlockIDFromHeader(header), nil
 // }

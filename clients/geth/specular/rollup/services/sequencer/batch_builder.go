@@ -2,23 +2,22 @@ package sequencer
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
 
 type batchBuilder struct {
 	maxBatchSize uint64
 
-	pendingBlocks   []l2types.DerivationBlock
+	pendingBlocks   []types.DerivationBlock
 	builtBatchAttrs *batchAttributes
 
-	lastAppended l2types.BlockID
+	lastAppended types.BlockID
 }
 
 type batchAttributes struct {
@@ -29,8 +28,8 @@ type batchAttributes struct {
 }
 
 type Header interface {
-	Hash() common.Hash
-	ParentHash() common.Hash
+	GetHash() common.Hash
+	GetParentHash() common.Hash
 }
 
 // maxBatchSize is a soft cap on the size of the batch (# of bytes).
@@ -38,23 +37,23 @@ func NewBatchBuilder(maxBatchSize uint64) (*batchBuilder, error) {
 	return &batchBuilder{maxBatchSize: maxBatchSize}, nil
 }
 
-func (b *batchBuilder) LastAppended() l2types.BlockID {
+func (b *batchBuilder) LastAppended() types.BlockID {
 	return b.lastAppended
 }
 
 // Appends a block, to be processed and batched.
 // Returns a `ReorgDetectedError` if the block is not a child of the last appended block.
-func (b *batchBuilder) Append(block l2types.DerivationBlock, header Header) error {
-	if (header.ParentHash() != b.lastAppended.Hash()) && (b.lastAppended.Hash() != common.Hash{}) {
+func (b *batchBuilder) Append(block types.DerivationBlock, header Header) error {
+	if (header.GetParentHash() != b.lastAppended.GetHash()) && (b.lastAppended.GetHash() != common.Hash{}) {
 		return &utils.L2ReorgDetectedError{Msg: "Appended block is not a child of the last appended block"}
 	}
 	b.pendingBlocks = append(b.pendingBlocks, block)
-	b.lastAppended = l2types.NewBlockID(block.BlockNumber(), header.Hash())
+	b.lastAppended = types.NewBlockID(block.BlockNumber(), header.GetHash())
 	return nil
 }
 
-func (b *batchBuilder) Reset(lastAppended l2types.BlockID) {
-	b.pendingBlocks = []l2types.DerivationBlock{}
+func (b *batchBuilder) Reset(lastAppended types.BlockID) {
+	b.pendingBlocks = []types.DerivationBlock{}
 	b.builtBatchAttrs = nil
 	b.lastAppended = lastAppended
 }
@@ -85,7 +84,7 @@ func (b *batchBuilder) serializeToAttrs() (*batchAttributes, error) {
 		contexts, txLengths []*big.Int
 		buf                 = new(bytes.Buffer)
 		numBytes            uint64
-		block               l2types.DerivationBlock
+		block               types.DerivationBlock
 		idx                 int
 	)
 	for idx, block = range b.pendingBlocks {
@@ -113,19 +112,4 @@ func (b *batchBuilder) serializeToAttrs() (*batchAttributes, error) {
 	b.pendingBlocks = b.pendingBlocks[idx:]
 	firstL2BlockNumber := big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
 	return &batchAttributes{contexts, txLengths, firstL2BlockNumber, buf.Bytes()}, nil
-}
-
-// TODO: unused
-func writeContext(w *bytes.Buffer, derivCtx *l2types.DerivationContext) error {
-	if err := writePrimitive(w, derivCtx.NumTxs()); err != nil {
-		return err
-	}
-	if err := writePrimitive(w, derivCtx.BlockNumber()); err != nil {
-		return err
-	}
-	return writePrimitive(w, derivCtx.Timestamp())
-}
-
-func writePrimitive(w *bytes.Buffer, data any) error {
-	return binary.Write(w, binary.BigEndian, data)
 }

@@ -12,8 +12,8 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 

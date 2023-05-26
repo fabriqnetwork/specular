@@ -6,6 +6,18 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+func Equal[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
 // Returns the index of the last value in slice that is less than or equal to the target.
 // Assumes slice is sorted in ascending order and strictly increasing.
 func IndexOfLEq[T constraints.Ordered](sorted []T, target T) int {

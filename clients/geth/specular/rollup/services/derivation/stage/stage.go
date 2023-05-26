@@ -3,7 +3,7 @@ package stage
 import (
 	"context"
 
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 // Note: each Stage is itself a `StageOps`.
@@ -25,7 +25,7 @@ type stageProcessor[T, U any] interface {
 	hasNext() bool
 	next() U
 	ingest(ctx context.Context, prev T) error
-	recover(ctx context.Context, l1BlockID l2types.BlockID) error
+	recover(ctx context.Context, l1BlockID types.BlockID) error
 }
 
 func NewStage[T, U any](prev StageOps[T], processor stageProcessor[T, U]) *Stage[T, U] {
@@ -57,7 +57,7 @@ func (s *Stage[T, U]) Pull(ctx context.Context) (out U, err error) {
 	return out, nil
 }
 
-func (s *Stage[T, U]) Recover(ctx context.Context, l1BlockID l2types.BlockID) error {
+func (s *Stage[T, U]) Recover(ctx context.Context, l1BlockID types.BlockID) error {
 	err := s.processor.recover(ctx, l1BlockID)
 	if err != nil {
 		return err

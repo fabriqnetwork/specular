@@ -6,9 +6,9 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
@@ -16,13 +16,13 @@ type L1TxProcessor struct {
 	daSourceHandlers map[txFilterID]daSourceHandler
 	rollupTxHandlers map[txFilterID]txHandler
 	// state
-	lastProcessedRelation l2types.BlockRelation
+	lastProcessedRelation types.BlockRelation
 	lastProcessedIdx      int
 }
 
 // TODO: support other DA sources.
-type daSourceHandler func(ctx context.Context, l1BlockID l2types.BlockID, tx *types.Transaction) (l2types.BlockRelation, error)
-type txHandler func(ctx context.Context, l1BlockID l2types.BlockID, tx *types.Transaction) error
+type daSourceHandler func(ctx context.Context, l1BlockID types.BlockID, tx *ethTypes.Transaction) (types.BlockRelation, error)
+type txHandler func(ctx context.Context, l1BlockID types.BlockID, tx *ethTypes.Transaction) error
 
 type txFilterID struct {
 	contractAddr common.Address
@@ -37,13 +37,13 @@ func NewL1TxProcessor(
 }
 
 func (s *L1TxProcessor) hasNext() bool {
-	return s.lastProcessedRelation != l2types.BlockRelation{}
+	return s.lastProcessedRelation != types.BlockRelation{}
 }
 
-func (s *L1TxProcessor) next() l2types.BlockRelation {
+func (s *L1TxProcessor) next() types.BlockRelation {
 	next := s.lastProcessedRelation
 	s.lastProcessedIdx = 0
-	s.lastProcessedRelation = l2types.BlockRelation{}
+	s.lastProcessedRelation = types.BlockRelation{}
 	return next
 }
 
@@ -84,9 +84,9 @@ func (s *L1TxProcessor) ingest(ctx context.Context, filteredL1Block filteredBloc
 	return nil
 }
 
-func (s *L1TxProcessor) recover(ctx context.Context, l1BlockID l2types.BlockID) error {
+func (s *L1TxProcessor) recover(ctx context.Context, l1BlockID types.BlockID) error {
 	s.lastProcessedIdx = 0
-	s.lastProcessedRelation = l2types.BlockRelation{}
+	s.lastProcessedRelation = types.BlockRelation{}
 	// TODO: recover handlers
 	return nil
 }
@@ -108,19 +108,19 @@ func NewPayloadBuilder(
 // TODO: synchronize on execBackend
 func (b *payloadBuilder) BuildPayloads(
 	ctx context.Context,
-	l1BlockID l2types.BlockID,
-	tx *types.Transaction,
-) (l2types.BlockRelation, error) {
+	l1BlockID types.BlockID,
+	tx *ethTypes.Transaction,
+) (types.BlockRelation, error) {
 	if err := b.ensureClientInit(ctx); err != nil {
-		return l2types.BlockRelation{}, fmt.Errorf("failed to initialize payload builder: %w", err)
+		return types.BlockRelation{}, fmt.Errorf("failed to initialize payload builder: %w", err)
 	}
 	payloads, err := payloadsFromCalldata(tx)
 	if err != nil {
-		return l2types.BlockRelation{}, fmt.Errorf("Could not decode payloads from calldata: %w", err)
+		return types.BlockRelation{}, fmt.Errorf("Could not decode payloads from calldata: %w", err)
 	}
 	l2Head, err := b.l2Client.BlockNumber(ctx)
 	if err != nil {
-		return l2types.BlockRelation{}, RetryableError{fmt.Errorf("failed to get latest l2 blockNumber: %w", err)}
+		return types.BlockRelation{}, RetryableError{fmt.Errorf("failed to get latest l2 blockNumber: %w", err)}
 	}
 	for _, payload := range payloads {
 		if payload.BlockNumber() >= l2Head {
@@ -131,7 +131,7 @@ func (b *payloadBuilder) BuildPayloads(
 		if err != nil {
 			// Current assumption: all batches are valid.
 			// TODO: ignore/skip invalid batches.
-			return l2types.BlockRelation{}, fmt.Errorf("failed to build payload: %w", err)
+			return types.BlockRelation{}, fmt.Errorf("failed to build payload: %w", err)
 		}
 	}
 	// Return last block relation.
@@ -139,9 +139,9 @@ func (b *payloadBuilder) BuildPayloads(
 	header, err := b.l2Client.HeaderByNumber(ctx, big.NewInt(0).SetUint64(lastPayload.BlockNumber()))
 	if err != nil {
 		// TODO: retryable?
-		return l2types.BlockRelation{}, fmt.Errorf("failed to get header for last payload: %w", err)
+		return types.BlockRelation{}, fmt.Errorf("failed to get header for last payload: %w", err)
 	}
-	relation := l2types.BlockRelation{L1BlockID: l1BlockID, L2BlockID: l2types.NewBlockIDFromHeader(header)}
+	relation := types.BlockRelation{L1BlockID: l1BlockID, L2BlockID: types.NewBlockIDFromHeader(header)}
 	return relation, nil
 }
 
@@ -149,7 +149,7 @@ func (b *payloadBuilder) ensureClientInit(ctx context.Context) error {
 	if b.l2Client == nil {
 		l2Client, err := b.l2ClientCreatorFn(ctx)
 		if err != nil {
-			return RetryableError{fmt.Errorf("failed to create l2 client: %w", err)} // TODO: retryable?
+			return RetryableError{fmt.Errorf("failed to create l2 client: %w", err)}
 		}
 		b.l2Client = l2Client
 	}
@@ -159,14 +159,14 @@ func (b *payloadBuilder) ensureClientInit(ctx context.Context) error {
 // Stateless processor -- no-op.
 // func (b *payloadBuilder) recover() error { return nil }
 
-func payloadsFromCalldata(tx *types.Transaction) ([]l2types.DerivationBlock, error) {
+func payloadsFromCalldata(tx *ethTypes.Transaction) ([]types.DerivationBlock, error) {
 	// Decode input to appendTxBatch transaction.
 	decoded, err := bridge.UnpackAppendTxBatchInput(tx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
 	}
 	// Construct blocks.
-	blocks, err := l2types.BlocksFromDecoded(decoded)
+	blocks, err := types.BlocksFromDecoded(decoded)
 	// TODO: handle bad encoding (reject batch)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to split AppendTxBatch input into blocks, err: %w", err)

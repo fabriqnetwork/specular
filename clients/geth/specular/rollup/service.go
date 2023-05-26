@@ -15,8 +15,8 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/txmgr"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
@@ -45,7 +45,7 @@ func RegisterRollupServices(
 	if err != nil {
 		return fmt.Errorf("Failed to create rollup state: %w", err)
 	}
-	l1State := client.NewL1State()
+	l1State := eth.NewL1State()
 	// Register driver
 	driver, err := createDriver(ctx, cfg, execBackend, rollupState, l1State)
 	if err != nil {
@@ -78,12 +78,12 @@ func createDriver(
 	rollupState *derivation.RollupState,
 	l1State stage.L1State,
 ) (*derivation.Driver, error) {
-	l1Client, err := client.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (stage.EthClient, error) {
-		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
 	terminalStage := stage.CreatePipeline(cfg.L1(), execBackend, rollupState, l2ClientCreatorFn, l1Client, l1State)
 	driver := derivation.NewDriver(cfg.Driver(), terminalStage)
@@ -107,7 +107,7 @@ func createSequencer(
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
-		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
 	return sequencer.NewSequencer(cfg, execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
@@ -120,7 +120,7 @@ func createValidator(
 	proofBackend proof.Backend,
 ) (*validator.Validator, error) {
 	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
-		return client.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
 	// Create tx manager, used to send transactions to L1.
 	l1TxMgr, err := createTxManager(
@@ -144,36 +144,19 @@ func createRollupState(ctx context.Context, cfg *services.SystemConfig) (*deriva
 	return rollupState, nil
 }
 
-// func createSyncer(
-// 	ctx context.Context,
-// 	cfg *services.SystemConfig,
-// 	accountMgr *accounts.Manager,
-// 	execBackend services.ExecutionBackend,
-// ) (*derivation.Syncer, error) {
-// l1Client, err := client.DialWithRetry(ctx, cfg.L1Endpoint, nil)
-// if err != nil {
-// 	return nil, fmt.Errorf("Failed to connect to L1 node: %w", err)
-// }
-// l2Client, err := client.DialWithRetry(ctx, cfg.L2Endpoint, nil)
-// if err != nil {
-// 	return nil, fmt.Errorf("Failed to connect to L2 node: %w", err)
-// }
-// rollupState.StartSync(ctx, l1Client, l2Client)
-////////////////////////////////////////////////////////////
-// transactor, err := createTransactor(
-// 	accountMgr, cfg.ValidatorAccountAddr, cfg.L2ClefEndpoint, cfg.ValidatorPassphrase, cfg.L1ChainID,
-// )
-// if err != nil {
-// 	return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
-// }
-// l1BridgeClient, err := client.NewEthBridgeClient(
-// 	ctx, nil, cfg.L1Endpoint, cfg.L1RollupGenesisBlock, cfg.SequencerInboxAddr, cfg.RollupAddr, transactor, nil,
-// )
-// if err != nil {
-// 	return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
-// }
-// return derivation.NewSyncer(execBackend, l1BridgeClient, rollupState.L1Syncer), nil
-// }
+func createSyncer(
+	ctx context.Context,
+	cfg *services.SystemConfig,
+	l1State *eth.L1State,
+) (*eth.EthSyncer, error) {
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
+	}
+	syncer := eth.NewEthSyncer(l1State)
+	syncer.Start(ctx, l1Client)
+	return nil, nil
+}
 
 func createTxManager(
 	ctx context.Context,
@@ -187,7 +170,7 @@ func createTxManager(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize transactor for tx manager: %w", err)
 	}
-	l1Client, err := client.DialWithRetry(ctx, cfg.Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client for tx manager: %w", err)
 	}

@@ -1,4 +1,4 @@
-package client
+package eth
 
 type BlockTag string
 

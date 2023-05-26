@@ -20,7 +20,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
-// TODO: cleanup; use Engine API
+// TODO: cleanup -- use Engine API
 
 // Assumes exclusive control of underlying blockchain, i.e.
 // mining and blockchain insertion can not happen.
@@ -177,7 +177,7 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 }
 
 // Sorts transactions to be committed.
-func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce {
+func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.TransactionQueue {
 	sortedTxs := make(map[common.Address]types.Transactions)
 	signer := types.MakeSigner(b.eth.BlockChain().Config(), b.header.Number)
 	for _, tx := range txs {

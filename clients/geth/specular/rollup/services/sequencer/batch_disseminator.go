@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/specularl2/specular/clients/geth/specular/rollup/geth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
@@ -70,11 +70,11 @@ func (d *batchDisseminator) step(ctx context.Context) {
 }
 
 func (d *batchDisseminator) revertToSafe() error {
-	safeHeader, err := d.l2Client.HeaderByTag(context.Background(), client.Safe)
+	safeHeader, err := d.l2Client.HeaderByTag(context.Background(), eth.Safe)
 	if err != nil {
 		return fmt.Errorf("Failed to get safe header: %w", err)
 	}
-	d.batchBuilder.Reset(l2types.NewBlockIDFromHeader(safeHeader))
+	d.batchBuilder.Reset(types.NewBlockIDFromHeader(safeHeader))
 	return nil
 }
 
@@ -97,8 +97,8 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("Failed to encode txs: %w", err)
 		}
-		dBlock := l2types.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
-		err = d.batchBuilder.Append(dBlock, l2types.NewBlockRefFromHeader(block.Header()))
+		dBlock := types.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
+		err = d.batchBuilder.Append(dBlock, types.NewBlockRefFromHeader(block.Header()))
 		if err != nil {
 			return fmt.Errorf("Failed to append block (num=%s): %w", i, err)
 		}
@@ -109,12 +109,12 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 // Determines first and last unsafe block numbers.
 func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint64, error) {
 	lastAppended := d.batchBuilder.LastAppended()
-	start := lastAppended.Number() + 1 // TODO: fix assumption
-	safe, err := d.l2Client.HeaderByTag(ctx, client.Safe)
+	start := lastAppended.GetNumber() + 1 // TODO: fix assumption
+	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed to get l2 safe header: %w", err)
 	}
-	if safe.Number.Uint64() > lastAppended.Number() {
+	if safe.Number.Uint64() > lastAppended.GetNumber() {
 		// This should currently not be possible. TODO: handle restart case?
 		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
 	}

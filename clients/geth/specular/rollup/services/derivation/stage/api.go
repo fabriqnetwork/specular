@@ -6,10 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/beacon"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 // Represents a stage in a pipeline.
@@ -22,7 +22,7 @@ type StageOps[T any] interface {
 	// - Unrecoverable fatal error (i.e. any other type): Unexpected. Indicates caller should not retry.
 	Pull(ctx context.Context) (T, error)
 	// Recovers from a re-org to the given L1 block number.
-	Recover(ctx context.Context, l1BlockID l2types.BlockID) error
+	Recover(ctx context.Context, l1BlockID types.BlockID) error
 }
 
 type ExecutionBackend interface {
@@ -35,14 +35,14 @@ type ForkChoiceResponse = beacon.ForkChoiceResponse
 
 type EthClient interface {
 	BlockNumber(ctx context.Context) (uint64, error)
-	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*ethTypes.Header, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (*ethTypes.Block, error)
 }
 
 type L1State interface {
-	Head() l2types.BlockID
-	Safe() l2types.BlockID
-	Finalized() l2types.BlockID
+	Head() types.BlockID
+	Safe() types.BlockID
+	Finalized() types.BlockID
 }
 
 type L1Config interface {
@@ -58,9 +58,9 @@ func (e RetryableError) Error() string   { return e.Err.Error() }
 func (e RecoverableError) Error() string { return e.Err.Error() }
 
 type RollupState interface {
-	OnAssertionCreated(ctx context.Context, l1BlockID l2types.BlockID, tx *types.Transaction) error
-	OnAssertionConfirmed(ctx context.Context, l1BlockID l2types.BlockID, tx *types.Transaction) error
-	OnAssertionRejected(ctx context.Context, l1BlockID l2types.BlockID, tx *types.Transaction) error
+	OnAssertionCreated(ctx context.Context, l1BlockID types.BlockID, tx *ethTypes.Transaction) error
+	OnAssertionConfirmed(ctx context.Context, l1BlockID types.BlockID, tx *ethTypes.Transaction) error
+	OnAssertionRejected(ctx context.Context, l1BlockID types.BlockID, tx *ethTypes.Transaction) error
 }
 
 // L1HeaderRetrieval -> L1TxRetrieval -> L1TxProcessing (RollupState + PayloadBuilder) -> L2ForkChoiceUpdate
@@ -71,23 +71,23 @@ func CreatePipeline(
 	l2ClientCreatorFn func(ctx context.Context) (EthClient, error),
 	l1Client EthClient,
 	l1State L1State,
-) *TerminalStage[l2types.BlockRelation] {
+) *TerminalStage[types.BlockRelation] {
 	// Define and chain stages together.
 	var (
 		// Processors
 		daHandlers, rollupTxHandlers = createProcessors(cfg, execBackend, rollupState, l2ClientCreatorFn)
 		// Stages
-		genesisBlockID         = l2types.NewBlockID(cfg.RollupGenesisBlock(), common.Hash{})
+		genesisBlockID         = types.NewBlockID(cfg.RollupGenesisBlock(), common.Hash{})
 		l1HeaderRetrievalStage = L1HeaderRetrievalStage{genesisBlockID, l1Client}
-		l1TxRetrievalStage     = NewStage[l2types.BlockID, filteredBlock](
+		l1TxRetrievalStage     = NewStage[types.BlockID, filteredBlock](
 			&l1HeaderRetrievalStage,
 			NewL1TxRetriever(l1Client, createTxFilterFn(daHandlers, rollupTxHandlers)),
 		)
-		l1TxProcessingStage = NewStage[filteredBlock, l2types.BlockRelation](
+		l1TxProcessingStage = NewStage[filteredBlock, types.BlockRelation](
 			l1TxRetrievalStage,
 			NewL1TxProcessor(daHandlers, rollupTxHandlers),
 		)
-		l2ForkChoiceUpdateStage = NewTerminalStage[l2types.BlockRelation](
+		l2ForkChoiceUpdateStage = NewTerminalStage[types.BlockRelation](
 			l1TxProcessingStage,
 			NewL2ForkChoiceUpdater(execBackend, l1State),
 		)
@@ -121,9 +121,9 @@ func createProcessors(
 func createTxFilterFn(
 	daSourceHandlers map[txFilterID]daSourceHandler,
 	rollupTxHandlers map[txFilterID]txHandler,
-) func(*types.Transaction) bool {
+) func(*ethTypes.Transaction) bool {
 	// Function returns true iff the tx is of a type handled by either a da source or rollup tx handler.
-	return func(tx *types.Transaction) bool {
+	return func(tx *ethTypes.Transaction) bool {
 		var to = tx.To()
 		if to == nil {
 			return false

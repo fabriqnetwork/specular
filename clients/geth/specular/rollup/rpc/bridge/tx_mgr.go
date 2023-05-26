@@ -6,10 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/txmgr"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
 )
 
-// Wrapper around EthTxManager for bridge contract methods.
+// Adds bridge contract method bindings to EthTxManager.
 type TxManager struct {
 	EthTxManager
 	cfg bridgeConfig

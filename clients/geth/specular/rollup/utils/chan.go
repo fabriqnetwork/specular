@@ -9,6 +9,7 @@ import (
 
 // Creates and publishes batched events to a channel from `inCh` (one-to-many).
 // Publishes batch every `minBatchInterval` if batch is non-empty; otherwise every `maxBatchInterval`.
+// Setting either to 0 disables batching at that interval.
 func SubscribeBatched[T any](
 	ctx context.Context,
 	inCh chan T,
@@ -77,10 +78,7 @@ func SubscribeMapped[T any, U any](
 	mapFn func(context.Context, T) (U, error),
 ) <-chan U {
 	outCh := make(chan U)
-	go func() {
-		defer close(outCh)
-		mapCh(ctx, inCh, outCh, mapFn)
-	}()
+	go func() { defer close(outCh); mapCh(ctx, inCh, outCh, mapFn) }()
 	return outCh
 }
 
@@ -91,10 +89,7 @@ func SubscribeMappedToMany[T any, U any](
 	mapFn func(context.Context, T) ([]U, error),
 ) <-chan U {
 	outCh := make(chan U)
-	go func() {
-		defer close(outCh)
-		mapChToMany(ctx, inCh, outCh, mapFn)
-	}()
+	go func() { defer close(outCh); mapChToMany(ctx, inCh, outCh, mapFn) }()
 	return outCh
 }
 
@@ -105,20 +100,17 @@ func mapCh[T any, U any](
 	outCh chan U,
 	mapFn func(context.Context, T) (U, error),
 ) {
-	for {
-		select {
-		case ev := <-inCh:
+	applyCh(
+		ctx,
+		inCh,
+		func(ctx context.Context, ev T) (err error) {
 			out, err := mapFn(ctx, ev)
-			if err != nil {
-				log.Error("Failed to map", "error", err)
-				return
+			if err == nil {
+				outCh <- out
 			}
-			outCh <- out
-		case <-ctx.Done():
-			log.Info("Aborting.")
 			return
-		}
-	}
+		},
+	)
 }
 
 // Maps events from `inCh` to `outCh` (one-to-many).
@@ -128,16 +120,34 @@ func mapChToMany[T any, U any](
 	outCh chan U,
 	mapFn func(context.Context, T) ([]U, error),
 ) {
+	applyCh(
+		ctx,
+		inCh,
+		func(ctx context.Context, ev T) (err error) {
+			out, err := mapFn(ctx, ev)
+			if err == nil {
+				for _, ev := range out {
+					outCh <- ev
+				}
+			}
+			return
+		},
+	)
+}
+
+// Applies a function to each event in `inCh`.
+func applyCh[T any](
+	ctx context.Context,
+	inCh chan T,
+	callbackFn func(context.Context, T) error,
+) {
 	for {
 		select {
-		case ev := <-inCh:
-			out, err := mapFn(ctx, ev)
+		case head := <-inCh:
+			err := callbackFn(ctx, head)
 			if err != nil {
 				log.Error("Failed to map", "error", err)
 				return
-			}
-			for _, ev := range out {
-				outCh <- ev
 			}
 		case <-ctx.Done():
 			log.Info("Aborting.")

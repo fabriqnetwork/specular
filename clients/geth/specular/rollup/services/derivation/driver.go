@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/avast/retry-go/v4"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/backoff"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
@@ -41,13 +41,13 @@ type DriverConfig interface {
 
 type TerminalStageOps interface {
 	stage.StageOps[any]
-	FindRecoveryPoint(ctx context.Context) (l2types.BlockID, error)
+	FindRecoveryPoint(ctx context.Context) (types.BlockID, error)
 }
 
 type EthClient interface {
 	BlockNumber(ctx context.Context) (uint64, error)
-	HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error)
-	HeaderByTag(ctx context.Context, tag client.BlockTag) (*types.Header, error)
+	HeaderByNumber(ctx context.Context, number *big.Int) (*ethTypes.Header, error)
+	HeaderByTag(ctx context.Context, tag eth.BlockTag) (*ethTypes.Header, error)
 }
 
 // Driver state machine states.

@@ -11,14 +11,14 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
 // TODO: delete
 type EthBridgeClient struct {
-	client       *client.EthClient
+	client       *eth.EthClient
 	transactOpts *bind.TransactOpts
 	retryOpts    []retry.Option
 	// Lock, conservatively on all functions.
@@ -33,7 +33,7 @@ type EthBridgeClient struct {
 
 func NewEthBridgeClient(
 	ctx context.Context,
-	l1Client *client.EthClient,
+	l1Client *eth.EthClient,
 	l1Endpoint string,
 	genesisL1Block uint64,
 	sequencerInboxAddress common.Address,
@@ -43,7 +43,7 @@ func NewEthBridgeClient(
 ) (*EthBridgeClient, error) {
 	if l1Client == nil {
 		var err error
-		l1Client, err = client.DialWithRetry(ctx, l1Endpoint, retryOpts)
+		l1Client, err = eth.DialWithRetry(ctx, l1Endpoint, retryOpts)
 		if err != nil {
 			return nil, err
 		}

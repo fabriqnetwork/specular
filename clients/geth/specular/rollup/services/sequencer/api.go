@@ -7,11 +7,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/beacon"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/l2types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
 type SequencerServiceConfig interface {
@@ -23,19 +23,19 @@ type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
 	BuildPayload(payload services.ExecutionPayload) error
-	CommitTransactions(txs []*types.Transaction) error                     // TODO: remove
-	Prepare(txs []*types.Transaction) services.TransactionsByPriceAndNonce // TODO: remove
+	CommitTransactions(txs []*ethTypes.Transaction) error          // TODO: remove
+	Prepare(txs []*ethTypes.Transaction) services.TransactionQueue // TODO: remove
 }
 
 type ForkChoiceState = beacon.ForkchoiceStateV1
 type ForkChoiceResponse = beacon.ForkChoiceResponse
 
 type BatchBuilder interface {
-	Append(block l2types.DerivationBlock, header Header) error
-	LastAppended() l2types.BlockID
+	Append(block types.DerivationBlock, header Header) error
+	LastAppended() types.BlockID
 	Build() (*batchAttributes, error)
 	Advance()
-	Reset(lastAppended l2types.BlockID)
+	Reset(lastAppended types.BlockID)
 }
 
 type TxManager interface {
@@ -45,13 +45,13 @@ type TxManager interface {
 		txLengths []*big.Int,
 		firstL2BlockNumber *big.Int,
 		txs []byte,
-	) (*types.Receipt, error)
+	) (*ethTypes.Receipt, error)
 }
 
 type L2Client interface {
 	BlockNumber(ctx context.Context) (uint64, error)
-	BlockByNumber(ctx context.Context, number *big.Int) (*types.Block, error)
-	HeaderByTag(ctx context.Context, tag client.BlockTag) (*types.Header, error)
-	TransactionByHash(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error)
+	BlockByNumber(ctx context.Context, number *big.Int) (*ethTypes.Block, error)
+	HeaderByTag(ctx context.Context, tag eth.BlockTag) (*ethTypes.Header, error)
+	TransactionByHash(ctx context.Context, hash common.Hash) (*ethTypes.Transaction, bool, error)
 	Close()
 }
