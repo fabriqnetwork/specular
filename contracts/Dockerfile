@@ -2,6 +2,7 @@
 FROM node:16-alpine3.17
 
 RUN apk add go git python3 g++ bash make gcc musl-dev linux-headers  && corepack enable
+RUN corepack prepare pnpm@latest --activate
 
 COPY . /specular
 
