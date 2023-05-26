@@ -12,19 +12,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
   const execPromise = util.promisify(exec);
 
-  const ls = await execPromise(`ls ${CLIENT_SBIN_DIR}`);
-  console.log({ ls });
-
   await execPromise(
     `chmod +x ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
   );
   let initialVMHash;
   try {
-    const genesis = await execPromise(
+    await execPromise(
       `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
     );
-
-    console.log({ genesis });
 
     initialVMHash =
       "0x3a210baeffbd20962b1364d2706f6a1412614f7cd378d68260b8dc7ad9e9e0fc";
