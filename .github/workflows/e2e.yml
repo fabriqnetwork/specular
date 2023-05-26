@@ -36,6 +36,14 @@ jobs:
             - recursive: true
             - args: [--frozen-lockfile, --strict-peer-dependencies]
 
+      - name: Create proj folder and add keys and genesis.json
+        run: |
+          mkdir project && cd project
+          mkdir specular-datadir && cd specular-datadir
+          cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
+          cp ../../clients/geth/specular/data/password.txt .
+          cd ../../contracts/ && npx hardhat compile && npx ts-node scripts/create_genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out ../project/specular-datadir/genesis.json
+
       - name: Install node
         uses: actions/setup-node@v2
         with:
@@ -43,7 +51,9 @@ jobs:
 
       - name: Start up containers
         run: |
-          docker-compose -f docker/docker-compose-integration-test.yml up -d --build
+          cd project
+          rm -rf specular-datadir/geth/
+          docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
           sleep 30
