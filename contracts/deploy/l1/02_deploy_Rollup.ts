@@ -23,7 +23,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
     initialVMHash =
       "0x3a210baeffbd20962b1364d2706f6a1412614f7cd378d68260b8dc7ad9e9e0fc";
-    //(JSON.parse(genesis.stdout).root || "") as string;
+    //initialVMHash = JSON.parse(genesis.stdout)?.root as string || "";
     if (!initialVMHash) {
       throw Error(
         `could not export genesis hash, root field not found\n${stdout}`

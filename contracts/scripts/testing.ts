@@ -3,34 +3,11 @@ import sequencerInboxJson from "./util/SequencerInbox.json";
 import { Wallet, utils, ethers, BigNumber } from "ethers";
 import assert from "assert";
 import fs from "fs";
-import path from "path";
 
 const ROOT_DIR = __dirname + "/../../";
-const CONFIGURE_SYSTEM_PATH = path.resolve(
-  __dirname,
-  "../../clients/geth/specular/sbin/configure_system.sh"
-);
 
 function delay(seconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, seconds * 1000));
-}
-
-function getSequencerAddress(data: string): string {
-  const sequencerAddrMatch = data.match(/export SEQUENCER_INBOX_ADDR=(.*)/);
-  if (sequencerAddrMatch && sequencerAddrMatch[1]) {
-    return sequencerAddrMatch[1];
-  } else {
-    return "";
-  }
-}
-
-function getRollupAddress(data: string): string {
-  const rollupAddrMatch = data.match(/export ROLLUP_ADDR=(.*)/);
-  if (rollupAddrMatch && rollupAddrMatch[1]) {
-    return rollupAddrMatch[1];
-  } else {
-    return "";
-  }
 }
 
 const sequencerPrivateKeyPath =
@@ -156,19 +133,9 @@ async function testTxs(toAddress: string, value: BigNumber) {
     validatorPrivateKeyPath
   );
 
-  let data: string;
-  try {
-    data = fs.readFileSync(CONFIGURE_SYSTEM_PATH, "utf8");
-  } catch (err) {
-    console.error("Failed to read file:", err);
-    return;
-  }
-
-  const sequencerContractAddress: string = getSequencerAddress(data);
-  const rollupContractAddress: string = getRollupAddress(data);
-
-  console.log(`SEQUENCER_ADDR: ${sequencerContractAddress || "not found"}`);
-  console.log(`ROLLUP_ADDR: ${rollupContractAddress || "not found"}`);
+  // Contract Address Hardcoded
+  const sequencerContractAddress = "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1";
+  const rollupContractAddress = "0xF6168876932289D073567f347121A267095f3DD6";
 
   const {
     sequencerContract,
