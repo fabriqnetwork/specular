@@ -99,7 +99,11 @@ contract Rollup is RollupBase {
         uint256 _initialInboxSize,
         bytes32 _initialVMhash
     ) public initializer {
-        if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
+        if (
+            _vault == address(0) ||
+            _daProvider == address(0) ||
+            _verifier == address(0)
+        ) {
             revert ZeroAddress();
         }
         vault = _vault;
@@ -122,7 +126,11 @@ contract Rollup is RollupBase {
             _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash);
+        emit AssertionCreated(
+            lastCreatedAssertionID,
+            msg.sender,
+            _initialVMhash
+        );
 
         __RollupBase_init();
     }
@@ -145,18 +153,52 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function getStaker(address addr) external view override returns (Staker memory) {
+    function getStaker(
+        address addr
+    ) external view override returns (Staker memory) {
         return stakers[addr];
     }
 
     /// @inheritdoc IRollup
-    function getAssertion(uint256 assertionID) external view override returns (Assertion memory) {
+    function getAssertion(
+        uint256 assertionID
+    ) external view override returns (Assertion memory) {
         return assertions[assertionID];
     }
 
     /// @inheritdoc IRollup
-    function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view override returns (bool) {
+    function isStakedOnAssertion(
+        uint256 assertionID,
+        address stakerAddress
+    ) external view override returns (bool) {
         return assertionState[assertionID].stakers[stakerAddress];
+    }
+
+    /// @inheritdoc IRollup
+    function setDAProvider(address newDAProvider) external override onlyOwner {
+        daProvider = IDAProvider(newDAProvider);
+    }
+
+    /// @inheritdoc IRollup
+    function setConfirmationPeriod(uint256 newPeriod) external override onlyOwner {
+        confirmationPeriod = newPeriod;
+    }
+
+    /// @inheritdoc IRollup
+    function setChallengePeriod(uint256 newPeriod) external override onlyOwner {
+    }
+
+    /// @inheritdoc IRollup
+    function setMinimumAssertionPeriod(uint256 newPeriod) external override onlyOwner {
+        minimumAssertionPeriod = newPeriod;
+    }
+
+    /// @inheritdoc IRollup
+    function setBaseStakeAmount(uint256 newAmount) external override onlyOwner {
+        if (newAmount > baseStakeAmount) {
+            revert InvalidConfigChange();
+        }
+        baseStakeAmount = newAmount;
     }
 
     /// @inheritdoc IRollup
@@ -186,7 +228,7 @@ contract Rollup is RollupBase {
         }
         staker.amountStaked -= stakeAmount;
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
-        (bool success,) = msg.sender.call{value: stakeAmount}("");
+        (bool success, ) = msg.sender.call{value: stakeAmount}("");
         if (!success) revert TransferFailed();
     }
 
@@ -204,14 +246,17 @@ contract Rollup is RollupBase {
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
         deleteStaker(stakerAddress);
 
-        (bool success,) = stakerAddress.call{value: stakerAmountStaked}("");
+        (bool success, ) = stakerAddress.call{value: stakerAmountStaked}("");
         if (!success) revert TransferFailed();
     }
 
     /// @inheritdoc IRollup
     function advanceStake(uint256 assertionID) external override stakedOnly {
         Staker storage staker = stakers[msg.sender];
-        if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
+        if (
+            assertionID <= staker.assertionID ||
+            assertionID > lastCreatedAssertionID
+        ) {
             revert AssertionOutOfRange();
         }
         // TODO: allow arbitrary descendant of current staked assertionID, not just child.
@@ -225,12 +270,15 @@ contract Rollup is RollupBase {
     function withdraw() external override {
         uint256 withdrawableFund = withdrawableFunds[msg.sender];
         withdrawableFunds[msg.sender] = 0;
-        (bool success,) = msg.sender.call{value: withdrawableFund}("");
+        (bool success, ) = msg.sender.call{value: withdrawableFund}("");
         if (!success) revert TransferFailed();
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly {
+    function createAssertion(
+        bytes32 vmHash,
+        uint256 inboxSize
+    ) external override stakedOnly {
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
@@ -250,18 +298,23 @@ contract Rollup is RollupBase {
         // Initialize assertion.
         lastCreatedAssertionID++;
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash);
-        createAssertionHelper(lastCreatedAssertionID, vmHash, inboxSize, parentID, newAssertionDeadline());
+        createAssertionHelper(
+            lastCreatedAssertionID,
+            vmHash,
+            inboxSize,
+            parentID,
+            newAssertionDeadline()
+        );
 
         // Update stake.
         stakeOnAssertion(msg.sender, lastCreatedAssertionID);
     }
 
     /// @inheritdoc IRollup
-    function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
-        external
-        override
-        returns (address)
-    {
+    function challengeAssertion(
+        address[2] calldata players,
+        uint256[2] calldata assertionIDs
+    ) external override returns (address) {
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 parentID = assertions[defenderAssertionID].parent;
         {
@@ -314,14 +367,14 @@ contract Rollup is RollupBase {
             revert NoUnresolvedAssertion();
         }
 
-        // (1) there is at least one staker, and
+        // (1) there is at least one staker present
         if (numStakers <= 0) revert NoStaker();
 
         uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
         Assertion storage lastUnresolved = assertions[lastUnresolvedID];
-        // (2) challenge period has passed
+        // (2) confirmation period has passed
         if (block.number < lastUnresolved.deadline) {
-            revert ChallengePeriodPending();
+            revert ConfirmationPeriodPending();
         }
         // (3) predecessor has been confirmed
         if (lastUnresolved.parent != lastConfirmedAssertionID) {
@@ -332,7 +385,10 @@ contract Rollup is RollupBase {
         // removeOldZombies();
 
         // (4) all stakers are staked on the block.
-        if (lastUnresolved.numStakers != countStakedZombies(lastUnresolvedID) + numStakers) {
+        if (
+            lastUnresolved.numStakers !=
+            countStakedZombies(lastUnresolvedID) + numStakers
+        ) {
             revert NotAllStaked();
         }
 
@@ -344,13 +400,17 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function rejectFirstUnresolvedAssertion(address stakerAddress) external override {
+    function rejectFirstUnresolvedAssertion(
+        address stakerAddress
+    ) external override {
         if (lastResolvedAssertionID >= lastCreatedAssertionID) {
             revert NoUnresolvedAssertion();
         }
 
         uint256 firstUnresolvedAssertionID = lastResolvedAssertionID + 1;
-        Assertion storage firstUnresolvedAssertion = assertions[firstUnresolvedAssertionID];
+        Assertion storage firstUnresolvedAssertion = assertions[
+            firstUnresolvedAssertionID
+        ];
 
         // First case - parent of first unresolved is last confirmed (`if` condition below). e.g.
         // [1] <- [3]           | valid chain ([1] is last confirmed, [3] is stakerAddress's unresolved assertion)
@@ -364,19 +424,24 @@ contract Rollup is RollupBase {
         //   [1] <- [2] <- [4]    | valid chain ([2] is last confirmed, [4] is stakerAddress's unresolved assertion)
         //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
         if (firstUnresolvedAssertion.parent == lastConfirmedAssertionID) {
-            // 1a. challenge period has passed.
+            // 1a. confirmation period has passed.
             if (block.number < firstUnresolvedAssertion.deadline) {
-                revert ChallengePeriodPending();
+                revert ConfirmationPeriodPending();
             }
 
             // 1b. at least one staker exists (on a sibling)
             // - stakerAddress is indeed a staker
             requireStaked(stakerAddress);
             // - staker's assertion can't be a ancestor of firstUnresolved (because staker's assertion is also unresolved)
-            if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
+            if (
+                stakers[stakerAddress].assertionID < firstUnresolvedAssertionID
+            ) {
                 revert AssertionAlreadyResolved();
             }
-            AssertionState storage firstUnresolvedAssertionState = assertionState[firstUnresolvedAssertionID];
+            AssertionState
+                storage firstUnresolvedAssertionState = assertionState[
+                    firstUnresolvedAssertionID
+                ];
             // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
             if (firstUnresolvedAssertionState.stakers[stakerAddress]) {
                 revert StakerStakedOnTarget();
@@ -385,7 +450,10 @@ contract Rollup is RollupBase {
 
             // 1c. no staker is staked on this assertion
             // removeOldZombies();
-            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID)) {
+            if (
+                firstUnresolvedAssertion.numStakers !=
+                countStakedZombies(firstUnresolvedAssertionID)
+            ) {
                 revert StakersPresent();
             }
         }
@@ -397,7 +465,10 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IChallengeResultReceiver
-    function completeChallenge(address winner, address loser) external override {
+    function completeChallenge(
+        address winner,
+        address loser
+    ) external override {
         address challenge = getChallenge(winner, loser);
         if (msg.sender != challenge) {
             revert NotChallengeManager(msg.sender, challenge);
@@ -434,7 +505,10 @@ contract Rollup is RollupBase {
      * @param stakerAddress Address of existing staker.
      * @param assertionID ID of existing assertion to stake on.
      */
-    function stakeOnAssertion(address stakerAddress, uint256 assertionID) private {
+    function stakeOnAssertion(
+        address stakerAddress,
+        uint256 assertionID
+    ) private {
         stakers[stakerAddress].assertionID = assertionID;
         assertions[assertionID].numStakers++;
         assertionState[assertionID].stakers[stakerAddress] = true;
@@ -489,7 +563,10 @@ contract Rollup is RollupBase {
      * @param staker2Address Address of the second staker
      * @return Address of the challenge that the two stakers are in
      */
-    function getChallenge(address staker1Address, address staker2Address) private view returns (address) {
+    function getChallenge(
+        address staker1Address,
+        address staker2Address
+    ) private view returns (address) {
         Staker storage staker1 = stakers[staker1Address];
         Staker storage staker2 = stakers[staker2Address];
         address challenge = staker1.currentChallenge;
@@ -527,7 +604,9 @@ contract Rollup is RollupBase {
      * @param assertionID The assertion on which to count staked zombies
      * @return The number of zombies staked on the assertion
      */
-    function countStakedZombies(uint256 assertionID) private view returns (uint256) {
+    function countStakedZombies(
+        uint256 assertionID
+    ) private view returns (uint256) {
         uint256 numStakedZombies = 0;
         for (uint256 i = 0; i < zombies.length; i++) {
             if (assertionState[assertionID].stakers[zombies[i].stakerAddress]) {
