@@ -23,7 +23,6 @@
 pragma solidity ^0.8.0;
 
 interface IRollup {
-
     event ConfigurationChanged();
 
     event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash);
