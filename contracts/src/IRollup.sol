@@ -23,7 +23,7 @@
 pragma solidity ^0.8.0;
 
 interface IRollup {
-    event ConfigurationChanged();
+    event ConfigChanged();
 
     event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash);
 
@@ -172,30 +172,45 @@ interface IRollup {
 
     /**
      * @notice Sets a new DA provider
+     *
+     * Emits: `ConfigChanged` event.
+     *
      * @param newDAProvider New DA provider
      */
     function setDAProvider(address newDAProvider) external;
 
     /**
      * @notice Sets a new confirmation period
+     *
+     * Emits: `ConfigChanged` event.
+     *
      * @param newPeriod New confirmation period
      */
     function setConfirmationPeriod(uint256 newPeriod) external;
 
     /**
      * @notice Sets a new challenge period
+     *
+     * Emits: `ConfigChanged` event.
+     *
      * @param newPeriod New challenge period
      */
     function setChallengePeriod(uint256 newPeriod) external;
 
     /**
      * @notice Sets a new minimum assertion period
+     *
+     * Emits: `ConfigChanged` event.
+     *
      * @param newPeriod New minimum assertion period
      */
     function setMinimumAssertionPeriod(uint256 newPeriod) external;
 
     /**
      * @notice Sets a new base stake amount.
+     *
+     * Emits: `ConfigChanged` event.
+     *
      * @param newAmount New base stake amount; this can currently only be decreased.
      */
     function setBaseStakeAmount(uint256 newAmount) external;

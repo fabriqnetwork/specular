@@ -165,6 +165,7 @@ contract Rollup is RollupBase {
             revert InvalidConfigChange();
         }
         daProvider = IDAProvider(newDAProvider);
+        emit ConfigChanged();
     }
 
     /// @inheritdoc IRollup
@@ -173,6 +174,7 @@ contract Rollup is RollupBase {
             revert InvalidConfigChange();
         }
         confirmationPeriod = newPeriod;
+        emit ConfigChanged();
     }
 
     /// @inheritdoc IRollup
@@ -181,6 +183,7 @@ contract Rollup is RollupBase {
             revert InvalidConfigChange();
         }
         challengePeriod = newPeriod;
+        emit ConfigChanged();
     }
 
     /// @inheritdoc IRollup
@@ -189,6 +192,7 @@ contract Rollup is RollupBase {
             revert InvalidConfigChange();
         }
         minimumAssertionPeriod = newPeriod;
+        emit ConfigChanged();
     }
 
     /// @inheritdoc IRollup
@@ -197,6 +201,7 @@ contract Rollup is RollupBase {
             revert InvalidConfigChange();
         }
         baseStakeAmount = newAmount;
+        emit ConfigChanged();
     }
 
     /// @inheritdoc IRollup
