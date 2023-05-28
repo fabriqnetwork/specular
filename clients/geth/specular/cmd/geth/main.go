@@ -40,10 +40,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	specularUtils "github.com/specularl2/specular/clients/geth/specular/cmd/utils"
 	"github.com/specularl2/specular/clients/geth/specular/internal/debug"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
+	"github.com/specularl2/specular/clients/geth/specular/rollup"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -208,31 +208,6 @@ var (
 		utils.MetricsInfluxDBBucketFlag,
 		utils.MetricsInfluxDBOrganizationFlag,
 	}
-
-	// <specular modification>
-	rollupFlags = []cli.Flag{
-		// L1 config flags
-		specularUtils.RollupL1EndpointFlag,
-		specularUtils.RollupL1ChainIDFlag,
-		specularUtils.RollupL1RollupGenesisBlockFlag,
-		specularUtils.RollupSequencerInboxAddrFlag,
-		specularUtils.RollupRollupAddrFlag,
-		// L2 config flags
-		specularUtils.RollupL2ClefEndpointFlag,
-		// Sequencer config flags
-		specularUtils.RollupSequencerAddrFlag,
-		specularUtils.RollupSequencerMinExecutionIntervalFlag,
-		specularUtils.RollupSequencerMaxExecutionIntervalFlag,
-		specularUtils.RollupSequencerSequencingIntervalFlag,
-		// Validator config flags
-		specularUtils.RollupValidatorAddrFlag,
-		specularUtils.RollupValidatorIsActiveStakerFlag,
-		specularUtils.RollupValidatorIsActiveCreatorFlag,
-		specularUtils.RollupValidatorIsActiveChallengerFlag,
-		specularUtils.RollupValidatorIsResolverFlag,
-		specularUtils.RollupRollupStakeAmountFlag,
-	}
-	// <specular modification/>
 )
 
 func init() {
@@ -281,7 +256,7 @@ func init() {
 		debug.Flags,
 		metricsFlags,
 		// <specular modification>
-		rollupFlags,
+		rollup.Flags,
 		// <specular modification/>
 	)
 

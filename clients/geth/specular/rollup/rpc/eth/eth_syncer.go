@@ -49,6 +49,7 @@ func NewEthSyncer(handler OnNewHandler) *EthSyncer {
 	}
 }
 
+// Starts a subscription in a separate goroutine for each commitment level.
 func (s *EthSyncer) Start(ctx context.Context, client EthPollingClient) {
 	s.subscribeNewHead(ctx, client, Latest, s.LatestHeaderBroker, s.OnLatest, EthSlotInterval)
 	s.subscribeNewHead(ctx, client, Safe, s.SafeHeaderBroker, s.OnSafe, EthEpochInterval)

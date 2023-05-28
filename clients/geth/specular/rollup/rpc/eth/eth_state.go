@@ -11,20 +11,20 @@ import (
 )
 
 // Thread-safe. Tracks the latest, last safe and last finalized L1 headers received.
-type L1State struct {
+type EthState struct {
 	// Thread-safe map from BlockTag to last corresponding BlockID.
 	headers utils.Map[BlockTag, types.BlockID]
 }
 
-var _ OnNewHandler = (*L1State)(nil)
+var _ OnNewHandler = (*EthState)(nil)
 
-func NewL1State() *L1State { return &L1State{} }
+func NewEthState() *EthState { return &EthState{} }
 
-func (s *L1State) Head() types.BlockID      { return s.headers.Load(Latest) }
-func (s *L1State) Safe() types.BlockID      { return s.headers.Load(Safe) }
-func (s *L1State) Finalized() types.BlockID { return s.headers.Load(Finalized) }
+func (s *EthState) Head() types.BlockID      { return s.headers.Load(Latest) }
+func (s *EthState) Safe() types.BlockID      { return s.headers.Load(Safe) }
+func (s *EthState) Finalized() types.BlockID { return s.headers.Load(Finalized) }
 
-func (s *L1State) OnLatest(_ context.Context, header *ethTypes.Header) error {
+func (s *EthState) OnLatest(_ context.Context, header *ethTypes.Header) error {
 	prev := s.headers.LoadAndStore(Latest, types.NewBlockIDFromHeader(header))
 	if header.Number.Uint64() <= prev.GetNumber() {
 		log.Warn(
@@ -36,7 +36,7 @@ func (s *L1State) OnLatest(_ context.Context, header *ethTypes.Header) error {
 	return nil
 }
 
-func (s *L1State) OnSafe(_ context.Context, header *ethTypes.Header) error {
+func (s *EthState) OnSafe(_ context.Context, header *ethTypes.Header) error {
 	prev := s.Safe()
 	if header.Number.Uint64() < prev.GetNumber() {
 		// Assuming L1 safety, this should only happen due to network issues / slow nodes.
@@ -54,7 +54,7 @@ func (s *L1State) OnSafe(_ context.Context, header *ethTypes.Header) error {
 	return nil
 }
 
-func (s *L1State) OnFinalized(_ context.Context, header *ethTypes.Header) error {
+func (s *EthState) OnFinalized(_ context.Context, header *ethTypes.Header) error {
 	prev := s.Finalized()
 	if header.Number.Uint64() < prev.GetNumber() {
 		// Assuming L1 safety, this should only happen due to network issues / slow nodes.

@@ -32,8 +32,7 @@ type Node interface {
 	AccountManager() *accounts.Manager
 }
 
-// RegisterRollupService registers rollup service configured by ctx
-// Either a sequncer service or a validator service will be registered
+// Registers services configured by cfg.
 func RegisterRollupServices(
 	stack Node,
 	execBackend services.ExecutionBackend,
@@ -45,9 +44,8 @@ func RegisterRollupServices(
 	if err != nil {
 		return fmt.Errorf("Failed to create rollup state: %w", err)
 	}
-	l1State := eth.NewL1State()
 	// Register driver
-	driver, err := createDriver(ctx, cfg, execBackend, rollupState, l1State)
+	driver, err := createDriver(ctx, cfg, execBackend, rollupState)
 	if err != nil {
 		return fmt.Errorf("Failed to create driver: %w", err)
 	}
@@ -71,16 +69,22 @@ func RegisterRollupServices(
 	return nil
 }
 
+// Creates driver.
+// Two L1 clients are created; one for L1 state syncing and one for fetching L1 blocks.
+// An L2 client factory fn is also created (lazily create l2 client since the blockchain hasn't started yet).
 func createDriver(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 	execBackend services.ExecutionBackend,
 	rollupState *derivation.RollupState,
-	l1State stage.L1State,
 ) (*derivation.Driver, error) {
 	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
+	}
+	l1State, err := createSyncingL1State(ctx, cfg) // TODO: move into a service for proper cleanup on stop.
+	if err != nil {
+		return nil, fmt.Errorf("Failed to start l1 state sync: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (stage.EthClient, error) {
 		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
@@ -144,18 +148,15 @@ func createRollupState(ctx context.Context, cfg *services.SystemConfig) (*deriva
 	return rollupState, nil
 }
 
-func createSyncer(
-	ctx context.Context,
-	cfg *services.SystemConfig,
-	l1State *eth.L1State,
-) (*eth.EthSyncer, error) {
+func createSyncingL1State(ctx context.Context, cfg *services.SystemConfig) (*eth.EthState, error) {
+	l1State := eth.NewEthState()
 	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
 	syncer := eth.NewEthSyncer(l1State)
 	syncer.Start(ctx, l1Client)
-	return nil, nil
+	return l1State, nil
 }
 
 func createTxManager(
@@ -168,20 +169,17 @@ func createTxManager(
 ) (*bridge.TxManager, error) {
 	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, cfg.ChainID())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize transactor for tx manager: %w", err)
+		return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
 	}
 	l1Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 client for tx manager: %w", err)
+		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
 	signer := func(ctx context.Context, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
 	// TODO: config
-	return bridge.NewTxManager(
-		txmgr.NewTxManager(txmgr.DefaultConfig(transactor.From), l1Client, signer),
-		cfg,
-	)
+	return bridge.NewTxManager(txmgr.NewTxManager(txmgr.DefaultConfig(transactor.From), l1Client, signer), cfg)
 }
 
 // createTransactor creates a transactor for the given account address,

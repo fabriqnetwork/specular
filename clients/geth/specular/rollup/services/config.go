@@ -14,7 +14,7 @@ type SystemConfig struct {
 	DriverConfig
 }
 
-// TODO: use json tags and read directly from a config file.
+// TODO: use json tags and directly parse a config file.
 func NewSystemConfig(
 	// l1
 	l1Endpoint string,

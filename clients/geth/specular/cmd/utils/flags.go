@@ -22,10 +22,7 @@
 package utils
 
 import (
-	"time"
-
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	ethcatalyst "github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -36,98 +33,6 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	rollup "github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/urfave/cli/v2"
-)
-
-var (
-	// <specular modification>
-	// L1 config flags
-	RollupL1EndpointFlag = &cli.StringFlag{
-		Name:  "rollup.l1-endpoint",
-		Usage: "The api endpoint of L1 client",
-		Value: "",
-	}
-	RollupL1ChainIDFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1-chainid",
-		Usage: "The chain ID of L1 client",
-		Value: 31337,
-	}
-	RollupL1RollupGenesisBlockFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1-rollup-genesis-block",
-		Usage: "The block number of L1 rollup genesis block to sync from",
-		Value: 0,
-	}
-	RollupSequencerInboxAddrFlag = &cli.StringFlag{
-		Name:  "rollup.l1-sequencer-inbox-addr",
-		Usage: "The contract address of L1 sequencer inbox",
-		Value: "",
-	}
-	RollupRollupAddrFlag = &cli.StringFlag{
-		Name:  "rollup.l1-rollup-addr",
-		Usage: "The contract address of L1 rollup",
-		Value: "",
-	}
-	// L2 config flags
-	RollupL2ClefEndpointFlag = &cli.StringFlag{
-		Name:  "rollup.l2-clef-endpoint",
-		Usage: "The Endpoint of the Clef instance that should be used as a signer",
-		Value: "",
-	}
-	// Sequencer config flags
-	RollupSequencerAddrFlag = &cli.StringFlag{
-		Name:  "rollup.sequencer-addr",
-		Usage: "The sequencer address to be unlocked (pass passphrash via --password)",
-		Value: "",
-	}
-	RollupSequencerMinExecutionIntervalFlag = &cli.Uint64Flag{
-		Name:  "rollup.sequencer-min-execution-interval",
-		Usage: "Minimum time between block executions (seconds)",
-		Value: 0,
-	}
-	RollupSequencerMaxExecutionIntervalFlag = &cli.Uint64Flag{
-		Name:  "rollup.sequencer-max-execution-interval",
-		Usage: "Maximum time between block executions (seconds)",
-		Value: 1,
-	}
-	RollupSequencerSequencingIntervalFlag = &cli.Uint64Flag{
-		Name:  "rollup.sequencer-sequencing-interval",
-		Usage: "Time between batch sequencing attempts (seconds)",
-		Value: 5,
-	}
-	// Validator config flags
-	RollupValidatorAddrFlag = &cli.StringFlag{
-		Name:  "rollup.validator-addr",
-		Usage: "The validator address to be unlocked (pass passphrash via --password)",
-		Value: "",
-	}
-	RollupValidatorIsActiveStakerFlag = &cli.BoolFlag{
-		Name:  "rollup.validator-is-active-staker",
-		Usage: "Whether the validator should be an active staker",
-		Value: false,
-	}
-	RollupValidatorIsActiveCreatorFlag = &cli.BoolFlag{
-		Name:  "rollup.validator-is-active-creator",
-		Usage: "Whether the validator should be an active assertion creator",
-		Value: false,
-	}
-	RollupValidatorIsActiveChallengerFlag = &cli.BoolFlag{
-		Name:  "rollup.validator-is-active-challenger",
-		Usage: "Whether the validator should be an active challenger (i.e. issue challenges)",
-		Value: false,
-	}
-	RollupValidatorIsResolverFlag = &cli.BoolFlag{
-		Name:  "rollup.validator-is-resolver",
-		Usage: "Whether the validator should resolve (confirm/reject) assertions",
-		Value: false,
-	}
-	// TODO: read this from the contract
-	RollupRollupStakeAmountFlag = &cli.Uint64Flag{
-		Name:  "rollup.stake-amount",
-		Usage: "Required staking amount",
-		Value: 1000000000000000000,
-	}
-	// <specular modification/>
 )
 
 // RegisterEthService adds an Ethereum client to the stack.
@@ -164,63 +69,3 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	// <specular modification/>
 	return backend.APIBackend, backend
 }
-
-// <specular modification>
-func MakeRollupConfig(ctx *cli.Context) *rollup.SystemConfig {
-	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.MiningEnabledFlag)
-	utils.CheckExclusive(ctx, RollupL1EndpointFlag, utils.DeveloperFlag)
-	var (
-		sequencerAddr       common.Address
-		validatorAddr       common.Address
-		sequencerPassphrase string
-		validatorPassphrase string
-	)
-	pwList := utils.MakePasswordList(ctx)
-	clefEndpoint := ctx.String(RollupL2ClefEndpointFlag.Name)
-	if clefEndpoint == "" {
-		if len(pwList) == 0 {
-			utils.Fatalf("Failed to register rollup services: no clef endpoint or password provided")
-		}
-		if ctx.String(RollupSequencerAddrFlag.Name) != "" {
-			sequencerAddr = common.HexToAddress(ctx.String(RollupSequencerAddrFlag.Name))
-			sequencerPassphrase = pwList[0]
-			pwList = pwList[1:]
-		}
-		if ctx.String(RollupValidatorAddrFlag.Name) != "" {
-			validatorAddr = common.HexToAddress(ctx.String(RollupValidatorAddrFlag.Name))
-			validatorPassphrase = pwList[0]
-			pwList = pwList[1:]
-		}
-	}
-	return rollup.NewSystemConfig(
-		// L1 params
-		ctx.String(RollupL1EndpointFlag.Name),
-		ctx.Uint64(RollupL1ChainIDFlag.Name),
-		ctx.Uint64(RollupL1RollupGenesisBlockFlag.Name),
-		common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
-		common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
-		// L2 params
-		"ws://0.0.0.0:4012", // TODO: read this from http params? or from a separate flag
-		clefEndpoint,
-		// Sequencer params
-		sequencerAddr,
-		sequencerPassphrase,
-		time.Duration(ctx.Uint64(RollupSequencerMinExecutionIntervalFlag.Name))*time.Second,
-		time.Duration(ctx.Uint64(RollupSequencerMaxExecutionIntervalFlag.Name))*time.Second,
-		time.Duration(ctx.Uint64(RollupSequencerSequencingIntervalFlag.Name))*time.Second,
-		// Validator params
-		validatorAddr,
-		validatorPassphrase,
-		ctx.Bool(RollupValidatorIsActiveStakerFlag.Name),
-		ctx.Bool(RollupValidatorIsActiveCreatorFlag.Name),
-		ctx.Bool(RollupValidatorIsActiveChallengerFlag.Name),
-		ctx.Bool(RollupValidatorIsResolverFlag.Name),
-		ctx.Uint64(RollupRollupStakeAmountFlag.Name),
-		// Driver params
-		time.Duration(6)*time.Second,
-		time.Duration(1)*time.Second,
-		3,
-	)
-}
-
-// <specular modification/>
