@@ -176,26 +176,39 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function setDAProvider(address newDAProvider) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
         daProvider = IDAProvider(newDAProvider);
     }
 
     /// @inheritdoc IRollup
     function setConfirmationPeriod(uint256 newPeriod) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
         confirmationPeriod = newPeriod;
     }
 
     /// @inheritdoc IRollup
     function setChallengePeriod(uint256 newPeriod) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
+       challengePeriod = newPeriod;
     }
 
     /// @inheritdoc IRollup
     function setMinimumAssertionPeriod(uint256 newPeriod) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
         minimumAssertionPeriod = newPeriod;
     }
 
     /// @inheritdoc IRollup
     function setBaseStakeAmount(uint256 newAmount) external override onlyOwner {
-        if (newAmount > baseStakeAmount) {
+        if (lastCreatedAssertionID != lastResolvedAssertionID || newAmount > baseStakeAmount) {
             revert InvalidConfigChange();
         }
         baseStakeAmount = newAmount;
