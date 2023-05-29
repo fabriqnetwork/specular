@@ -26,8 +26,8 @@ args=(
     # --rollup.rollup-stake-amount $ROLLUP_STAKE_AMOUNT
 )
 
-if $USE_CLEF == 'true'; then
-    args+=(--rollup.clefendpoint $CLEF_ENDPOINT)
+if [ "$USE_CLEF" = true ]; then
+    args+=(--rollup.l2.clef-endpoint $CLEF_ENDPOINT)
 else
     args+=(--password ./password.txt)
 fi

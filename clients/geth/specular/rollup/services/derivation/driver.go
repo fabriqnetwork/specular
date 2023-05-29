@@ -61,8 +61,9 @@ func NewDriver(
 ) *Driver {
 	var (
 		backoffStrat = backoff.Exponential(float64(cfg.RetryDelay().Milliseconds()), math.MaxFloat64)
-		retryOpts    = []retry.Option{
-			retry.OnRetry(func(n uint, err error) { log.Warn("Retrying...", "attempt#", n+1, "error", err) }),
+		// Retry RetryableErrors with exponential backoff up to cfg.NumAttempts() times.
+		retryOpts = []retry.Option{
+			retry.OnRetry(func(n uint, err error) { log.Warn("Retrying after delay...", "attempt#", n+1, "error", err) }),
 			retry.RetryIf(func(err error) bool { return errors.As(err, &stage.RetryableError{}) }),
 			retry.Attempts(cfg.NumAttempts()),
 			retry.Delay(cfg.RetryDelay() * time.Second),
@@ -74,7 +75,10 @@ func NewDriver(
 
 func (d *Driver) Start() error {
 	ctx := d.BaseService.Start()
-	d.ErrGroup().Go(func() error { return d.drive(ctx) })
+	d.ErrGroup().Go(func() error {
+		log.Crit("Driver failed.", "error", d.drive(ctx)) // TODO: get rid of crit
+		return d.drive(ctx)
+	})
 	log.Info("Driver started.")
 	return nil
 }
@@ -106,6 +110,7 @@ func (d *Driver) drive(ctx context.Context) error {
 			if err == nil {
 				// Success (possibly after multiple retries).
 				driverState = driverStateHealthy
+				log.Info("Successful step.")
 			} else if errors.As(err, &stage.RecoverableError{}) {
 				// Note: this error type is only expected to be returned by `Pull`.
 				log.Warn("Failed to advance, attempting recovery.", "error", err)

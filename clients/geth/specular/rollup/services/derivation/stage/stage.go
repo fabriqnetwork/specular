@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
 // Note: each Stage is itself a `StageOps`.
@@ -41,10 +42,12 @@ func (s *Stage[T, U]) Pull(ctx context.Context) (out U, err error) {
 	}
 	err = s.ensurePulled(ctx)
 	if err != nil {
-		return out, nil
+		log.Error("Failed to pull from prev.")
+		return out, err
 	}
 	err = s.processor.ingest(ctx, s.cached)
 	if err != nil {
+		log.Error("Failed to ingest pulled input.", "err", err)
 		return out, err
 	}
 	// Successfully processed cached input,
@@ -72,6 +75,7 @@ func (s *Stage[T, U]) ensurePulled(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+		log.Info("Pulled from prev.")
 		s.cached = out
 		s.isCached = true
 	}

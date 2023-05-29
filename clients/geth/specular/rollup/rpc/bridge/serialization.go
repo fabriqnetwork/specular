@@ -89,7 +89,7 @@ func packRejectFirstUnresolvedAssertionInput(stakerAddress common.Address) ([]by
 }
 
 // Ensures serializationUtil is initialized. Must be called prior to the methods above.
-func ensureUtilInit() error {
+func EnsureUtilInit() error {
 	if serializationUtil == nil {
 		inboxAbi, err := bindings.ISequencerInboxMetaData.GetAbi()
 		if err != nil {

@@ -36,6 +36,7 @@ func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation types.BlockRe
 		if err != nil {
 			return fmt.Errorf("Failed to append block relation: %w", err)
 		}
+		log.Info("Appended block relation.", "l1", relation.L1BlockID.Number, "l2", relation.L2BlockID.Number)
 	}
 	// Get latest L1 fork-choice.
 	var (

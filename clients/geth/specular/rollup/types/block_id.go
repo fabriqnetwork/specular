@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
@@ -20,6 +22,9 @@ func NewBlockIDFromHeader(header *types.Header) BlockID {
 
 func (id BlockID) GetNumber() uint64    { return id.Number }
 func (id BlockID) GetHash() common.Hash { return id.Hash }
+func (id BlockID) String() string       { return fmt.Sprintf("(#=%d|h=%s)", id.Number, id.Hash) }
+
+var EmptyBlockID = BlockID{}
 
 // TODO: unused
 type BlockRef struct {
@@ -52,6 +57,8 @@ type BlockRelation struct {
 }
 
 type BlockRelations []BlockRelation
+
+var EmptyRelation = BlockRelation{}
 
 func (r BlockRelations) Append(relation BlockRelation) error {
 	// if r[len(r) - 1].L1BlockRef.Number >= relation.L1BlockRef.Number {

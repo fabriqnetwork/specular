@@ -143,7 +143,7 @@ const config: HardhatUserConfig = {
     specularDev: createConfig("specularDev"),
     hardhat: {
       gas: "auto",
-      hardhat: "merge",
+      hardfork: "merge",
       mining: {
         auto: true,
         interval: 5000,

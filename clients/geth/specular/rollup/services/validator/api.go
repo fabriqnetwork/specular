@@ -25,7 +25,7 @@ type Config interface {
 type BaseService interface {
 	Start() context.Context
 	Stop() error
-	Eg() *errgroup.Group
+	ErrGroup() *errgroup.Group
 }
 
 type L1Config interface {

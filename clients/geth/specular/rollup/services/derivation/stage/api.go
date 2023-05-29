@@ -74,9 +74,9 @@ func CreatePipeline(
 ) *TerminalStage[types.BlockRelation] {
 	// Define and chain stages together.
 	var (
-		// Processors
+		// Initialize processors
 		daHandlers, rollupTxHandlers = createProcessors(cfg, execBackend, rollupState, l2ClientCreatorFn)
-		// Stages
+		// Initialize stages
 		genesisBlockID         = types.NewBlockID(cfg.RollupGenesisBlock(), common.Hash{})
 		l1HeaderRetrievalStage = L1HeaderRetrievalStage{genesisBlockID, l1Client}
 		l1TxRetrievalStage     = NewStage[types.BlockID, filteredBlock](

@@ -25,7 +25,7 @@ type bridgeConfig interface {
 }
 
 func NewTxManager(txMgr EthTxManager, cfg bridgeConfig) (*TxManager, error) {
-	err := ensureUtilInit()
+	err := EnsureUtilInit()
 	return &TxManager{EthTxManager: txMgr, cfg: cfg}, err
 }
 

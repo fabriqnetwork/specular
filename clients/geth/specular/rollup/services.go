@@ -25,6 +25,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"golang.org/x/sync/errgroup"
 )
 
 // TODO: this is Geth-specific; generalize system initialization.
@@ -40,20 +41,20 @@ func RegisterRollupServices(
 	proofBackend proof.Backend,
 	cfg *systemConfig,
 ) error {
-	ctx := context.Background()
+	eg, ctx := errgroup.WithContext(context.Background())
 	rollupState, err := createRollupState(ctx, cfg.L1())
 	if err != nil {
 		return fmt.Errorf("Failed to initialize rollup state: %w", err)
 	}
 	// Register driver
-	driver, err := createDriver(ctx, cfg, execBackend, rollupState)
+	driver, err := createDriver(ctx, eg, cfg, execBackend, rollupState)
 	if err != nil {
 		return fmt.Errorf("Failed to initialize driver: %w", err)
 	}
 	stack.RegisterLifecycle(driver)
 	// Register sequencer
 	if (cfg.Sequencer().AccountAddr() != common.Address{}) {
-		sequencer, err := createSequencer(ctx, cfg, stack.AccountManager(), execBackend)
+		sequencer, err := createSequencer(ctx, eg, cfg, stack.AccountManager(), execBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to initialize sequencer: %w", err)
 		}
@@ -61,7 +62,7 @@ func RegisterRollupServices(
 	}
 	// Register validator
 	if (cfg.Validator().AccountAddr() != common.Address{}) {
-		validator, err := createValidator(ctx, cfg, stack.AccountManager(), rollupState, proofBackend)
+		validator, err := createValidator(ctx, eg, cfg, stack.AccountManager(), rollupState, proofBackend)
 		if err != nil {
 			return fmt.Errorf("Failed to create validator: %w", err)
 		}
@@ -75,10 +76,14 @@ func RegisterRollupServices(
 // An L2 client factory fn is also created (lazily create l2 client since the blockchain hasn't started yet).
 func createDriver(
 	ctx context.Context,
+	eg *errgroup.Group,
 	cfg *systemConfig,
 	execBackend api.ExecutionBackend,
 	rollupState *derivation.RollupState,
 ) (*derivation.Driver, error) {
+	if err := bridge.EnsureUtilInit(); err != nil {
+		return nil, fmt.Errorf("Failed to initialize bridge util: %w", err)
+	}
 	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
@@ -91,12 +96,14 @@ func createDriver(
 		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
 	terminalStage := stage.CreatePipeline(cfg.L1(), execBackend, rollupState, l2ClientCreatorFn, l1Client, l1State)
-	driver := derivation.NewDriver(&services.BaseService{}, cfg.Driver(), terminalStage)
+	base := &services.BaseService{StartCtx: ctx, Eg: eg}
+	driver := derivation.NewDriver(base, cfg.Driver(), terminalStage)
 	return driver, nil
 }
 
 func createSequencer(
 	ctx context.Context,
+	eg *errgroup.Group,
 	cfg *systemConfig,
 	accountMgr *accounts.Manager,
 	execBackend api.ExecutionBackend,
@@ -114,11 +121,13 @@ func createSequencer(
 	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
 		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
-	return sequencer.NewSequencer(&services.BaseService{}, cfg.Sequencer(), execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
+	base := &services.BaseService{StartCtx: ctx, Eg: eg}
+	return sequencer.NewSequencer(base, cfg.Sequencer(), execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
 
 func createValidator(
 	ctx context.Context,
+	eg *errgroup.Group,
 	cfg *systemConfig,
 	accountMgr *accounts.Manager,
 	rollupState *derivation.RollupState,
@@ -134,7 +143,8 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize tx manager: %w", err)
 	}
-	return validator.NewValidator(cfg.validatorConfig, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
+	base := &services.BaseService{StartCtx: ctx, Eg: eg}
+	return validator.NewValidator(cfg.validatorConfig, base, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
 }
 
 func createRollupState(ctx context.Context, cfg l1Config) (*derivation.RollupState, error) {

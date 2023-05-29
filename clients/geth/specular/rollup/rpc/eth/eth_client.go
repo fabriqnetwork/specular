@@ -2,6 +2,7 @@ package eth
 
 import (
 	"context"
+	"math/big"
 	"time"
 
 	"github.com/avast/retry-go/v4"
@@ -59,6 +60,16 @@ func (c *EthClient) HeaderByTag(ctx context.Context, tag BlockTag) (*types.Heade
 		err = ethereum.NotFound
 	}
 	return header, err
+}
+
+func (c *EthClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+	gasTipCap, err := c.Client.SuggestGasTipCap(ctx)
+	if err != nil {
+		// This is a workaround for Hardhat and any backend that doesn't support eth_maxPriorityFeePerGas.
+		log.Warn("Failed to get gas tip cap by eth_maxPriorityFeePerGas", "err", err)
+		return c.SuggestGasPrice(ctx)
+	}
+	return gasTipCap, nil
 }
 
 func (c *EthClient) SubscribeNewHeadByPolling(

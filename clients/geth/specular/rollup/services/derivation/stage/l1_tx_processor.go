@@ -17,7 +17,7 @@ type L1TxProcessor struct {
 	rollupTxHandlers map[txFilterID]txHandler
 	// state
 	lastProcessedRelation types.BlockRelation
-	lastProcessedIdx      int
+	numTxsRemaining       int
 }
 
 // TODO: support other DA sources.
@@ -37,24 +37,27 @@ func NewL1TxProcessor(
 }
 
 func (s *L1TxProcessor) hasNext() bool {
-	return s.lastProcessedRelation != types.BlockRelation{}
+	return s.lastProcessedRelation != types.EmptyRelation && s.numTxsRemaining > 0
 }
 
 func (s *L1TxProcessor) next() types.BlockRelation {
 	next := s.lastProcessedRelation
-	s.lastProcessedIdx = 0
-	s.lastProcessedRelation = types.BlockRelation{}
+	s.numTxsRemaining = -1
+	s.lastProcessedRelation = types.EmptyRelation
 	return next
 }
 
 // Processes transactions in the given filtered block, according to their method IDs.
 func (s *L1TxProcessor) ingest(ctx context.Context, filteredL1Block filteredBlock) error {
-	for i, tx := range filteredL1Block.txs {
-		// Skip txs already processed, if any.
-		// This happens if there was an error on a previous call mid-block.
-		if i <= s.lastProcessedIdx {
-			continue
-		}
+	log.Info("Ingesting L1 txs", "#txs", len(filteredL1Block.txs))
+	// First time seeing this block.
+	if s.numTxsRemaining == -1 {
+		s.numTxsRemaining = len(filteredL1Block.txs)
+	}
+	numProcessed := len(filteredL1Block.txs) - s.numTxsRemaining
+	// Skip txs already processed, if any.
+	// This happens if there was an error on a previous call mid-block.
+	for _, tx := range filteredL1Block.txs[numProcessed:] {
 		contractAddr := tx.To()
 		if contractAddr == nil {
 			return fmt.Errorf("`tx.To` is unexpectedly nil") // fatal
@@ -70,22 +73,24 @@ func (s *L1TxProcessor) ingest(ctx context.Context, filteredL1Block filteredBloc
 			if err != nil {
 				return fmt.Errorf("DA handler failed for methodID: %w", err)
 			}
+			log.Info("Processed DA tx.")
 			s.lastProcessedRelation = relation
 		} else if rollupHandler != nil {
 			err := rollupHandler(ctx, filteredL1Block.blockID, tx)
 			if err != nil {
 				return fmt.Errorf("rollup tx handler failed for `methodID`=%s: %w", methodID, err)
 			}
+			log.Info("Processed L1 rollup tx.")
 		} else {
 			return fmt.Errorf("no handler found for `methodID`=%s", methodID) // fatal
 		}
-		s.lastProcessedIdx = i
+		s.numTxsRemaining--
 	}
 	return nil
 }
 
 func (s *L1TxProcessor) recover(ctx context.Context, l1BlockID types.BlockID) error {
-	s.lastProcessedIdx = 0
+	s.numTxsRemaining = -1
 	s.lastProcessedRelation = types.BlockRelation{}
 	// TODO: recover handlers
 	return nil

@@ -58,11 +58,12 @@ func (e *executor) start(ctx context.Context, l2Client L2Client) error {
 				log.Info("No txs to execute post-ordering.")
 				continue
 			}
+			log.Info("Committing txs", "#txs", len(txs))
 			err := e.backend.CommitTransactions(txs)
 			if err != nil {
 				return fmt.Errorf("Failed to commit txs: %w", err)
 			}
-			log.Info("Committed txs", "num_txs", len(txs))
+			log.Info("Committed txs", "#txs", len(txs))
 		case <-ctx.Done():
 			log.Info("Aborting.")
 			return nil

@@ -80,13 +80,13 @@ func (d *batchDisseminator) revertToSafe() error {
 
 // Appends blocks to batch builder.
 func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
-	start, end, err := d.unsafeBlockRange(ctx)
+	start, end, err := d.pendingBlockRange(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get l2 block number: %w", err)
 	}
 	// TODO: this check might not be necessary
 	if start > end {
-		return &utils.L2ReorgDetectedError{Msg: "Last appended l2 block number exceeds l2 chain head"}
+		return &utils.L2ReorgDetectedError{Msg: fmt.Sprintf("start=%s exceeds end=%s", start, end)}
 	}
 	for i := start; i <= end; i++ {
 		block, err := d.l2Client.BlockByNumber(ctx, big.NewInt(0).SetUint64(i))
@@ -107,9 +107,16 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 }
 
 // Determines first and last unsafe block numbers.
-func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint64, error) {
-	lastAppended := d.batchBuilder.LastAppended()
-	start := lastAppended.GetNumber() + 1 // TODO: fix assumption
+func (d *batchDisseminator) pendingBlockRange(ctx context.Context) (uint64, uint64, error) {
+	var (
+		lastAppended = d.batchBuilder.LastAppended()
+		start        uint64
+	)
+	if lastAppended == types.EmptyBlockID {
+		start = uint64(0) // TODO: genesis
+	} else {
+		start = lastAppended.GetNumber() + 1 // TODO: fix assumption
+	}
 	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed to get l2 safe header: %w", err)
@@ -118,11 +125,6 @@ func (d *batchDisseminator) unsafeBlockRange(ctx context.Context) (uint64, uint6
 		// This should currently not be possible. TODO: handle restart case?
 		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
 	}
-	// else if safe.Number.Uint64() < lastAppended {
-	// 	// Hasn't caught up yet... OR re-org.
-	// 	// TODO: allow continue to appending blocks.
-	// 	return 0, 0, &utils.L2ReorgDetectedError{Msg: "Safe header is behind last appended header"}
-	// }
 	end, err := d.l2Client.BlockNumber(ctx)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed to get most recent l2 block number: %w", err)
@@ -162,7 +164,7 @@ func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Failed to send batch transaction: %w", err)
 	}
-	log.Info("Sequenced batch successfully", "tx hash", receipt.TxHash)
+	log.Info("Sequenced batch to L1", "first_block#", batchAttrs.firstL2BlockNumber, "tx_hash", receipt.TxHash)
 	d.batchBuilder.Advance()
 	return nil
 }

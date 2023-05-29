@@ -54,7 +54,7 @@ func (s *L1TxRetriever) ingest(ctx context.Context, l1BlockID types.BlockID) err
 	// Retrieve the entire block.
 	l1Block, err := s.l1Client.BlockByHash(ctx, l1BlockID.GetHash())
 	if err != nil {
-		return &RetryableError{fmt.Errorf("Failed to get L1 block by hash: %w", err)}
+		return RetryableError{fmt.Errorf("Failed to get L1 block %s by hash: %w", l1BlockID, err)}
 	}
 	// Filter transactions in block by `filterFn`.
 	s.queue = append(s.queue, filteredBlock{l1BlockID, filterTransactions(l1Block, s.filterFn)})
@@ -75,6 +75,23 @@ func filterTransactions(block *ethTypes.Block, filterFn func(tx *ethTypes.Transa
 	}
 	return txs
 }
+
+// TODO: this is a hack for hardhat.
+// func (s *L1TxRetriever) retrieveBlock(ctx context.Context, l1BlockID types.BlockID) (*ethTypes.Block, error) {
+// 	block, err := s.l1Client.BlockByHash(ctx, l1BlockID.GetHash())
+// 	if err == nil {
+// 		return block, nil
+// 	}
+// 	log.Warn("Failed to get L1 block by hash; trying by number.", "number", l1BlockID.GetNumber(), "hash", l1BlockID.GetHash())
+// 	block, err = s.l1Client.BlockByNumber(ctx, big.NewInt(0).SetUint64(l1BlockID.GetNumber()))
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	if block.Hash() != l1BlockID.GetHash() {
+// 		return nil, fmt.Errorf("L1 block hash mismatch: got %s, expected %s", block.Hash(), l1BlockID.GetHash())
+// 	}
+// 	return block, nil
+// }
 
 // .....
 // query, err := createFilterQuery(l1BlockID.Hash(), s.params)

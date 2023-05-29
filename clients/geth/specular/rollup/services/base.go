@@ -9,12 +9,18 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type BaseService struct{ Eg *errgroup.Group }
+type BaseService struct {
+	StartCtx context.Context // Can't be passed to `Start` so we have to store it here.
+	Eg       *errgroup.Group // Group used to manage service goroutines.
+}
 
 // Starts the rollup service.
 func (b *BaseService) Start() context.Context {
-	eg, ctx := errgroup.WithContext(context.Background())
-	b.Eg = eg
+	ctx := b.StartCtx
+	// Initialize if not already initialized.
+	if b.Eg == nil {
+		b.Eg, ctx = errgroup.WithContext(b.StartCtx)
+	}
 	return ctx
 }
 
@@ -22,7 +28,7 @@ func (b *BaseService) Stop() error {
 	log.Info("Stopping service...")
 	b.Eg.Go(func() error { return fmt.Errorf("Force-stopping service.") })
 	// Ignore error (we raised it in the above goroutine).
-	b.Eg.Wait()
+	_ = b.Eg.Wait()
 	log.Info("Service stopped.")
 	return nil
 }

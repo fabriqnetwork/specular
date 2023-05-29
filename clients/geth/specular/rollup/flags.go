@@ -31,12 +31,11 @@ const (
 var (
 	// L1 config flags
 	l1EndpointFlag = &cli.StringFlag{
-		Name:     "rollup.l1.endpoint",
-		Usage:    "The API endpoint of L1 client",
-		Required: true,
+		Name:  "rollup.l1.endpoint",
+		Usage: "The API endpoint of L1 client",
 	}
 	l1ChainIDFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1.chain-id",
+		Name:  "rollup.l1.chainid",
 		Usage: "The chain ID of L1 client",
 		Value: 31337,
 	}
@@ -48,12 +47,10 @@ var (
 	sequencerInboxAddrFlag = &cli.StringFlag{
 		Name:  "rollup.l1.sequencer-inbox-addr",
 		Usage: "The contract address of L1 sequencer inbox",
-		Value: "",
 	}
 	rollupAddrFlag = &cli.StringFlag{
 		Name:  "rollup.l1.rollup-addr",
 		Usage: "The contract address of L1 rollup",
-		Value: "",
 	}
 	// L2 config flags
 	l2EndpointFlag = &cli.StringFlag{
@@ -63,14 +60,12 @@ var (
 	}
 	l2ClefEndpointFlag = &cli.StringFlag{
 		Name:  "rollup.l2.clef-endpoint",
-		Usage: "The Endpoint of the Clef instance that should be used as a signer",
-		Value: "",
+		Usage: "The endpoint of the Clef instance that should be used as a signer",
 	}
 	// Sequencer config flags
 	sequencerAddrFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer.addr",
 		Usage: "The sequencer address to be unlocked (pass passphrash via --password)",
-		Value: "",
 	}
 	sequencerMinExecIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.min-execution-interval",
@@ -91,7 +86,6 @@ var (
 	validatorAddrFlag = &cli.StringFlag{
 		Name:  "rollup.validator.addr",
 		Usage: "The validator address to be unlocked (pass passphrash via --password)",
-		Value: "",
 	}
 	validatorIsActiveStakerFlag = &cli.BoolFlag{
 		Name:  "rollup.validator.is-active-staker",

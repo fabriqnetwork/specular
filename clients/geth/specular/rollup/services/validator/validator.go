@@ -41,13 +41,14 @@ type l2ClientCreatorFn func(ctx context.Context) (L2Client, error)
 
 func NewValidator(
 	cfg Config,
+	base BaseService,
 	l2ClientCreatorFn l2ClientCreatorFn,
 	l1TxMgr TxManager,
 	proofBackend proof.Backend,
 	rollupState RollupState,
 ) *Validator {
 	return &Validator{
-		// BaseService:  &services.BaseService{},
+		BaseService:  base,
 		cfg:          cfg,
 		l2Client:     nil, // Initialized in `Start()`
 		l1TxMgr:      l1TxMgr,
@@ -77,10 +78,10 @@ func (v *Validator) Start() error {
 	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
 	if v.cfg.IsActiveStaker() {
-		v.Eg().Go(func() error { return v.eventLoop(ctx) })
+		v.ErrGroup().Go(func() error { return v.eventLoop(ctx) })
 	}
 	if v.cfg.IsActiveChallenger() {
-		v.Eg().Go(func() error { return v.challengeLoop(ctx) })
+		v.ErrGroup().Go(func() error { return v.challengeLoop(ctx) })
 	}
 	return nil
 }
