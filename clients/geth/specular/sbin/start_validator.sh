@@ -14,15 +14,15 @@ args=(
     --port 30304
     --authrpc.port 8561
     # Rollup flags
-    --rollup.l1-endpoint $L1_ENDPOINT
-    --rollup.l1-chainid $L1_CHAIN_ID
-    --rollup.l1-rollup-genesis-block 0
-    --rollup.l1-sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
-    --rollup.l1-rollup-addr $ROLLUP_ADDR
-    --rollup.validator-addr $VALIDATOR_ADDR
-    --rollup.validator-is-active-staker
-    --rollup.validator-is-active-challenger
-    --rollup.validator-stake-amount $ROLLUP_STAKE_AMOUNT
+    --rollup.l1.endpoint $L1_ENDPOINT
+    --rollup.l1.chainid $L1_CHAIN_ID
+    --rollup.l1.rollup-genesis-block 0
+    --rollup.l1.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
+    --rollup.l1.rollup-addr $ROLLUP_ADDR
+    --rollup.validator.addr $VALIDATOR_ADDR
+    --rollup.validator.is-active-staker
+    --rollup.validator.is-active-challenger
+    --rollup.validator.stake-amount $ROLLUP_STAKE_AMOUNT
 )
 
 if $USE_CLEF == 'true'; then

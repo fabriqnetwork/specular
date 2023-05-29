@@ -10,30 +10,28 @@ import (
 	"github.com/avast/retry-go/v4"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/backoff"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"golang.org/x/sync/errgroup"
 )
 
-// `Stage` defines a stage in a pipeline.
-// Convention: use `any` for T and return nil if no output
-// type Stage[T, U any] interface {
-// 	stage.StageOps[U]
-// 	// Previous stage in pipeline. Returns a dummy stage if none prior.
-// 	Prev() stage.StageOps[T]
-// }
-
 type Driver struct {
-	*services.BaseService // TODO: remove?
-	cfg                   DriverConfig
-	terminalStage         TerminalStageOps
-	retryOpts             []retry.Option
+	BaseService   // TODO: remove?
+	cfg           Config
+	terminalStage TerminalStageOps
+	retryOpts     []retry.Option
 }
 
-type DriverConfig interface {
+type BaseService interface {
+	Start() context.Context
+	Stop() error
+	ErrGroup() *errgroup.Group
+}
+
+type Config interface {
 	StepInterval() time.Duration
 	RetryDelay() time.Duration
 	NumAttempts() uint
@@ -56,7 +54,11 @@ const (
 	driverStateUnhealthy        // Driver is recovering from a failure.
 )
 
-func NewDriver(cfg DriverConfig, terminalStage TerminalStageOps) *Driver {
+func NewDriver(
+	base BaseService,
+	cfg Config,
+	terminalStage TerminalStageOps,
+) *Driver {
 	var (
 		backoffStrat = backoff.Exponential(float64(cfg.RetryDelay().Milliseconds()), math.MaxFloat64)
 		retryOpts    = []retry.Option{
@@ -67,12 +69,12 @@ func NewDriver(cfg DriverConfig, terminalStage TerminalStageOps) *Driver {
 			retry.DelayType(func(n uint, _ error, _ *retry.Config) time.Duration { return backoffStrat.Duration(n) }),
 		}
 	)
-	return &Driver{cfg: cfg, terminalStage: terminalStage, retryOpts: retryOpts}
+	return &Driver{BaseService: base, cfg: cfg, terminalStage: terminalStage, retryOpts: retryOpts}
 }
 
 func (d *Driver) Start() error {
 	ctx := d.BaseService.Start()
-	d.Eg.Go(func() error { return d.drive(ctx) })
+	d.ErrGroup().Go(func() error { return d.drive(ctx) })
 	log.Info("Driver started.")
 	return nil
 }

@@ -5,7 +5,7 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
@@ -36,7 +36,7 @@ func (o *ordererByFee) OrderTransactions(ctx context.Context, txs []*types.Trans
 
 func (o *ordererByFee) sanitize(
 	ctx context.Context,
-	sortedTxs services.TransactionQueue,
+	sortedTxs api.TransactionQueue,
 ) ([]*types.Transaction, error) {
 	var sanitizedTxs []*types.Transaction
 	for {

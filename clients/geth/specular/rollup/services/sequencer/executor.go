@@ -12,7 +12,7 @@ import (
 
 // Responsible for executing transactions.
 type executor struct {
-	cfg     SequencerServiceConfig
+	cfg     Config
 	backend ExecutionBackend
 	orderer orderer
 }
@@ -36,7 +36,7 @@ func (e *executor) start(ctx context.Context, l2Client L2Client) error {
 	txsCh := make(chan core.NewTxsEvent, 4096)
 	txsSub := e.backend.SubscribeNewTxsEvent(txsCh)
 	defer txsSub.Unsubscribe()
-	batchCh := utils.SubscribeBatched(ctx, txsCh, e.cfg.Sequencer().MinExecutionInterval(), e.cfg.Sequencer().MaxExecutionInterval())
+	batchCh := utils.SubscribeBatched(ctx, txsCh, e.cfg.MinExecutionInterval(), e.cfg.MaxExecutionInterval())
 	for {
 		select {
 		case evs := <-batchCh:

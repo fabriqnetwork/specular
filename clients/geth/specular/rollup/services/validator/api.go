@@ -9,13 +9,28 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
+	"golang.org/x/sync/errgroup"
 )
 
-type ValidatorServiceConfig interface {
-	Validator() *services.ValidatorConfig
-	L1() *services.L1Config
+type Config interface {
+	AccountAddr() common.Address
+	IsActiveStaker() bool
+	IsActiveCreator() bool
+	IsActiveChallenger() bool
+	IsResolver() bool
+	StakeAmount() uint64
+}
+
+type BaseService interface {
+	Start() context.Context
+	Stop() error
+	Eg() *errgroup.Group
+}
+
+type L1Config interface {
+	Endpoint() string
+	ChainID() uint64
 }
 
 type RollupState interface {

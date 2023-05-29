@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
@@ -28,9 +27,9 @@ func (e *errAssertionOverflowedLocalInbox) Error() string {
 }
 
 type Validator struct {
-	*services.BaseService
+	BaseService
 
-	cfg               ValidatorServiceConfig
+	cfg               Config
 	l2ClientCreatorFn l2ClientCreatorFn
 	l2Client          L2Client
 	l1TxMgr           TxManager
@@ -41,14 +40,14 @@ type Validator struct {
 type l2ClientCreatorFn func(ctx context.Context) (L2Client, error)
 
 func NewValidator(
-	cfg ValidatorServiceConfig,
+	cfg Config,
 	l2ClientCreatorFn l2ClientCreatorFn,
 	l1TxMgr TxManager,
 	proofBackend proof.Backend,
 	rollupState RollupState,
 ) *Validator {
 	return &Validator{
-		BaseService:  &services.BaseService{},
+		// BaseService:  &services.BaseService{},
 		cfg:          cfg,
 		l2Client:     nil, // Initialized in `Start()`
 		l1TxMgr:      l1TxMgr,
@@ -66,7 +65,7 @@ func (v *Validator) Start() error {
 		return fmt.Errorf("Failed to create L2 client: %w", err)
 	}
 	v.l2Client = l2Client
-	if v.cfg.Validator().IsActiveStaker() {
+	if v.cfg.IsActiveStaker() {
 		if err := v.Stake(ctx); err != nil {
 			return fmt.Errorf("Failed to stake: %w", err)
 		}
@@ -77,11 +76,11 @@ func (v *Validator) Start() error {
 	// }
 	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
-	if v.cfg.Validator().IsActiveStaker() {
-		v.Eg.Go(func() error { return v.eventLoop(ctx) })
+	if v.cfg.IsActiveStaker() {
+		v.Eg().Go(func() error { return v.eventLoop(ctx) })
 	}
-	if v.cfg.Validator().IsActiveChallenger() {
-		v.Eg.Go(func() error { return v.challengeLoop(ctx) })
+	if v.cfg.IsActiveChallenger() {
+		v.Eg().Go(func() error { return v.challengeLoop(ctx) })
 	}
 	return nil
 }
@@ -109,13 +108,13 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 			// Note: assertions are created/resolved relatively infrequently,
 			// compared to batch sequencing. However, the queue may grow larger
 			// particularly during disputes.
-			if v.cfg.Validator().IsResolver() {
+			if v.cfg.IsResolver() {
 				err := v.tryResolve(ctx)
 				if err != nil {
 					return fmt.Errorf("Failed to resolve assertions: %w", err)
 				}
 			}
-			if v.cfg.Validator().IsActiveCreator() {
+			if v.cfg.IsActiveCreator() {
 				_, err := v.createAssertion(ctx)
 				if errors.Is(err, core.ErrInsufficientFunds) {
 					return fmt.Errorf("Insufficient funds to send tx: %w", err)
@@ -127,14 +126,14 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 		case ev := <-createdCh:
 			log.Info("Received `AssertionCreated` event.", "assertion id", ev.AssertionID)
 			// Validate. This blocks assertion creation, but that's fine.
-			if common.Address(ev.AsserterAddr) == v.cfg.Validator().AccountAddr() {
+			if common.Address(ev.AsserterAddr) == v.cfg.AccountAddr() {
 				// No need to validate, advance stake or resolve (already done above).
 				return nil
 			}
 			err := v.validate()
 			if err != nil {
 				log.Error("Failed to validate assertion", "error", err)
-				if v.cfg.Validator().IsActiveChallenger() {
+				if v.cfg.IsActiveChallenger() {
 					// If incorrect, challenge (fork assertion chain if necessary).
 					// Note: we can continue to resolve prior assertions concurrently.
 				}
@@ -212,7 +211,7 @@ func (v *Validator) createAssertion(ctx context.Context) (*assertion.Assertion, 
 	if err != nil {
 		return nil, err
 	}
-	staker, err := v.rollupState.GetStaker(ctx, v.cfg.Validator().AccountAddr())
+	staker, err := v.rollupState.GetStaker(ctx, v.cfg.AccountAddr())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get assertion ID (through staker), err: %w", err)
 	}
@@ -364,12 +363,12 @@ func (v *Validator) setL2BlockBoundaries(
 }
 
 func (v *Validator) Stake(ctx context.Context) error {
-	staker, err := v.rollupState.GetStaker(ctx, v.cfg.Validator().AccountAddr())
+	staker, err := v.rollupState.GetStaker(ctx, v.cfg.AccountAddr())
 	if err != nil {
 		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
 	}
 	if !staker.IsStaked {
-		_, err = v.l1TxMgr.Stake(ctx, big.NewInt(int64(v.cfg.Validator().StakeAmount())))
+		_, err = v.l1TxMgr.Stake(ctx, big.NewInt(int64(v.cfg.StakeAmount())))
 		if err != nil {
 			return fmt.Errorf("Failed to stake, err: %w", err)
 		}

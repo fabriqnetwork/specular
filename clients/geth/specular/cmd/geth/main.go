@@ -256,7 +256,7 @@ func init() {
 		debug.Flags,
 		metricsFlags,
 		// <specular modification>
-		rollup.Flags,
+		rollup.CLIFlags(),
 		// <specular modification/>
 	)
 

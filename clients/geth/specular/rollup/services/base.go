@@ -9,9 +9,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type BaseService struct {
-	Eg *errgroup.Group
-}
+type BaseService struct{ Eg *errgroup.Group }
 
 // Starts the rollup service.
 func (b *BaseService) Start() context.Context {
@@ -29,4 +27,6 @@ func (b *BaseService) Stop() error {
 	return nil
 }
 
-func (i *BaseService) APIs() []rpc.API { return []rpc.API{} }
+func (b *BaseService) ErrGroup() *errgroup.Group { return b.Eg }
+
+func (b *BaseService) APIs() []rpc.API { return []rpc.API{} }

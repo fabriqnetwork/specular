@@ -39,6 +39,7 @@ func DialWithRetry(ctx context.Context, endpoint string, retryOpts []retry.Optio
 	if retryOpts == nil {
 		retryOpts = DefaultRetryOpts
 	}
+	retryOpts = append(retryOpts, retry.Context(ctx))
 	var client *EthClient
 	err := retry.Do(func() error {
 		rpcClient, err := rpc.DialContext(ctx, endpoint)

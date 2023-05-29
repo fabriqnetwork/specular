@@ -17,7 +17,8 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
+	// "github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
 // TODO: cleanup -- use Engine API
@@ -177,7 +178,7 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 }
 
 // Sorts transactions to be committed.
-func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.TransactionQueue {
+func (b *ExecutionBackend) Prepare(txs []*types.Transaction) api.TransactionQueue {
 	sortedTxs := make(map[common.Address]types.Transactions)
 	signer := types.MakeSigner(b.eth.BlockChain().Config(), b.header.Number)
 	for _, tx := range txs {
@@ -190,7 +191,7 @@ func (b *ExecutionBackend) Prepare(txs []*types.Transaction) services.Transactio
 // BuildPayload executes and commits a block to local blockchain *deterministically*
 // TODO: dedup with CommitTransactions & commitStoredBlock
 // TODO: use StateProcessor::Process() instead
-func (b *ExecutionBackend) BuildPayload(payload services.ExecutionPayload) error {
+func (b *ExecutionBackend) BuildPayload(payload api.ExecutionPayload) error {
 	parent := b.eth.BlockChain().CurrentBlock()
 	if parent == nil {
 		return fmt.Errorf("missing parent")

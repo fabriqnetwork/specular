@@ -1,4 +1,4 @@
-package services
+package api
 
 import (
 	"github.com/ethereum/go-ethereum/core"

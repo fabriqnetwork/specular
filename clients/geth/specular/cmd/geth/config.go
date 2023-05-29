@@ -194,7 +194,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	// <specular modification>
-	if ctx.IsSet(rollup.L1EndpointFlag.Name) {
+	if ctx.IsSet(rollup.RequiredFlagName) {
 		cfg := rollup.ParseSystemConfig(ctx)
 		execBackend, err := specularGeth.NewExecutionBackend(eth, cfg.Sequencer().AccountAddr())
 		proofBackend := eth.APIBackend

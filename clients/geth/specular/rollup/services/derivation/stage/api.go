@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/beacon"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
@@ -27,7 +27,7 @@ type StageOps[T any] interface {
 
 type ExecutionBackend interface {
 	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
-	BuildPayload(payload services.ExecutionPayload) error
+	BuildPayload(payload api.ExecutionPayload) error
 }
 
 type ForkChoiceState = beacon.ForkchoiceStateV1

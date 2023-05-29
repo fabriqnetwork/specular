@@ -3,28 +3,37 @@ package sequencer
 import (
 	"context"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/beacon"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"golang.org/x/sync/errgroup"
 )
 
-type SequencerServiceConfig interface {
-	Sequencer() *services.SequencerConfig
-	L1() *services.L1Config
+type Config interface {
+	MinExecutionInterval() time.Duration
+	MaxExecutionInterval() time.Duration
+	SequencingInterval() time.Duration
+}
+
+type BaseService interface {
+	Start() context.Context
+	Stop() error
+	ErrGroup() *errgroup.Group
 }
 
 type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
-	BuildPayload(payload services.ExecutionPayload) error
-	CommitTransactions(txs []*ethTypes.Transaction) error          // TODO: remove
-	Prepare(txs []*ethTypes.Transaction) services.TransactionQueue // TODO: remove
+	BuildPayload(payload api.ExecutionPayload) error
+	CommitTransactions(txs []*ethTypes.Transaction) error     // TODO: remove
+	Prepare(txs []*ethTypes.Transaction) api.TransactionQueue // TODO: remove
 }
 
 type ForkChoiceState = beacon.ForkchoiceStateV1

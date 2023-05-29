@@ -12,12 +12,12 @@ args=(
     --http.corsdomain '*' --ws.origins '*'
     --networkid $NETWORK_ID
     # Rollup flags
-    --rollup.l1-endpoint $L1_ENDPOINT
-    --rollup.l1-chainid $L1_CHAIN_ID
-    --rollup.l1-rollup-genesis-block 0
-    --rollup.l1-sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
-    --rollup.l1-rollup-addr $ROLLUP_ADDR
-    --rollup.sequencer-addr $SEQUENCER_ADDR
+    --rollup.l1.endpoint $L1_ENDPOINT
+    --rollup.l1.chainid $L1_CHAIN_ID
+    --rollup.l1.rollup-genesis-block 0
+    --rollup.l1.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
+    --rollup.l1.rollup-addr $ROLLUP_ADDR
+    --rollup.sequencer.addr $SEQUENCER_ADDR
     # Run validator in parallel
     # --rollup.validator-addr $VALIDATOR_ADDR
     # --rollup.validator-is-active-creator

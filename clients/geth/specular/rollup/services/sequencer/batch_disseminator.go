@@ -17,7 +17,7 @@ import (
 
 // Disseminates batches of L2 blocks via L1.
 type batchDisseminator struct {
-	cfg          SequencerServiceConfig
+	cfg          Config
 	batchBuilder BatchBuilder
 	l1TxMgr      TxManager
 	l2Client     L2Client
@@ -30,7 +30,7 @@ func (e *unexpectedSystemStateError) Error() string {
 }
 
 func newBatchDisseminator(
-	cfg SequencerServiceConfig,
+	cfg Config,
 	batchBuilder BatchBuilder,
 	l1TxMgr TxManager,
 ) *batchDisseminator {
@@ -41,7 +41,7 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 	d.l2Client = l2Client
 	// Start with latest safe state.
 	d.revertToSafe()
-	var ticker = time.NewTicker(d.cfg.Sequencer().SequencingInterval())
+	var ticker = time.NewTicker(d.cfg.SequencingInterval())
 	defer ticker.Stop()
 	d.step(ctx)
 	for {
