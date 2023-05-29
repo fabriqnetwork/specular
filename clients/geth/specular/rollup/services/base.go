@@ -246,10 +246,29 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	log.Info("Decoded batch", "#txs", len(batch.Txs))
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
-	err = b.commitBlocks(blocks)
-	if err != nil {
-		return fmt.Errorf("Failed to commit blocks, err: %w", err)
+
+	currentBlockNumber := batch.FirstL2BlockNumber.Uint64()
+	localBlockNumber := b.Eth.BlockChain().CurrentBlock().NumberU64()
+	log.Info("Batch starts with block number", "#firstL2BlockNumber", currentBlockNumber)
+
+	// Commit only blocks ahead of the current L2 chain.
+	for i := range blocks {
+		log.Trace(
+			"Comparing current block number to last block on local chain",
+			"#currentBlockNumber", currentBlockNumber,
+			"#lastLocalBlock", localBlockNumber,
+		)
+
+		if currentBlockNumber > localBlockNumber {
+			log.Info("Commiting batch starting from block", "#blockNumber", currentBlockNumber)
+			blocks = blocks[i:]
+			b.commitBlocks(currentBlockNumber, blocks)
+			break
+		}
+
+		currentBlockNumber += 1
 	}
+
 	return nil
 }
 
@@ -297,40 +316,50 @@ func (b *BaseService) setL2BlockBoundaries(
 // commitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
 // TODO: use StateProcessor::Process() instead
-func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
+func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTypes.SequenceBlock) error {
+	log.Trace(
+		"Committing blocks",
+		"#firstL2BlockNumber", firstL2BlockNumber,
+		"#numBlocks", len(blocks),
+	)
+
 	if len(blocks) == 0 {
+		log.Warn("Commited empty list of blocks")
 		return nil
 	}
+
 	chainConfig := b.Chain().Config()
 	parent := b.Chain().CurrentBlock()
+
 	if parent == nil {
+		log.Warn("No parent block found")
 		return fmt.Errorf("missing parent")
 	}
-	startHead := parent.Number().Uint64()
-	if startHead < blocks[0].BlockNumber-1 {
-		// We are missing some blocks
+	expectedParentNum := firstL2BlockNumber - 1
+	if expectedParentNum != parent.NumberU64() {
+		log.Warn("Parent block number mismatch", "#parentBlock", parent, "#firstL2BlockNumber", firstL2BlockNumber)
 		return fmt.Errorf("rollup services unsynced")
 	}
 	state, err := b.Chain().StateAt(parent.Root())
 	if err != nil {
+		log.Warn("Could not read parent state")
 		return err
 	}
 	state.StartPrefetcher("rollup")
 	defer state.StopPrefetcher()
 
+	currentBlockNumber := firstL2BlockNumber
 	for _, sblock := range blocks {
-		if sblock.BlockNumber <= startHead {
-			// We already have this block, skip
-			continue
-		}
+		log.Trace("Reconstructing block header", "#blockNumber", currentBlockNumber)
 		header := &types.Header{
 			ParentHash: parent.Hash(),
-			Number:     new(big.Int).SetUint64(sblock.BlockNumber),
+			Number:     new(big.Int).SetUint64(currentBlockNumber),
 			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
 			Time:       sblock.Timestamp,
 			Coinbase:   b.Config.SequencerAddr,
 			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
 		}
+
 		gasPool := new(core.GasPool).AddGas(header.GasLimit)
 		var receipts []*types.Receipt
 		for idx, tx := range sblock.Txs {
@@ -338,10 +367,12 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 			receipt, err := core.ApplyTransaction(
 				chainConfig, b.Chain(), &b.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
 			if err != nil {
+				log.Warn("Error while applying transactions", "#err", err)
 				return err
 			}
 			receipts = append(receipts, receipt)
 		}
+
 		// Finalize header
 		header.Root = state.IntermediateRoot(b.Chain().Config().IsEIP158(header.Number))
 		header.UncleHash = types.CalcUncleHash(nil)
@@ -365,9 +396,19 @@ func (b *BaseService) commitBlocks(blocks []*rollupTypes.SequenceBlock) error {
 		}
 		_, err := b.Chain().WriteBlockAndSetHead(block, receipts, logs, state, true)
 		if err != nil {
+			log.Warn("Error while writing new block", "#err", err)
 			return err
 		}
 		parent = block
+
+		// Only increment currentBlockNumber after block and header have been written to chain
+		currentBlockNumber += 1
 	}
+
+	log.Trace(
+		"All blocks have been written",
+		"Chain height after write", b.Chain().CurrentBlock().NumberU64(),
+	)
+
 	return nil
 }

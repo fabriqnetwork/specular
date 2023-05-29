@@ -14,10 +14,11 @@ import (
 // TxBatch represents a transaction batch to be sequenced to L1 sequencer inbox
 // It may contain multiple blocks
 type TxBatch struct {
-	Blocks   types.Blocks
-	Contexts []SequenceContext
-	Txs      types.Transactions
-	GasUsed  *big.Int
+	Blocks             types.Blocks
+	FirstL2BlockNumber *big.Int
+	Contexts           []SequenceContext
+	Txs                types.Transactions
+	GasUsed            *big.Int
 }
 
 // SequenceBlock represents a block sequenced to L1 sequencer inbox
@@ -29,9 +30,8 @@ type SequenceBlock struct {
 
 // SequenceContext is the relavent context of each block sequenced to L1 sequncer inbox
 type SequenceContext struct {
-	NumTxs      uint64
-	BlockNumber uint64
-	Timestamp   uint64
+	NumTxs    uint64
+	Timestamp uint64
 }
 
 type DecodeTxBatchError struct{ msg string }
@@ -45,22 +45,25 @@ func NewTxBatch(blocks []*types.Block, maxBatchSize uint64) *TxBatch {
 	var contexts []SequenceContext
 	var txs []*types.Transaction
 	gasUsed := new(big.Int)
+
+	firstL2BlockNumber := blocks[0].Number()
+
 	for _, block := range blocks {
 		blockTxs := block.Transactions()
 		ctx := SequenceContext{
-			NumTxs:      uint64(len(blockTxs)),
-			BlockNumber: block.Number().Uint64(), // TODO just use bigint
-			Timestamp:   block.Time(),
+			NumTxs:    uint64(len(blockTxs)),
+			Timestamp: block.Time(),
 		}
 		contexts = append(contexts, ctx)
 		txs = append(txs, blockTxs...)
 		gasUsed.Add(gasUsed, new(big.Int).SetUint64(block.GasUsed()))
 	}
-	return &TxBatch{blocks, contexts, txs, gasUsed}
+
+	return &TxBatch{blocks, firstL2BlockNumber, contexts, txs, gasUsed}
 }
 
 func (b *TxBatch) LastBlockNumber() uint64 {
-	return b.Contexts[len(b.Contexts)-1].BlockNumber
+	return b.FirstL2BlockNumber.Uint64() + uint64(len(b.Contexts)) - 1
 }
 
 func (b *TxBatch) LastBlockRoot() common.Hash {
@@ -71,11 +74,10 @@ func (b *TxBatch) InboxSize() *big.Int {
 	return new(big.Int).SetUint64(uint64(b.Txs.Len()))
 }
 
-func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, []byte, error) {
+func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, *big.Int, []byte, error) {
 	var contexts, txLengths []*big.Int
 	for _, ctx := range b.Contexts {
 		contexts = append(contexts, big.NewInt(0).SetUint64(ctx.NumTxs))
-		contexts = append(contexts, big.NewInt(0).SetUint64(ctx.BlockNumber))
 		contexts = append(contexts, big.NewInt(0).SetUint64(ctx.Timestamp))
 	}
 
@@ -83,17 +85,21 @@ func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, []byte, error) {
 	for _, tx := range b.Txs {
 		curLen := buf.Len()
 		if err := writeTx(buf, tx); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, nil, nil, err
 		}
 		txLengths = append(txLengths, big.NewInt(int64(buf.Len()-curLen)))
 	}
-	return contexts, txLengths, buf.Bytes(), nil
+
+	firstL2BlockNumber := b.FirstL2BlockNumber
+
+	return contexts, txLengths, firstL2BlockNumber, buf.Bytes(), nil
 }
 
 // Splits batch into blocks
 func (b *TxBatch) SplitToBlocks() []*SequenceBlock {
 	txNum := 0
 	blocks := make([]*SequenceBlock, 0, len(b.Contexts))
+
 	for _, ctx := range b.Contexts {
 		block := &SequenceBlock{
 			SequenceContext: ctx,
@@ -107,9 +113,6 @@ func (b *TxBatch) SplitToBlocks() []*SequenceBlock {
 
 func writeContext(w *bytes.Buffer, ctx *SequenceContext) error {
 	if err := writePrimitive(w, ctx.NumTxs); err != nil {
-		return err
-	}
-	if err := writePrimitive(w, ctx.BlockNumber); err != nil {
 		return err
 	}
 	return writePrimitive(w, ctx.Timestamp)
@@ -132,13 +135,15 @@ func writePrimitive(w *bytes.Buffer, data interface{}) error {
 // TxBatchFromDecoded decodes the input of SequencerInbox#appendTxBatch call
 // It will only fill Contexts and Txs fields
 func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
-	if len(decoded) != 3 {
+	if len(decoded) != 4 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
 	}
 	contexts := decoded[0].([]*big.Int)
 	txLengths := decoded[1].([]*big.Int)
-	txBatch := decoded[2].([]byte)
-	if len(contexts)%3 != 0 {
+	firstL2BlockNumber := decoded[2].(*big.Int)
+	txBatch := decoded[3].([]byte)
+
+	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
 	}
 
@@ -146,11 +151,10 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	var ctxs []SequenceContext
 	var batchOffset uint64
 	var numTxs uint64
-	for i := 0; i < len(contexts); i += 3 {
+	for i := 0; i < len(contexts); i += 2 {
 		ctx := SequenceContext{
-			NumTxs:      contexts[i].Uint64(),
-			BlockNumber: contexts[i+1].Uint64(),
-			Timestamp:   contexts[i+2].Uint64(),
+			NumTxs:    contexts[i].Uint64(),
+			Timestamp: contexts[i+1].Uint64(),
 		}
 		ctxs = append(ctxs, ctx)
 		for j := uint64(0); j < ctx.NumTxs; j++ {
@@ -166,8 +170,9 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 		}
 	}
 	batch := &TxBatch{
-		Contexts: ctxs,
-		Txs:      txs,
+		FirstL2BlockNumber: firstL2BlockNumber,
+		Contexts:           ctxs,
+		Txs:                txs,
 	}
 	return batch, nil
 }

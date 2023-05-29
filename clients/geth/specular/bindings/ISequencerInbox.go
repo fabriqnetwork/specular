@@ -30,7 +30,7 @@ var (
 
 // ISequencerInboxMetaData contains all meta data concerning the ISequencerInbox contract.
 var ISequencerInboxMetaData = &bind.MetaData{
-	ABI: "[{\"inputs\":[],\"name\":\"EmptyBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ProofVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"TxBatchDataOverflow\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"batchNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startTxNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endTxNumber\",\"type\":\"uint256\"}],\"name\":\"TxBatchAppended\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"contexts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"txLengths\",\"type\":\"uint256[]\"},{\"internalType\":\"bytes\",\"name\":\"txBatch\",\"type\":\"bytes\"}],\"name\":\"appendTxBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"encodedTx\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verifyTxInclusion\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
+	ABI: "[{\"inputs\":[],\"name\":\"EmptyBatch\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"ProofVerificationFailed\",\"type\":\"error\"},{\"inputs\":[],\"name\":\"TxBatchDataOverflow\",\"type\":\"error\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"batchNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"startTxNumber\",\"type\":\"uint256\"},{\"indexed\":false,\"internalType\":\"uint256\",\"name\":\"endTxNumber\",\"type\":\"uint256\"}],\"name\":\"TxBatchAppended\",\"type\":\"event\"},{\"inputs\":[{\"internalType\":\"uint256[]\",\"name\":\"contexts\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256[]\",\"name\":\"txLengths\",\"type\":\"uint256[]\"},{\"internalType\":\"uint256\",\"name\":\"firstL2BlockNumber\",\"type\":\"uint256\"},{\"internalType\":\"bytes\",\"name\":\"txBatch\",\"type\":\"bytes\"}],\"name\":\"appendTxBatch\",\"outputs\":[],\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"inputs\":[],\"name\":\"getInboxSize\",\"outputs\":[{\"internalType\":\"uint256\",\"name\":\"\",\"type\":\"uint256\"}],\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[{\"internalType\":\"bytes\",\"name\":\"encodedTx\",\"type\":\"bytes\"},{\"internalType\":\"bytes\",\"name\":\"proof\",\"type\":\"bytes\"}],\"name\":\"verifyTxInclusion\",\"outputs\":[],\"stateMutability\":\"view\",\"type\":\"function\"}]",
 }
 
 // ISequencerInboxABI is the input ABI used to generate the binding from.
@@ -239,25 +239,25 @@ func (_ISequencerInbox *ISequencerInboxCallerSession) VerifyTxInclusion(encodedT
 	return _ISequencerInbox.Contract.VerifyTxInclusion(&_ISequencerInbox.CallOpts, encodedTx, proof)
 }
 
-// AppendTxBatch is a paid mutator transaction binding the contract method 0x66ac980a.
+// AppendTxBatch is a paid mutator transaction binding the contract method 0xe1804b49.
 //
-// Solidity: function appendTxBatch(uint256[] contexts, uint256[] txLengths, bytes txBatch) returns()
-func (_ISequencerInbox *ISequencerInboxTransactor) AppendTxBatch(opts *bind.TransactOpts, contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
-	return _ISequencerInbox.contract.Transact(opts, "appendTxBatch", contexts, txLengths, txBatch)
+// Solidity: function appendTxBatch(uint256[] contexts, uint256[] txLengths, uint256 firstL2BlockNumber, bytes txBatch) returns()
+func (_ISequencerInbox *ISequencerInboxTransactor) AppendTxBatch(opts *bind.TransactOpts, contexts []*big.Int, txLengths []*big.Int, firstL2BlockNumber *big.Int, txBatch []byte) (*types.Transaction, error) {
+	return _ISequencerInbox.contract.Transact(opts, "appendTxBatch", contexts, txLengths, firstL2BlockNumber, txBatch)
 }
 
-// AppendTxBatch is a paid mutator transaction binding the contract method 0x66ac980a.
+// AppendTxBatch is a paid mutator transaction binding the contract method 0xe1804b49.
 //
-// Solidity: function appendTxBatch(uint256[] contexts, uint256[] txLengths, bytes txBatch) returns()
-func (_ISequencerInbox *ISequencerInboxSession) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
-	return _ISequencerInbox.Contract.AppendTxBatch(&_ISequencerInbox.TransactOpts, contexts, txLengths, txBatch)
+// Solidity: function appendTxBatch(uint256[] contexts, uint256[] txLengths, uint256 firstL2BlockNumber, bytes txBatch) returns()
+func (_ISequencerInbox *ISequencerInboxSession) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, firstL2BlockNumber *big.Int, txBatch []byte) (*types.Transaction, error) {
+	return _ISequencerInbox.Contract.AppendTxBatch(&_ISequencerInbox.TransactOpts, contexts, txLengths, firstL2BlockNumber, txBatch)
 }
 
-// AppendTxBatch is a paid mutator transaction binding the contract method 0x66ac980a.
+// AppendTxBatch is a paid mutator transaction binding the contract method 0xe1804b49.
 //
-// Solidity: function appendTxBatch(uint256[] contexts, uint256[] txLengths, bytes txBatch) returns()
-func (_ISequencerInbox *ISequencerInboxTransactorSession) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, txBatch []byte) (*types.Transaction, error) {
-	return _ISequencerInbox.Contract.AppendTxBatch(&_ISequencerInbox.TransactOpts, contexts, txLengths, txBatch)
+// Solidity: function appendTxBatch(uint256[] contexts, uint256[] txLengths, uint256 firstL2BlockNumber, bytes txBatch) returns()
+func (_ISequencerInbox *ISequencerInboxTransactorSession) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, firstL2BlockNumber *big.Int, txBatch []byte) (*types.Transaction, error) {
+	return _ISequencerInbox.Contract.AppendTxBatch(&_ISequencerInbox.TransactOpts, contexts, txLengths, firstL2BlockNumber, txBatch)
 }
 
 // ISequencerInboxTxBatchAppendedIterator is returned from FilterTxBatchAppended and is used to iterate over the raw logs and unpacked data for TxBatchAppended events raised by the ISequencerInbox contract.

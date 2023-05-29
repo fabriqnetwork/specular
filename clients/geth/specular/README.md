@@ -13,6 +13,16 @@ First setup L1 and then follow following steps
 make install
 ```
 
+### Generate the genesis file
+
+```sh
+cd ../../../contracts
+
+npx ts-node scripts/create_genesis.ts \ 
+--in ../clients/geth/specular/data/base_genesis.json \
+--out ../clients/geth/specular/data/genesis.json
+```
+
 ### L2 setup
 
 ```sh
@@ -29,8 +39,8 @@ See [here](https://github.com/SpecularL2/specular/tree/main/contracts) for more 
 
 ```sh
 # Terminal #1: start L1 node
+pnpm install
 cd contracts
-yarn install
 npx hardhat node
 
 # Terminal #2: start sequencer
