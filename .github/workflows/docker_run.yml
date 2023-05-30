@@ -1,4 +1,4 @@
-name: e2e
+name: docker-compose-integration-test
 
 on: [push, pull_request]
 
