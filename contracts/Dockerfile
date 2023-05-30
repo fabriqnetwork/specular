@@ -19,6 +19,9 @@ RUN make geth
 RUN ls sbin/
 RUN chmod +x sbin/export_genesis.sh
 
+WORKDIR /specular
+RUN pnpm install
+
 WORKDIR /specular/config/sbin
 
 RUN ./create_genesis.sh
