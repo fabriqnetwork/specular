@@ -61,8 +61,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
      * @param _verifier Address of the verifier contract.
      * @param _daProvider DA provider.
      * @param _resultReceiver Address of contract that will receive the outcome (via callback `completeChallenge`).
-     * @param _startStateHash Bisection root being challenged.
-     * @param _endStateHash Bisection root being challenged.
+     * @param _startStateHash Commitment to agreed-upon start state.
+     * @param _endStateHash Commitment to disagreed-upon end state being challenged.
      */
     function initialize(
         address _defender,
@@ -94,6 +94,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
+    // TODO: use minimum of challenger/defender's proposed numSteps.
     function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
