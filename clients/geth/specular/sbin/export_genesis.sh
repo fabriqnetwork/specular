@@ -12,7 +12,6 @@ args=(
     --verbosity 0
 )
 
-
 $GETH_SPECULAR_DIR/build/bin/geth init --datadir ./tmp_data ./genesis.json
 $GETH_SPECULAR_DIR/build/bin/geth "${args[@]}" dump 0
 

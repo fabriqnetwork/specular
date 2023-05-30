@@ -21,6 +21,7 @@ RUN chmod +x sbin/export_genesis.sh
 
 WORKDIR /specular/config/sbin
 
+RUN npm install ethers glob ethereumjs-util hardhat fs path util
 RUN ./create_genesis.sh
 RUN ls ../../clients/geth/specular/sbin/
 
