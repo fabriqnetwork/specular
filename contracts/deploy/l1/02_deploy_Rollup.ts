@@ -21,9 +21,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
     );
 
-    console.log("initial VM hash:", {genesis} );
-    initialVMHash = "0x3a210baeffbd20962b1364d2706f6a1412614f7cd378d68260b8dc7ad9e9e0fc";
-    //initialVMHash = JSON.parse(genesis.stdout)?.root as string || "";
+    console.log("initial VM hash:", { genesis });
+    //initialVMHash = "0x3a210baeffbd20962b1364d2706f6a1412614f7cd378d68260b8dc7ad9e9e0fc";
+    initialVMHash = (JSON.parse(genesis.stdout)?.root as string) || "";
     if (!initialVMHash) {
       throw Error(
         `could not export genesis hash, root field not found\n${stdout}`
