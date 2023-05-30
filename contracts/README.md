@@ -1,6 +1,6 @@
 # Specular Contracts
 
-This is the L1 contract of Specular. It is configured for both Hardhat and Founrdry.
+These are the L1 contracts and L2 pre-deploys of Specular. It is configured for both Hardhat and Founrdry.
 Currently, Hardhat is used for deployment and Froundry is used for testing.
 
 ## Setup
