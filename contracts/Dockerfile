@@ -19,10 +19,10 @@ RUN make geth
 RUN ls sbin/
 RUN chmod +x sbin/export_genesis.sh
 
-WORKDIR /specular/contracts
+WORKDIR /specular/config/sbin
 
-RUN npx ts-node scripts/create_genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out ../clients/geth/specular/data/genesis.json
-RUN ls ../clients/geth/specular/sbin/
+RUN ./create_genesis.sh
+RUN ls ../../clients/geth/specular/sbin/
 
 EXPOSE 8545
 CMD ["npx", "hardhat", "node", "--hostname", "0.0.0.0"]
