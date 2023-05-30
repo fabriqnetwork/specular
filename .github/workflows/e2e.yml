@@ -50,6 +50,7 @@ jobs:
 
       - name: Start up containers
         run: |
+          pnpm install
           cd project
           rm -rf specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
