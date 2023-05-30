@@ -12,5 +12,11 @@
   "devDependencies": {
     "@pnpm/make-dedicated-lockfile": "^0.5.0",
     "husky": "^8.0.1"
+  },
+  "dependencies": {
+    "ethereumjs-util": "^7.1.5",
+    "ethers": "^6.4.0",
+    "glob": "^10.2.6",
+    "hardhat": "^2.14.0"
   }
 }
