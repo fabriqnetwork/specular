@@ -42,7 +42,7 @@ jobs:
           mkdir specular-datadir && cd specular-datadir
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
-          cd ../../contracts/ && npx hardhat compile && npx ts-node scripts/create_genesis.ts --in ../clients/geth/specular/data/base_genesis.json --out ../project/specular-datadir/genesis.json
+          cd ../../contracts/ && npx hardhat compile && ./../config/sbin/create_genesis.sh
 
       - name: Install node
         uses: actions/setup-node@v2

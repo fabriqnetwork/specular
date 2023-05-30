@@ -1,5 +1,5 @@
-import rollupJson from "./util/Rollup.json";
-import sequencerInboxJson from "./util/SequencerInbox.json";
+import rollupJson from "../abi/src/IRollup.sol/IRollup.json";
+import sequencerInboxJson from "../abi/src/SequencerInbox.sol/SequencerInbox.json";
 import { Wallet, utils, ethers, BigNumber } from "ethers";
 import assert from "assert";
 import fs from "fs";
