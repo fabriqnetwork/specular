@@ -36,6 +36,11 @@ jobs:
             - recursive: true
             - args: [--frozen-lockfile, --strict-peer-dependencies]
 
+      - name: Install node
+        uses: actions/setup-node@v2
+        with:
+          node-version: "18.x"
+
       - name: Create proj folder and add keys
         run: |
           mkdir project && cd project
@@ -43,14 +48,14 @@ jobs:
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
 
-      - name: Install node
-        uses: actions/setup-node@v2
-        with:
-          node-version: "18.x"
+      - name: Create genesis
+        run: |
+          pmpm install
+          cd config
+          npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
 
       - name: Start up containers
         run: |
-          pnpm install
           cd project
           rm -rf specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
