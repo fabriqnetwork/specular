@@ -43,12 +43,6 @@ jobs:
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
 
-      - name: Create genesis
-        run: |
-          pnpm install
-          cd config
-          npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
-
       - name: Install node
         uses: actions/setup-node@v2
         with:

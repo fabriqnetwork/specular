@@ -24,6 +24,7 @@ WORKDIR /specular/config/sbin
 
 RUN npm install ethers glob ethereumjs-util hardhat
 RUN ./create_genesis.sh
+COPY ../../clients/geth/specular/data/genesis.json ../../project/specular-datadir/genesis.json
 RUN ls ../../clients/geth/specular/sbin/
 
 EXPOSE 8545
