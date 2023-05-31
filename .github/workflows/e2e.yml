@@ -36,11 +36,6 @@ jobs:
             - recursive: true
             - args: [--frozen-lockfile, --strict-peer-dependencies]
 
-      - name: Install node
-        uses: actions/setup-node@v2
-        with:
-          node-version: "18.x"
-
       - name: Create proj folder and add keys
         run: |
           mkdir project && cd project
