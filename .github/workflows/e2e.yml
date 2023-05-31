@@ -45,6 +45,9 @@ jobs:
 
       - name: Create genesis
         run: |
+          cd contracts
+          npx hardhat compile
+          cd ..
           pnpm install
           cd config
           npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
