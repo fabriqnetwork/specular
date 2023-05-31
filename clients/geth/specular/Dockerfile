@@ -2,17 +2,10 @@
 FROM node:16-alpine3.17 as contracts-builder
 
 RUN apk add --no-cache git python3 make g++ musl-dev linux-headers && corepack enable
-RUN corepack prepare pnpm@latest --activate
 
 COPY . /specular
 
-WORKDIR /specular
-
-RUN rm pnpm-lock.yaml
-RUN rm pnpm-workspace.yaml
-
 WORKDIR /specular/clients/geth/specular
-
 RUN make contracts
 
 # Build geth binary

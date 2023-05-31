@@ -29,12 +29,8 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - uses: pnpm/action-setup@v2
-        with:
-          version: 6.32.9
-          run_install: |
-            - recursive: true
-            - args: [--frozen-lockfile, --strict-peer-dependencies]
+      - name: Setup Node
+        uses: ./.github/actions/node
 
       - name: Create proj folder and add keys
         run: |
@@ -48,7 +44,6 @@ jobs:
           cd contracts
           npx hardhat compile
           cd ..
-          pnpm install
           cd config
           npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
 
@@ -60,13 +55,10 @@ jobs:
           wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
           chmod +x wait-for-it.sh
           sleep 30
-          docker ps
           docker logs hardhat
           docker logs sequencer
           ./wait-for-it.sh -t 240 127.0.0.1:8545
           ./wait-for-it.sh -t 240 127.0.0.1:4011
-          docker logs hardhat
-          docker logs sequencer
 
       - name: Run testing script
         run: |

@@ -1,30 +1,10 @@
-# Compile contracts for binding generation
 FROM node:16-alpine3.17
-
-RUN apk add go git python3 g++ bash make gcc musl-dev linux-headers  && corepack enable
-RUN corepack prepare pnpm@latest --activate
-
 COPY . /specular
 
-WORKDIR /specular
+RUN apk add --no-cache git python3 make g++ musl-dev linux-headers && corepack enable
 
-RUN rm pnpm-lock.yaml
-RUN rm pnpm-workspace.yaml
-RUN pnpm install
-
-WORKDIR /specular/clients/geth/specular
-
-RUN make contracts
-RUN make geth
-
-RUN ls sbin/
-RUN chmod +x sbin/export_genesis.sh
-
-WORKDIR /specular/config/sbin
-
-RUN npm install ethers glob ethereumjs-util hardhat
-RUN ./create_genesis.sh
-RUN ls ../../clients/geth/specular/sbin/
+WORKDIR /specular/contracts
+RUN pnpm install --frozen-lockfile && npx hardhat compile
 
 EXPOSE 8545
 CMD ["npx", "hardhat", "node", "--hostname", "0.0.0.0"]
