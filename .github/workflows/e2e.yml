@@ -38,7 +38,6 @@ jobs:
 
       - name: Create proj folder and add keys
         run: |
-          pnpm install
           mkdir project && cd project
           mkdir specular-datadir && cd specular-datadir
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
@@ -46,8 +45,8 @@ jobs:
 
       - name: Create genesis
         run: |
+          pnpm install
           cd config
-          npm install ethers glob ethereumjs-util hardhat
           npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
 
       - name: Install node
