@@ -36,6 +36,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -46,6 +48,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
 	"github.com/specularl2/specular/clients/geth/specular/rollup"
+	specularRollupUtils "github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
 
 var (
@@ -192,8 +195,15 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	// <specular modification>
 	if ctx.IsSet(specularUtils.RollupNodeFlag.Name) {
-		cfg := specularUtils.MakeRollupConfig(ctx)
-		rollup.RegisterRollupService(stack, eth, eth.APIBackend, cfg)
+		rollupConfig := specularUtils.MakeRollupConfig(ctx, &cfg.Eth)
+
+		vmConfig := eth.BlockChain().GetVMConfig()
+		vmConfig.SpecularEVMHook = func(msg types.Message, evm *vm.EVM) error {
+			return specularRollupUtils.SpecularEVMHook(msg, evm, rollupConfig)
+		}
+		log.Info("Injected EVM hook")
+
+		rollup.RegisterRollupService(stack, eth, eth.APIBackend, rollupConfig)
 	}
 	// <specular modification/>
 

@@ -91,6 +91,21 @@ var (
 		Usage: "Required staking amount",
 		Value: 1000000000000000000,
 	}
+	RollupL1FeeOverheadFlag = &cli.Uint64Flag{
+		Name:  "rollup.l1-fee-overhead",
+		Usage: "Gas cost of sequencing a Tx",
+		Value: 0,
+	}
+	RollupL1FeeMultiplierFlag = &cli.Float64Flag{
+		Name:  "rollup.l1-fee-multiplier",
+		Usage: "Scalar value to increase the L1 Fee",
+		Value: 1.5,
+	}
+	RollupL1OracleAddressFlag = &cli.StringFlag{
+		Name:  "rollup.l1-oracle-address",
+		Usage: "The address of the L1Oracle contract",
+		Value: "0xff00000000000000000000000000000000000002",
+	}
 	// <specular modification/>
 )
 
@@ -129,7 +144,7 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	return backend.APIBackend, backend
 }
 
-func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
+func MakeRollupConfig(ctx *cli.Context, cfg *ethconfig.Config) *rollup.Config {
 	utils.CheckExclusive(ctx, RollupNodeFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(ctx, RollupNodeFlag, utils.DeveloperFlag)
 
@@ -150,18 +165,21 @@ func MakeRollupConfig(ctx *cli.Context) *rollup.Config {
 	if sequencerAddr == (common.Address{}) {
 		utils.Fatalf("Failed to register the Rollup service: sequencer address not specified")
 	}
-	cfg := &rollup.Config{
+	return &rollup.Config{
 		Node:                 node,
 		Coinbase:             coinbase,
 		Passphrase:           passphrase,
 		ClefEndpoint:         ctx.String(RollupClefEndpointFlag.Name),
 		L1Endpoint:           ctx.String(RollupL1EndpointFlag.Name),
 		L1ChainID:            ctx.Uint64(RollupL1ChainIDFlag.Name),
+		L2ChainID:            cfg.NetworkId,
 		SequencerAddr:        sequencerAddr,
 		SequencerInboxAddr:   common.HexToAddress(ctx.String(RollupSequencerInboxAddrFlag.Name)),
 		RollupAddr:           common.HexToAddress(ctx.String(RollupRollupAddrFlag.Name)),
 		L1RollupGenesisBlock: ctx.Uint64(RollupL1RollupGenesisBlock.Name),
 		RollupStakeAmount:    ctx.Uint64(RollupRollupStakeAmount.Name),
+		L1FeeOverhead:        RollupL1FeeOverheadFlag.Value,
+		L1FeeMultiplier:      RollupL1FeeMultiplierFlag.Value,
+		L1OracleAddress:      common.HexToAddress(RollupL1OracleAddressFlag.Value),
 	}
-	return cfg
 }
