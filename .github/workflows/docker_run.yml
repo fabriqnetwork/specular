@@ -50,7 +50,7 @@ jobs:
 
       - name: Create genesis
         run: |
-          pmpm install
+          pnpm install
           cd config
           npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
 
