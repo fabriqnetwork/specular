@@ -10,6 +10,7 @@ WORKDIR /specular
 
 RUN rm pnpm-lock.yaml
 RUN rm pnpm-workspace.yaml
+RUN pnpm install
 
 WORKDIR /specular/clients/geth/specular
 
@@ -21,7 +22,7 @@ RUN chmod +x sbin/export_genesis.sh
 
 WORKDIR /specular/config/sbin
 
-RUN npm install ethers glob ethereumjs-util hardhat fs path util
+RUN npm install ethers glob ethereumjs-util hardhat
 RUN ./create_genesis.sh
 RUN ls ../../clients/geth/specular/sbin/
 

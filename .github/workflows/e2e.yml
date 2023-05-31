@@ -38,10 +38,17 @@ jobs:
 
       - name: Create proj folder and add keys
         run: |
+          pnpm install
           mkdir project && cd project
           mkdir specular-datadir && cd specular-datadir
           cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
           cp ../../clients/geth/specular/data/password.txt .
+
+      - name: Create genesis
+        run: |
+          cd config
+          npm install ethers glob ethereumjs-util hardhat
+          npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
 
       - name: Install node
         uses: actions/setup-node@v2
@@ -50,7 +57,6 @@ jobs:
 
       - name: Start up containers
         run: |
-          pnpm install
           cd project
           rm -rf specular-datadir/geth/
           docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
