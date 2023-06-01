@@ -11,19 +11,12 @@ const CLIENT_SBIN_DIR = `${__dirname}/../../../clients/geth/specular/sbin`;
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
   const execPromise = util.promisify(exec);
-
-  await execPromise(
-    `chmod +x ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
-  );
-  let initialVMHash;
+  let initialVMHash = "";
   try {
-    const genesis = await execPromise(
+    const { stdout } = await execPromise(
       `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
     );
-
-    console.log("initial VM hash:", { genesis });
-    //initialVMHash = "0x3a210baeffbd20962b1364d2706f6a1412614f7cd378d68260b8dc7ad9e9e0fc";
-    initialVMHash = (JSON.parse(genesis.stdout)?.root as string) || "";
+    initialVMHash = (JSON.parse(stdout).root || "") as string;
     if (!initialVMHash) {
       throw Error(
         `could not export genesis hash, root field not found\n${stdout}`

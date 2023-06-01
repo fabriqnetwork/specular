@@ -32,39 +32,12 @@ jobs:
       - name: Setup Node
         uses: ./.github/actions/node
 
-      - name: Create proj folder and add keys
-        run: |
-          mkdir project && cd project
-          mkdir specular-datadir && cd specular-datadir
-          cp ../../clients/geth/specular/data/keys/sequencer.prv ./key.prv
-          cp ../../clients/geth/specular/data/password.txt .
+      - name: Setup Testing Environment
+        run: ./e2e/sbin/setup.sh
 
-      - name: Create genesis
-        run: |
-          cd contracts
-          npx hardhat compile
-          cd ..
-          cd config
-          npx ts-node src/create_genesis.ts --in data/base_genesis.json --out ../project/specular-datadir/genesis.json
+      - name: Build Container # TODO: Cache it
+        run: ./e2e/sbin/build-container.sh
 
-      - name: Start up containers
-        run: |
-          cd project
-          rm -rf specular-datadir/geth/
-          docker-compose -f ../docker/docker-compose-integration-test.yml up -d --build
-          wget https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh
-          chmod +x wait-for-it.sh
-          sleep 30
-          docker logs hardhat
-          docker logs sequencer
-          ./wait-for-it.sh -t 240 127.0.0.1:8545
-          ./wait-for-it.sh -t 240 127.0.0.1:4011
+      - name: Run Test
+        run: ./e2e/sbin/test.sh
 
-      - name: Run testing script
-        run: |
-          cd contracts
-          npx ts-node scripts/testing.ts
-
-      - name: Stop and remove containers
-        run: |
-          docker-compose -f docker/docker-compose-integration-test.yml down

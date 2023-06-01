@@ -134,8 +134,8 @@ async function testTxs(toAddress: string, value: BigNumber) {
   );
 
   // Contract Address Hardcoded
-  const sequencerContractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512";
-  const rollupContractAddress = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707";
+  const sequencerContractAddress = "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1";
+  const rollupContractAddress = "0xF6168876932289D073567f347121A267095f3DD6";
 
   const {
     sequencerContract,
@@ -145,9 +145,9 @@ async function testTxs(toAddress: string, value: BigNumber) {
     assertionConfirmedFilter,
   } = initializeContracts(
     sequencerContractAddress,
-    sequencerInboxJson.abi,
+    sequencerInboxJson,
     rollupContractAddress,
-    rollupJson.abi
+    rollupJson
   );
 
   for (let i = 0; i < 1; i++) {
@@ -170,6 +170,7 @@ async function sendTxs() {
   const validatorPrivateKey = fs.readFileSync(validatorPrivateKeyPath, "utf8");
   const validatorSigner = new Wallet(validatorPrivateKey, l2Provider);
   await testTxs(validatorSigner.address, utils.parseEther("0.1"));
+  console.log("E2E test passed");
 }
 
 sendTxs()
