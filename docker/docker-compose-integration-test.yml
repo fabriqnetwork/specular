@@ -5,12 +5,14 @@ services:
     extends:
       file: ./services/docker-compose-l1hardhat.yml
       service: hardhat
+    image: ${L1_DOCKER_TAG:-specularl2/hardhat:latest}
     container_name: hardhat
 
   sequencer:
     extends:
       file: ./services/docker-compose-l2geth.yml
       service: l2geth
+    image: ${L2_DOCKER_TAG:-specularl2/l2geth:latest}
     container_name: sequencer
     depends_on:
       - hardhat
