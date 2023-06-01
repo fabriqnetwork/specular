@@ -1,5 +1,5 @@
-SBIN_DIR=`dirname $0`
-SBIN_DIR="`cd "$SBIN"; pwd`"
+SBIN=`dirname $0`
+SBIN="`cd "$SBIN"; pwd`"
 
 export NETWORK_ID=13527
 export L1_ENDPOINT=ws://localhost:8545
