@@ -60,9 +60,6 @@ jobs:
         uses: docker/metadata-action@v4
         with:
           images: specularl2/hardhat
-      
-      - run: |
-          echo "Docker meta: ${{ steps.l1meta.outputs.tags }}"
 
       - name: Build L1 image
         uses: docker/build-push-action@v4
@@ -71,7 +68,7 @@ jobs:
           file: ./contracts/Dockerfile
           push: false
           load: true
-          tags: ${{ steps.l1meta.output.tags }}
+          tags: ${{ steps.l1meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -88,7 +85,7 @@ jobs:
           file: ./clients/geth/specular/Dockerfile
           push: false
           load: true
-          tags: ${{ steps.l2meta.output.tags }}
+          tags: ${{ steps.l2meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
