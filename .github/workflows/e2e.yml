@@ -70,7 +70,8 @@ jobs:
           context: .
           file: ./contracts/Dockerfile
           push: false
-          tags: specularl2/hardhat:${{ steps.l1meta.output.tags }}
+          load: true
+          tags: ${{ steps.l1meta.output.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -86,6 +87,7 @@ jobs:
           context: .
           file: ./clients/geth/specular/Dockerfile
           push: false
+          load: true
           tags: ${{ steps.l2meta.output.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
