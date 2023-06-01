@@ -75,7 +75,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Docker L2 meta
-        id: l1meta
+        id: l2meta
         uses: docker/metadata-action@v4
         with:
           images: specularl2/l2geth
