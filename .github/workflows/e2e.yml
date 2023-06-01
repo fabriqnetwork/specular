@@ -1,6 +1,10 @@
 name: e2e
 
-on: [push, pull_request]
+on:
+  pull_request:
+  push:
+    branches:
+      - main
 
 jobs:
   pre_job:
@@ -50,4 +54,10 @@ jobs:
 
       - name: Run Test
         run: ./e2e/sbin/test.sh
+
+      # This is a hack to solve the permission problem
+      # The geth/ and keystore/ folders are created by the container so their owner is root
+      # TODO: Find a better way to solve this
+      - name: Clean up 
+        run: sudo rm -rf ./e2e/project
 
