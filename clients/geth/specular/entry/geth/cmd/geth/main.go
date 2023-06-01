@@ -43,7 +43,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/internal/debug"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
-	"github.com/specularl2/specular/clients/geth/specular/rollup"
+	rollup "github.com/specularl2/specular/clients/geth/specular/rollup/services"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"

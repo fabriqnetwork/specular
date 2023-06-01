@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 const (
@@ -48,8 +48,8 @@ func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
-func packAppendTxBatchInput(contexts, txLengths []*big.Int, firstL2BlockNumber *big.Int, txs []byte) ([]byte, error) {
-	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, contexts, txLengths, firstL2BlockNumber, txs)
+func packAppendTxBatchInput(contexts, txLengths []*big.Int, firstL2BlockNumber *big.Int, txBatch []byte) ([]byte, error) {
+	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, contexts, txLengths, firstL2BlockNumber, txBatch)
 }
 
 // IRollup.sol

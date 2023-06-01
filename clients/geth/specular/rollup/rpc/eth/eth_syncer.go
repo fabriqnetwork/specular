@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
 	"golang.org/x/sync/errgroup"
 )
 

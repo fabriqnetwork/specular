@@ -10,16 +10,16 @@ import (
 	"github.com/avast/retry-go/v4"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/backoff"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils/backoff"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 	"golang.org/x/sync/errgroup"
 )
 
 type Driver struct {
-	BaseService   // TODO: remove?
 	cfg           Config
 	terminalStage TerminalStageOps
 	retryOpts     []retry.Option
@@ -54,11 +54,7 @@ const (
 	driverStateUnhealthy        // Driver is recovering from a failure.
 )
 
-func NewDriver(
-	base BaseService,
-	cfg Config,
-	terminalStage TerminalStageOps,
-) *Driver {
+func NewDriver(cfg Config, terminalStage TerminalStageOps) *Driver {
 	var (
 		backoffStrat = backoff.Exponential(float64(cfg.RetryDelay().Milliseconds()), math.MaxFloat64)
 		// Retry RetryableErrors with exponential backoff up to cfg.NumAttempts() times.
@@ -70,12 +66,11 @@ func NewDriver(
 			retry.DelayType(func(n uint, _ error, _ *retry.Config) time.Duration { return backoffStrat.Duration(n) }),
 		}
 	)
-	return &Driver{BaseService: base, cfg: cfg, terminalStage: terminalStage, retryOpts: retryOpts}
+	return &Driver{cfg: cfg, terminalStage: terminalStage, retryOpts: retryOpts}
 }
 
-func (d *Driver) Start() error {
-	ctx := d.BaseService.Start()
-	d.ErrGroup().Go(func() error {
+func (d *Driver) Start(ctx context.Context, eg api.ErrGroup) error {
+	eg.Go(func() error {
 		log.Crit("Driver failed.", "error", d.drive(ctx)) // TODO: get rid of crit
 		return d.drive(ctx)
 	})

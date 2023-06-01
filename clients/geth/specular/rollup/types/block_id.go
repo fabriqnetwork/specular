@@ -1,11 +1,10 @@
 package types
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 // TODO: tags

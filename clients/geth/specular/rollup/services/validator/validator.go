@@ -3,7 +3,6 @@ package validator
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -12,8 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/assertion"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 const interval = 10 * time.Second
@@ -27,8 +28,6 @@ func (e *errAssertionOverflowedLocalInbox) Error() string {
 }
 
 type Validator struct {
-	BaseService
-
 	cfg               Config
 	l2ClientCreatorFn l2ClientCreatorFn
 	l2Client          L2Client
@@ -41,14 +40,12 @@ type l2ClientCreatorFn func(ctx context.Context) (L2Client, error)
 
 func NewValidator(
 	cfg Config,
-	base BaseService,
 	l2ClientCreatorFn l2ClientCreatorFn,
 	l1TxMgr TxManager,
 	proofBackend proof.Backend,
 	rollupState RollupState,
 ) *Validator {
 	return &Validator{
-		BaseService:  base,
 		cfg:          cfg,
 		l2Client:     nil, // Initialized in `Start()`
 		l1TxMgr:      l1TxMgr,
@@ -57,9 +54,8 @@ func NewValidator(
 	}
 }
 
-func (v *Validator) Start() error {
+func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 	log.Info("Starting validator...")
-	ctx := v.BaseService.Start()
 	// Connect to L2 client.
 	l2Client, err := v.l2ClientCreatorFn(ctx)
 	if err != nil {
@@ -78,10 +74,10 @@ func (v *Validator) Start() error {
 	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
 	if v.cfg.IsActiveStaker() {
-		v.ErrGroup().Go(func() error { return v.eventLoop(ctx) })
+		eg.Go(func() error { return v.eventLoop(ctx) })
 	}
 	if v.cfg.IsActiveChallenger() {
-		v.ErrGroup().Go(func() error { return v.challengeLoop(ctx) })
+		eg.Go(func() error { return v.challengeLoop(ctx) })
 	}
 	return nil
 }

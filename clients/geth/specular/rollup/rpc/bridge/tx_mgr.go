@@ -36,9 +36,9 @@ func (m *TxManager) AppendTxBatch(
 	contexts,
 	txLengths []*big.Int,
 	firstL2BlockNumber *big.Int,
-	txs []byte,
+	txBatch []byte,
 ) (*types.Receipt, error) {
-	data, err := packAppendTxBatchInput(contexts, txLengths, firstL2BlockNumber, txs)
+	data, err := packAppendTxBatchInput(contexts, txLengths, firstL2BlockNumber, txBatch)
 	if err != nil {
 		return nil, err
 	}

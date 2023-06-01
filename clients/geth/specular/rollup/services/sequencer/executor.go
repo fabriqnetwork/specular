@@ -5,9 +5,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // Responsible for executing transactions.
@@ -46,7 +46,6 @@ func (e *executor) start(ctx context.Context, l2Client L2Client) error {
 			}
 			if len(txs) == 0 {
 				log.Trace("No txs received in last execution window.")
-				continue
 			} else {
 				var err error
 				txs, err = e.orderer.OrderTransactions(ctx, txs)
@@ -54,11 +53,8 @@ func (e *executor) start(ctx context.Context, l2Client L2Client) error {
 					return fmt.Errorf("Failed to order txs: %w", err)
 				}
 			}
-			if len(txs) == 0 {
-				log.Info("No txs to execute post-ordering.")
-				continue
-			}
 			log.Info("Committing txs", "#txs", len(txs))
+			// TODO: use `BuildPayload`.
 			err := e.backend.CommitTransactions(txs)
 			if err != nil {
 				return fmt.Errorf("Failed to commit txs: %w", err)

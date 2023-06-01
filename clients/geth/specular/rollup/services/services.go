@@ -1,10 +1,11 @@
-package rollup
+package services
 
 import (
 	"bytes"
 	"context"
 	"math"
 	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,63 +13,68 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
-	"golang.org/x/sync/errgroup"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/da"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
-// TODO: this is Geth-specific; generalize system initialization.
-type Node interface {
-	RegisterLifecycle(lifecycle node.Lifecycle)
-	AccountManager() *accounts.Manager
+// TODO: this is the last Geth-specific interface here; remove.
+type accountManager interface {
+	Backends(reflect.Type) []accounts.Backend
 }
 
-// Registers services configured by cfg.
-func RegisterRollupServices(
-	stack Node,
+// Creates services configured by cfg:
+// - Driver (always)
+// - Sequencer (if configured)
+// - Validator (if configured)
+func CreateRollupServices(
+	accMgr accountManager,
 	execBackend api.ExecutionBackend,
 	proofBackend proof.Backend,
 	cfg *systemConfig,
-) error {
-	eg, ctx := errgroup.WithContext(context.Background())
+) ([]api.Service, error) {
+	var (
+		ctx      = context.Background()
+		services []api.Service
+	)
 	rollupState, err := createRollupState(ctx, cfg.L1())
 	if err != nil {
-		return fmt.Errorf("Failed to initialize rollup state: %w", err)
+		return nil, fmt.Errorf("Failed to initialize rollup state: %w", err)
 	}
-	// Register driver
-	driver, err := createDriver(ctx, eg, cfg, execBackend, rollupState)
+
+	// Create driver
+	driver, err := createDriver(ctx, cfg, execBackend, rollupState)
 	if err != nil {
-		return fmt.Errorf("Failed to initialize driver: %w", err)
+		return nil, fmt.Errorf("Failed to initialize driver: %w", err)
 	}
-	stack.RegisterLifecycle(driver)
-	// Register sequencer
+	services = append(services, driver)
+
+	// Create sequencer
 	if (cfg.Sequencer().AccountAddr() != common.Address{}) {
-		sequencer, err := createSequencer(ctx, eg, cfg, stack.AccountManager(), execBackend)
+		sequencer, err := createSequencer(ctx, cfg, accMgr, execBackend)
 		if err != nil {
-			return fmt.Errorf("Failed to initialize sequencer: %w", err)
+			return nil, fmt.Errorf("Failed to initialize sequencer: %w", err)
 		}
-		stack.RegisterLifecycle(sequencer)
+		services = append(services, sequencer)
 	}
-	// Register validator
+	// Create validator
 	if (cfg.Validator().AccountAddr() != common.Address{}) {
-		validator, err := createValidator(ctx, eg, cfg, stack.AccountManager(), rollupState, proofBackend)
+		validator, err := createValidator(ctx, cfg, accMgr, rollupState, proofBackend)
 		if err != nil {
-			return fmt.Errorf("Failed to create validator: %w", err)
+			return nil, fmt.Errorf("Failed to create validator: %w", err)
 		}
-		stack.RegisterLifecycle(validator)
+		services = append(services, validator)
 	}
-	return nil
+	return services, nil
 }
 
 // Creates driver.
@@ -76,7 +82,6 @@ func RegisterRollupServices(
 // An L2 client factory fn is also created (lazily create l2 client since the blockchain hasn't started yet).
 func createDriver(
 	ctx context.Context,
-	eg *errgroup.Group,
 	cfg *systemConfig,
 	execBackend api.ExecutionBackend,
 	rollupState *derivation.RollupState,
@@ -96,16 +101,14 @@ func createDriver(
 		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
 	terminalStage := stage.CreatePipeline(cfg.L1(), execBackend, rollupState, l2ClientCreatorFn, l1Client, l1State)
-	base := &services.BaseService{StartCtx: ctx, Eg: eg}
-	driver := derivation.NewDriver(base, cfg.Driver(), terminalStage)
+	driver := derivation.NewDriver(cfg.Driver(), terminalStage)
 	return driver, nil
 }
 
 func createSequencer(
 	ctx context.Context,
-	eg *errgroup.Group,
 	cfg *systemConfig,
-	accountMgr *accounts.Manager,
+	accountMgr accountManager,
 	execBackend api.ExecutionBackend,
 ) (*sequencer.Sequencer, error) {
 	l1TxMgr, err := createTxManager(
@@ -114,22 +117,20 @@ func createSequencer(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 tx manager: %w", err)
 	}
-	batchBuilder, err := sequencer.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
+	batchBuilder, err := da.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
 		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
 	}
-	base := &services.BaseService{StartCtx: ctx, Eg: eg}
-	return sequencer.NewSequencer(base, cfg.Sequencer(), execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
+	return sequencer.NewSequencer(cfg.Sequencer(), execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
 
 func createValidator(
 	ctx context.Context,
-	eg *errgroup.Group,
 	cfg *systemConfig,
-	accountMgr *accounts.Manager,
+	accountMgr accountManager,
 	rollupState *derivation.RollupState,
 	proofBackend proof.Backend,
 ) (*validator.Validator, error) {
@@ -143,8 +144,7 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize tx manager: %w", err)
 	}
-	base := &services.BaseService{StartCtx: ctx, Eg: eg}
-	return validator.NewValidator(cfg.validatorConfig, base, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
+	return validator.NewValidator(cfg.validatorConfig, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
 }
 
 func createRollupState(ctx context.Context, cfg l1Config) (*derivation.RollupState, error) {
@@ -173,7 +173,7 @@ func createSyncingL1State(ctx context.Context, cfg l1Config) (*eth.EthState, err
 func createTxManager(
 	ctx context.Context,
 	cfg *systemConfig,
-	accountMgr *accounts.Manager,
+	accountMgr accountManager,
 	accountAddr common.Address,
 	clefEndpoint string,
 	passphrase string,
@@ -196,7 +196,7 @@ func createTxManager(
 // createTransactor creates a transactor for the given account address,
 // either using the clef endpoint or passphrase.
 func createTransactor(
-	mgr *accounts.Manager,
+	mgr accountManager,
 	accountAddress common.Address,
 	clefEndpoint string,
 	passphrase string,

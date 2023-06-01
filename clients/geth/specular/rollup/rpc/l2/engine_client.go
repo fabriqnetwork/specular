@@ -2,10 +2,10 @@ package l2
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 // TODO: Use EngineClient in place of ExecutionBackend

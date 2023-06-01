@@ -2,12 +2,11 @@ package eth
 
 import (
 	"context"
-	"reflect"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 // Interface used to represent Iterators from `bindings`
@@ -46,8 +45,7 @@ func toMapperFn[T any, U Iterable](
 		}
 		var mapped []T
 		for iter.Next() {
-			// TODO: remove this hack
-			mapped = append(mapped, reflect.Indirect(reflect.ValueOf(iter)).FieldByName("Event").Interface().(T))
+			mapped = append(mapped, utils.GetField[T](iter, "Event")) // TODO: remove reflection hack
 		}
 		if iter.Error() != nil {
 			return nil, fmt.Errorf("Failed to iterate, err: %w", iter.Error())

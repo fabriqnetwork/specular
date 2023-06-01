@@ -1,6 +1,7 @@
 .PHONY: geth bindings install
 
 GOBIN = ./build/bin
+GETH_ENTRY = ./entry/geth/cmd/geth
 
 install: bindings geth clef
 
@@ -11,7 +12,7 @@ bindings: contracts
 	go generate ./...
 
 geth: bindings
-	go build -o $(GOBIN)/geth ./cmd/geth
+	go build -o $(GOBIN)/geth $(GETH_ENTRY)
 	@echo "Done building geth."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
@@ -21,6 +22,6 @@ clef:
 	@echo "Run \"$(GOBIN)/clef\" to launch clef."
 
 geth-docker:
-	go build -o $(GOBIN)/geth ./cmd/geth
+	go build -o $(GOBIN)/geth $(GETH_ENTRY)
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."

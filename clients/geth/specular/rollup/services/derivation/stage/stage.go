@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // Note: each Stage is itself a `StageOps`.

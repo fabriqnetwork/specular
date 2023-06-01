@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 type ordererByFee struct {
@@ -26,8 +26,8 @@ func (o *ordererByFee) RegisterL2Client(l2Client L2Client) {
 }
 
 func (o *ordererByFee) OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error) {
-	sortedTxs := o.backend.Prepare(txs)
-	txs, err := o.sanitize(ctx, sortedTxs)
+	orderedTxs := o.backend.Order(txs)
+	txs, err := o.sanitize(ctx, orderedTxs)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to sanitize txs: %w", err)
 	}

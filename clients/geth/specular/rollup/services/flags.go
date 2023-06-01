@@ -1,4 +1,4 @@
-package rollup
+package services
 
 import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
@@ -69,18 +69,18 @@ var (
 	}
 	sequencerMinExecIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.min-execution-interval",
-		Usage: "Minimum time between block executions (seconds)",
+		Usage: "Minimum time between block executions (seconds); 0 to disable",
 		Value: 0,
 	}
 	sequencerMaxExecIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.max-execution-interval",
-		Usage: "Maximum time between block executions (seconds)",
-		Value: 1,
+		Usage: "Maximum time between block executions (seconds); 0 to disable",
+		Value: 4,
 	}
 	sequencerSequencingIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.sequencing-interval",
 		Usage: "Time between batch sequencing steps (seconds)",
-		Value: 5,
+		Value: 8,
 	}
 	// Validator config flags
 	validatorAddrFlag = &cli.StringFlag{

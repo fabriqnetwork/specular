@@ -1,4 +1,4 @@
-package rollup
+package services
 
 import (
 	"math/big"
@@ -26,42 +26,42 @@ func (c *systemConfig) Validator() validatorConfig { return c.validatorConfig }
 func (c *systemConfig) Driver() driverConfig       { return c.driverConfig }
 
 // Parses all CLI flags and returns a full system config.
-func ParseSystemConfig(ctx *cli.Context) *systemConfig {
-	utils.CheckExclusive(ctx, l1EndpointFlag, utils.MiningEnabledFlag)
-	utils.CheckExclusive(ctx, l1EndpointFlag, utils.DeveloperFlag)
+func ParseSystemConfig(cliCtx *cli.Context) *systemConfig {
+	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.MiningEnabledFlag)
+	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.DeveloperFlag)
 	var (
 		sequencerAddr, validatorAddr             common.Address
 		sequencerPassphrase, validatorPassphrase string
-		pwList                                   = utils.MakePasswordList(ctx)
-		clefEndpoint                             = ctx.String(l2ClefEndpointFlag.Name)
+		pwList                                   = utils.MakePasswordList(cliCtx)
+		clefEndpoint                             = cliCtx.String(l2ClefEndpointFlag.Name)
 	)
 	if clefEndpoint == "" {
 		if len(pwList) == 0 {
 			utils.Fatalf("Failed to parse system config: no clef endpoint or password provided")
 		}
-		if ctx.String(sequencerAddrFlag.Name) != "" {
-			sequencerAddr = common.HexToAddress(ctx.String(sequencerAddrFlag.Name))
+		if cliCtx.String(sequencerAddrFlag.Name) != "" {
+			sequencerAddr = common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name))
 			sequencerPassphrase = pwList[0]
 			pwList = pwList[1:]
 		}
-		if ctx.String(validatorAddrFlag.Name) != "" {
-			validatorAddr = common.HexToAddress(ctx.String(validatorAddrFlag.Name))
+		if cliCtx.String(validatorAddrFlag.Name) != "" {
+			validatorAddr = common.HexToAddress(cliCtx.String(validatorAddrFlag.Name))
 			validatorPassphrase = pwList[0]
 			pwList = pwList[1:]
 		}
 	}
 
 	var (
-		l1ChainID         = big.NewInt(0).SetUint64(ctx.Uint64(l1ChainIDFlag.Name))
-		sequencerTxMgrCfg = txmgr.NewConfigFromCLI(ctx, sequencerTxMgrNamespace, l1ChainID, sequencerAddr)
-		validatorTxMgrCfg = txmgr.NewConfigFromCLI(ctx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
+		l1ChainID         = big.NewInt(0).SetUint64(cliCtx.Uint64(l1ChainIDFlag.Name))
+		sequencerTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, sequencerTxMgrNamespace, l1ChainID, sequencerAddr)
+		validatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
 	)
 	return &systemConfig{
-		l1Config:        newL1ConfigFromCLI(ctx),
-		l2Config:        newL2ConfigFromCLI(ctx),
-		sequencerConfig: newSequencerConfigFromCLI(ctx, sequencerPassphrase, sequencerTxMgrCfg),
-		validatorConfig: newValidatorConfigFromCLI(ctx, validatorPassphrase, validatorTxMgrCfg),
-		driverConfig:    newDriverConfigFromCLI(ctx),
+		l1Config:        newL1ConfigFromCLI(cliCtx),
+		l2Config:        newL2ConfigFromCLI(cliCtx),
+		sequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerPassphrase, sequencerTxMgrCfg),
+		validatorConfig: newValidatorConfigFromCLI(cliCtx, validatorPassphrase, validatorTxMgrCfg),
+		driverConfig:    newDriverConfigFromCLI(cliCtx),
 	}
 }
 

@@ -2,7 +2,6 @@ package geth
 
 import (
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -16,15 +15,16 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/api"
-	// "github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
-// TODO: cleanup -- use Engine API
-
+// Implements api.ExecutionBackend.
 // Assumes exclusive control of underlying blockchain, i.e.
 // mining and blockchain insertion can not happen.
+// TODO: cleanup -- use Engine API
 // TODO: support Berlin+London fork
 type ExecutionBackend struct {
 	coinbase common.Address
@@ -46,6 +46,8 @@ type GethBackend interface {
 	TxPool() *core.TxPool
 }
 
+var _ api.ExecutionBackend = (*ExecutionBackend)(nil)
+
 func NewExecutionBackend(eth GethBackend, coinbase common.Address) (*ExecutionBackend, error) {
 	b := &ExecutionBackend{coinbase: coinbase, eth: eth}
 	err := b.startNewBlock()
@@ -59,7 +61,7 @@ func (b *ExecutionBackend) SubscribeNewTxsEvent(ch chan<- core.NewTxsEvent) even
 	return b.eth.TxPool().SubscribeNewTxsEvent(ch)
 }
 
-// See [eth/catalyst/api.go]::ConsensusAPI::forkchoiceUpdated
+// See [go-ethereum/eth/catalyst/api.go]::ConsensusAPI::forkchoiceUpdated
 // Only updates fork-choice, does not build payloads.
 func (b *ExecutionBackend) ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error) {
 	if update.HeadBlockHash == (common.Hash{}) {
@@ -177,8 +179,8 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 	return nil
 }
 
-// Sorts transactions to be committed.
-func (b *ExecutionBackend) Prepare(txs []*types.Transaction) api.TransactionQueue {
+// Sorts transactions to be committed. Does not modify any state.
+func (b *ExecutionBackend) Order(txs []*types.Transaction) api.TransactionQueue {
 	sortedTxs := make(map[common.Address]types.Transactions)
 	signer := types.MakeSigner(b.eth.BlockChain().Config(), b.header.Number)
 	for _, tx := range txs {
@@ -218,7 +220,7 @@ func (b *ExecutionBackend) BuildPayload(payload api.ExecutionPayload) error {
 	gasPool := new(core.GasPool).AddGas(header.GasLimit)
 	var receipts []*types.Receipt
 
-	txs, err := DecodeRLP(payload.Txs())
+	txs, err := decodeRLP(payload.Txs())
 	if err != nil {
 		return fmt.Errorf("Failed to decode batch, err: %w", err)
 	}
@@ -329,4 +331,18 @@ func (b *ExecutionBackend) startNewBlock() error {
 	b.txs = nil
 	b.receipts = nil
 	return nil
+}
+
+func decodeRLP(txs [][]byte) ([]*types.Transaction, error) {
+	var decodedTxs []*types.Transaction
+	for _, tx := range txs {
+		// TODO: use tx.DecodeRLP instead?
+		var decodedTx *types.Transaction
+		err := rlp.DecodeBytes(tx, decodedTx)
+		if err != nil {
+			return nil, err
+		}
+		decodedTxs = append(decodedTxs, decodedTx)
+	}
+	return decodedTxs, nil
 }

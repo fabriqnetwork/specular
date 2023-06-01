@@ -7,13 +7,14 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
-// TODO: generalize
+// Defines interface between Specular services and the underlying execution backend.
+// TODO: generalize to better support clients other than Geth.
 type ExecutionBackend interface {
 	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
 	BuildPayload(payload ExecutionPayload) error
 	CommitTransactions(txs []*types.Transaction) error // TODO: remove
-	Prepare(txs []*types.Transaction) TransactionQueue // TODO: remove
+	Order(txs []*types.Transaction) TransactionQueue   // TODO: remove
 }
 
 type ForkChoiceState = beacon.ForkchoiceStateV1

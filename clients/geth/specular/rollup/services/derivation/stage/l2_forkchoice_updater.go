@@ -2,10 +2,10 @@ package stage
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 type L2ForkchoiceUpdater struct {

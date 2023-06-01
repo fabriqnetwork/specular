@@ -1,8 +1,9 @@
-package types
+package da
 
 import (
-	"fmt"
 	"math/big"
+
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 // `DerivationBlock` represents a block from which the L2 chain can be derived.
@@ -45,15 +46,15 @@ func (e *DecodeTxBatchError) Error() string {
 }
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
-func BlocksFromDecoded(decoded []any) ([]DerivationBlock, error) {
-	if len(decoded) != 4 {
-		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
+func BlocksFromDecoded(calldata []any) ([]DerivationBlock, error) {
+	if len(calldata) != 4 {
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(calldata))}
 	}
 	var (
-		contexts           = decoded[0].([]*big.Int)
-		txLengths          = decoded[1].([]*big.Int)
-		firstL2BlockNumber = decoded[2].(big.Int)
-		txBatch            = decoded[3].([]byte)
+		contexts           = calldata[0].([]*big.Int)
+		txLengths          = calldata[1].([]*big.Int)
+		firstL2BlockNumber = calldata[2].(*big.Int)
+		txBatch            = calldata[3].([]byte)
 	)
 	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}

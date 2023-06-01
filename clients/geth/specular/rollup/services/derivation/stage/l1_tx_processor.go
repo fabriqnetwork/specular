@@ -2,14 +2,15 @@ package stage
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/da"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 type L1TxProcessor struct {
@@ -164,14 +165,14 @@ func (b *payloadBuilder) ensureClientInit(ctx context.Context) error {
 // Stateless processor -- no-op.
 // func (b *payloadBuilder) recover() error { return nil }
 
-func payloadsFromCalldata(tx *ethTypes.Transaction) ([]types.DerivationBlock, error) {
+func payloadsFromCalldata(tx *ethTypes.Transaction) ([]da.DerivationBlock, error) {
 	// Decode input to appendTxBatch transaction.
 	decoded, err := bridge.UnpackAppendTxBatchInput(tx)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
 	}
 	// Construct blocks.
-	blocks, err := types.BlocksFromDecoded(decoded)
+	blocks, err := da.BlocksFromDecoded(decoded)
 	// TODO: handle bad encoding (reject batch)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to split AppendTxBatch input into blocks, err: %w", err)

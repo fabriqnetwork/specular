@@ -6,8 +6,8 @@ import (
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // Thread-safe. Tracks the latest, last safe and last finalized L1 headers received.

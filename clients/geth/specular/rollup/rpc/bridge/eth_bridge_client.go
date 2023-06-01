@@ -12,11 +12,11 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
-// TODO: delete
+// TODO: depricated; delete
 type EthBridgeClient struct {
 	client       *eth.EthClient
 	transactOpts *bind.TransactOpts

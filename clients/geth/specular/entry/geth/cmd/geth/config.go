@@ -42,11 +42,11 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
-	specularUtils "github.com/specularl2/specular/clients/geth/specular/cmd/utils"
+	specularGeth "github.com/specularl2/specular/clients/geth/specular/entry/geth"
+	specularGethUtils "github.com/specularl2/specular/clients/geth/specular/entry/geth/cmd/utils"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
-	"github.com/specularl2/specular/clients/geth/specular/rollup"
-	specularGeth "github.com/specularl2/specular/clients/geth/specular/rollup/geth"
+	rollup "github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
 var (
@@ -172,7 +172,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 
 	// <specular modification>
-	backend, eth := specularUtils.RegisterEthService(stack, &cfg.Eth)
+	backend, eth := specularGethUtils.RegisterEthService(stack, &cfg.Eth)
 	// <specular modification/>
 
 	// Warn users to migrate if they have a legacy freezer format.
@@ -195,14 +195,8 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 	// <specular modification>
 	if ctx.IsSet(rollup.RequiredFlagName) {
-		cfg := rollup.ParseSystemConfig(ctx)
-		execBackend, err := specularGeth.NewExecutionBackend(eth, cfg.Sequencer().AccountAddr())
-		proofBackend := eth.APIBackend
-		if err != nil {
-			utils.Fatalf("Failed to create execution backend", "err", err)
-		}
-		if err := rollup.RegisterRollupServices(stack, execBackend, proofBackend, cfg); err != nil {
-			utils.Fatalf("Failed to register the rollup service", "err", err)
+		if err := specularGeth.RegisterGethRollupServices(stack, ctx, eth, eth.APIBackend); err != nil {
+			utils.Fatalf("Failed to register rollup services", "err", err)
 		}
 	}
 	// <specular modification/>

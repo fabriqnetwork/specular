@@ -2,11 +2,11 @@ package assertion
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 const cacheSize = 64
