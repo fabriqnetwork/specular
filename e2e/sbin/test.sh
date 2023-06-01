@@ -17,8 +17,10 @@ DOCKER_DIR=$SBIN_DIR/../../docker
 cd $PROJECT_DIR
 docker compose -f $DOCKER_DIR/docker-compose-integration-test.yml up -d
 sleep 30
-$SBIN_DIR/wait-for-it.sh -t 240 $HOST:$L1_PORT
-$SBIN_DIR/wait-for-it.sh -t 240 $HOST:$L2_PORT
+docker logs hardhat
+docker logs sequencer
+$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_PORT
+$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_PORT
 
 # Run testing script
 cd $CONTRACTS_DIR
