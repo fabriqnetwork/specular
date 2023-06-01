@@ -16,7 +16,6 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     const { stdout } = await execPromise(
       `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
     );
-    console.log(stdout);
     initialVMHash = (JSON.parse(stdout).root || "") as string;
     if (!initialVMHash) {
       throw Error(
