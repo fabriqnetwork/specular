@@ -52,48 +52,11 @@ jobs:
       - name: Setup Testing Environment
         run: ./e2e/sbin/setup.sh
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-
-      - name: Docker L1 meta
-        id: l1meta
-        uses: docker/metadata-action@v4
-        with:
-          images: specularl2/hardhat
-
-      - name: Build L1 image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./contracts/Dockerfile
-          push: false
-          load: true
-          tags: ${{ steps.l1meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Docker L2 meta
-        id: l2meta
-        uses: docker/metadata-action@v4
-        with:
-          images: specularl2/l2geth
-      
-      - name: Build L2 image
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./clients/geth/specular/Dockerfile
-          push: false
-          load: true
-          tags: ${{ steps.l2meta.outputs.tags }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Build containers
+        run: ./e2e/sbin/build-container.sh
 
       - name: Run Test
         run: ./e2e/sbin/test.sh
-        env:
-          L1_DOCKER_TAG: ${{ steps.l1meta.output.tags }}
-          L2_DOCKER_TAG: ${{ steps.l2meta.output.tags }}
 
       # This is a hack to solve the permission problem
       # The geth/ and keystore/ folders are created by the container so their owner is root
