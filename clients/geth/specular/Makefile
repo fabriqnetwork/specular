@@ -1,27 +1,60 @@
-.PHONY: geth bindings install
+.PHONY: install clean contracts geth-docker
 
 GOBIN = ./build/bin
-GETH_ENTRY = ./entry/geth/cmd/geth
+# TODO use env variables
+SPECULAR_DIR = ./
+CONTRACTS_DIR = ../../../contracts
+# geth
+GETH_SRC = ./entry/geth/cmd/geth/
+GETH_TARGET = $(GOBIN)/geth
+# clef
+CLEF_SRC = ../go-ethereum/cmd/clef/
+CLEF_TARGET = $(GOBIN)/clef
+# bindings
+BINDINGS_SRC = ./...
+BINDINGS_TARGET = ./bindings
+# contracts
+CONTRACTS_SRC = $(CONTRACTS_DIR)/src
+CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
-install: bindings geth clef
+# PHONY targets
 
-contracts:
+# Make all targets
+install: $(GETH_TARGET) $(CLEF_TARGET)
+contracts: $(CONTRACTS_TARGET)
+# Remove:
+# - bindings (do not remove bindings/gen.go)
+# - contracts (this has to happen after bindings)
+# - geth and clef
+clean:
+	rm -f $(BINDINGS_TARGET)/I*.go
+	cd $(CONTRACTS_DIR) && npx hardhat clean
+	rm -rf $(GETH_TARGET)
+	rm -rf $(CLEF_TARGET)
+# Skips geth prereqs for docker building.
+geth-docker:
+	go build -o $(GETH_TARGET) $(GETH_SRC)
+	@echo "Done building geth."
+	@echo "Run \"$(GETH_TARGET)\" to launch geth."
+
+# Real targets
+
+# prereqs: all new/deleted files in contracts/ AND existing solidity files
+$(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -name "*.sol")
 	./sbin/compile_contracts.sh
 
-bindings: contracts
-	go generate ./...
+# `touch` ensures the target is newer than preqreqs.
+# This is required since `go generate` may not add/delete files.
+$(BINDINGS_TARGET): $(CONTRACTS_TARGET)
+	go generate $(BINDINGS_SRC)
+	touch $(BINDINGS_TARGET)
 
-geth: bindings
-	go build -o $(GOBIN)/geth $(GETH_ENTRY)
+$(GETH_TARGET): $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
+	go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
-clef:
-	go build -o $(GOBIN)/clef ./../go-ethereum/cmd/clef
+$(CLEF_TARGET): $(CLEF_SRC)
+	go build -o $(CLEF_TARGET) $(CLEF_SRC)
 	@echo "Done building clef."
 	@echo "Run \"$(GOBIN)/clef\" to launch clef."
-
-geth-docker:
-	go build -o $(GOBIN)/geth $(GETH_ENTRY)
-	@echo "Done building."
-	@echo "Run \"$(GOBIN)/geth\" to launch geth."

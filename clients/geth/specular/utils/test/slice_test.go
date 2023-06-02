@@ -3,7 +3,7 @@ package test
 import (
 	"testing"
 
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
 	"github.com/stretchr/testify/assert"
 )
 
