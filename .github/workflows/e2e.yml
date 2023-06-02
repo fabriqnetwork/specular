@@ -1,0 +1,66 @@
+name: e2e
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  pre_job:
+    runs-on: ubuntu-latest
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          concurrent_skipping: same_content_newer
+
+  test:
+    needs: pre_job
+    if: needs.pre_job.outputs.should_skip != 'true'
+
+    runs-on: ubuntu-latest
+
+    services:
+      docker:
+        image: docker:dind
+
+    steps:
+      - name: Check machine OS
+        run: |
+          echo "Machine OS: ${{ runner.os }}"
+
+      - name: Check Docker version
+        run: |
+          docker version
+
+      - name: Install Docker Compose
+        uses: ndeloof/install-compose-action@v0.0.1
+        with:
+          version: v2.5.1
+
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          submodules: 'recursive'
+
+      - name: Setup Node
+        uses: ./.github/actions/node
+
+      - name: Setup Testing Environment
+        run: ./e2e/sbin/setup.sh
+
+      - name: Build containers
+        run: ./e2e/sbin/build-container.sh
+
+      - name: Run Test
+        run: ./e2e/sbin/test.sh
+
+      # This is a hack to solve the permission problem
+      # The geth/ and keystore/ folders are created by the container so their owner is root
+      # TODO: Find a better way to solve this
+      - name: Clean up 
+        run: sudo rm -rf ./e2e/project
+

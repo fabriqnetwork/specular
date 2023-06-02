@@ -20,38 +20,17 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import "./PredeployUUPSUpgradeable.sol";
 
-contract Faucet is UUPSUpgradeable, OwnableUpgradeable {
+contract UUPSPlaceholder is PredeployUUPSUpgradeable, OwnableUpgradeable {
+    /// @custom:oz-upgrades-unsafe-allow constructor
+    constructor() {
+        _disableInitializers();
+    }
+
     function initialize() public initializer {
         __Ownable_init();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
-
-    // amountAllowed is initialized in the genesis.json
-    // amountAllowed is set to 0.01 ETH
-    uint256 public amountAllowed;
-
-    mapping(address => uint256) public lockTime;
-
-    event DepositReceived(address, uint256);
-    event RequestFunds(address, uint256);
-
-    receive() external payable {
-        emit DepositReceived(msg.sender, msg.value);
-    }
-
-    function retrieve() external onlyOwner {
-        payable(msg.sender).transfer(address(this).balance);
-    }
-
-    function requestFunds(address payable requestor) public payable onlyOwner {
-        require(block.timestamp > lockTime[requestor], "Lock time has not expired.");
-        require(address(this).balance > amountAllowed, "Not enough funds in faucet.");
-
-        lockTime[requestor] = block.timestamp + 1 days;
-        requestor.transfer(amountAllowed);
-
-        emit RequestFunds(requestor, amountAllowed);
-    }
 }

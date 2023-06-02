@@ -160,6 +160,51 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
+    function setDAProvider(address newDAProvider) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
+        daProvider = IDAProvider(newDAProvider);
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function setConfirmationPeriod(uint256 newPeriod) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
+        confirmationPeriod = newPeriod;
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function setChallengePeriod(uint256 newPeriod) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
+        challengePeriod = newPeriod;
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function setMinimumAssertionPeriod(uint256 newPeriod) external override onlyOwner {
+        if (lastCreatedAssertionID > lastResolvedAssertionID) {
+            revert InvalidConfigChange();
+        }
+        minimumAssertionPeriod = newPeriod;
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function setBaseStakeAmount(uint256 newAmount) external override onlyOwner {
+        if (lastCreatedAssertionID != lastResolvedAssertionID || newAmount > baseStakeAmount) {
+            revert InvalidConfigChange();
+        }
+        baseStakeAmount = newAmount;
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
     function stake() external payable override {
         if (isStaked(msg.sender)) {
             stakers[msg.sender].amountStaked += msg.value;
@@ -314,14 +359,14 @@ contract Rollup is RollupBase {
             revert NoUnresolvedAssertion();
         }
 
-        // (1) there is at least one staker, and
+        // (1) there is at least one staker present
         if (numStakers <= 0) revert NoStaker();
 
         uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
         Assertion storage lastUnresolved = assertions[lastUnresolvedID];
-        // (2) challenge period has passed
+        // (2) confirmation period has passed
         if (block.number < lastUnresolved.deadline) {
-            revert ChallengePeriodPending();
+            revert ConfirmationPeriodPending();
         }
         // (3) predecessor has been confirmed
         if (lastUnresolved.parent != lastConfirmedAssertionID) {
@@ -364,9 +409,9 @@ contract Rollup is RollupBase {
         //   [1] <- [2] <- [4]    | valid chain ([2] is last confirmed, [4] is stakerAddress's unresolved assertion)
         //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
         if (firstUnresolvedAssertion.parent == lastConfirmedAssertionID) {
-            // 1a. challenge period has passed.
+            // 1a. confirmation period has passed.
             if (block.number < firstUnresolvedAssertion.deadline) {
-                revert ChallengePeriodPending();
+                revert ConfirmationPeriodPending();
             }
 
             // 1b. at least one staker exists (on a sibling)

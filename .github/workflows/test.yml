@@ -27,6 +27,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Cache Foundry toolchain
+        uses: actions/cache@v2
+        with:
+          path: ~/.foundry
+          key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
       - name: Setup Node
         uses: ./.github/actions/node
 
@@ -37,7 +45,7 @@ jobs:
 
       - name: Run forge install
         run: forge install
-        
+
       - name: Run tests
         env:
           RPC_URL: ${{ secrets.RPC_URL }}

@@ -6,7 +6,7 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
 
-const CLIENT_SBIN_DIR = "../clients/geth/specular/sbin";
+const CLIENT_SBIN_DIR = `${__dirname}/../../../clients/geth/specular/sbin`;
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
@@ -14,7 +14,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   let initialVMHash = "";
   try {
     const { stdout } = await execPromise(
-      path.join(CLIENT_SBIN_DIR, "export_genesis.sh")
+      `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`
     );
     initialVMHash = (JSON.parse(stdout).root || "") as string;
     if (!initialVMHash) {
@@ -24,7 +24,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     }
     console.log("initial VM hash:", initialVMHash);
   } catch (err) {
-    throw Error(`could not export genesis hash${err}`);
+    throw Error(`could not export genesis hash: ${err}`);
   }
 
   const { deployments, getNamedAccounts } = hre;
