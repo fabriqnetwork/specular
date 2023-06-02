@@ -1,6 +1,9 @@
-.PHONY: install contracts geth-docker clean
+.PHONY: install clean contracts geth-docker
 
 GOBIN = ./build/bin
+# TODO use env variables
+SPECULAR_DIR = ./
+CONTRACTS_DIR = ../../../contracts
 # geth
 GETH_SRC = ./cmd/geth/
 GETH_TARGET = $(GOBIN)/geth
@@ -10,27 +13,29 @@ CLEF_TARGET = $(GOBIN)/clef
 # bindings
 BINDINGS_SRC = ./...
 BINDINGS_TARGET = ./bindings
-# contracts; TODO: use env variable
-CONTRACTS_DIR = ../../../contracts
+# contracts
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
 CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
 # PHONY targets
 
-# Install all targets
+# Make all targets
 install: $(GETH_TARGET) $(CLEF_TARGET)
-# For back-compat (TODO: remove?)
-geth-docker: $(GETH_TARGET)
 contracts: $(CONTRACTS_TARGET)
 # Remove:
 # - bindings (do not remove bindings/gen.go)
 # - contracts (this has to happen after bindings)
 # - geth and clef
 clean:
-	rm $(BINDINGS_TARGET)/I*.go
+	rm -f $(BINDINGS_TARGET)/I*.go
 	cd $(CONTRACTS_DIR) && npx hardhat clean
-	rm -r $(GETH_TARGET)
-	rm -r $(CLEF_TARGET)
+	rm -rf $(GETH_TARGET)
+	rm -rf $(CLEF_TARGET)
+# Skips geth prereqs for docker building.
+geth-docker:
+	go build -o $(GETH_TARGET) $(GETH_SRC)
+	@echo "Done building geth."
+	@echo "Run \"$(GETH_TARGET)\" to launch geth."
 
 # Real targets
 
@@ -44,7 +49,7 @@ $(BINDINGS_TARGET): $(CONTRACTS_TARGET)
 	go generate $(BINDINGS_SRC)
 	touch $(BINDINGS_TARGET)
 
-$(GETH_TARGET): $(BINDINGS_TARGET)
+$(GETH_TARGET): $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
 	go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
