@@ -30,8 +30,6 @@ package validator
 // var errValidationFailed = fmt.Errorf("validation failed")
 
 // type ValidatorLegacy struct {
-// 	*services.BaseService
-
 // 	ProofBackend          proof.Backend
 // 	newBatchCh            chan struct{}
 // 	challengeCh           chan *challengeCtx
@@ -46,7 +44,6 @@ package validator
 // 	cfg *services.Config,
 // ) *ValidatorLegacy {
 // 	return &ValidatorLegacy{
-// 		BaseService:           services.NewBaseService(eth, l1Client, l1Syncer, cfg),
 // 		newBatchCh:            make(chan struct{}, 4096),
 // 		challengeCh:           make(chan *challengeCtx),
 // 		challengeResolutionCh: make(chan *assertion.Assertion),
@@ -373,7 +370,6 @@ package validator
 
 // func (v *ValidatorLegacy) Start() error {
 // 	log.Info("Starting validator...")
-// 	ctx, err := v.BaseService.Start()
 // 	if err != nil {
 // 		return err
 // 	}

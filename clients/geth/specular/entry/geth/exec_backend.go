@@ -179,17 +179,6 @@ func (b *ExecutionBackend) CommitTransactions(txs []*types.Transaction) error {
 	return nil
 }
 
-// Sorts transactions to be committed. Does not modify any state.
-func (b *ExecutionBackend) Order(txs []*types.Transaction) api.TransactionQueue {
-	sortedTxs := make(map[common.Address]types.Transactions)
-	signer := types.MakeSigner(b.eth.BlockChain().Config(), b.header.Number)
-	for _, tx := range txs {
-		acc, _ := types.Sender(signer, tx)
-		sortedTxs[acc] = append(sortedTxs[acc], tx)
-	}
-	return types.NewTransactionsByPriceAndNonce(signer, sortedTxs, b.header.BaseFee)
-}
-
 // BuildPayload executes and commits a block to local blockchain *deterministically*
 // TODO: dedup with CommitTransactions & commitStoredBlock
 // TODO: use StateProcessor::Process() instead
@@ -260,6 +249,17 @@ func (b *ExecutionBackend) BuildPayload(payload api.ExecutionPayload) error {
 		return err
 	}
 	return nil
+}
+
+// Sorts transactions to be committed. Does not modify any state.
+func (b *ExecutionBackend) Order(txs []*types.Transaction) api.TransactionQueue {
+	sortedTxs := make(map[common.Address]types.Transactions)
+	signer := types.MakeSigner(b.eth.BlockChain().Config(), b.header.Number)
+	for _, tx := range txs {
+		acc, _ := types.Sender(signer, tx)
+		sortedTxs[acc] = append(sortedTxs[acc], tx)
+	}
+	return types.NewTransactionsByPriceAndNonce(signer, sortedTxs, b.header.BaseFee)
 }
 
 // commitStoredBlock will assemble the pending block, insert it into the blockchain

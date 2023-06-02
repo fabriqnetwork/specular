@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
-	"golang.org/x/sync/errgroup"
 )
 
 type Config interface {
@@ -20,12 +19,6 @@ type Config interface {
 	IsActiveChallenger() bool
 	IsResolver() bool
 	StakeAmount() uint64
-}
-
-type BaseService interface {
-	Start() context.Context
-	Stop() error
-	ErrGroup() *errgroup.Group
 }
 
 type L1Config interface {

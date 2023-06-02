@@ -16,19 +16,12 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/utils/backoff"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
-	"golang.org/x/sync/errgroup"
 )
 
 type Driver struct {
 	cfg           Config
 	terminalStage TerminalStageOps
 	retryOpts     []retry.Option
-}
-
-type BaseService interface {
-	Start() context.Context
-	Stop() error
-	ErrGroup() *errgroup.Group
 }
 
 type Config interface {

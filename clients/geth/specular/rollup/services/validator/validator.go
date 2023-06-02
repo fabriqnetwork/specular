@@ -8,7 +8,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
@@ -80,10 +79,6 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 		eg.Go(func() error { return v.challengeLoop(ctx) })
 	}
 	return nil
-}
-
-func (v *Validator) APIs() []rpc.API {
-	return []rpc.API{}
 }
 
 func (v *Validator) eventLoop(ctx context.Context) error {

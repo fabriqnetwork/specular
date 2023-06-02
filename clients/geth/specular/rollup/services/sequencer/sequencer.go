@@ -3,7 +3,6 @@ package sequencer
 import (
 	"context"
 
-	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
@@ -49,6 +48,3 @@ func (s *Sequencer) Start(ctx context.Context, eg api.ErrGroup) error {
 	log.Info("Sequencer started")
 	return nil
 }
-
-// TODO: sequencer APIs
-func (s *Sequencer) APIs() []rpc.API { return []rpc.API{} }

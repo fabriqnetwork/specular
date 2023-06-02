@@ -14,19 +14,12 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/da"
-	"golang.org/x/sync/errgroup"
 )
 
 type Config interface {
 	MinExecutionInterval() time.Duration
 	MaxExecutionInterval() time.Duration
 	SequencingInterval() time.Duration
-}
-
-type BaseService interface {
-	Start() context.Context
-	Stop() error
-	ErrGroup() *errgroup.Group
 }
 
 type ExecutionBackend interface {
