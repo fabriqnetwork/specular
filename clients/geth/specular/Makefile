@@ -1,4 +1,4 @@
-.PHONY: clean install geth-docker
+.PHONY: install contracts geth-docker clean
 
 GOBIN = ./build/bin
 # geth
@@ -21,6 +21,7 @@ CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 install: $(GETH_TARGET) $(CLEF_TARGET)
 # For back-compat (TODO: remove?)
 geth-docker: $(GETH_TARGET)
+contracts: $(CONTRACTS_TARGET)
 # Remove:
 # - bindings (do not remove bindings/gen.go)
 # - contracts (this has to happen after bindings)
