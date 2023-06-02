@@ -1,32 +1,64 @@
 package services
 
 import (
+	"fmt"
 	"math/big"
+	"os"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 	"github.com/urfave/cli/v2"
 )
 
-// TODO: use json tags and directly parse a config file
 type systemConfig struct {
-	l1Config
-	l2Config
-	sequencerConfig
-	validatorConfig
-	driverConfig
+	L1Config        `toml:"l1,omitempty"`
+	L2Config        `toml:"l2,omitempty"`
+	SequencerConfig `toml:"sequencer,omitempty"`
+	ValidatorConfig `toml:"validator,omitempty"`
+	DriverConfig    `toml:"driver,omitempty"`
 }
 
-func (c *systemConfig) L1() l1Config               { return c.l1Config }
-func (c *systemConfig) L2() l2Config               { return c.l2Config }
-func (c *systemConfig) Sequencer() sequencerConfig { return c.sequencerConfig }
-func (c *systemConfig) Validator() validatorConfig { return c.validatorConfig }
-func (c *systemConfig) Driver() driverConfig       { return c.driverConfig }
+func (c *systemConfig) L1() L1Config               { return c.L1Config }
+func (c *systemConfig) L2() L2Config               { return c.L2Config }
+func (c *systemConfig) Sequencer() SequencerConfig { return c.SequencerConfig }
+func (c *systemConfig) Validator() ValidatorConfig { return c.ValidatorConfig }
+func (c *systemConfig) Driver() DriverConfig       { return c.DriverConfig }
 
 // Parses all CLI flags and returns a full system config.
-func ParseSystemConfig(cliCtx *cli.Context) *systemConfig {
+func ParseSystemConfig(cliCtx *cli.Context) (*systemConfig, error) {
+	var (
+		sysCfg  = parseFlags(cliCtx)
+		cfgPath = cliCtx.String(cfgFileFlag.Name)
+		err     error
+	)
+	// Override with config file if provided.
+	if cfgPath != "" {
+		log.Info("Parsing TOML config", "path", cfgPath)
+		err = parseTOML(cfgPath, sysCfg)
+	}
+	return sysCfg, err
+}
+
+// Parses a TOML config file. Overwrites any fields that are already set in cfg.
+// path: path to TOML config file.
+// cfg: system config to decode into.
+func parseTOML(path string, cfg *systemConfig) error {
+	_, err := toml.DecodeFile(path, cfg)
+	if err != nil {
+		return fmt.Errorf("Couldn't decode TOML config: %w", err)
+	}
+	// Print full config to stdout in TOML format for sanity.
+	if err := toml.NewEncoder(os.Stdout).Encode(cfg); err != nil {
+		return fmt.Errorf("Couldn't re-encode TOML: %w", err)
+	}
+	return nil
+}
+
+func parseFlags(cliCtx *cli.Context) *systemConfig {
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.DeveloperFlag)
 	var (
@@ -57,25 +89,25 @@ func ParseSystemConfig(cliCtx *cli.Context) *systemConfig {
 		validatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
 	)
 	return &systemConfig{
-		l1Config:        newL1ConfigFromCLI(cliCtx),
-		l2Config:        newL2ConfigFromCLI(cliCtx),
-		sequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerPassphrase, sequencerTxMgrCfg),
-		validatorConfig: newValidatorConfigFromCLI(cliCtx, validatorPassphrase, validatorTxMgrCfg),
-		driverConfig:    newDriverConfigFromCLI(cliCtx),
+		L1Config:        newL1ConfigFromCLI(cliCtx),
+		L2Config:        newL2ConfigFromCLI(cliCtx),
+		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerPassphrase, sequencerTxMgrCfg),
+		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorPassphrase, validatorTxMgrCfg),
+		DriverConfig:    newDriverConfigFromCLI(cliCtx),
 	}
 }
 
 // L1 configuration
-type l1Config struct {
-	endpoint           string         // L1 API endpoint
-	chainID            uint64         // L1 chain ID
-	rollupGenesisBlock uint64         // L1 Rollup genesis block
-	sequencerInboxAddr common.Address // L1 SequencerInbox contract address
-	rollupAddr         common.Address // L1 Rollup contract address
+type L1Config struct {
+	endpoint           string         `toml:"endpoint,omitempty"`             // L1 API endpoint
+	chainID            uint64         `toml:"chainid,omitempty"`              // L1 chain ID
+	rollupGenesisBlock uint64         `toml:"rollup_genesis,omitempty"`       // L1 Rollup genesis block
+	sequencerInboxAddr common.Address `toml:"sequencer_inbox_addr,omitempty"` // L1 SequencerInbox contract address
+	rollupAddr         common.Address `toml:"rollup_addr,omitempty"`          // L1 Rollup contract address
 }
 
-func newL1ConfigFromCLI(cliCtx *cli.Context) l1Config {
-	return l1Config{
+func newL1ConfigFromCLI(cliCtx *cli.Context) L1Config {
+	return L1Config{
 		endpoint:           cliCtx.String(l1EndpointFlag.Name),
 		chainID:            cliCtx.Uint64(l1ChainIDFlag.Name),
 		rollupGenesisBlock: cliCtx.Uint64(l1RollupGenesisBlockFlag.Name),
@@ -84,113 +116,128 @@ func newL1ConfigFromCLI(cliCtx *cli.Context) l1Config {
 	}
 }
 
-func (c l1Config) Endpoint() string                   { return c.endpoint }
-func (c l1Config) ChainID() uint64                    { return c.chainID }
-func (c l1Config) RollupGenesisBlock() uint64         { return c.rollupGenesisBlock }
-func (c l1Config) SequencerInboxAddr() common.Address { return c.sequencerInboxAddr }
-func (c l1Config) RollupAddr() common.Address         { return c.rollupAddr }
+func (c L1Config) Endpoint() string                   { return c.endpoint }
+func (c L1Config) ChainID() uint64                    { return c.chainID }
+func (c L1Config) RollupGenesisBlock() uint64         { return c.rollupGenesisBlock }
+func (c L1Config) SequencerInboxAddr() common.Address { return c.sequencerInboxAddr }
+func (c L1Config) RollupAddr() common.Address         { return c.rollupAddr }
 
 // L2 configuration
-type l2Config struct {
-	endpoint     string // L2 API endpoint
-	clefEndpoint string // The Clef Endpoint used for signing TXs
+type L2Config struct {
+	Endpoint     string `toml:"endpoint,omitempty"`      // L2 API endpoint
+	ClefEndpoint string `toml:"clef_endpoint,omitempty"` // The Clef Endpoint used for signing TXs
 }
 
-func newL2ConfigFromCLI(cliCtx *cli.Context) l2Config {
-	return l2Config{
-		endpoint:     cliCtx.String(l2EndpointFlag.Name),
-		clefEndpoint: cliCtx.String(l2ClefEndpointFlag.Name),
+func newL2ConfigFromCLI(cliCtx *cli.Context) L2Config {
+	return L2Config{
+		Endpoint:     cliCtx.String(l2EndpointFlag.Name),
+		ClefEndpoint: cliCtx.String(l2ClefEndpointFlag.Name),
 	}
 }
 
-func (c l2Config) Endpoint() string     { return c.endpoint }
-func (c l2Config) ClefEndpoint() string { return c.clefEndpoint }
+func (c L2Config) GetEndpoint() string     { return c.Endpoint }
+func (c L2Config) GetClefEndpoint() string { return c.ClefEndpoint }
 
 // Sequencer node configuration
-type sequencerConfig struct {
-	accountAddr          common.Address
-	passphrase           string        // The passphrase of the sequencer account
-	minExecutionInterval time.Duration // Minimum time between block production. If 0, txs executed immediately -- FCFS.
-	maxExecutionInterval time.Duration // Maximum time between block production. Must be >= `minExecutionInterval`.
-	sequencingInterval   time.Duration // Time between batch sequencing attempts
-	txMgrCfg             txmgr.Config
+type SequencerConfig struct {
+	AccountAddr common.Address `toml:"account_addr,omitempty"`
+	// The passphrase of the sequencer account
+	Passphrase string `toml:"passphrase,omitempty"`
+	// Minimum time between block production. If 0, txs executed immediately -- FCFS.
+	MinExecutionInterval time.Duration `toml:"min_execution_interval,omitempty"`
+	// Maximum time between block production. Must be >= `minExecutionInterval`.
+	MaxExecutionInterval time.Duration `toml:"max_execution_interval,omitempty"`
+	// Time between batch sequencing attempts
+	SequencingInterval time.Duration `toml:"sequencing_interval,omitempty"`
+	// Transaction manager configuration
+	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
 
-func (c sequencerConfig) AccountAddr() common.Address         { return c.accountAddr }
-func (c sequencerConfig) Passphrase() string                  { return c.passphrase }
-func (c sequencerConfig) MinExecutionInterval() time.Duration { return c.minExecutionInterval }
-func (c sequencerConfig) MaxExecutionInterval() time.Duration { return c.maxExecutionInterval }
-func (c sequencerConfig) SequencingInterval() time.Duration   { return c.sequencingInterval }
-func (c sequencerConfig) TxMgrCfg() txmgr.Config              { return c.txMgrCfg }
+func (c SequencerConfig) GetAccountAddr() common.Address         { return c.AccountAddr }
+func (c SequencerConfig) GetPassphrase() string                  { return c.Passphrase }
+func (c SequencerConfig) GetMinExecutionInterval() time.Duration { return c.MinExecutionInterval }
+func (c SequencerConfig) GetMaxExecutionInterval() time.Duration { return c.MaxExecutionInterval }
+func (c SequencerConfig) GetSequencingInterval() time.Duration   { return c.SequencingInterval }
+func (c SequencerConfig) GetTxMgrCfg() txmgr.Config              { return c.TxMgrCfg }
 
 func newSequencerConfigFromCLI(
 	cliCtx *cli.Context,
 	passphrase string,
 	txMgrCfg txmgr.Config,
-) sequencerConfig {
-	return sequencerConfig{
-		accountAddr:          common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
-		passphrase:           passphrase,
-		minExecutionInterval: time.Duration(cliCtx.Uint(sequencerMinExecIntervalFlag.Name)) * time.Second,
-		maxExecutionInterval: time.Duration(cliCtx.Uint(sequencerMaxExecIntervalFlag.Name)) * time.Second,
-		sequencingInterval:   time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
-		txMgrCfg:             txMgrCfg,
+) SequencerConfig {
+	return SequencerConfig{
+		AccountAddr:          common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
+		Passphrase:           passphrase,
+		MinExecutionInterval: time.Duration(cliCtx.Uint(sequencerMinExecIntervalFlag.Name)) * time.Second,
+		MaxExecutionInterval: time.Duration(cliCtx.Uint(sequencerMaxExecIntervalFlag.Name)) * time.Second,
+		SequencingInterval:   time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
+		TxMgrCfg:             txMgrCfg,
 	}
 }
 
 // Validator node configuration
-type validatorConfig struct {
-	accountAddr        common.Address
-	passphrase         string // The passphrase of the validator account
-	isActiveStaker     bool   // Iff true, actively stakes on rollup contract
-	isActiveCreator    bool   // Iff true, actively tries to create new assertions (not just for a challenge).
-	isActiveChallenger bool   // Iff true, actively issues challenges as challenger. *Defends* against challenges regardless.
-	isResolver         bool   // Iff true, attempts to resolve assertions (by confirming or rejecting)
-	stakeAmount        uint64 // Size of stake to deposit to rollup contract
-	txMgrCfg           txmgr.Config
+type ValidatorConfig struct {
+	AccountAddr common.Address `toml:"account_addr,omitempty"`
+	// The passphrase of the validator account
+	Passphrase string `toml:"passphrase,omitempty"`
+	// True iff actively stakes on rollup contract
+	IsActiveStaker bool `toml:"is_active_staker,omitempty"`
+	// True iff actively tries to create new assertions (not just for a challenge).
+	IsActiveCreator bool `toml:"is_active_creator,omitempty"`
+	// True iff actively issues challenges as challenger. *Defends* against challenges regardless.
+	IsActiveChallenger bool `toml:"is_active_challenger,omitempty"`
+	// True iff attempts to resolve assertions (by confirming or rejecting)
+	IsResolver bool `toml:"is_resolver,omitempty"`
+	// Size of stake to deposit to rollup contract
+	StakeAmount uint64 `toml:"stake_amount,omitempty"`
+	// Transaction manager configuration
+	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
 
-func (c validatorConfig) AccountAddr() common.Address { return c.accountAddr }
-func (c validatorConfig) Passphrase() string          { return c.passphrase }
-func (c validatorConfig) IsActiveStaker() bool        { return c.isActiveStaker }
-func (c validatorConfig) IsActiveCreator() bool       { return c.isActiveCreator }
-func (c validatorConfig) IsActiveChallenger() bool    { return c.isActiveChallenger }
-func (c validatorConfig) IsResolver() bool            { return c.isResolver }
-func (c validatorConfig) StakeAmount() uint64         { return c.stakeAmount }
-func (c validatorConfig) TxMgrCfg() txmgr.Config      { return c.txMgrCfg }
+func (c ValidatorConfig) GetAccountAddr() common.Address { return c.AccountAddr }
+func (c ValidatorConfig) GetPassphrase() string          { return c.Passphrase }
+func (c ValidatorConfig) GetIsActiveStaker() bool        { return c.IsActiveStaker }
+func (c ValidatorConfig) GetIsActiveCreator() bool       { return c.IsActiveCreator }
+func (c ValidatorConfig) GetIsActiveChallenger() bool    { return c.IsActiveChallenger }
+func (c ValidatorConfig) GetIsResolver() bool            { return c.IsResolver }
+func (c ValidatorConfig) GetStakeAmount() uint64         { return c.StakeAmount }
+func (c ValidatorConfig) GetTxMgrCfg() txmgr.Config      { return c.TxMgrCfg }
 
 func newValidatorConfigFromCLI(
 	ctx *cli.Context,
 	passphrase string,
 	txMgrCfg txmgr.Config,
-) validatorConfig {
-	return validatorConfig{
-		accountAddr:        common.HexToAddress(ctx.String(validatorAddrFlag.Name)),
-		passphrase:         passphrase,
-		isActiveStaker:     ctx.Bool(validatorIsActiveStakerFlag.Name),
-		isActiveCreator:    ctx.Bool(validatorIsActiveCreatorFlag.Name),
-		isActiveChallenger: ctx.Bool(validatorIsActiveChallengerFlag.Name),
-		isResolver:         ctx.Bool(validatorIsResolverFlag.Name),
-		stakeAmount:        ctx.Uint64(validatorStakeAmountFlag.Name),
-		txMgrCfg:           txMgrCfg,
+) ValidatorConfig {
+	return ValidatorConfig{
+		AccountAddr:        common.HexToAddress(ctx.String(validatorAddrFlag.Name)),
+		Passphrase:         passphrase,
+		IsActiveStaker:     ctx.Bool(validatorIsActiveStakerFlag.Name),
+		IsActiveCreator:    ctx.Bool(validatorIsActiveCreatorFlag.Name),
+		IsActiveChallenger: ctx.Bool(validatorIsActiveChallengerFlag.Name),
+		IsResolver:         ctx.Bool(validatorIsResolverFlag.Name),
+		StakeAmount:        ctx.Uint64(validatorStakeAmountFlag.Name),
+		TxMgrCfg:           txMgrCfg,
 	}
 }
 
 // Driver configuration
-type driverConfig struct {
-	stepInterval time.Duration // Time between driver steps (in steady state; failures may trigger a longer backoff)
-	retryDelay   time.Duration // Time to wait before retrying a step attempt
-	numAttempts  uint          // Number of attempts to attempt driver step before catastrophically failing. Must be > 0.
+type DriverConfig struct {
+	// Time between driver steps (in steady state; failures may trigger a longer backoff)
+	StepInterval time.Duration `toml:"step_interval,omitempty"`
+	// Time to wait before retrying a step attempt
+	RetryDelay time.Duration `toml:"retry_delay,omitempty"`
+	// # attempts to attempt driver step before catastrophically failing. Must be > 0.
+	NumAttempts uint `toml:"num_attempts,omitempty"`
 }
 
-func (c driverConfig) StepInterval() time.Duration { return c.stepInterval }
-func (c driverConfig) RetryDelay() time.Duration   { return c.retryDelay }
-func (c driverConfig) NumAttempts() uint           { return c.numAttempts }
+func (c DriverConfig) GetStepInterval() time.Duration { return c.StepInterval }
+func (c DriverConfig) GetRetryDelay() time.Duration   { return c.RetryDelay }
+func (c DriverConfig) GetNumAttempts() uint           { return c.NumAttempts }
 
-func newDriverConfigFromCLI(cliCtx *cli.Context) driverConfig {
-	return driverConfig{
-		stepInterval: time.Duration(cliCtx.Uint(driverStepIntervalFlag.Name)) * time.Second,
-		retryDelay:   time.Duration(cliCtx.Uint(driverRetryDelayFlag.Name)) * time.Second,
-		numAttempts:  cliCtx.Uint(driverNumAttemptsFlag.Name),
+func newDriverConfigFromCLI(cliCtx *cli.Context) DriverConfig {
+	return DriverConfig{
+		StepInterval: time.Duration(cliCtx.Uint(driverStepIntervalFlag.Name)) * time.Second,
+		RetryDelay:   time.Duration(cliCtx.Uint(driverRetryDelayFlag.Name)) * time.Second,
+		NumAttempts:  cliCtx.Uint(driverNumAttemptsFlag.Name),
 	}
 }

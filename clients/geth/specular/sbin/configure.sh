@@ -4,5 +4,6 @@ SBIN="`cd "$SBIN"; pwd`"
 export GETH_SPECULAR_DIR=$SBIN/../
 export CLIENTS_DIR=$GETH_SPECULAR_DIR/../../
 export ROOT_DIR=$CLIENTS_DIR/../
+export CONFIG_DIR=$ROOT_DIR/config/
 export CONTRACTS_DIR=$ROOT_DIR/contracts/
 export DATA_DIR=$GETH_SPECULAR_DIR/data/

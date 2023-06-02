@@ -46,7 +46,7 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 	d.l2Client = l2Client
 	// Start with latest safe state.
 	d.revertToFinalized()
-	var ticker = time.NewTicker(d.cfg.SequencingInterval())
+	var ticker = time.NewTicker(d.cfg.GetSequencingInterval())
 	defer ticker.Stop()
 	d.step(ctx)
 	for {

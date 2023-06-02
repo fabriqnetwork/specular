@@ -13,12 +13,12 @@ import (
 )
 
 type Config interface {
-	AccountAddr() common.Address
-	IsActiveStaker() bool
-	IsActiveCreator() bool
-	IsActiveChallenger() bool
-	IsResolver() bool
-	StakeAmount() uint64
+	GetAccountAddr() common.Address
+	GetIsActiveStaker() bool
+	GetIsActiveCreator() bool
+	GetIsActiveChallenger() bool
+	GetIsResolver() bool
+	GetStakeAmount() uint64
 }
 
 type L1Config interface {

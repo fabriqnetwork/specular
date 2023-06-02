@@ -1,0 +1,2 @@
+[l1]
+endpoint = "ws://host.docker.internal:8545"

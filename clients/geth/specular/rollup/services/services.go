@@ -59,7 +59,7 @@ func CreateRollupServices(
 	services = append(services, driver)
 
 	// Create sequencer
-	if (cfg.Sequencer().AccountAddr() != common.Address{}) {
+	if (cfg.Sequencer().GetAccountAddr() != common.Address{}) {
 		sequencer, err := createSequencer(ctx, cfg, accMgr, execBackend)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to initialize sequencer: %w", err)
@@ -67,7 +67,7 @@ func CreateRollupServices(
 		services = append(services, sequencer)
 	}
 	// Create validator
-	if (cfg.Validator().AccountAddr() != common.Address{}) {
+	if (cfg.Validator().GetAccountAddr() != common.Address{}) {
 		validator, err := createValidator(ctx, cfg, accMgr, rollupState, proofBackend)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to create validator: %w", err)
@@ -98,7 +98,7 @@ func createDriver(
 		return nil, fmt.Errorf("Failed to start l1 state sync: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (stage.EthClient, error) {
-		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+		return eth.DialWithRetry(ctx, cfg.L2().GetEndpoint(), nil)
 	}
 	terminalStage := stage.CreatePipeline(cfg.L1(), execBackend, rollupState, l2ClientCreatorFn, l1Client, l1State)
 	driver := derivation.NewDriver(cfg.Driver(), terminalStage)
@@ -112,7 +112,7 @@ func createSequencer(
 	execBackend api.ExecutionBackend,
 ) (*sequencer.Sequencer, error) {
 	l1TxMgr, err := createTxManager(
-		ctx, cfg, accountMgr, cfg.Sequencer().AccountAddr(), cfg.L2().ClefEndpoint(), cfg.Sequencer().Passphrase(),
+		ctx, cfg, accountMgr, cfg.Sequencer().GetAccountAddr(), cfg.L2().GetClefEndpoint(), cfg.Sequencer().GetPassphrase(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 tx manager: %w", err)
@@ -122,7 +122,7 @@ func createSequencer(
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
 	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
-		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+		return eth.DialWithRetry(ctx, cfg.L2().GetEndpoint(), nil)
 	}
 	return sequencer.NewSequencer(cfg.Sequencer(), execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
 }
@@ -135,19 +135,19 @@ func createValidator(
 	proofBackend proof.Backend,
 ) (*validator.Validator, error) {
 	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
-		return eth.DialWithRetry(ctx, cfg.L2().Endpoint(), nil)
+		return eth.DialWithRetry(ctx, cfg.L2().GetEndpoint(), nil)
 	}
 	// Create tx manager, used to send transactions to L1.
 	l1TxMgr, err := createTxManager(
-		ctx, cfg, accountMgr, cfg.Validator().AccountAddr(), cfg.L2().ClefEndpoint(), cfg.Validator().Passphrase(),
+		ctx, cfg, accountMgr, cfg.Validator().GetAccountAddr(), cfg.L2().GetClefEndpoint(), cfg.Validator().GetPassphrase(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize tx manager: %w", err)
 	}
-	return validator.NewValidator(cfg.validatorConfig, l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
+	return validator.NewValidator(cfg.Validator(), l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
 }
 
-func createRollupState(ctx context.Context, cfg l1Config) (*derivation.RollupState, error) {
+func createRollupState(ctx context.Context, cfg L1Config) (*derivation.RollupState, error) {
 	bridgeClient, err := bridge.DialWithRetry(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
@@ -159,7 +159,7 @@ func createRollupState(ctx context.Context, cfg l1Config) (*derivation.RollupSta
 	return rollupState, nil
 }
 
-func createSyncingL1State(ctx context.Context, cfg l1Config) (*eth.EthState, error) {
+func createSyncingL1State(ctx context.Context, cfg L1Config) (*eth.EthState, error) {
 	l1State := eth.NewEthState()
 	l1Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
 	if err != nil {
@@ -190,7 +190,7 @@ func createTxManager(
 		return transactor.Signer(address, tx)
 	}
 	// TODO: config
-	return bridge.NewTxManager(txmgr.NewTxManager(cfg.Sequencer().TxMgrCfg(), l1Client, signer), cfg.L1())
+	return bridge.NewTxManager(txmgr.NewTxManager(cfg.Sequencer().GetTxMgrCfg(), l1Client, signer), cfg.L1())
 }
 
 // createTransactor creates a transactor for the given account address,

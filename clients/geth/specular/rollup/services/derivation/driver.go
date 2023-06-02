@@ -25,9 +25,9 @@ type Driver struct {
 }
 
 type Config interface {
-	StepInterval() time.Duration
-	RetryDelay() time.Duration
-	NumAttempts() uint
+	GetStepInterval() time.Duration
+	GetRetryDelay() time.Duration
+	GetNumAttempts() uint
 }
 
 type TerminalStageOps interface {
@@ -49,13 +49,13 @@ const (
 
 func NewDriver(cfg Config, terminalStage TerminalStageOps) *Driver {
 	var (
-		backoffStrat = backoff.Exponential(float64(cfg.RetryDelay().Milliseconds()), math.MaxFloat64)
+		backoffStrat = backoff.Exponential(float64(cfg.GetRetryDelay().Milliseconds()), math.MaxFloat64)
 		// Retry RetryableErrors with exponential backoff up to cfg.NumAttempts() times.
 		retryOpts = []retry.Option{
 			retry.OnRetry(func(n uint, err error) { log.Warn("Retrying after delay...", "attempt#", n+1, "error", err) }),
 			retry.RetryIf(func(err error) bool { return errors.As(err, &stage.RetryableError{}) }),
-			retry.Attempts(cfg.NumAttempts()),
-			retry.Delay(cfg.RetryDelay() * time.Second),
+			retry.Attempts(cfg.GetNumAttempts()),
+			retry.Delay(cfg.GetRetryDelay() * time.Second),
 			retry.DelayType(func(n uint, _ error, _ *retry.Config) time.Duration { return backoffStrat.Duration(n) }),
 		}
 	)
@@ -77,7 +77,7 @@ func (d *Driver) drive(ctx context.Context) error {
 		driverState = driverStateHealthy
 		pullFn      = func() error { return d.pull(ctx) }
 		recoverFn   = func() error { return d.recover(ctx) }
-		ticker      = time.NewTicker(d.cfg.StepInterval())
+		ticker      = time.NewTicker(d.cfg.GetStepInterval())
 	)
 	defer ticker.Stop()
 	// TODO: consider async control w/ channels.

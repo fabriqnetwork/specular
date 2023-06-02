@@ -8,6 +8,3 @@ services:
       dockerfile: ./clients/geth/specular/Dockerfile
     volumes:
       - ${SPECULAR_DATADIR:-$PWD/specular-datadir}:/specular
-    env_file:
-      - ../envs/common.env
-    entrypoint: geth.sh

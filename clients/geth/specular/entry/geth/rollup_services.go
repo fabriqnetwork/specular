@@ -28,8 +28,11 @@ func RegisterGethRollupServices(
 	eth GethBackend,
 	proofBackend proof.Backend,
 ) error {
-	cfg := services.ParseSystemConfig(cliCtx)
-	execBackend, err := NewExecutionBackend(eth, cfg.Sequencer().AccountAddr())
+	cfg, err := services.ParseSystemConfig(cliCtx)
+	if err != nil {
+		return fmt.Errorf("Failed to parse system config: %w", err)
+	}
+	execBackend, err := NewExecutionBackend(eth, cfg.Sequencer().GetAccountAddr())
 	if err != nil {
 		return fmt.Errorf("Failed to create geth execution backend: %w", err)
 	}

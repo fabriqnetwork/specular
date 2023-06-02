@@ -1,0 +1,5 @@
+# [l1]
+endpoint = "ws://localhost:8545" 
+
+[l2]
+endpoint = "ws://0.0.0.0:4012"

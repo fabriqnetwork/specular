@@ -8,6 +8,7 @@ import (
 // All supported flags.
 func CLIFlags() []cli.Flag {
 	var flags = []cli.Flag{}
+	flags = append(flags, cfgFileFlag)
 	flags = append(flags, l1Flags...)
 	flags = append(flags, l2Flags...)
 	flags = append(flags, sequencerCLIFlags...)
@@ -19,7 +20,8 @@ func CLIFlags() []cli.Flag {
 }
 
 const (
-	RequiredFlagName = "rollup.l1.endpoint"
+	ConfigFlagName  = "rollup.config"
+	CmdlineFlagName = "rollup.l1.endpoint"
 	// txmgr flag namespaces
 	sequencerTxMgrNamespace = "rollup.sequencer.txmgr"
 	validatorTxMgrNamespace = "rollup.validator.txmgr"
@@ -30,6 +32,10 @@ const (
 // flag in the appropriate command definition.
 var (
 	// L1 config flags
+	cfgFileFlag = &cli.StringFlag{
+		Name:  "rollup.config",
+		Usage: "A YAML file containing the rollup config.",
+	}
 	l1EndpointFlag = &cli.StringFlag{
 		Name:  "rollup.l1.endpoint",
 		Usage: "The API endpoint of L1 client",

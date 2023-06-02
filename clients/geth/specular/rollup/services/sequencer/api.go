@@ -17,9 +17,9 @@ import (
 )
 
 type Config interface {
-	MinExecutionInterval() time.Duration
-	MaxExecutionInterval() time.Duration
-	SequencingInterval() time.Duration
+	GetMinExecutionInterval() time.Duration
+	GetMaxExecutionInterval() time.Duration
+	GetSequencingInterval() time.Duration
 }
 
 type ExecutionBackend interface {

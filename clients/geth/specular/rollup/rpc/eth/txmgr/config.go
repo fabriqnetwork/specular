@@ -13,38 +13,38 @@ type Config struct {
 	// published transaction has been mined, the new tx with a bumped gas
 	// price will be published. Only one publication at MaxGasPrice will be
 	// attempted.
-	ResubmissionTimeout time.Duration
+	ResubmissionTimeout time.Duration `toml:"resubmission_timeout,omitempty"`
 
 	// ChainID is the chain ID of the L1 chain.
-	ChainID *big.Int
+	ChainID *big.Int `toml:"chain_id,omitempty"`
 
 	// TxSendTimeout is how long to wait for sending a transaction.
 	// By default it is unbounded. If set, this is recommended to be at least 20 minutes.
-	TxSendTimeout time.Duration
+	TxSendTimeout time.Duration `toml:"tx_send_timeout,omitempty"`
 
 	// TxNotInMempoolTimeout is how long to wait before aborting a transaction send if the transaction does not
 	// make it to the mempool. If the tx is in the mempool, TxSendTimeout is used instead.
-	TxNotInMempoolTimeout time.Duration
+	TxNotInMempoolTimeout time.Duration `toml:"tx_not_in_mempool_timeout,omitempty"`
 
 	// NetworkTimeout is the allowed duration for a single network request.
 	// This is intended to be used for network requests that can be replayed.
-	NetworkTimeout time.Duration
+	NetworkTimeout time.Duration `toml:"network_timeout,omitempty"`
 
 	// RequireQueryInterval is the interval at which the tx manager will
 	// query the backend to check for confirmations after a tx at a
 	// specific gas price has been published.
-	ReceiptQueryInterval time.Duration
+	ReceiptQueryInterval time.Duration `toml:"receipt_query_interval,omitempty"`
 
 	// NumConfirmations specifies how many blocks are need to consider a
 	// transaction confirmed.
-	NumConfirmations uint64
+	NumConfirmations uint64 `toml:"num_confirmations,omitempty"`
 
 	// SafeAbortNonceTooLowCount specifies how many ErrNonceTooLow observations
 	// are required to give up on a tx at a particular nonce without receiving
 	// confirmation.
-	SafeAbortNonceTooLowCount uint64
+	SafeAbortNonceTooLowCount uint64 `toml:"safe_abort_nonce_too_low_count,omitempty"`
 
-	From common.Address
+	From common.Address `toml:"from,omitempty"` // TODO: ignore field
 }
 
 const (

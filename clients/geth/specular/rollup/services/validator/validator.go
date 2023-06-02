@@ -61,7 +61,7 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 		return fmt.Errorf("Failed to create L2 client: %w", err)
 	}
 	v.l2Client = l2Client
-	if v.cfg.IsActiveStaker() {
+	if v.cfg.GetIsActiveStaker() {
 		if err := v.Stake(ctx); err != nil {
 			return fmt.Errorf("Failed to stake: %w", err)
 		}
@@ -72,10 +72,10 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 	// }
 	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
-	if v.cfg.IsActiveStaker() {
+	if v.cfg.GetIsActiveStaker() {
 		eg.Go(func() error { return v.eventLoop(ctx) })
 	}
-	if v.cfg.IsActiveChallenger() {
+	if v.cfg.GetIsActiveChallenger() {
 		eg.Go(func() error { return v.challengeLoop(ctx) })
 	}
 	return nil
@@ -100,13 +100,13 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 			// Note: assertions are created/resolved relatively infrequently,
 			// compared to batch sequencing. However, the queue may grow larger
 			// particularly during disputes.
-			if v.cfg.IsResolver() {
+			if v.cfg.GetIsResolver() {
 				err := v.tryResolve(ctx)
 				if err != nil {
 					return fmt.Errorf("Failed to resolve assertions: %w", err)
 				}
 			}
-			if v.cfg.IsActiveCreator() {
+			if v.cfg.GetIsActiveCreator() {
 				_, err := v.createAssertion(ctx)
 				if errors.Is(err, core.ErrInsufficientFunds) {
 					return fmt.Errorf("Insufficient funds to send tx: %w", err)
@@ -118,14 +118,14 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 		case ev := <-createdCh:
 			log.Info("Received `AssertionCreated` event.", "assertion id", ev.AssertionID)
 			// Validate. This blocks assertion creation, but that's fine.
-			if common.Address(ev.AsserterAddr) == v.cfg.AccountAddr() {
+			if common.Address(ev.AsserterAddr) == v.cfg.GetAccountAddr() {
 				// No need to validate, advance stake or resolve (already done above).
 				return nil
 			}
 			err := v.validate()
 			if err != nil {
 				log.Error("Failed to validate assertion", "error", err)
-				if v.cfg.IsActiveChallenger() {
+				if v.cfg.GetIsActiveChallenger() {
 					// If incorrect, challenge (fork assertion chain if necessary).
 					// Note: we can continue to resolve prior assertions concurrently.
 				}
@@ -203,7 +203,7 @@ func (v *Validator) createAssertion(ctx context.Context) (*assertion.Assertion, 
 	if err != nil {
 		return nil, err
 	}
-	staker, err := v.rollupState.GetStaker(ctx, v.cfg.AccountAddr())
+	staker, err := v.rollupState.GetStaker(ctx, v.cfg.GetAccountAddr())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get assertion ID (through staker), err: %w", err)
 	}
@@ -355,12 +355,12 @@ func (v *Validator) setL2BlockBoundaries(
 }
 
 func (v *Validator) Stake(ctx context.Context) error {
-	staker, err := v.rollupState.GetStaker(ctx, v.cfg.AccountAddr())
+	staker, err := v.rollupState.GetStaker(ctx, v.cfg.GetAccountAddr())
 	if err != nil {
 		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
 	}
 	if !staker.IsStaked {
-		_, err = v.l1TxMgr.Stake(ctx, big.NewInt(int64(v.cfg.StakeAmount())))
+		_, err = v.l1TxMgr.Stake(ctx, big.NewInt(int64(v.cfg.GetStakeAmount())))
 		if err != nil {
 			return fmt.Errorf("Failed to stake, err: %w", err)
 		}
