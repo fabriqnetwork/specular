@@ -1,5 +1,6 @@
-.PHONY: install clean contracts geth-docker
+.PHONY: install specular clean geth-docker contracts
 
+GOSRC = ./...
 GOBIN = ./build/bin
 # TODO use env variables
 SPECULAR_DIR = ./
@@ -11,7 +12,6 @@ GETH_TARGET = $(GOBIN)/geth
 CLEF_SRC = ../go-ethereum/cmd/clef/
 CLEF_TARGET = $(GOBIN)/clef
 # bindings
-BINDINGS_SRC = ./...
 BINDINGS_TARGET = ./bindings
 # contracts
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
@@ -19,10 +19,13 @@ CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
 # PHONY targets
 
-# Make all targets
-install: $(GETH_TARGET) $(CLEF_TARGET)
-contracts: $(CONTRACTS_TARGET)
-# Remove:
+# Makes all targets
+install: specular $(GETH_TARGET) $(CLEF_TARGET)
+# Builds specular go source
+# TODO: use real target to optimize build time
+specular: $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
+	go build $(GOSRC)
+# Removes:
 # - bindings (do not remove bindings/gen.go)
 # - contracts (this has to happen after bindings)
 # - geth and clef
@@ -36,6 +39,7 @@ geth-docker:
 	go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GETH_TARGET)\" to launch geth."
+contracts: $(CONTRACTS_TARGET) # for back-compat
 
 # Real targets
 
@@ -46,10 +50,10 @@ $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -nam
 # `touch` ensures the target is newer than preqreqs.
 # This is required since `go generate` may not add/delete files.
 $(BINDINGS_TARGET): $(CONTRACTS_TARGET)
-	go generate $(BINDINGS_SRC)
+	go generate $(GO_SRC)
 	touch $(BINDINGS_TARGET)
 
-$(GETH_TARGET): $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
+$(GETH_TARGET): $(BINDINGS_TARGET)
 	go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
