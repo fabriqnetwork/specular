@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 type batchBuilder struct {
@@ -111,11 +112,17 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 		}
 		// Enforce soft cap on batch size.
 		if numBytes > b.maxBatchSize {
+			log.Info("Reached max batch size", "numBytes", numBytes, "maxBatchSize", b.maxBatchSize)
 			break
 		}
 	}
+	// Construct batch attributes.
+	var (
+		firstL2BlockNumber = big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
+		attrs              = &BatchAttributes{contexts, txLengths, firstL2BlockNumber, buf.Bytes()}
+	)
 	// Advance queue.
-	b.pendingBlocks = b.pendingBlocks[idx:]
-	firstL2BlockNumber := big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
-	return &BatchAttributes{contexts, txLengths, firstL2BlockNumber, buf.Bytes()}, nil
+	b.pendingBlocks = b.pendingBlocks[idx+1:]
+	log.Trace("Advanced pending blocks", "len", len(b.pendingBlocks))
+	return attrs, nil
 }

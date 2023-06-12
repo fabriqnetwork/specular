@@ -75,7 +75,7 @@ func (d *batchDisseminator) step(ctx context.Context) error {
 		return err
 	}
 	if err := d.sequenceBatches(ctx); err != nil {
-		log.Error("Failed to sequence batch", "error", err)
+		log.Error("Failed to sequence batches", "error", err)
 		return err
 	}
 	return nil
@@ -97,10 +97,11 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Failed to get l2 block number: %w", err)
 	}
-	// TODO: this check might not be necessary
-	// if start > end {
-	// 	return &utils.L2ReorgDetectedError{Msg: fmt.Sprintf("start=%s exceeds end=%s", start, end)}
-	// }
+	if start > end {
+		log.Info("No pending blocks to append", "start", start, "end", end)
+		return nil
+	}
+	log.Info("Appending blocks to builder", "start", start, "end", end)
 	for i := start; i <= end; i++ {
 		block, err := d.l2Client.BlockByNumber(ctx, big.NewInt(0).SetUint64(i))
 		if err != nil {
@@ -129,18 +130,20 @@ func (d *batchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 		lastAppended = d.batchBuilder.LastAppended()
 		start        uint64
 	)
-	if lastAppended == types.EmptyBlockID {
-		start = uint64(0) // TODO: genesis
-	} else {
-		start = lastAppended.GetNumber() + 1 // TODO: fix assumption
-	}
 	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return 0, 0, fmt.Errorf("Failed to get l2 safe header: %w", err)
 	}
-	if safe.Number.Uint64() > lastAppended.GetNumber() {
+	log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash)
+	if lastAppended == types.EmptyBlockID {
+		// First time running; use safe (assumes local chain fork choice is in sync...)
+		start = safe.Number.Uint64() + 1
+	} else if safe.Number.Uint64() > lastAppended.GetNumber() {
 		// This should currently not be possible (single sequencer). TODO: handle restart case?
 		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
+	} else {
+		// Normal case.
+		start = lastAppended.GetNumber() + 1 // TODO: fix assumption
 	}
 	end, err := d.l2Client.BlockNumber(ctx)
 	if err != nil {

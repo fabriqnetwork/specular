@@ -7,6 +7,7 @@ import (
 
 	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
@@ -69,4 +70,10 @@ func (c *EthClient) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
 		return c.SuggestGasPrice(ctx)
 	}
 	return gasTipCap, nil
+}
+
+func (c *EthClient) TxPoolStatus(ctx context.Context) (map[string]hexutil.Uint, error) {
+	var status map[string]hexutil.Uint
+	err := c.C.CallContext(ctx, &status, "txpool_status")
+	return status, err
 }

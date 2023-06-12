@@ -21,6 +21,7 @@ else
     API='eth,web3,txpool,debug'
 fi
 
+NETWORK_ID=13527
 # Start with common args
 GETH_ARGS=(
     --http
@@ -31,7 +32,7 @@ GETH_ARGS=(
     --ws.addr '0.0.0.0'
     --ws.origins '*'
     --ws.api $API
-    --networkid 13527
+    --networkid $NETWORK_ID
     --password "./password.txt"
 )
 
@@ -81,7 +82,6 @@ else
 	)
     else
 	echo "No node type provided"
-	exit 1
     fi
 fi
 

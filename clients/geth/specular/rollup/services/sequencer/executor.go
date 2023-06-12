@@ -25,25 +25,68 @@ type executor struct {
 // Commits an empty block if no txs are received within an interval
 // TODO: handle reorgs in the decentralized sequencer case.
 func (e *executor) start(ctx context.Context, l2Client L2Client) error {
-	var ticker = time.NewTicker(e.cfg.GetMaxExecutionInterval())
+	var (
+		minTicker        *time.Ticker
+		minTickerCh      <-chan time.Time // a nil channel blocks.
+		maxTicker        *time.Ticker
+		maxTickerCh      <-chan time.Time // a nil channel blocks.
+		minBatchInterval = e.cfg.GetMinExecutionInterval()
+		maxBatchInterval = e.cfg.GetMaxExecutionInterval()
+	)
+	if minBatchInterval > 0 {
+		minTicker = time.NewTicker(e.cfg.GetMinExecutionInterval())
+		minTickerCh = minTicker.C
+	}
+	if maxBatchInterval > 0 {
+		maxTicker = time.NewTicker(e.cfg.GetMaxExecutionInterval())
+		maxTickerCh = maxTicker.C
+	}
 	for {
 		select {
-		case _ = <-ticker.C:
+		case <-minTickerCh:
+			status, err := l2Client.TxPoolStatus(ctx)
+			if err != nil {
+				return fmt.Errorf("Failed to fetch tx pool status: %w", err)
+			}
+			// Check if there are pending txs to build a payload from.
+			numQueued, numPending := uint64(status["queued"]), uint64(status["pending"])
+			log.Trace("Tx pool status.", "#queued", numQueued, "#pending", numPending)
+			if numPending > 0 {
+				if maxBatchInterval > 0 {
+					maxTicker.Reset(maxBatchInterval)
+				}
+				if err := e.buildPayload(); err != nil {
+					return err
+				}
+			} else {
+				log.Info("Nothing to publish.")
+			}
+		case <-maxTickerCh:
+			if minBatchInterval > 0 {
+				minTicker.Reset(minBatchInterval)
+			}
 			// TODO: Begin block with a msg-passing tx.
-			var payloadAttrs = engine.NewBuildPayloadAttributes(
-				uint64(time.Now().Unix()),
-				common.Hash{},
-				e.cfg.GetAccountAddr(),
-				nil,
-				false,
-			)
-			log.Info("Building new payload...")
-			if err := e.backend.BuildPayload(payloadAttrs); err != nil {
-				return fmt.Errorf("Failed to commit txs: %w", err)
+			if err := e.buildPayload(); err != nil {
+				return err
 			}
 		case <-ctx.Done():
 			log.Info("Aborting.")
 			return nil
 		}
 	}
+}
+
+func (e *executor) buildPayload() error {
+	var payloadAttrs = engine.NewBuildPayloadAttributes(
+		uint64(time.Now().Unix()),
+		common.Hash{},
+		e.cfg.GetAccountAddr(),
+		nil,
+		false,
+	)
+	if err := e.backend.BuildPayload(payloadAttrs); err != nil {
+		return fmt.Errorf("Failed to commit txs: %w", err)
+	}
+	log.Info("Built payload.")
+	return nil
 }

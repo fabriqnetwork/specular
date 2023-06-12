@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/beacon"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
@@ -62,4 +63,5 @@ type L2Client interface {
 	BlockByNumber(ctx context.Context, number *big.Int) (*ethTypes.Block, error)
 	HeaderByTag(ctx context.Context, tag eth.BlockTag) (*ethTypes.Header, error)
 	TransactionByHash(ctx context.Context, hash common.Hash) (*ethTypes.Transaction, bool, error)
+	TxPoolStatus(ctx context.Context) (map[string]hexutil.Uint, error)
 }

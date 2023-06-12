@@ -152,6 +152,10 @@ func (b *ExecutionBackend) BuildPayload(attrs api.BuildPayloadAttributes) error 
 		pendingTxs := types.NewTransactionsByPriceAndNonce(env.signer, pending, env.header.BaseFee)
 		err = b.commitTransactions(env, pendingTxs)
 	}
+	if env.tcount == 0 {
+		log.Info("No transactions to include in payload")
+		return nil
+	}
 	// Finalize header
 	header.Root = state.IntermediateRoot(b.eth.BlockChain().Config().IsEIP158(header.Number))
 	header.UncleHash = types.CalcUncleHash(nil)
@@ -175,6 +179,7 @@ func (b *ExecutionBackend) BuildPayload(attrs api.BuildPayloadAttributes) error 
 		logs = append(logs, receipt.Logs...)
 	}
 	_, err = b.eth.BlockChain().WriteBlockAndSetHead(block, env.receipts, logs, state, true)
+	log.Info("Built payload", "block#", block.NumberU64(), "#txs", env.tcount)
 	return err
 }
 

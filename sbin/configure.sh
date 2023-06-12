@@ -6,3 +6,4 @@ export CONTRACTS_DIR=$ROOT_DIR/contracts/
 export CONFIG_DIR=$ROOT_DIR/config/
 export SPECULAR_CLIENT_DIR=$ROOT_DIR/clients/geth/specular/ # to be moved out
 export DATA_DIR=$SPECULAR_CLIENT_DIR/data/ # use config/data ?
+export USE_CLEF=0
