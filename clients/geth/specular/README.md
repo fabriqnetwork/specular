@@ -7,14 +7,14 @@ After the 3 nodes are running, you can use MetaMask to send custom transactions 
 In this example, all nodes operate honestly (no challenges are issued).
 
 ### Build
-Install all dependencies and build the modified L2 Geth node
+Install all dependencies and build the modified L2 Geth node.
 
 ```sh
-cd SPECULAR_REPO
+cd $SPECULAR_REPO
 pnpm install
 
-cd SPECULAR_REPO/clients/geth/specular
-make install
+cd $SPECULAR_REPO/clients/geth/specular
+make
 ```
 
 ### Generate the genesis file
@@ -56,11 +56,7 @@ In the first terminal where L1 node is running, you can see both sequencer and v
 
 **Restarts**
 
-Currently, the sequencer and validator must start in a clean environment; i.e. you need to clean and reinitialize both L1 and L2 on every start.
-
 To restart the L1 node, use `Ctrl-C` to stop the current running one and run `npx hardhat node` again.
-
-To reinitialize L2 node, under `sbin` directory, run `./clean.sh && ./init.sh`.
 
 Do not forget to reset MetaMask account if you have sent some transactions on L2 (see below for more details).
 

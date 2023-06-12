@@ -9,6 +9,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/da"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/engine"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
@@ -50,7 +51,10 @@ func (s *L1TxProcessor) next() types.BlockRelation {
 
 // Processes transactions in the given filtered block, according to their method IDs.
 func (s *L1TxProcessor) ingest(ctx context.Context, filteredL1Block filteredBlock) error {
-	log.Info("Ingesting L1 txs", "#txs", len(filteredL1Block.txs))
+	if len(filteredL1Block.txs) == 0 {
+		return nil
+	}
+	log.Trace("Ingesting L1 txs", "#txs", len(filteredL1Block.txs))
 	// First time seeing this block.
 	if s.numTxsRemaining == -1 {
 		s.numTxsRemaining = len(filteredL1Block.txs)
@@ -99,16 +103,17 @@ func (s *L1TxProcessor) recover(ctx context.Context, l1BlockID types.BlockID) er
 
 // Builds payloads from AppendTxBatch transactions.
 type payloadBuilder struct {
-	execBackend       ExecutionBackend
-	l2ClientCreatorFn func(context.Context) (EthClient, error)
-	l2Client          EthClient // lazily initialized
+	l1Config    L1Config
+	execBackend ExecutionBackend
+	l2Client    L2Client
 }
 
 func NewPayloadBuilder(
+	l1Config L1Config,
 	execBackend ExecutionBackend,
-	l2ClientCreatorFn func(context.Context) (EthClient, error),
+	l2Client L2Client,
 ) *payloadBuilder {
-	return &payloadBuilder{execBackend: execBackend, l2ClientCreatorFn: l2ClientCreatorFn}
+	return &payloadBuilder{l1Config: l1Config, execBackend: execBackend, l2Client: l2Client}
 }
 
 // TODO: synchronize on execBackend
@@ -117,55 +122,55 @@ func (b *payloadBuilder) BuildPayloads(
 	l1BlockID types.BlockID,
 	tx *ethTypes.Transaction,
 ) (types.BlockRelation, error) {
-	if err := b.ensureClientInit(ctx); err != nil {
-		return types.BlockRelation{}, fmt.Errorf("failed to initialize payload builder: %w", err)
+	if err := b.l2Client.EnsureDialed(ctx); err != nil {
+		return types.EmptyRelation, RetryableError{fmt.Errorf("failed to create l2 client: %w", err)}
 	}
-	payloads, err := payloadsFromCalldata(tx)
+	// Parse tx calldata.
+	blocks, err := blocksFromCalldata(tx)
 	if err != nil {
-		return types.BlockRelation{}, fmt.Errorf("Could not decode payloads from calldata: %w", err)
+		return types.EmptyRelation, fmt.Errorf("Could not decode payloads from calldata: %w", err)
 	}
 	l2Head, err := b.l2Client.BlockNumber(ctx)
 	if err != nil {
-		return types.BlockRelation{}, RetryableError{fmt.Errorf("failed to get latest l2 blockNumber: %w", err)}
+		return types.EmptyRelation, RetryableError{fmt.Errorf("failed to get latest l2 blockNumber: %w", err)}
 	}
-	for _, payload := range payloads {
-		if payload.BlockNumber() >= l2Head {
-			log.Warn("Skipping redundant payload", "number", payload.BlockNumber())
+	log.Info("Latest L2 block number", "number", l2Head)
+	// Get sender address.
+	signer := ethTypes.NewLondonSigner(common.Big0.SetUint64(b.l1Config.GetChainID()))
+	from, err := ethTypes.Sender(signer, tx)
+	if err != nil {
+		return types.EmptyRelation, fmt.Errorf("failed to get tx sender: %w", err)
+	}
+	// Build payloads.
+	log.Info("Building payloads", "from", from.Hex(), "#blocks", len(blocks))
+	for _, block := range blocks {
+		if block.BlockNumber() >= l2Head {
+			log.Warn("Skipping redundant payload", "number", block.BlockNumber())
 			continue
 		}
-		err = b.execBackend.BuildPayload(&payload)
+		attrs := engine.NewBuildPayloadAttributes(block.Timestamp(), common.Hash{}, from, block.Txs(), true)
+		err = b.execBackend.BuildPayload(&attrs)
 		if err != nil {
 			// Current assumption: all batches are valid.
 			// TODO: ignore/skip invalid batches.
-			return types.BlockRelation{}, fmt.Errorf("failed to build payload: %w", err)
+			return types.EmptyRelation, fmt.Errorf("failed to build payload: %w", err)
 		}
 	}
-	// Return last block relation.
-	lastPayload := payloads[len(payloads)-1]
+	// Return last block relation. TODO: what if we skipped all blocks above?
+	lastPayload := blocks[len(blocks)-1]
 	header, err := b.l2Client.HeaderByNumber(ctx, big.NewInt(0).SetUint64(lastPayload.BlockNumber()))
 	if err != nil {
 		// TODO: retryable?
-		return types.BlockRelation{}, fmt.Errorf("failed to get header for last payload: %w", err)
+		return types.EmptyRelation, fmt.Errorf("failed to get header for last payload: %w", err)
 	}
 	relation := types.BlockRelation{L1BlockID: l1BlockID, L2BlockID: types.NewBlockIDFromHeader(header)}
 	return relation, nil
 }
 
-func (b *payloadBuilder) ensureClientInit(ctx context.Context) error {
-	if b.l2Client == nil {
-		l2Client, err := b.l2ClientCreatorFn(ctx)
-		if err != nil {
-			return RetryableError{fmt.Errorf("failed to create l2 client: %w", err)}
-		}
-		b.l2Client = l2Client
-	}
-	return nil
-}
-
 // Stateless processor -- no-op.
 // func (b *payloadBuilder) recover() error { return nil }
 
-func payloadsFromCalldata(tx *ethTypes.Transaction) ([]da.DerivationBlock, error) {
+func blocksFromCalldata(tx *ethTypes.Transaction) ([]da.DerivationBlock, error) {
 	// Decode input to appendTxBatch transaction.
 	decoded, err := bridge.UnpackAppendTxBatchInput(tx)
 	if err != nil {

@@ -198,6 +198,8 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		if err := specularGeth.RegisterGethRollupServices(stack, ctx, eth, eth.APIBackend); err != nil {
 			utils.Fatalf("Failed to register rollup services", "err", err)
 		}
+	} else {
+		log.Info("Rollup flags not set.")
 	}
 	// <specular modification/>
 

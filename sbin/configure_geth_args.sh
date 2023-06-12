@@ -32,13 +32,13 @@ GETH_ARGS=(
     --ws.origins '*'
     --ws.api $API
     --networkid 13527
-    --password ./password.txt
+    --password "./password.txt"
 )
 
 if [ "$IS_INDEXER" -eq "1" ] ; then
     echo "Adding indexer args"
     GETH_ARGS+=(
-	--http.vhosts=*
+	--http.vhosts='*'
 	--gcmode=archive
     )
 fi
@@ -48,20 +48,21 @@ if [ "$DOCKER" -eq "1" ] ; then
     GETH_ARGS+=(
 	--http.port=8545
 	--ws.port=8546
-	--datadir .
+	--datadir "."
 	--nodiscover
 	--maxpeers 0
     )
 else
     # Running locally so we use different ports and dirs
-    echo "Adding local args"
-    if [ "$IS_INDEXER" -eq "1" ] ; then
+    if [ "$IS_SEQUENCER" -eq "1" ] ; then
+	echo "Adding sequencer args"
 	GETH_ARGS+=(
 	    --datadir "./data_sequencer"
 	    --http.port 4011
 	    --ws.port 4012
 	)
     elif [ "$IS_VALIDATOR" -eq "1" ] ; then
+	echo "Adding validator args"
 	GETH_ARGS+=(
 	    --datadir "./data_validator"
 	    --http.port 4018
@@ -70,6 +71,7 @@ else
 	    --authrpc.port 8561
 	)
     elif [ "$IS_INDEXER" -eq "1" ] ; then
+	echo "Adding indexer args"
 	GETH_ARGS+=(
 	    --datadir "./data_indexer"
 	    --http.port 4021
@@ -83,5 +85,4 @@ else
     fi
 fi
 
-export GETH_ARGS
-echo "Exported flags to GETH_ARGS"
+echo "Assigned args to GETH_ARGS"

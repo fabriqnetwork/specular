@@ -99,28 +99,28 @@ func parseFlags(cliCtx *cli.Context) *systemConfig {
 
 // L1 configuration
 type L1Config struct {
-	endpoint           string         `toml:"endpoint,omitempty"`             // L1 API endpoint
-	chainID            uint64         `toml:"chainid,omitempty"`              // L1 chain ID
-	rollupGenesisBlock uint64         `toml:"rollup_genesis,omitempty"`       // L1 Rollup genesis block
-	sequencerInboxAddr common.Address `toml:"sequencer_inbox_addr,omitempty"` // L1 SequencerInbox contract address
-	rollupAddr         common.Address `toml:"rollup_addr,omitempty"`          // L1 Rollup contract address
+	Endpoint           string         `toml:"endpoint,omitempty"`             // L1 API endpoint
+	ChainID            uint64         `toml:"chainid,omitempty"`              // L1 chain ID
+	RollupGenesisBlock uint64         `toml:"rollup_genesis,omitempty"`       // L1 Rollup genesis block
+	SequencerInboxAddr common.Address `toml:"sequencer_inbox_addr,omitempty"` // L1 SequencerInbox contract address
+	RollupAddr         common.Address `toml:"rollup_addr,omitempty"`          // L1 Rollup contract address
 }
 
 func newL1ConfigFromCLI(cliCtx *cli.Context) L1Config {
 	return L1Config{
-		endpoint:           cliCtx.String(l1EndpointFlag.Name),
-		chainID:            cliCtx.Uint64(l1ChainIDFlag.Name),
-		rollupGenesisBlock: cliCtx.Uint64(l1RollupGenesisBlockFlag.Name),
-		sequencerInboxAddr: common.HexToAddress(cliCtx.String(sequencerInboxAddrFlag.Name)),
-		rollupAddr:         common.HexToAddress(cliCtx.String(rollupAddrFlag.Name)),
+		Endpoint:           cliCtx.String(l1EndpointFlag.Name),
+		ChainID:            cliCtx.Uint64(l1ChainIDFlag.Name),
+		RollupGenesisBlock: cliCtx.Uint64(l1RollupGenesisBlockFlag.Name),
+		SequencerInboxAddr: common.HexToAddress(cliCtx.String(sequencerInboxAddrFlag.Name)),
+		RollupAddr:         common.HexToAddress(cliCtx.String(rollupAddrFlag.Name)),
 	}
 }
 
-func (c L1Config) Endpoint() string                   { return c.endpoint }
-func (c L1Config) ChainID() uint64                    { return c.chainID }
-func (c L1Config) RollupGenesisBlock() uint64         { return c.rollupGenesisBlock }
-func (c L1Config) SequencerInboxAddr() common.Address { return c.sequencerInboxAddr }
-func (c L1Config) RollupAddr() common.Address         { return c.rollupAddr }
+func (c L1Config) GetEndpoint() string                   { return c.Endpoint }
+func (c L1Config) GetChainID() uint64                    { return c.ChainID }
+func (c L1Config) GetRollupGenesisBlock() uint64         { return c.RollupGenesisBlock }
+func (c L1Config) GetSequencerInboxAddr() common.Address { return c.SequencerInboxAddr }
+func (c L1Config) GetRollupAddr() common.Address         { return c.RollupAddr }
 
 // L2 configuration
 type L2Config struct {

@@ -11,4 +11,4 @@ services:
       - 4012:8546
     environment:
       SPECULAR_NODE_CFG_PATH: ./config/l2_node/docker_sequencer.toml
-      IS_SEQUENCER: true
+      IS_SEQUENCER: 1

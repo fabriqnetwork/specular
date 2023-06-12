@@ -31,7 +31,7 @@ RUN go mod download
 COPY --from=contracts-builder /specular /specular
 
 WORKDIR /specular/clients/geth/specular
-RUN make geth-docker
+RUN make
 
 # Specular geth image
 FROM alpine:3.17

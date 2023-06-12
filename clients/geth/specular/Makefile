@@ -31,11 +31,6 @@ clean:
 	cd $(CONTRACTS_DIR) && npx hardhat clean
 	rm -rf $(GETH_TARGET)
 	rm -rf $(CLEF_TARGET)
-# Skips geth prereqs for docker building.
-geth-docker:
-	go build -o $(GETH_TARGET) $(GETH_SRC)
-	@echo "Done building geth."
-	@echo "Run \"$(GETH_TARGET)\" to launch geth."
 
 # Real targets
 

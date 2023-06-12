@@ -2,10 +2,10 @@ package sequencer
 
 import (
 	"context"
+	"time"
 
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types/engine"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
@@ -14,52 +14,33 @@ import (
 type executor struct {
 	cfg     Config
 	backend ExecutionBackend
-	orderer orderer
 }
 
 // Responsible for ordering transactions (prior to their execution).
 // TODO: Support:
-// - PBS-style ordering: publicize current mempool and call remote engine API.
-// - remote ordering + weak DA in single call (some systems conflate these roles -- e.g. Espresso)
-type orderer interface {
-	OrderTransactions(ctx context.Context, txs []*types.Transaction) ([]*types.Transaction, error)
-	RegisterL2Client(l2Client L2Client)
-}
+// - PBS-style ordering: publicize mempool and call remote engine API.
+// - remote ordering + weak DA in single call (systems conflate these roles -- e.g. Espresso)
 
 // This goroutine fetches, orders and executes txs from the tx pool.
 // Commits an empty block if no txs are received within an interval
 // TODO: handle reorgs in the decentralized sequencer case.
-// TODO: commit a msg-passing tx in empty block.
 func (e *executor) start(ctx context.Context, l2Client L2Client) error {
-	e.orderer.RegisterL2Client(l2Client)
-	// Watch transactions in TxPool
-	txsCh := make(chan core.NewTxsEvent, 4096)
-	txsSub := e.backend.SubscribeNewTxsEvent(txsCh)
-	defer txsSub.Unsubscribe()
-	batchCh := utils.SubscribeBatched(ctx, txsCh, e.cfg.GetMinExecutionInterval(), e.cfg.GetMaxExecutionInterval())
+	var ticker = time.NewTicker(e.cfg.GetMaxExecutionInterval())
 	for {
 		select {
-		case evs := <-batchCh:
-			var txs []*types.Transaction
-			for _, ev := range evs {
-				txs = append(txs, ev.Txs...)
-			}
-			if len(txs) == 0 {
-				log.Trace("No txs received in last execution window.")
-			} else {
-				var err error
-				txs, err = e.orderer.OrderTransactions(ctx, txs)
-				if err != nil {
-					return fmt.Errorf("Failed to order txs: %w", err)
-				}
-			}
-			log.Info("Committing txs", "#txs", len(txs))
-			// TODO: use `BuildPayload`.
-			err := e.backend.CommitTransactions(txs)
-			if err != nil {
+		case _ = <-ticker.C:
+			// TODO: Begin block with a msg-passing tx.
+			var payloadAttrs = engine.NewBuildPayloadAttributes(
+				uint64(time.Now().Unix()),
+				common.Hash{},
+				e.cfg.GetAccountAddr(),
+				nil,
+				false,
+			)
+			log.Info("Building new payload...")
+			if err := e.backend.BuildPayload(payloadAttrs); err != nil {
 				return fmt.Errorf("Failed to commit txs: %w", err)
 			}
-			log.Info("Committed txs", "#txs", len(txs))
 		case <-ctx.Done():
 			log.Info("Aborting.")
 			return nil

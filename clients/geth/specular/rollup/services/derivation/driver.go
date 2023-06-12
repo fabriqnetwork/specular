@@ -63,10 +63,7 @@ func NewDriver(cfg Config, terminalStage TerminalStageOps) *Driver {
 }
 
 func (d *Driver) Start(ctx context.Context, eg api.ErrGroup) error {
-	eg.Go(func() error {
-		log.Crit("Driver failed.", "error", d.drive(ctx)) // TODO: get rid of crit
-		return d.drive(ctx)
-	})
+	eg.Go(func() error { return d.drive(ctx) })
 	log.Info("Driver started.")
 	return nil
 }
@@ -98,7 +95,7 @@ func (d *Driver) drive(ctx context.Context) error {
 			if err == nil {
 				// Success (possibly after multiple retries).
 				driverState = driverStateHealthy
-				log.Info("Successful step.")
+				log.Trace("Successful step.")
 			} else if errors.As(err, &stage.RecoverableError{}) {
 				// Note: this error type is only expected to be returned by `Pull`.
 				log.Warn("Failed to advance, attempting recovery.", "error", err)

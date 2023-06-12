@@ -23,4 +23,3 @@ npx hardhat compile
 cd $CONFIG_DIR
 npx ts-node src/create_genesis.ts --in data/base_genesis.json --out $GETH_SPECULAR_DIR/data/genesis.json
 cp $GETH_SPECULAR_DIR/data/genesis.json $PROJECT_DATA_DIR/genesis.json
-

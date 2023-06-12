@@ -60,8 +60,9 @@ type BlockRelations []BlockRelation
 var EmptyRelation = BlockRelation{}
 
 func (r BlockRelations) Append(relation BlockRelation) error {
-	// if r[len(r) - 1].L1BlockRef.Number >= relation.L1BlockRef.Number {
-	// }
+	if len(r) > 0 && relation.L1BlockID.Number <= r[len(r)-1].L1BlockID.Number {
+		return fmt.Errorf("block relation %s is not newer than %s", relation, r[len(r)-1])
+	}
 	r = append(r, relation)
 	return nil
 }

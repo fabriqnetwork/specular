@@ -3,13 +3,9 @@ if [[ "$#" -ne 0 ]]; then
     USE_CLEF={true, false}
     IS_SEQUENCER={true, false}
     IS_VALIDATOR={true, false} $0"
-    echo "Output: env variable SPECULAR_NODE_DEFAULTS"
+    echo "Output: env variable SPECULAR_NODE_DEFAULT_ARGS"
     exit 1
 fi
-
-# SBIN=`dirname $0`
-# SBIN="`cd "$SBIN"; pwd`"
-# . $SBIN/configure.sh
 
 # rollup config defaults
 L1_ENDPOINT="ws://localhost:8545"
@@ -26,7 +22,7 @@ VALIDATOR_ADDR="0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
 # INDEXER_ADDR="0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
 
 # Start with common defaults
-SPECULAR_NODE_DEFAULTS=(
+SPECULAR_NODE_DEFAULT_ARGS=(
     --rollup.l1.endpoint $L1_ENDPOINT
     --rollup.l1.chainid $L1_CHAIN_ID
     --rollup.l1.rollup-genesis-block $L1_ROLLUP_GENESIS_BLOCK
@@ -35,20 +31,23 @@ SPECULAR_NODE_DEFAULTS=(
     --rollup.l2.endpoint $L2_ENDPOINT
 )
 
-if $USE_CLEF ; then
+USE_CLEF="${USE_CLEF:-0}"
+IS_SEQUENCER="${IS_SEQUENCER:-0}"
+IS_VALIDATOR="${IS_VALIDATOR:-0}"
+
+if [ "$USE_CLEF" -eq "1" ] ; then
     SPECULAR_NODE_DEFAULTS+=( --rollup.l2.clef-endpoint $CLEF_ENDPOINT )
 fi
 
-if $IS_SEQUENCER ; then
-    SPECULAR_NODE_DEFAULTS+=( --rollup.sequencer.addr $SEQUENCER_ADDR )
+if [ "$IS_SEQUENCER" -eq "1" ] ; then
+    SPECULAR_NODE_DEFAULT_ARGS+=( --rollup.sequencer.addr $SEQUENCER_ADDR )
 fi
 
-if $IS_VALIDATOR ; then 
-    SPECULAR_NODE_DEFAULTS+=(
+if [ "$IS_VALIDATOR" -eq "1" ] ; then
+    SPECULAR_NODE_DEFAULT_ARGS+=(
 	--rollup.validator.addr $VALIDATOR_ADDR
 	--rollup.validator.stake-amount $VALIDATOR_STAKE_AMOUNT
     )
 fi
 
-export SPECULAR_NODE_DEFAULTS
-echo "Exported flags to SPECULAR_NODE_DEFAULTS"
+echo "Assigned args to SPECULAR_NODE_DEFAULT_ARGS"

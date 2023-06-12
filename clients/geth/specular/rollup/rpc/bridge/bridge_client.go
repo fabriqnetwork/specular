@@ -16,17 +16,17 @@ type BridgeClient struct {
 }
 
 type L1Config interface {
-	Endpoint() string
-	SequencerInboxAddr() common.Address
-	RollupAddr() common.Address
+	GetEndpoint() string
+	GetSequencerInboxAddr() common.Address
+	GetRollupAddr() common.Address
 }
 
 func NewBridgeClient(client *eth.EthClient, cfg L1Config) (*BridgeClient, error) {
-	inbox, err := bindings.NewISequencerInbox(cfg.SequencerInboxAddr(), client)
+	inbox, err := bindings.NewISequencerInbox(cfg.GetSequencerInboxAddr(), client)
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := bindings.NewIRollup(cfg.RollupAddr(), client)
+	rollup, err := bindings.NewIRollup(cfg.GetRollupAddr(), client)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func NewBridgeClient(client *eth.EthClient, cfg L1Config) (*BridgeClient, error)
 }
 
 func DialWithRetry(ctx context.Context, cfg L1Config) (*BridgeClient, error) {
-	l1Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.GetEndpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial L1 client: %v", err)
 	}

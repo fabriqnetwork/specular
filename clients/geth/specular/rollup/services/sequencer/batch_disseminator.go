@@ -112,6 +112,7 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 		}
 		dBlock := da.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
 		err = d.batchBuilder.Append(dBlock, types.NewBlockRefFromHeader(block.Header()))
+		log.Info("Appended block to builder", "block", block.NumberU64(), "#txs", len(txs))
 		if err != nil {
 			if errors.As(err, &da.InvalidBlockError{}) {
 				return L2ReorgDetectedError{err}
@@ -158,7 +159,7 @@ func (d *batchDisseminator) sequenceBatches(ctx context.Context) error {
 		default:
 			if err := d.sequenceBatch(ctx); err != nil {
 				if errors.Is(err, io.EOF) {
-					log.Info("No more batches to sequence")
+					log.Info("No pending batches to sequence")
 					return nil
 				}
 				return fmt.Errorf("Failed to sequence batch: %w", err)

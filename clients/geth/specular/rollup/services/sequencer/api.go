@@ -6,10 +6,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/beacon"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
@@ -17,17 +15,15 @@ import (
 )
 
 type Config interface {
+	GetAccountAddr() common.Address
 	GetMinExecutionInterval() time.Duration
 	GetMaxExecutionInterval() time.Duration
 	GetSequencingInterval() time.Duration
 }
 
 type ExecutionBackend interface {
-	SubscribeNewTxsEvent(chan<- core.NewTxsEvent) event.Subscription
 	ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error)
-	BuildPayload(payload api.ExecutionPayload) error
-	CommitTransactions(txs []*ethTypes.Transaction) error   // TODO: remove
-	Order(txs []*ethTypes.Transaction) api.TransactionQueue // TODO: remove
+	BuildPayload(attrs api.BuildPayloadAttributes) error
 }
 
 type ForkChoiceState = beacon.ForkchoiceStateV1
@@ -61,9 +57,9 @@ type TxManager interface {
 }
 
 type L2Client interface {
+	EnsureDialed(ctx context.Context) error
 	BlockNumber(ctx context.Context) (uint64, error)
 	BlockByNumber(ctx context.Context, number *big.Int) (*ethTypes.Block, error)
 	HeaderByTag(ctx context.Context, tag eth.BlockTag) (*ethTypes.Header, error)
 	TransactionByHash(ctx context.Context, hash common.Hash) (*ethTypes.Transaction, bool, error)
-	Close()
 }

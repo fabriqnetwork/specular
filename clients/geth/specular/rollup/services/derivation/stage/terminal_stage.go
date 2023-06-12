@@ -11,7 +11,7 @@ import (
 type TerminalStage[T any] struct{ *Stage[T, any] }
 
 type terminalStageProcessor[T any] interface {
-	stageProcessor[T, any]
+	stageOperator[T, any]
 	findRecoveryPoint(ctx context.Context) (types.BlockID, error)
 }
 

@@ -12,7 +12,7 @@ import (
 // Retrieves transactions from L1 block associated with block ID returned from previous stage,
 // according to filter query.
 type L1TxRetriever struct {
-	l1Client EthClient
+	l1Client L1Client
 	filterFn func(tx *ethTypes.Transaction) bool
 	// Result queue.
 	queue []filteredBlock
@@ -33,7 +33,7 @@ type TxFilterParam struct {
 	FunctionName    string
 }
 
-func NewL1TxRetriever(l1Client EthClient, filterFn func(tx *ethTypes.Transaction) bool) *L1TxRetriever {
+func NewL1TxRetriever(l1Client L1Client, filterFn func(tx *ethTypes.Transaction) bool) *L1TxRetriever {
 	return &L1TxRetriever{l1Client: l1Client, filterFn: filterFn}
 }
 

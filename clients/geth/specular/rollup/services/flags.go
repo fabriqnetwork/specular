@@ -33,7 +33,7 @@ const (
 var (
 	// L1 config flags
 	cfgFileFlag = &cli.StringFlag{
-		Name:  "rollup.config",
+		Name:  ConfigFlagName,
 		Usage: "A YAML file containing the rollup config.",
 	}
 	l1EndpointFlag = &cli.StringFlag{
@@ -76,12 +76,12 @@ var (
 	sequencerMinExecIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.min-execution-interval",
 		Usage: "Minimum time between block executions (seconds); 0 to disable",
-		Value: 0,
+		Value: 4,
 	}
 	sequencerMaxExecIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.max-execution-interval",
 		Usage: "Maximum time between block executions (seconds); 0 to disable",
-		Value: 4,
+		Value: 0,
 	}
 	sequencerSequencingIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.sequencing-interval",

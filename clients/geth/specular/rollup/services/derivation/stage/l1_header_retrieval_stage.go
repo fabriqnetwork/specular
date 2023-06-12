@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
@@ -13,7 +12,7 @@ import (
 // Note: source stage (no prev stage).
 type L1HeaderRetrievalStage struct {
 	currL1BlockID types.BlockID
-	l1Client      EthClient
+	l1Client      L1Client
 }
 
 func (s *L1HeaderRetrievalStage) Pull(ctx context.Context) (types.BlockID, error) {
@@ -23,7 +22,7 @@ func (s *L1HeaderRetrievalStage) Pull(ctx context.Context) (types.BlockID, error
 	}
 	nextL1BlockID := types.NewBlockIDFromHeader(nextHeader)
 	log.Info("Retrieved next L1 header.", "id", nextL1BlockID)
-	if s.currL1BlockID.GetHash() != (common.Hash{}) && nextHeader.ParentHash != s.currL1BlockID.GetHash() {
+	if nextHeader.ParentHash != s.currL1BlockID.GetHash() {
 		return types.EmptyBlockID, RecoverableError{
 			fmt.Errorf("next L1 block %s not linked to %s", nextL1BlockID, s.currL1BlockID),
 		}

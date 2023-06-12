@@ -90,10 +90,8 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 	// )
 	var createdCh = make(chan *bindings.IRollupAssertionCreated)
 
-	// TODO: configure.
 	var ticker = time.NewTicker(interval)
 	defer ticker.Stop()
-	// TODO: case for handling detected reorgs.
 	for {
 		select {
 		case <-ticker.C:
@@ -164,9 +162,7 @@ func (v *Validator) challengeLoop(ctx context.Context) error {
 	}
 }
 
-func (v *Validator) handleChallenge(ev *bindings.IRollupAssertionChallenged) {
-
-}
+func (v *Validator) handleChallenge(ev *bindings.IRollupAssertionChallenged) {}
 
 func (v *Validator) validate() error {
 	// TODO: refactor `tryValidateAssertion`.
@@ -198,7 +194,6 @@ func (v *Validator) tryResolve(ctx context.Context) error {
 
 func (v *Validator) createAssertion(ctx context.Context) (*assertion.Assertion, error) {
 	vmHash, inboxSize := v.getNextAssertion(ctx)
-	// TODO: assertion mgr
 	_, err := v.l1TxMgr.CreateAssertion(ctx, vmHash, inboxSize)
 	if err != nil {
 		return nil, err

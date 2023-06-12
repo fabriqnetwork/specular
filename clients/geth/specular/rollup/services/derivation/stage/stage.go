@@ -14,22 +14,22 @@ import (
 // `T`: Stage input type.
 // `U`: Stage output type.
 type Stage[T, U any] struct {
-	prev      StageOps[T]          // note: can't be of type Stage due to golang type system
-	processor stageProcessor[T, U] // processor for this stage.
-	cached    T                    // cached output from previous stage
-	isCached  bool                 // necessary for non-comparable types
+	prev      StageOps[T]         // note: can't be of type Stage due to golang type system
+	processor stageOperator[T, U] // processor for this stage.
+	cached    T                   // cached output from previous stage
+	isCached  bool                // necessary for non-comparable types
 }
 
-// `T`: Stage processor input type (via `ingest`).
-// `U`: Stage processor output type (via `next`).
-type stageProcessor[T, U any] interface {
+// `T`: Stage operator input type (via `ingest`).
+// `U`: Stage operator output type (via `next`).
+type stageOperator[T, U any] interface {
 	hasNext() bool
 	next() U
 	ingest(ctx context.Context, prev T) error
 	recover(ctx context.Context, l1BlockID types.BlockID) error
 }
 
-func NewStage[T, U any](prev StageOps[T], processor stageProcessor[T, U]) *Stage[T, U] {
+func NewStage[T, U any](prev StageOps[T], processor stageOperator[T, U]) *Stage[T, U] {
 	return &Stage[T, U]{prev: prev, processor: processor}
 }
 
@@ -42,7 +42,7 @@ func (s *Stage[T, U]) Pull(ctx context.Context) (out U, err error) {
 	}
 	err = s.ensurePulled(ctx)
 	if err != nil {
-		log.Error("Failed to pull from prev.")
+		log.Trace("Failed to pull from prev.")
 		return out, err
 	}
 	err = s.processor.ingest(ctx, s.cached)
@@ -75,7 +75,7 @@ func (s *Stage[T, U]) ensurePulled(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		log.Info("Pulled from prev.")
+		log.Trace("Pulled from prev.")
 		s.cached = out
 		s.isCached = true
 	}

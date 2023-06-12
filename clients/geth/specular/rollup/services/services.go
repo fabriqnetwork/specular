@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
@@ -89,7 +89,7 @@ func createDriver(
 	if err := bridge.EnsureUtilInit(); err != nil {
 		return nil, fmt.Errorf("Failed to initialize bridge util: %w", err)
 	}
-	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
@@ -97,11 +97,22 @@ func createDriver(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to start l1 state sync: %w", err)
 	}
-	l2ClientCreatorFn := func(ctx context.Context) (stage.EthClient, error) {
-		return eth.DialWithRetry(ctx, cfg.L2().GetEndpoint(), nil)
+	log.Info("Getting genesis L1 block ID...")
+	genesisL1BlockID, err := getGenesisL1BlockID(ctx, cfg.L1(), l1Client)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get genesis l1 block id: %w", err)
 	}
-	terminalStage := stage.CreatePipeline(cfg.L1(), execBackend, rollupState, l2ClientCreatorFn, l1Client, l1State)
-	driver := derivation.NewDriver(cfg.Driver(), terminalStage)
+	log.Info("Genesis L1 block ID", "blockID", genesisL1BlockID)
+	type derivationConfig struct {
+		L1Config
+		genesisConfig
+	}
+	var (
+		derivCfg      = derivationConfig{cfg.L1(), NewGenesisConfig(genesisL1BlockID)}
+		l2Client      = eth.NewLazyDialedEthClient(cfg.L2().GetEndpoint(), nil)
+		terminalStage = stage.CreatePipeline(derivCfg, execBackend, rollupState, l2Client, l1Client, l1State)
+		driver        = derivation.NewDriver(cfg.Driver(), terminalStage)
+	)
 	return driver, nil
 }
 
@@ -121,10 +132,8 @@ func createSequencer(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
 	}
-	l2ClientCreatorFn := func(ctx context.Context) (sequencer.L2Client, error) {
-		return eth.DialWithRetry(ctx, cfg.L2().GetEndpoint(), nil)
-	}
-	return sequencer.NewSequencer(cfg.Sequencer(), execBackend, l2ClientCreatorFn, l1TxMgr, batchBuilder), nil
+	l2Client := eth.NewLazyDialedEthClient(cfg.L2().GetEndpoint(), nil)
+	return sequencer.NewSequencer(cfg.Sequencer(), execBackend, l2Client, l1TxMgr, batchBuilder), nil
 }
 
 func createValidator(
@@ -134,6 +143,7 @@ func createValidator(
 	rollupState *derivation.RollupState,
 	proofBackend proof.Backend,
 ) (*validator.Validator, error) {
+	// TODO: replace
 	l2ClientCreatorFn := func(ctx context.Context) (validator.L2Client, error) {
 		return eth.DialWithRetry(ctx, cfg.L2().GetEndpoint(), nil)
 	}
@@ -161,7 +171,7 @@ func createRollupState(ctx context.Context, cfg L1Config) (*derivation.RollupSta
 
 func createSyncingL1State(ctx context.Context, cfg L1Config) (*eth.EthState, error) {
 	l1State := eth.NewEthState()
-	l1Client, err := eth.DialWithRetry(ctx, cfg.Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.GetEndpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
@@ -178,15 +188,15 @@ func createTxManager(
 	clefEndpoint string,
 	passphrase string,
 ) (*bridge.TxManager, error) {
-	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, cfg.ChainID())
+	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, cfg.GetChainID())
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
 	}
-	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().Endpoint(), nil)
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
 	}
-	signer := func(ctx context.Context, address common.Address, tx *types.Transaction) (*types.Transaction, error) {
+	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
 	// TODO: config
