@@ -24,7 +24,7 @@ type Config struct {
 	RollupAddr           common.Address // L1 Rollup contract address
 	L1RollupGenesisBlock uint64         // L1 Rollup genesis block
 	RollupStakeAmount    uint64         // Amount of stake
-	L1FeeOverhead        uint64         // Gas cost of sequencing a Tx
+	L1FeeOverhead        int64          // Gas cost of sequencing a Tx
 	L1FeeMultiplier      float64        // Scalar value to increase L1 fee
 	L1OracleAddress      common.Address // L2 Address of the L1Oracle
 }
@@ -37,7 +37,7 @@ func (c *Config) GetL2ChainID() uint64 {
 	return c.L2ChainID
 }
 
-func (c *Config) GetL1FeeOverhead() uint64 {
+func (c *Config) GetL1FeeOverhead() int64 {
 	return c.L1FeeOverhead
 }
 

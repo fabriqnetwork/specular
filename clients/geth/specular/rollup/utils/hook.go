@@ -3,7 +3,6 @@ package utils
 import (
 	"bytes"
 	"errors"
-	"math"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -21,13 +20,13 @@ const BASEFEE_SLOT = "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb2
 type RollupConfig interface {
 	GetCoinbase() common.Address
 	GetL2ChainID() uint64
-	GetL1FeeOverhead() uint64
+	GetL1FeeOverhead() int64
 	GetL1FeeMultiplier() float64
 	GetL1OracleAddress() common.Address
 }
 
 func SpecularEVMHook(msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
-	tx := createTransaction(msg, cfg)
+	tx := transactionFromMessage(msg, cfg)
 	fee, err := calculateL1Fee(tx, evm, cfg)
 	if err != nil {
 		return err
@@ -35,7 +34,7 @@ func SpecularEVMHook(msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
 	return chargeL1Fee(fee, msg, evm, cfg)
 }
 
-func createTransaction(msg types.Message, cfg RollupConfig) *types.Transaction {
+func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transaction {
 	var txData types.TxData
 	if msg.GasTipCap() != nil {
 		txData = &types.DynamicFeeTx{
@@ -73,12 +72,12 @@ func createTransaction(msg types.Message, cfg RollupConfig) *types.Transaction {
 	return types.NewTx(txData)
 }
 
-func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (uint64, error) {
+func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.Int, error) {
 	// calculate L1 gas from RLP encoding
 	buf := new(bytes.Buffer)
 	err := tx.EncodeRLP(buf)
 	if err != nil {
-		return 0, err
+		return common.Big0, err
 	}
 	bytes := buf.Bytes()
 	// remove the last 3 bytes containing the signature
@@ -89,38 +88,51 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (uint6
 	rlp := bytes[:len(bytes)-3]
 
 	zeroes, ones := zeroesAndOnes(rlp)
-	txDataGas := zeroes*TX_DATA_ZERO + ones*TX_DATA_ONE + cfg.GetL1FeeOverhead()
-	basefee := readBasefee(evm, cfg)
 
-	l1Fee := txDataGas * basefee
-	scaledL1Fee := uint64(math.Ceil(float64(l1Fee) * cfg.GetL1FeeMultiplier()))
+	txDataGas := big.NewInt(zeroes*TX_DATA_ZERO + ones*TX_DATA_ONE + cfg.GetL1FeeOverhead())
+	basefee := readL1OracleSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
 
-	return scaledL1Fee, nil
+	l1Fee := new(big.Float).SetInt(new(big.Int).Mul(txDataGas, basefee))
+	feeMutiplier := new(big.Float).SetFloat64(cfg.GetL1FeeMultiplier())
+
+	scaledL1Fee := new(big.Float).Mul(l1Fee, feeMutiplier)
+	roundedL1Fee, _ := new(big.Float).Add(scaledL1Fee, big.NewFloat(0.5)).Int(nil)
+
+	log.Trace(
+		"calculated l1 fee",
+		"txDataGas", txDataGas,
+		"basefee", basefee,
+		"l1Fee", l1Fee,
+		"feeMutiplier", feeMutiplier,
+		"scaledL1Fee", scaledL1Fee,
+		"roundedL1Fee", roundedL1Fee,
+	)
+
+	return roundedL1Fee, nil
 }
 
-func chargeL1Fee(L1Fee uint64, msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
+func chargeL1Fee(L1Fee *big.Int, msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
 	senderBalance := evm.StateDB.GetBalance(msg.From())
-	if senderBalance.Uint64() < L1Fee {
+	if senderBalance.Cmp(L1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	evm.StateDB.AddBalance(cfg.GetCoinbase(), big.NewInt(int64(L1Fee)))
-	evm.StateDB.SubBalance(msg.From(), big.NewInt(int64(L1Fee)))
+	evm.StateDB.AddBalance(cfg.GetCoinbase(), L1Fee)
+	evm.StateDB.SubBalance(msg.From(), L1Fee)
 
-	log.Info("charged L1 Fee", "fee", L1Fee)
+	log.Info("charged L1 Fee", "fee", L1Fee.Uint64())
 	return nil
 }
 
-func readBasefee(evm *vm.EVM, cfg RollupConfig) uint64 {
-	basefee := evm.StateDB.GetState(cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
-	log.Info("read basefee", "fee", basefee.Big().Uint64(), "oracle-addr", cfg.GetL1OracleAddress().String())
-	return basefee.Big().Uint64()
+func readL1OracleSlot(evm *vm.EVM, oracleAddress common.Address, slot common.Hash) *big.Int {
+	data := evm.StateDB.GetState(oracleAddress, slot)
+	return data.Big()
 }
 
 // zeroesAndOnes counts the number of 0 bytes and non 0 bytes in a byte slice
-func zeroesAndOnes(data []byte) (uint64, uint64) {
-	var zeroes uint64
-	var ones uint64
+func zeroesAndOnes(data []byte) (int64, int64) {
+	var zeroes int64
+	var ones int64
 	for _, b := range data {
 		if b == 0 {
 			zeroes++

@@ -91,7 +91,7 @@ var (
 		Usage: "Required staking amount",
 		Value: 1000000000000000000,
 	}
-	RollupL1FeeOverheadFlag = &cli.Uint64Flag{
+	RollupL1FeeOverheadFlag = &cli.Int64Flag{
 		Name:  "rollup.l1-fee-overhead",
 		Usage: "Gas cost of sequencing a Tx",
 		Value: 0,
