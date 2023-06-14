@@ -24,7 +24,7 @@ import "../src/libraries/Errors.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
-import {Verifier} from "../src/challenge/verifier/Verifier.sol";
+import {VerifierEntry} from "../src/challenge/verifier/VerifierEntry.sol";
 import {Rollup} from "../src/Rollup.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
@@ -38,7 +38,7 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     address internal deployer;
     address internal sequencerAddress;
 
-    Verifier verifier = new Verifier();
+    VerifierEntry verifier = new VerifierEntry();
 
     function setUp() public virtual {
         utils = new Utils();
