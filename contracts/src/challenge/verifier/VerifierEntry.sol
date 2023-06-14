@@ -19,6 +19,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 import "./libraries/VerificationContext.sol";
@@ -26,7 +27,7 @@ import "./libraries/Params.sol";
 import "./IVerifier.sol";
 import "./IVerifierEntry.sol";
 
-contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
+contract VerifierEntry is IVerifierEntry, Initializable, UUPSUpgradeable, OwnableUpgradeable {
     IVerifier blockInitiationVerifier;
     IVerifier blockFinalizationVerifier;
     IVerifier interTxVerifier;
@@ -44,7 +45,10 @@ contract VerifierEntry is IVerifierEntry, Initializable, OwnableUpgradeable {
 
     function initialize() public initializer {
         __Ownable_init();
+        __UUPSUpgradeable_init();
     }
+
+    function _authorizeUpgrade(address) internal override onlyOwner {}
 
     function setVerifier(uint8 verifier, IVerifier impl) external onlyOwner {
         if (verifier == Params.V_BLOCK_INIT) {

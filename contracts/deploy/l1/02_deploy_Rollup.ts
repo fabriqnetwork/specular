@@ -32,8 +32,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const sequencerInboxProxyAddress = (
     await deployments.get(getProxyName("SequencerInbox"))
   ).address;
-  const verifierProxyAddress = (await deployments.get(getProxyName("Verifier")))
-    .address;
+  const verifierProxyAddress = (
+    await deployments.get(getProxyName("VerifierEntry"))
+  ).address;
 
   const args = [
     sequencer, // address _vault

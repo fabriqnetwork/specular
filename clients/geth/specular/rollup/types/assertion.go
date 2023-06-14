@@ -19,14 +19,21 @@ type Assertion struct {
 }
 
 func (a *Assertion) Copy() *Assertion {
-	return &Assertion{
+	copied := &Assertion{
 		ID:                    new(big.Int).Set(a.ID),
 		VmHash:                a.VmHash,
-		CumulativeGasUsed:     new(big.Int).Set(a.CumulativeGasUsed),
+		CumulativeGasUsed:     new(big.Int),
 		InboxSize:             new(big.Int).Set(a.InboxSize),
 		Deadline:              new(big.Int).Set(a.Deadline),
 		StartBlock:            a.StartBlock,
 		EndBlock:              a.EndBlock,
-		PrevCumulativeGasUsed: new(big.Int).Set(a.PrevCumulativeGasUsed),
+		PrevCumulativeGasUsed: new(big.Int),
 	}
+	if a.CumulativeGasUsed != nil {
+		copied.CumulativeGasUsed.Set(a.CumulativeGasUsed)
+	}
+	if a.PrevCumulativeGasUsed != nil {
+		copied.PrevCumulativeGasUsed.Set(a.PrevCumulativeGasUsed)
+	}
+	return copied
 }

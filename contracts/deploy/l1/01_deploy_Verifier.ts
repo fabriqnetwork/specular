@@ -5,8 +5,8 @@ import { deployUUPSProxiedContract } from "../utils";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await hre.getNamedAccounts();
-  await deployUUPSProxiedContract(hre, deployer, "Verifier", []);
+  await deployUUPSProxiedContract(hre, deployer, "VerifierEntry", []);
 };
 
 export default func;
-func.tags = ["Verifier", "L1", "Stage0"];
+func.tags = ["VerifierEntry", "L1", "Stage0"];
