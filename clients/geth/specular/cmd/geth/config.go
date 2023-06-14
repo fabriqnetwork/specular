@@ -198,8 +198,8 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		rollupConfig := specularUtils.MakeRollupConfig(ctx, &cfg.Eth)
 
 		vmConfig := eth.BlockChain().GetVMConfig()
-		vmConfig.SpecularEVMHook = func(msg types.Message, evm *vm.EVM) error {
-			return specularRollupUtils.SpecularEVMHook(msg, evm, rollupConfig)
+		vmConfig.SpecularEVMPreTransferHook = func(msg types.Message, evm *vm.EVM) error {
+			return specularRollupUtils.SpecularEVMPreTransferHook(msg, evm, rollupConfig)
 		}
 		log.Info("Injected EVM hook")
 

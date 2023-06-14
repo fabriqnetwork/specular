@@ -25,7 +25,7 @@ type RollupConfig interface {
 	GetL1OracleAddress() common.Address
 }
 
-func SpecularEVMHook(msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
+func SpecularEVMPreTransferHook(msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
 	tx := transactionFromMessage(msg, cfg)
 	fee, err := calculateL1Fee(tx, evm, cfg)
 	if err != nil {
