@@ -20,7 +20,8 @@ cp $DATA_DIR/password.txt $PROJECT_DATA_DIR/password.txt
 cd $CONTRACTS_DIR
 npx hardhat compile
 cd $CONFIG_DIR
-npx ts-node src/create_genesis.ts --in data/base_genesis.json --out $PROJECT_DATA_DIR/genesis.json
+npx ts-node src/create_genesis.ts --in data/base_genesis.json --out $GETH_SPECULAR_DIR/data/genesis.json
+cp $GETH_SPECULAR_DIR/data/genesis.json $PROJECT_DATA_DIR/genesis.json
 
 # Build L2 client
 cd $GETH_SPECULAR_DIR
