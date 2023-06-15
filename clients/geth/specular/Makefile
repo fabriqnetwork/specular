@@ -10,6 +10,9 @@ contracts:
 bindings: contracts
 	go generate ./...
 
+bindings-docker:
+	go generate ./...
+
 geth: bindings
 	go build -o $(GOBIN)/geth ./cmd/geth
 	@echo "Done building geth."
@@ -20,7 +23,7 @@ clef:
 	@echo "Done building clef."
 	@echo "Run \"$(GOBIN)/clef\" to launch clef."
 
-geth-docker:
+geth-docker: bindings-docker
 	go build -o $(GOBIN)/geth ./cmd/geth
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/geth\" to launch geth."
