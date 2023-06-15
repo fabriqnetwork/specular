@@ -214,11 +214,7 @@ func (v *Validator) validationLoop(ctx context.Context) {
 					continue
 				}
 				currentAssertion = assertion
-				err = validateCurrentAssertion()
-				if err != nil {
-					// TODO: error handling instead of panic
-					log.Crit("UNHANDLED: Can't validate assertion, validator state corrupted", "err", err)
-				}
+				// assertion is now pending and will be validated once the batch is committed
 			case <-ctx.Done():
 				return
 			}
