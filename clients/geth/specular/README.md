@@ -7,28 +7,28 @@ After the 3 nodes are running, you can use MetaMask to send custom transactions 
 In this example, all nodes operate honestly (no challenges are issued).
 
 ### Build
+Install all dependencies and build the modified L2 Geth node
 
-First setup L1 and then follow following steps
 ```sh
+cd SPECULAR_REPO
+pnpm install
+
+cd SPECULAR_REPO/clients/geth/specular
 make install
 ```
 
 ### Generate the genesis file
 
 ```sh
-cd ../../../contracts
-
-npx ts-node scripts/create_genesis.ts \ 
---in ../clients/geth/specular/data/base_genesis.json \
---out ../clients/geth/specular/data/genesis.json
+cd SPECULAR_REPO/config/sbin
+./create_genesis.sh
 ```
 
 ### L2 setup
 
 ```sh
-cd sbin
-./import_accounts.sh
-./init.sh
+cd SPECULAR_REPO/clients/geth/specular/sbin
+./import_accounts.sh && ./init.sh
 ```
 
 ### L1 local dev node installation
@@ -39,16 +39,15 @@ See [here](https://github.com/SpecularL2/specular/tree/main/contracts) for more 
 
 ```sh
 # Terminal #1: start L1 node
-pnpm install
-cd contracts
+cd SPECULAR_REPO/contracts
 npx hardhat node
 
 # Terminal #2: start sequencer
-cd clients/geth/specular/sbin
+cd SPECULAR_REPO/clients/geth/specular/sbin
 ./start_sequencer.sh
 
 # Terminal #3: start validator
-cd clients/geth/specular/sbin
+cd SPECULAR_REPO/clients/geth/specular/sbin
 ./start_validator.sh
 ```
 

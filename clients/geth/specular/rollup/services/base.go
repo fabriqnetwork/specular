@@ -78,13 +78,16 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 		}
 		// Check that the genesis assertion is correct.
 		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
-		genesisRoot := b.Eth.BlockChain().GetBlockByNumber(0).Root()
+		genesisRoot := b.Chain().GetBlockByNumber(0).Root()
 		if vmHash != genesisRoot {
 			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
 		}
 		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
 		// Get assertion.
 		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionCreatedEvent.AssertionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get genesis assertion, err: %w", err)
+		}
 	} else {
 		// If an assertion was validated, use it.
 		log.Info("Last validated assertion ID found", "assertionID", assertionID)
@@ -98,6 +101,9 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
 		}
 		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
+		}
 	}
 	// Initialize assertion.
 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
@@ -153,7 +159,7 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 		"Synced L1->L2",
 		"l1 start", start,
 		"l1 end", l1BlockHead,
-		"l2 size", b.Eth.BlockChain().CurrentBlock().Number(),
+		"l2 size", b.Chain().CurrentBlock().Number(),
 	)
 	return l1BlockHead, nil
 }
@@ -241,25 +247,26 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	blocks := batch.SplitToBlocks()
 	log.Info("Batch split into blocks", "#blocks", len(blocks))
 
-	currentBlockNumber := batch.FirstL2BlockNumber
-	log.Info("Batch starts with block number", "#firstL2BlockNumber", currentBlockNumber.Uint64())
+	currentBlockNumber := batch.FirstL2BlockNumber.Uint64()
+	localBlockNumber := b.Eth.BlockChain().CurrentBlock().NumberU64()
+	log.Info("Batch starts with block number", "#firstL2BlockNumber", currentBlockNumber)
 
 	// Commit only blocks ahead of the current L2 chain.
 	for i := range blocks {
 		log.Trace(
 			"Comparing current block number to last block on local chain",
-			"#currentBlockNumber", currentBlockNumber.Uint64(),
-			"#lastLocalBlock", b.Eth.BlockChain().CurrentBlock().NumberU64(),
+			"#currentBlockNumber", currentBlockNumber,
+			"#lastLocalBlock", localBlockNumber,
 		)
 
-		if currentBlockNumber.Cmp(b.Eth.BlockChain().CurrentBlock().Number()) > 0 {
+		if currentBlockNumber > localBlockNumber {
 			log.Info("Commiting batch starting from block", "#blockNumber", currentBlockNumber)
 			blocks = blocks[i:]
 			b.commitBlocks(currentBlockNumber, blocks)
 			break
 		}
 
-		currentBlockNumber.Add(currentBlockNumber, big.NewInt(1))
+		currentBlockNumber += 1
 	}
 
 	return nil
@@ -270,7 +277,7 @@ func (b *BaseService) setL2BlockBoundaries(
 	assertion *rollupTypes.Assertion,
 	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
 ) error {
-	numBlocks := b.Eth.BlockChain().CurrentBlock().Number().Uint64()
+	numBlocks := b.Chain().CurrentBlock().Number().Uint64()
 	if numBlocks == 0 {
 		log.Info("Zero-initializing assertion block boundaries.")
 		assertion.StartBlock = 0
@@ -289,7 +296,7 @@ func (b *BaseService) setL2BlockBoundaries(
 	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
 	for i := uint64(0); i <= numBlocks; i++ {
 		// TODO: remove assumption of VM hash being the block root.
-		root := b.Eth.BlockChain().GetBlockByNumber(i).Root()
+		root := b.Chain().GetBlockByNumber(i).Root()
 		if root == parentAssertionCreatedEvent.VmHash {
 			log.Info("Found start block", "l2 block#", i+1)
 			assertion.StartBlock = i + 1
@@ -309,7 +316,7 @@ func (b *BaseService) setL2BlockBoundaries(
 // commitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
 // TODO: use StateProcessor::Process() instead
-func (b *BaseService) commitBlocks(firstL2BlockNumber *big.Int, blocks []*rollupTypes.SequenceBlock) error {
+func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTypes.SequenceBlock) error {
 	log.Trace(
 		"Committing blocks",
 		"#firstL2BlockNumber", firstL2BlockNumber,
@@ -328,10 +335,9 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber *big.Int, blocks []*rollup
 		log.Warn("No parent block found")
 		return fmt.Errorf("missing parent")
 	}
-	expectedParentNum := big.NewInt(0)
-	expectedParentNum.Sub(firstL2BlockNumber, common.Big1)
-	if expectedParentNum.Cmp(parent.Number()) != 0 {
-		log.Warn("Parent block number mismatch", "#parentBlock", parent.NumberU64(), firstL2BlockNumber.Uint64())
+	expectedParentNum := firstL2BlockNumber - 1
+	if expectedParentNum != parent.NumberU64() {
+		log.Warn("Parent block number mismatch", "#parentBlock", parent, "#firstL2BlockNumber", firstL2BlockNumber)
 		return fmt.Errorf("rollup services unsynced")
 	}
 	state, err := b.Chain().StateAt(parent.Root())
@@ -347,7 +353,7 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber *big.Int, blocks []*rollup
 		log.Trace("Reconstructing block header", "#blockNumber", currentBlockNumber)
 		header := &types.Header{
 			ParentHash: parent.Hash(),
-			Number:     currentBlockNumber,
+			Number:     new(big.Int).SetUint64(currentBlockNumber),
 			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
 			Time:       sblock.Timestamp,
 			Coinbase:   b.Config.SequencerAddr,
@@ -393,9 +399,10 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber *big.Int, blocks []*rollup
 			log.Warn("Error while writing new block", "#err", err)
 			return err
 		}
+		parent = block
 
-		// Only modify this big int after block and header have been written to chain
-		currentBlockNumber.Add(currentBlockNumber, common.Big1)
+		// Only increment currentBlockNumber after block and header have been written to chain
+		currentBlockNumber += 1
 	}
 
 	log.Trace(

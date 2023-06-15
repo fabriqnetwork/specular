@@ -23,6 +23,8 @@
 pragma solidity ^0.8.0;
 
 interface IRollup {
+    event ConfigChanged();
+
     event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash);
 
     event AssertionChallenged(uint256 assertionID, address challengeAddr);
@@ -34,6 +36,9 @@ interface IRollup {
     event StakerStaked(address stakerAddr, uint256 assertionID);
 
     // TODO: Include errors thrown in function documentation.
+
+    /// @dev Thrown when the new config parameter is invalid (configuration methods).
+    error InvalidConfigChange();
 
     /// @dev Thrown when assertion creation requested with invalid inbox size.
     error InvalidInboxSize();
@@ -83,8 +88,8 @@ interface IRollup {
     /// @dev Thrown when there is no unresolved assertion
     error NoUnresolvedAssertion();
 
-    /// @dev Thrown when the challenge period has not passed
-    error ChallengePeriodPending();
+    /// @dev Thrown when the confirmation period has not passed
+    error ConfirmationPeriodPending();
 
     /// @dev Thrown when the challenger and defender didn't attest to sibling assertions
     error NotSiblings();
@@ -134,6 +139,8 @@ interface IRollup {
         uint256 childInboxSize; // child assertion inbox state
     }
 
+    // *** Getters ***
+
     /**
      * @param addr Staker address.
      * @return Staker corresponding to address.
@@ -165,6 +172,55 @@ interface IRollup {
      * @return confirmedInboxSize size of inbox confirmed
      */
     function confirmedInboxSize() external view returns (uint256);
+
+    // *** Configuration ***
+
+    /**
+     * @notice Sets a new DA provider
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newDAProvider New DA provider
+     */
+    function setDAProvider(address newDAProvider) external;
+
+    /**
+     * @notice Sets a new confirmation period
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newPeriod New confirmation period
+     */
+    function setConfirmationPeriod(uint256 newPeriod) external;
+
+    /**
+     * @notice Sets a new challenge period
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newPeriod New challenge period
+     */
+    function setChallengePeriod(uint256 newPeriod) external;
+
+    /**
+     * @notice Sets a new minimum assertion period
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newPeriod New minimum assertion period
+     */
+    function setMinimumAssertionPeriod(uint256 newPeriod) external;
+
+    /**
+     * @notice Sets a new base stake amount.
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newAmount New base stake amount; this can currently only be decreased.
+     */
+    function setBaseStakeAmount(uint256 newAmount) external;
+
+    // *** State mutation ***
 
     /**
      * @notice Deposits stake on staker's current assertion (or the last confirmed assertion if not currently staked).
@@ -202,7 +258,7 @@ interface IRollup {
      * Block is represented by all transactions in range [prevInboxSize, inboxSize]. The latest staked DA of the sender
      * is considered to be the predecessor. Moves sender stake onto the new DA.
      *
-     * The new DA stores the hash of the parameters: H(l2GasUsed || vmHash)
+     * Emits: `AssertionCreated` and `StakerStaked` events.
      *
      * @param vmHash New VM hash.
      * @param inboxSize Size of inbox corresponding to assertion (number of transactions).

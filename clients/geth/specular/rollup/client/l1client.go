@@ -112,7 +112,7 @@ func NewEthBridgeClient(
 	auth *bind.TransactOpts,
 	retryOpts []retry.Option,
 ) (*EthBridgeClient, error) {
-	client, err := dialWithRetry(ctx, l1Endpoint, retryOpts)
+	client, err := DialWithRetry(ctx, l1Endpoint, retryOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -233,7 +233,9 @@ func (c *EthBridgeClient) Close() {
 func (c *EthBridgeClient) AppendTxBatch(contexts []*big.Int, txLengths []*big.Int, firstL2BlockNumber *big.Int, txBatch []byte) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.inbox.AppendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch) }
+	f := func() (*types.Transaction, error) {
+		return c.inbox.AppendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch)
+	}
 	return retryTransactingFunction(f, c.retryOpts)
 }
 

@@ -44,6 +44,8 @@
     "@openzeppelin/contracts": "^4.8.3",
     "@openzeppelin/contracts-upgradeable": "^4.8.3",
     "@openzeppelin/hardhat-upgrades": "^1.22.1",
+    "ethereumjs-util": "^7.1.5",
+    "glob": "^10.2.3",
     "lint-staged": "^13.1.3"
   }
 }
