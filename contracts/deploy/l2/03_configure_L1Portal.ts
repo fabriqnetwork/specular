@@ -3,15 +3,19 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { Web3Provider, ExternalProvider } from "@ethersproject/providers";
 import { getProxyName } from "../deploy-utils";
 
+// Configure L1Portal with deployed L2 contract addresses
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, ethers, network, companionNetworks } =
     hre;
+
+  // Get L1 deployer signer
   const { deployer } = await getNamedAccounts();
   const provider = new Web3Provider(
     companionNetworks.l1.provider as unknown as ExternalProvider
   );
   const deployerSigner = await provider.getSigner(deployer);
 
+  // Get L1Portal contract on L1
   const l1PortalProxyAddress = (
     await companionNetworks.l1.deployments.get(getProxyName("L1Portal"))
   ).address;
@@ -21,6 +25,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     deployerSigner
   );
   console.log(l1Portal.signer.getAddress());
+
+  // Set L2Portal address on L1Portal
   const l2PortalProxyAddress = (await deployments.get(getProxyName("L2Portal")))
     .address;
   const tx = await l1Portal.setL2PortalAddress(l2PortalProxyAddress);
