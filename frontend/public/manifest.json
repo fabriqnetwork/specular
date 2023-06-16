@@ -1,0 +1,22 @@
+{
+  "short_name": "xDAI to ETH",
+  "name": "xDAI to ETH",
+  "description": "The app to convert xDAI tokens to ETH",
+  "iconPath": "logo.svg",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo.svg",
+      "type": "image/png",
+      "sizes": "192x192"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}
