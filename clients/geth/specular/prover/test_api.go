@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -78,7 +79,7 @@ func (api *ProverAPI) GenerateProofForTest(ctx context.Context, hash common.Hash
 		api.backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random != nil),
 		blockNumber,
 		index,
-		statedb,
+		statedb.(geth_prover.GethState).StateDB,
 		*its,
 		blockHashTree,
 	)

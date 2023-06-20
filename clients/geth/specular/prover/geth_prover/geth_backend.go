@@ -73,7 +73,7 @@ func (g GethBackend) StateAtTransaction(ctx context.Context, block *types.Block,
 }
 
 func (g GethBackend) NewEVM(blockCtx oss.L2ELClientBlockContextInterface, txCtx vm.TxContext, statedb oss.L2ELClientStateInterface, chainConfig *params.ChainConfig, config oss.L2ELClientConfig) oss.L2ELClientEVMInterface {
-	return &GethEVM{vm.NewEVM(blockCtx.(GethBlockContext).Context, txCtx, statedb.(*GethState).StateDB, chainConfig, vm.Config{Debug: config.Debug, Tracer: config.Tracer.(vm.EVMLogger)})}
+	return &GethEVM{vm.NewEVM(blockCtx.(*GethBlockContext).Context, txCtx, statedb.(GethState).StateDB, chainConfig, vm.Config{Debug: config.Debug, Tracer: config.Tracer.(vm.EVMLogger)})}
 }
 
 func (g GethBackend) NewEVMBlockContext(header *types.Header, chain core.ChainContext, author *common.Address) oss.L2ELClientBlockContextInterface {
