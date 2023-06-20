@@ -8,11 +8,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
-const TX_DATA_ZERO = 4
-const TX_DATA_ONE = 16
+const (
+	txDataZero = 4
+	txDataOne  = 16
+)
 
 // keccak256("specular.basefee")
 const BASEFEE_SLOT = "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168"
@@ -83,8 +85,7 @@ func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transact
 func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.Int, error) {
 	// calculate L1 gas from RLP encoding
 	buf := new(bytes.Buffer)
-	err := tx.EncodeRLP(buf)
-	if err != nil {
+	if err := tx.EncodeRLP(buf); err != nil {
 		return common.Big0, err
 	}
 	bytes := buf.Bytes()
@@ -95,16 +96,18 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 	// [2] https://github.com/ethereum-optimism/optimism/blob/develop/specs/exec-engine.md#l1-cost-fees-l1-fee-vault
 	rlp := bytes[:len(bytes)-3]
 
-	zeroes, ones := zeroesAndOnes(rlp)
+	var (
+		zeroes, ones = zeroesAndOnes(rlp)
 
-	txDataGas := big.NewInt(zeroes*TX_DATA_ZERO + ones*TX_DATA_ONE + cfg.GetL1FeeOverhead())
-	basefee := readStorageSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
+		txDataGas = big.NewInt(zeroes*txDataZero + ones*txDataOne + cfg.GetL1FeeOverhead())
+		basefee   = readStorageSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
 
-	l1Fee := new(big.Float).SetInt(new(big.Int).Mul(txDataGas, basefee))
-	feeMutiplier := new(big.Float).SetFloat64(cfg.GetL1FeeMultiplier())
+		l1Fee        = new(big.Float).SetInt(new(big.Int).Mul(txDataGas, basefee))
+		feeMutiplier = new(big.Float).SetFloat64(cfg.GetL1FeeMultiplier())
 
-	scaledL1Fee := new(big.Float).Mul(l1Fee, feeMutiplier)
-	roundedL1Fee, _ := new(big.Float).Add(scaledL1Fee, big.NewFloat(0.5)).Int(nil)
+		scaledL1Fee     = new(big.Float).Mul(l1Fee, feeMutiplier)
+		roundedL1Fee, _ = new(big.Float).Add(scaledL1Fee, big.NewFloat(0.5)).Int(nil)
+	)
 
 	log.Trace(
 		"calculated l1 fee",
@@ -141,8 +144,7 @@ func readStorageSlot(evm *vm.EVM, address common.Address, slot common.Hash) *big
 
 // zeroesAndOnes counts the number of 0 bytes and non 0 bytes in a byte slice
 func zeroesAndOnes(data []byte) (int64, int64) {
-	var zeroes int64
-	var ones int64
+	var zeroes, ones int64
 	for _, b := range data {
 		if b == 0 {
 			zeroes++
