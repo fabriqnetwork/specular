@@ -23,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/holiman/uint256"
-	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 )
 
 type IntraStateProof struct {

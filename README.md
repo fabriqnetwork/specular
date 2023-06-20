@@ -7,7 +7,7 @@
 │   ├── <a href="./clients/geth/go-ethereum">go-ethereum</a>: Minimally modified go-ethereum to support Specular prover
 │   └── <a href="./clients/geth/specular">specular</a>: Specular client software
 │       ├── <a href="./clients/geth/specular/bindings">bindings</a>: Golang bindings of Specular L1 contracts
-│       ├── <a href="./clients/geth/specular/proof">proof</a>: Specular prover
+│       ├── <a href="./clients/geth/specular/prover">proof</a>: Specular prover
 │       └── <a href="./clients/geth/specular/rollup">rollup</a>: Specular rollup services
 └── <a href="./contracts">contracts</a>: Specular L1 contracts
 </pre>

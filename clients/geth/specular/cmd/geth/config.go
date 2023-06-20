@@ -24,6 +24,7 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	"os"
 	"reflect"
 	"unicode"
@@ -193,7 +194,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	// <specular modification>
 	if ctx.IsSet(specularUtils.RollupNodeFlag.Name) {
 		cfg := specularUtils.MakeRollupConfig(ctx)
-		rollup.RegisterRollupService(stack, eth, eth.APIBackend, cfg)
+		rollup.RegisterRollupService(stack, eth, geth_prover.GethBackend{eth.APIBackend}, cfg)
 	}
 	// <specular modification/>
 

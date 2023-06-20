@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proof
+package prover
 
 import (
 	"context"
@@ -22,11 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/proof/proof"
-	"github.com/specularl2/specular/clients/geth/specular/proof/prover"
-	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+	"github.com/specularl2/specular/clients/geth/specular/prover/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
@@ -89,7 +87,7 @@ func (s *ExecutionState) Hash() common.Hash {
 //  7. the BlockState of the block A
 //  8. a dummy InterState
 //  9. the BlockState of the block B
-func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int, startNum, endNum uint64, config *ProverConfig) ([]*ExecutionState, error) {
+func GenerateStates(backend L2ELClientBackend, ctx context.Context, startGasUsed *big.Int, startNum, endNum uint64, config *ProverConfig) ([]*ExecutionState, error) {
 	parent, err := backend.BlockByNumber(ctx, rpc.BlockNumber(startNum-1))
 	if err != nil {
 		return nil, err
@@ -111,13 +109,13 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 	cumulativeGasUsed := new(big.Int).Set(startGasUsed)
 
 	// Push the block state of the parent block
-	parentBlockCtx := core.NewEVMBlockContext(parent.Header(), chainCtx, nil)
+	parentBlockCtx := backend.NewEVMBlockContext(parent.Header(), chainCtx, nil)
 	cumulativeGasUsedCopy := new(big.Int).Set(cumulativeGasUsed)
-	blockHashTree, err := state.BlockHashTreeFromBlockContext(&parentBlockCtx)
+	blockHashTree, err := state.BlockHashTreeFromBlockContext(parentBlockCtx)
 	if err != nil {
 		return nil, err
 	}
-	bs, err := state.BlockStateFromBlock(parentBlockCtx.BlockNumber.Uint64(), statedb, cumulativeGasUsedCopy, blockHashTree)
+	bs, err := state.BlockStateFromBlock(parentBlockCtx.BlockNumber().Uint64(), statedb, cumulativeGasUsedCopy, blockHashTree)
 	if err != nil {
 		return nil, err
 	}
@@ -141,8 +139,8 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 			return nil, fmt.Errorf("block #%d not found", num)
 		}
 		signer := types.MakeSigner(backend.ChainConfig(), block.Number())
-		blockCtx := core.NewEVMBlockContext(block.Header(), chainCtx, nil)
-		blockHashTree, err := state.BlockHashTreeFromBlockContext(&blockCtx)
+		blockCtx := backend.NewEVMBlockContext(block.Header(), chainCtx, nil)
+		blockHashTree, err := state.BlockHashTreeFromBlockContext(blockCtx)
 		if err != nil {
 			return nil, err
 		}
@@ -181,9 +179,9 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 			})
 
 			// Execute transaction i with intra state generator enabled.
-			prover := prover.NewIntraStateGenerator(block.NumberU64(), uint64(i), statedb, *its, blockHashTree)
-			vmenv := vm.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover})
-			executionResult, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+			prover := NewIntraStateGenerator(block.NumberU64(), uint64(i), statedb, *its, blockHashTree)
+			vmenv := backend.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), state.L2ELClientConfig{Debug: true, Tracer: prover})
+			executionResult, err := backend.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 			if err != nil {
 				return nil, fmt.Errorf("tracing failed: %w", err)
 			}
@@ -263,7 +261,7 @@ func GenerateStates(backend Backend, ctx context.Context, startGasUsed *big.Int,
 //  4. IntraState -> IntraState: one-step EVM execution (require tracing)
 //  5. IntraState -> InterState: transaction finalization (require tracing)
 //  6. InterState -> BlockState: block finalization
-func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionState, config *ProverConfig) (*proof.OneStepProof, error) {
+func GenerateProof(backend L2ELClientBackend, ctx context.Context, startState *ExecutionState, config *ProverConfig) (*proof.OneStepProof, error) {
 	if startState.Block == nil {
 		return nil, fmt.Errorf("bad start state")
 	}
@@ -284,8 +282,8 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 			return nil, err
 		}
 		chainCtx := createChainContext(backend, ctx)
-		vmctx := core.NewEVMBlockContext(startState.Block.Header(), chainCtx, nil)
-		blockHashTree, err := state.BlockHashTreeFromBlockContext(&vmctx)
+		vmctx := backend.NewEVMBlockContext(startState.Block.Header(), chainCtx, nil)
+		blockHashTree, err := state.BlockHashTreeFromBlockContext(vmctx)
 		if err != nil {
 			return nil, err
 		}
@@ -323,7 +321,7 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 	if err != nil {
 		return nil, err
 	}
-	blockHashTree, err := state.BlockHashTreeFromBlockContext(&vmctx)
+	blockHashTree, err := state.BlockHashTreeFromBlockContext(vmctx)
 	if err != nil {
 		return nil, err
 	}
@@ -344,15 +342,15 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 
 	if startState.StateType == state.InterStateType {
 		// Type 2: transaction initiation or Type 3: EOA transfer transaction
-		return proof.GetTransactionInitaitionProof(backend.ChainConfig(), &vmctx, transaction, &txContext, its, statedb)
+		return proof.GetTransactionInitaitionProof(backend.ChainConfig(), vmctx, transaction, &txContext, its, statedb)
 	}
 	// Type 4: one-step EVM execution or Type 5: transaction finalization. Both require tracing.
 
 	// Set up the prover
-	prover := prover.NewProver(
+	prover := NewProver(
 		startState.VMHash,
 		startState.StepIdx,
-		backend.ChainConfig().Rules(vmctx.BlockNumber, vmctx.Random != nil),
+		backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random != nil),
 		startState.Block.NumberU64(),
 		startState.TransactionIdx,
 		statedb,
@@ -362,11 +360,11 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 		receipts[startState.TransactionIdx],
 	)
 	// Run the transaction with prover enabled.
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover})
+	vmenv := backend.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), state.L2ELClientConfig{Debug: true, Tracer: prover})
 	// Call Prepare to clear out the statedb access list
 	txHash := transactions[startState.TransactionIdx].Hash()
 	statedb.Prepare(txHash, int(startState.TransactionIdx))
-	_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+	_, err = backend.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}

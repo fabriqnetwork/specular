@@ -26,14 +26,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/eth"
 	ethcatalyst "github.com/ethereum/go-ethereum/eth/catalyst"
-	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/tracers"
-	"github.com/ethereum/go-ethereum/les"
-	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	rollup "github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/urfave/cli/v2"
 )
@@ -98,33 +96,34 @@ var (
 // The second return value is the full node instance, which may be nil if the
 // node is running as a light client.
 func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend, *eth.Ethereum) {
-	if cfg.SyncMode == downloader.LightSync {
-		backend, err := les.New(stack, cfg)
-		if err != nil {
-			utils.Fatalf("Failed to register the Ethereum service: %v", err)
-		}
-		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
-		if err := lescatalyst.Register(stack, backend); err != nil {
-			utils.Fatalf("Failed to register the Engine API service: %v", err)
-		}
-		return backend.ApiBackend, nil
-	}
+	//if cfg.SyncMode == downloader.LightSync {
+	//	backend, err := les.New(stack, cfg)
+	//	if err != nil {
+	//		utils.Fatalf("Failed to register the Ethereum service: %v", err)
+	//	}
+	//	stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
+	//	if err := lescatalyst.Register(stack, backend); err != nil {
+	//		utils.Fatalf("Failed to register the Engine API service: %v", err)
+	//	}
+	//	return backend.ApiBackend, nil
+	//}
 	backend, err := eth.New(stack, cfg)
+	geth_backend := geth_prover.GethBackend{backend.APIBackend}
 	if err != nil {
 		utils.Fatalf("Failed to register the Ethereum service: %v", err)
 	}
-	if cfg.LightServ > 0 {
-		_, err := les.NewLesServer(stack, backend, cfg)
-		if err != nil {
-			utils.Fatalf("Failed to create the LES server: %v", err)
-		}
-	}
+	//if cfg.LightServ > 0 {
+	//	_, err := les.NewLesServer(stack, backend, cfg)
+	//	if err != nil {
+	//		utils.Fatalf("Failed to create the LES server: %v", err)
+	//	}
+	//}
 	if err := ethcatalyst.Register(stack, backend); err != nil {
 		utils.Fatalf("Failed to register the Engine API service: %v", err)
 	}
 	stack.RegisterAPIs(tracers.APIs(backend.APIBackend))
 	// <specular modification>
-	stack.RegisterAPIs(proof.APIs(backend.APIBackend))
+	stack.RegisterAPIs(prover.APIs(geth_backend))
 	// <specular modification/>
 	return backend.APIBackend, backend
 }

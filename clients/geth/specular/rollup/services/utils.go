@@ -7,7 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
@@ -35,15 +35,15 @@ func LogBlockChainInfo(backend Backend, start, end uint64) {
 
 func SubmitOneStepProof(
 	ctx context.Context,
-	proofBackend proof.Backend,
+	proofBackend prover.L2ELClientBackend,
 	l1Client client.L1BridgeClient,
-	state *proof.ExecutionState,
+	state *prover.ExecutionState,
 	challengedStepIndex *big.Int,
 	prevBisection [][32]byte,
 	prevChallengedSegmentStart *big.Int,
 	prevChallengedSegmentLength *big.Int,
 ) error {
-	osp, err := proof.GenerateProof(proofBackend, ctx, state, nil)
+	osp, err := prover.GenerateProof(proofBackend, ctx, state, nil)
 	if err != nil {
 		log.Crit("UNHANDLED: osp generation failed", "err", err)
 	}
@@ -66,10 +66,10 @@ func SubmitOneStepProof(
 
 func RespondBisection(
 	ctx context.Context,
-	proofBackend proof.Backend,
+	proofBackend prover.L2ELClientBackend,
 	l1Client client.L1BridgeClient,
 	ev *bindings.ISymChallengeBisected,
-	states []*proof.ExecutionState,
+	states []*prover.ExecutionState,
 	opponentEndStateHash common.Hash,
 	isDefender bool,
 ) error {

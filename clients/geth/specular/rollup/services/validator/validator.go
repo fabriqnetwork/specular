@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
@@ -45,7 +45,7 @@ type Validator struct {
 }
 
 // TODO: this shares a lot of code with sequencer
-func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Validator, error) {
+func New(eth services.Backend, proofBackend prover.L2ELClientBackend, l1Client client.L1BridgeClient, cfg *services.Config) (*Validator, error) {
 	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 	}
 	defer headSub.Unsubscribe()
 
-	var states []*proof.ExecutionState
+	var states []*prover.ExecutionState
 
 	var bisectedCh chan *bindings.ISymChallengeBisected
 	var bisectedSub event.Subscription
@@ -319,7 +319,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 				log.Info("Challenge completed", "winner", ev.Winner)
 				bisectedSub.Unsubscribe()
 				challengeCompletedSub.Unsubscribe()
-				states = []*proof.ExecutionState{}
+				states = []*prover.ExecutionState{}
 				inChallenge = false
 				v.challengeResolutionCh <- chalCtx.ourAssertion
 			case <-ctx.Done():
@@ -379,7 +379,7 @@ func (v *Validator) challengeLoop(ctx context.Context) {
 					if err != nil {
 						log.Crit("Failed to watch challenge event", "err", err)
 					}
-					states, err = proof.GenerateStates(
+					states, err = prover.GenerateStates(
 						v.ProofBackend,
 						ctx,
 						chalCtx.opponentAssertion.PrevCumulativeGasUsed,

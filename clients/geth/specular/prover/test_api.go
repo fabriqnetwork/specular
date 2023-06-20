@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proof
+package prover
 
 import (
 	"context"
@@ -23,10 +23,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/proof/prover"
-	oss "github.com/specularl2/specular/clients/geth/specular/proof/state"
+	oss "github.com/specularl2/specular/clients/geth/specular/prover/state"
 )
 
 func (api *ProverAPI) GenerateProofForTest(ctx context.Context, hash common.Hash, cumulativeGasUsed, blockGasUsed *big.Int, step uint64, config *ProverConfig) (json.RawMessage, error) {
@@ -58,7 +56,7 @@ func (api *ProverAPI) GenerateProofForTest(ctx context.Context, hash common.Hash
 	if err != nil {
 		return nil, err
 	}
-	blockHashTree, err := oss.BlockHashTreeFromBlockContext(&vmctx)
+	blockHashTree, err := oss.BlockHashTreeFromBlockContext(vmctx)
 	if err != nil {
 		return nil, err
 	}
@@ -72,21 +70,21 @@ func (api *ProverAPI) GenerateProofForTest(ctx context.Context, hash common.Hash
 		receipts,
 		blockHashTree,
 	)
-	prover := prover.NewTestProver(
+	prover := NewTestProver(
 		step,
 		transaction,
 		&txContext,
 		receipts[index],
-		api.backend.ChainConfig().Rules(vmctx.BlockNumber, vmctx.Random != nil),
+		api.backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random != nil),
 		blockNumber,
 		index,
 		statedb,
 		*its,
 		blockHashTree,
 	)
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover})
+	vmenv := api.backend.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), oss.L2ELClientConfig{Debug: true, Tracer: prover})
 	statedb.Prepare(hash, int(index))
-	_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+	_, err = api.backend.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}

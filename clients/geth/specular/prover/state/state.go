@@ -58,8 +58,8 @@ type IntraState struct {
 	Memory               *Memory
 	InputData            *Memory
 	ReturnData           *Memory
-	CommittedGlobalState vm.StateDB
-	GlobalState          vm.StateDB
+	CommittedGlobalState L2ELClientStateInterface
+	GlobalState          L2ELClientStateInterface
 	SelfDestructSet      *SelfDestructSet
 	LogSeries            *LogSeries
 	BlockHashTree        *BlockHashTree
@@ -148,11 +148,11 @@ func (s *IntraState) HashAsLastDepth(callFlag CallFlag, cost uint64) common.Hash
 
 func StateFromCaptured(
 	blockNumber, transactionIdx uint64,
-	committedGlobalState vm.StateDB,
+	committedGlobalState L2ELClientStateInterface,
 	selfDestructSet *SelfDestructSet,
 	blockHashTree *BlockHashTree,
 	accessListTrie *AccessListTrie,
-	evm *vm.EVM,
+	evm L2ELClientEVMInterface,
 	lastDepthState OneStepState,
 	callFlag CallFlag,
 	inputData *Memory,
@@ -168,7 +168,7 @@ func StateFromCaptured(
 	stack := StackFromEVMStack(scope.Stack)
 	memory := MemoryFromEVMMemory(scope.Memory)
 	returnData := NewMemoryFromBytes(rData)
-	globalState := evm.StateDB.Copy()
+	globalState := evm.StateDB().Copy()
 	refund := globalState.GetRefund()
 	// All pending changes must be committed before getting the root
 	globalState.CommitForProof()
@@ -188,7 +188,7 @@ func StateFromCaptured(
 		OutSize:              outSize,
 		Pc:                   pc,
 		OpCode:               op,
-		CodeHash:             evm.StateDB.GetCodeHash(contractAddress),
+		CodeHash:             evm.StateDB().GetCodeHash(contractAddress),
 		Stack:                stack,
 		Memory:               memory,
 		InputData:            inputData,
@@ -205,7 +205,7 @@ func StateFromCaptured(
 type InterState struct {
 	BlockNumber       uint64
 	TransactionIdx    uint64
-	GlobalState       vm.StateDB
+	GlobalState       L2ELClientStateInterface
 	CumulativeGasUsed *uint256.Int
 	BlockGasUsed      *uint256.Int
 	BlockHashTree     *BlockHashTree
@@ -238,7 +238,7 @@ func (s *InterState) IsInter() bool {
 
 func InterStateFromCaptured(
 	blockNumber, transactionIdx uint64,
-	statedb vm.StateDB,
+	statedb L2ELClientStateInterface,
 	cumulativeGasUsed, blockGasUsed *big.Int,
 	transactions types.Transactions,
 	receipts types.Receipts,
@@ -263,7 +263,7 @@ func InterStateFromCaptured(
 // Represent the state at the end of a finalized block
 type BlockState struct {
 	BlockNumber       uint64
-	GlobalState       vm.StateDB
+	GlobalState       L2ELClientStateInterface
 	CumulativeGasUsed *uint256.Int
 	BlockHashTree     *BlockHashTree
 }
@@ -284,7 +284,7 @@ func (s *BlockState) IsInter() bool {
 	return true
 }
 
-func BlockStateFromBlock(blockNumber uint64, stateDB vm.StateDB, cumulativeGasUsed *big.Int, blockHashTree *BlockHashTree) (*BlockState, error) {
+func BlockStateFromBlock(blockNumber uint64, stateDB L2ELClientStateInterface, cumulativeGasUsed *big.Int, blockHashTree *BlockHashTree) (*BlockState, error) {
 	g, _ := uint256.FromBig(cumulativeGasUsed)
 	return &BlockState{
 		BlockNumber:       blockNumber,
