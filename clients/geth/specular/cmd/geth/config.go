@@ -45,10 +45,10 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	specularUtils "github.com/specularl2/specular/clients/geth/specular/cmd/utils"
+	entry "github.com/specularl2/specular/clients/geth/specular/entry/geth"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
 	"github.com/specularl2/specular/clients/geth/specular/rollup"
-	specularRollupUtils "github.com/specularl2/specular/clients/geth/specular/rollup/utils"
 )
 
 var (
@@ -199,7 +199,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 		vmConfig := eth.BlockChain().GetVMConfig()
 		vmConfig.SpecularEVMPreTransferHook = func(msg types.Message, evm *vm.EVM) error {
-			return specularRollupUtils.SpecularEVMPreTransferHook(msg, evm, rollupConfig)
+			return entry.SpecularEVMPreTransferHook(msg, evm, rollupConfig)
 		}
 		log.Info("Injected EVM hook")
 

@@ -1,4 +1,4 @@
-package utils
+package entry
 
 import (
 	"bytes"
@@ -18,13 +18,15 @@ const TX_DATA_ONE = 16
 const BASEFEE_SLOT = "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168"
 
 type RollupConfig interface {
-	GetCoinbase() common.Address
-	GetL2ChainID() uint64
-	GetL1FeeOverhead() int64
-	GetL1FeeMultiplier() float64
-	GetL1OracleAddress() common.Address
+	GetCoinbase() common.Address        // recipient of the L1 Fee
+	GetL2ChainID() uint64               // chain ID of the specular rollup
+	GetL1FeeOverhead() int64            // fixed cost of submitting a tx to L1
+	GetL1FeeMultiplier() float64        // value to scale the L1 Fee
+	GetL1OracleAddress() common.Address // contract providing the L1 basefee
 }
 
+// SpecularEVMPreTransferHook is injected into the EVM and runs before every transfer
+// currently this is only used to calculate & charge the L1 Fee
 func SpecularEVMPreTransferHook(msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
 	tx := transactionFromMessage(msg, cfg)
 	fee, err := calculateL1Fee(tx, evm, cfg)
@@ -34,6 +36,8 @@ func SpecularEVMPreTransferHook(msg types.Message, evm *vm.EVM, cfg RollupConfig
 	return chargeL1Fee(fee, msg, evm, cfg)
 }
 
+// creates a Transaction from a transaction
+// the Tx Type is reconstructed and the signature is left empty
 func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transaction {
 	var txData types.TxData
 	if msg.GasTipCap() != nil {
@@ -72,6 +76,10 @@ func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transact
 	return types.NewTx(txData)
 }
 
+// calculates the L1 fee for a transaction using the following formula:
+// L1Fee = L1FeeMultiplier * L1BaseFee * (TxDataGas + L1OverheadGas)
+// L1BaseFee is dynamically set by the L1Oracle
+// L1FeeMultiplier & L1OverheadGas are set in the rollup configuration
 func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.Int, error) {
 	// calculate L1 gas from RLP encoding
 	buf := new(bytes.Buffer)
@@ -90,7 +98,7 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 	zeroes, ones := zeroesAndOnes(rlp)
 
 	txDataGas := big.NewInt(zeroes*TX_DATA_ZERO + ones*TX_DATA_ONE + cfg.GetL1FeeOverhead())
-	basefee := readL1OracleSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
+	basefee := readStorageSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
 
 	l1Fee := new(big.Float).SetInt(new(big.Int).Mul(txDataGas, basefee))
 	feeMutiplier := new(big.Float).SetFloat64(cfg.GetL1FeeMultiplier())
@@ -111,22 +119,24 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 	return roundedL1Fee, nil
 }
 
-func chargeL1Fee(L1Fee *big.Int, msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
+// subtract the L1 Fee from the sender of the Tx
+// add the Fee to the balance of the coinbase address
+func chargeL1Fee(l1Fee *big.Int, msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
 	senderBalance := evm.StateDB.GetBalance(msg.From())
-	if senderBalance.Cmp(L1Fee) < 0 {
+	if senderBalance.Cmp(l1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	evm.StateDB.AddBalance(cfg.GetCoinbase(), L1Fee)
-	evm.StateDB.SubBalance(msg.From(), L1Fee)
+	evm.StateDB.AddBalance(cfg.GetCoinbase(), l1Fee)
+	evm.StateDB.SubBalance(msg.From(), l1Fee)
 
-	log.Info("charged L1 Fee", "fee", L1Fee.Uint64())
+	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
 	return nil
 }
 
-func readL1OracleSlot(evm *vm.EVM, oracleAddress common.Address, slot common.Hash) *big.Int {
-	data := evm.StateDB.GetState(oracleAddress, slot)
-	return data.Big()
+// read the value from a given address / storage slot
+func readStorageSlot(evm *vm.EVM, address common.Address, slot common.Hash) *big.Int {
+	return evm.StateDB.GetState(address, slot).Big()
 }
 
 // zeroesAndOnes counts the number of 0 bytes and non 0 bytes in a byte slice
