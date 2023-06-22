@@ -55,9 +55,7 @@ library MerkleRangeLib {
     /**
      * @notice Calculate the merkle tree root from leaves
      */
-    function buildMerkleRoot(
-        bytes32[] memory elements
-    ) internal pure returns (bytes32) {
+    function buildMerkleRoot(bytes32[] memory elements) internal pure returns (bytes32) {
         if (elements.length == 0) {
             return bytes32(0);
         }

@@ -58,13 +58,12 @@ library MemoryLib {
         OneStepProof.MemoryMerkleProof memory merkleProof;
         (offset, readProof) = OneStepProof.decodeMemoryReadProof(encoded, offset, cellNum);
         (offset, merkleProof) = OneStepProof.decodeMemoryMerkleProof(encoded, offset);
-        require(MerkleRangeLib.verifyRangeProof(
-            stateProof.memRoot,
-            Params.MAX_MEMORY_SIZE,
-            startCell,
-            readProof.cells,
-            merkleProof.proof
-        ), "Bad Memory Proof");
+        require(
+            MerkleRangeLib.verifyRangeProof(
+                stateProof.memRoot, Params.MAX_MEMORY_SIZE, startCell, readProof.cells, merkleProof.proof
+            ),
+            "Bad Memory Proof"
+        );
         bytes memory readContent = abi.encodePacked(readProof.cells).slice(memoryOffset % 32, memoryReadLength);
         return (offset, readContent);
     }
@@ -89,13 +88,10 @@ library MemoryLib {
         OneStepProof.MemoryMerkleProof memory merkleProof;
         (offset, readProof) = OneStepProof.decodeMemoryReadProof(encoded, offset, cellNum);
         (offset, merkleProof) = OneStepProof.decodeMemoryMerkleProof(encoded, offset);
-        require(MerkleRangeLib.verifyRangeProof(
-            romRoot,
-            romTreeSize,
-            startCell,
-            readProof.cells,
-            merkleProof.proof
-        ), "Bad Memory Proof");
+        require(
+            MerkleRangeLib.verifyRangeProof(romRoot, romTreeSize, startCell, readProof.cells, merkleProof.proof),
+            "Bad Memory Proof"
+        );
         bytes memory readContent = abi.encodePacked(readProof.cells).slice(memoryOffset % 32, memoryReadLength);
         return (offset, readContent);
     }
@@ -122,20 +118,17 @@ library MemoryLib {
         OneStepProof.MemoryMerkleProof memory merkleProof;
         (offset, writeProof) = OneStepProof.decodeMemoryWriteProof(encoded, offset, cellNum);
         (offset, merkleProof) = OneStepProof.decodeMemoryMerkleProof(encoded, offset);
-        require(MerkleRangeLib.verifyRangeProof(
-            stateProof.memRoot,
-            Params.MAX_MEMORY_SIZE,
-            startCell,
-            writeProof.cells,
-            merkleProof.proof
-        ), "Bad Memory Read Proof");
-        bytes32 newRoot = MerkleRangeLib.getNewRootFromRangeProof(
-            Params.MAX_MEMORY_SIZE,
-            startCell,
-            writeProof.updatedCells,
-            merkleProof.proof
+        require(
+            MerkleRangeLib.verifyRangeProof(
+                stateProof.memRoot, Params.MAX_MEMORY_SIZE, startCell, writeProof.cells, merkleProof.proof
+            ),
+            "Bad Memory Read Proof"
         );
-        bytes memory writeContent = abi.encodePacked(writeProof.updatedCells).slice(memoryOffset % 32, memoryWriteLength);
+        bytes32 newRoot = MerkleRangeLib.getNewRootFromRangeProof(
+            Params.MAX_MEMORY_SIZE, startCell, writeProof.updatedCells, merkleProof.proof
+        );
+        bytes memory writeContent =
+            abi.encodePacked(writeProof.updatedCells).slice(memoryOffset % 32, memoryWriteLength);
         return (offset, newRoot, writeContent);
     }
 }

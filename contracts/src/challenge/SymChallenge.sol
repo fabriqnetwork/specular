@@ -161,8 +161,9 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     ) external override onlyOnTurn {
         {
             // Verify provided prev bisection.
-            bytes32 prevHash =
-                ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+            bytes32 prevHash = ChallengeLib.computeBisectionHash(
+                prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength
+            );
             if (prevHash != bisectionHash) {
                 revert PreviousStateInconsistent();
             }
@@ -182,7 +183,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
             }
         }
         // Verify OSP.
-        bytes32 endHash = verifier.verifyOneStepProof(ctx, verifierSel, prevBisection[challengedStepIndex - 1], oneStepProof);
+        bytes32 endHash =
+            verifier.verifyOneStepProof(ctx, verifierSel, prevBisection[challengedStepIndex - 1], oneStepProof);
 
         // Require that the end state differs from the counterparty's.
         if (endHash != prevBisection[challengedStepIndex]) {
