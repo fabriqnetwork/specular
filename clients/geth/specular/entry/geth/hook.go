@@ -3,6 +3,7 @@ package entry
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -99,14 +100,12 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 	var (
 		zeroes, ones = zeroesAndOnes(rlp)
 
-		txDataGas = big.NewInt(zeroes*txDataZero + ones*txDataOne + cfg.GetL1FeeOverhead())
-		basefee   = readStorageSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
+		txDataGas    = big.NewInt(zeroes*txDataZero + ones*txDataOne + cfg.GetL1FeeOverhead())
+		basefee      = readStorageSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
+		feeMutiplier = cfg.GetL1FeeMultiplier()
 
-		l1Fee        = new(big.Float).SetInt(new(big.Int).Mul(txDataGas, basefee))
-		feeMutiplier = new(big.Float).SetFloat64(cfg.GetL1FeeMultiplier())
-
-		scaledL1Fee     = new(big.Float).Mul(l1Fee, feeMutiplier)
-		roundedL1Fee, _ = new(big.Float).Add(scaledL1Fee, big.NewFloat(0.5)).Int(nil)
+		l1Fee       = new(big.Int).Mul(txDataGas, basefee)
+		scaledL1Fee = ScaleBigInt(l1Fee, feeMutiplier)
 	)
 
 	log.Trace(
@@ -116,10 +115,27 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 		"l1Fee", l1Fee,
 		"feeMutiplier", feeMutiplier,
 		"scaledL1Fee", scaledL1Fee,
-		"roundedL1Fee", roundedL1Fee,
 	)
 
-	return roundedL1Fee, nil
+	return scaledL1Fee, nil
+}
+
+// multiply a big.Int with a float
+// only the first 3 decimal places of the scalar are used to guarantee precision
+func ScaleBigInt(num *big.Int, scalar float64) *big.Int {
+	var (
+		f    = new(big.Float).SetInt(num)
+		s, _ = new(big.Float).SetString(fmt.Sprintf("%.3f", scalar))
+
+		scaledNum     = new(big.Float).Mul(f, s)
+		roundedNum, _ = scaledNum.Int(nil)
+	)
+
+	if !scaledNum.IsInt() {
+		roundedNum = roundedNum.Add(roundedNum, common.Big1)
+	}
+
+	return roundedNum
 }
 
 // subtract the L1 Fee from the sender of the Tx
