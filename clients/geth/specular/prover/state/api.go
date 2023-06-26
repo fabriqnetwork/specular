@@ -46,13 +46,10 @@ type L2ELClientBlockContextInterface interface {
 	Random() *common.Hash
 }
 
-type SpecularEVMLoggerInterface interface {
-}
-
 // Config are the configuration options for the Interpreter
 type L2ELClientConfig struct {
-	Debug  bool                       // Enables debugging
-	Tracer SpecularEVMLoggerInterface // Opcode logger
+	Debug  bool        // Enables debugging
+	Tracer interface{} // Opcode logger
 }
 
 type L2ELClientEVMInterface interface {
