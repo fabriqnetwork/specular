@@ -1,0 +1,12 @@
+export const CHIADO_NETWORK_ID = 10200;
+export const CHIADO_RPC_URL = "https://rpc.chiadochain.net";
+export const CHIADO_EXPLORER_URL = "https://blockscout.chiadochain.net";
+export const SPECULAR_NETWORK_ID = 93481;
+export const SPECULAR_RPC_URL = "https://devnet.specular.network";
+export const SPECULAR_EXPLORER_URL = "https://explorer.specular.network";
+export const L1PORTAL_ADDRESS = "0x26b5fCaB7348a1B68827751ed03bcbe968484b58";
+export const L2PORTAL_ADDRESS = "0xb6De2A265CdFa280ac4400Ce690a079DFc361F7a";
+export const L1ORACLE_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const INBOX_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const ROLLUP_ADDRESS = "0x0000000000000000000000000000000000000000";
+export const BRIDGE_GAS_LIMIT = 300000
