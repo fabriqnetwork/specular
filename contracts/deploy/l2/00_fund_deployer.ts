@@ -8,7 +8,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
 
   // If deployer already has ETH, skip
   const balance = await ethers.provider.getBalance(deployer);
-  if (balance.toNumber() > 0) {
+  if (balance.gt(0)) {
     return;
   }
 
