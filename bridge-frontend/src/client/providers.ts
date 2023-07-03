@@ -24,5 +24,6 @@ export const provider = jsonRpcProvider({
 });
 
 export const transactor = new ethers.providers.Web3Provider(
-  window.ethereum as ExternalProvider
+  window.ethereum as ExternalProvider,
+  "any"
 );
