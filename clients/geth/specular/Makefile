@@ -25,6 +25,8 @@ install: specular $(GETH_TARGET) $(CLEF_TARGET)
 # TODO: use real target to optimize build time
 specular: $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
 	go build $(GO_SRC)
+# for back-compat
+geth: $(GETH_TARGET)
 # Removes:
 # - bindings (do not remove bindings/gen.go)
 # - contracts (this has to happen after bindings)
