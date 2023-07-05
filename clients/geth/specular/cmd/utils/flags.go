@@ -33,7 +33,8 @@ import (
 	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	rollup "github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/urfave/cli/v2"
 )
@@ -110,6 +111,7 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 		return backend.ApiBackend, nil
 	}
 	backend, err := eth.New(stack, cfg)
+	geth_backend := geth_prover.GethBackend{backend.APIBackend}
 	if err != nil {
 		utils.Fatalf("Failed to register the Ethereum service: %v", err)
 	}
@@ -124,7 +126,7 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 	}
 	stack.RegisterAPIs(tracers.APIs(backend.APIBackend))
 	// <specular modification>
-	stack.RegisterAPIs(proof.APIs(backend.APIBackend))
+	stack.RegisterAPIs(prover.APIs(geth_backend))
 	// <specular modification/>
 	return backend.APIBackend, backend
 }

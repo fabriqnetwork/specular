@@ -3,14 +3,14 @@ package indexer
 import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
 type Indexer struct{ *services.BaseService }
 
-func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Indexer, error) {
+func New(eth services.Backend, proofBackend prover.L2ELClientBackend, l1Client client.L1BridgeClient, cfg *services.Config) (*Indexer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
 		return nil, err

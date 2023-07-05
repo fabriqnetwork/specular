@@ -12,28 +12,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package proof
+package prover
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 )
 
 // Backend interface provides the common API services (that are provided by
 // both full and light clients) with access to necessary functions.
-type Backend interface {
+type L2ELClientBackend interface {
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
 	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
@@ -47,22 +47,29 @@ type Backend interface {
 	// StateAtBlock returns the state corresponding to the stateroot of the block.
 	// N.B: For executing transactions on block N, the required stateRoot is block N-1,
 	// so this method should be called with the parent.
-	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base *state.StateDB, checkLive, preferDisk bool) (*state.StateDB, error)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, vm.BlockContext, *state.StateDB, error)
+	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base state.L2ELClientStateInterface, checkLive, preferDisk bool) (state.L2ELClientStateInterface, error)
+	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, state.L2ELClientBlockContextInterface, state.L2ELClientStateInterface, error)
+
+	// functions from package vm:
+	NewEVM(blockCtx state.L2ELClientBlockContextInterface, txCtx vm.TxContext, statedb state.L2ELClientStateInterface, chainConfig *params.ChainConfig, config state.L2ELClientConfig) state.L2ELClientEVMInterface
+
+	// functions from package core:
+	NewEVMBlockContext(header *types.Header, chain core.ChainContext, author *common.Address) state.L2ELClientBlockContextInterface
+	ApplyMessage(evm state.L2ELClientEVMInterface, msg core.Message, gp *core.GasPool) (*core.ExecutionResult, error)
 }
 
 // ProverAPI is the collection of Specular one-step proof APIs.
 type ProverAPI struct {
-	backend Backend
+	backend L2ELClientBackend
 }
 
 // NewAPI creates a new API definition for the Specular one-step proof services.
-func NewAPI(backend Backend) *ProverAPI {
+func NewAPI(backend L2ELClientBackend) *ProverAPI {
 	return &ProverAPI{backend: backend}
 }
 
 type chainContext struct {
-	backend Backend
+	backend L2ELClientBackend
 	ctx     context.Context
 }
 
@@ -85,7 +92,7 @@ func (context *chainContext) GetHeader(hash common.Hash, number uint64) *types.H
 	return header
 }
 
-func createChainContext(backend Backend, ctx context.Context) core.ChainContext {
+func createChainContext(backend L2ELClientBackend, ctx context.Context) core.ChainContext {
 	return &chainContext{backend: backend, ctx: ctx}
 }
 
@@ -123,7 +130,7 @@ func (api *ProverAPI) GenerateStateHashes(ctx context.Context, startGasUsed *big
 }
 
 // APIs return the collection of RPC services the tracer package offers.
-func APIs(backend Backend) []rpc.API {
+func APIs(backend L2ELClientBackend) []rpc.API {
 	// Append all the local APIs and return
 	return []rpc.API{
 		{

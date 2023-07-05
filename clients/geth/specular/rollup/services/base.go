@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
@@ -23,7 +23,7 @@ type BaseService struct {
 	Config *Config
 
 	Eth          Backend
-	ProofBackend proof.Backend
+	ProofBackend prover.L2ELClientBackend
 	L1Client     client.L1BridgeClient
 	L1Syncer     *client.L1Syncer
 
@@ -31,7 +31,7 @@ type BaseService struct {
 	Wg     sync.WaitGroup
 }
 
-func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
+func NewBaseService(eth Backend, proofBackend prover.L2ELClientBackend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
 	return &BaseService{
 		Config:       cfg,
 		Eth:          eth,

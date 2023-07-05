@@ -25,7 +25,6 @@ pragma solidity ^0.8.0;
 import "../IDAProvider.sol";
 import "./verifier/IVerifierEntry.sol";
 
-
 interface IChallengeResultReceiver {
     /**
      * @notice Completes ongoing challenge. Callback, called by a challenge contract.

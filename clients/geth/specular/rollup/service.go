@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
@@ -24,7 +24,7 @@ import (
 
 // RegisterRollupService registers rollup service configured by ctx
 // Either a sequncer service or a validator service will be registered
-func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config) {
+func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend prover.L2ELClientBackend, cfg *services.Config) {
 	// Unlock account for L1 transaction signer
 	var ks *keystore.KeyStore
 	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {

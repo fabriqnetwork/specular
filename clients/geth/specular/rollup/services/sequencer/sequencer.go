@@ -11,7 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularl2/specular/clients/geth/specular/prover"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
@@ -40,7 +40,7 @@ type Sequencer struct {
 	challengeResoutionCh chan struct{}
 }
 
-func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Sequencer, error) {
+func New(eth services.Backend, proofBackend prover.L2ELClientBackend, l1Client client.L1BridgeClient, cfg *services.Config) (*Sequencer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create base service, err: %w", err)
@@ -261,7 +261,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			log.Info(
 				"Serialized new Tx Batch",
 				"#txs", len(batch.Txs),
-				"#numBlocks", len(contexts) / 2,
+				"#numBlocks", len(contexts)/2,
 				"#firsBlockNumber", firstL2BlockNumber,
 			)
 
@@ -449,7 +449,7 @@ func (s *Sequencer) handleChallenge(
 	if err != nil {
 		return fmt.Errorf("Failed to access ongoing challenge (address=%s), err: %w", chalCtx.challengeAddr, err)
 	}
-	states, err := proof.GenerateStates(
+	states, err := prover.GenerateStates(
 		s.ProofBackend,
 		ctx,
 		chalCtx.assertion.PrevCumulativeGasUsed,
@@ -523,7 +523,7 @@ func (s *Sequencer) handleChallenge(
 		case ev := <-challengeCompletedCh:
 			// TODO: handle if we are not winner --> state corrupted
 			log.Info("Challenge completed", "winner", ev.Winner)
-			states = []*proof.ExecutionState{}
+			states = []*prover.ExecutionState{}
 			s.challengeResoutionCh <- struct{}{}
 			return nil
 		case <-ctx.Done():

@@ -16,7 +16,7 @@ package proof
 
 import (
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 )
 
 type genProofFunc func(ctx ProofGenContext, currState, nextState *state.IntraState, vmerr error) (*OneStepProof, error)

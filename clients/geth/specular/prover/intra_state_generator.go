@@ -21,7 +21,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 )
 
 type GeneratedIntraState struct {
@@ -33,12 +33,12 @@ type IntraStateGenerator struct {
 	// Context (read-only)
 	blockNumber          uint64
 	transactionIdx       uint64
-	committedGlobalState vm.StateDB
+	committedGlobalState state.L2ELClientStateInterface
 	startInterState      *state.InterState
 	blockHashTree        *state.BlockHashTree
 
 	// Global
-	env             *vm.EVM
+	env             state.L2ELClientEVMInterface
 	counter         int
 	states          []GeneratedIntraState
 	err             error
@@ -59,7 +59,7 @@ type IntraStateGenerator struct {
 
 func NewIntraStateGenerator(
 	blockNumber, transactionIdx uint64,
-	committedGlobalState vm.StateDB,
+	committedGlobalState state.L2ELClientStateInterface,
 	interState state.InterState,
 	blockHashTree *state.BlockHashTree,
 ) *IntraStateGenerator {
@@ -76,7 +76,7 @@ func (l *IntraStateGenerator) CaptureTxStart(gasLimit uint64) {}
 
 func (l *IntraStateGenerator) CaptureTxEnd(restGas uint64) {}
 
-func (l *IntraStateGenerator) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (l *IntraStateGenerator) CaptureStart(env state.L2ELClientEVMInterface, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	l.env = env
 	// To be consistent with stepIdx, but not necessary for state generation
 	l.counter = 1
@@ -89,7 +89,7 @@ func (l *IntraStateGenerator) CaptureStart(env *vm.EVM, from common.Address, to 
 	l.accessListTrie = state.NewAccessListTrie()
 	// We manually accumulate the selfdestruct set during tracing to preserve order
 	l.selfDestructSet = state.NewSelfDestructSet()
-	l.startInterState.GlobalState = env.StateDB.Copy() // This state includes gas-buying and nonce-increment
+	l.startInterState.GlobalState = env.StateDB().Copy() // This state includes gas-buying and nonce-increment
 	l.lastDepthState = l.startInterState
 	// log.Info("Capture Start", "from", from, "to", to)
 }

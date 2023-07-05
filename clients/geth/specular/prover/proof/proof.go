@@ -23,7 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/specularl2/specular/clients/geth/specular/proof/state"
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 )
 
 type ProofGenContext struct {
@@ -145,11 +145,11 @@ func GetBlockFinalizationProof(interState *state.InterState) (*OneStepProof, err
 //     trie, and account proof of coinbase so verifier can finalize the transaction.
 func GetTransactionInitaitionProof(
 	chainConfig *params.ChainConfig,
-	vmctx *vm.BlockContext,
+	vmctx state.L2ELClientBlockContextInterface,
 	tx *types.Transaction,
 	txctx *vm.TxContext,
 	interState *state.InterState,
-	statedb vm.StateDB,
+	statedb state.L2ELClientStateInterface,
 ) (*OneStepProof, error) {
 	osp := EmptyProof()
 	osp.SetVerifierType(VerifierTypeInterTx)
@@ -194,7 +194,7 @@ func GetTransactionInitaitionProof(
 	var rules params.Rules
 	// 4. Instrinsic gas deduction
 	if success {
-		rules = chainConfig.Rules(vmctx.BlockNumber, vmctx.Random != nil)
+		rules = chainConfig.Rules(vmctx.BlockNumber(), vmctx.Random != nil)
 		// TODO: can we just hard-code the consensus rules here?
 		gas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, rules.IsHomestead, rules.IsIstanbul)
 		if err != nil {
@@ -208,7 +208,7 @@ func GetTransactionInitaitionProof(
 	}
 	// 5. Balance transfer check
 	if success {
-		if tx.Value().Sign() > 0 && !vmctx.CanTransfer(statedb, txctx.Origin, tx.Value()) {
+		if tx.Value().Sign() > 0 && !vmctx.CanTransfer()(statedb, txctx.Origin, tx.Value()) {
 			// ErrInsufficientFunds
 			success = false
 		}
@@ -278,7 +278,7 @@ func GetTransactionInitaitionProof(
 		osp.AddProof(&MPTProof{receiptProof})
 		if success {
 			// Only provide the coinbase proof if the transaction is successful started
-			coinbaseProof, err := statedb.GetProof(vmctx.Coinbase)
+			coinbaseProof, err := statedb.GetProof(vmctx.Coinbase())
 			if err != nil {
 				return nil, err
 			}

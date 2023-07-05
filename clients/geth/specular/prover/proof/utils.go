@@ -15,6 +15,7 @@
 package proof
 
 import (
+	"github.com/specularl2/specular/clients/geth/specular/prover/state"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -23,7 +24,7 @@ import (
 )
 
 func GetAccountProof(
-	db vm.StateDB,
+	db state.L2ELClientStateInterface,
 	address common.Address,
 ) (*MPTProof, error) {
 	accountProof, err := db.GetProof(address)
@@ -34,7 +35,7 @@ func GetAccountProof(
 }
 
 func GetStorageProof(
-	db vm.StateDB,
+	db state.L2ELClientStateInterface,
 	address common.Address,
 	key common.Hash,
 ) (*MPTProof, *MPTProof, error) {
