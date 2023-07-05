@@ -1,6 +1,6 @@
 .PHONY: install specular clean geth-docker contracts
 
-GOSRC = ./...
+GO_SRC = ./...
 GOBIN = ./build/bin
 # TODO use env variables
 SPECULAR_DIR = ./
@@ -24,7 +24,7 @@ install: specular $(GETH_TARGET) $(CLEF_TARGET)
 # Builds specular go source
 # TODO: use real target to optimize build time
 specular: $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
-	go build $(GOSRC)
+	go build $(GO_SRC)
 # Removes:
 # - bindings (do not remove bindings/gen.go)
 # - contracts (this has to happen after bindings)
@@ -34,12 +34,19 @@ clean:
 	cd $(CONTRACTS_DIR) && npx hardhat clean
 	rm -rf $(GETH_TARGET)
 	rm -rf $(CLEF_TARGET)
-# Skips geth prereqs for docker building.
-geth-docker:
+contracts: $(CONTRACTS_TARGET) # for back-compat
+
+# PHONY docker targets
+
+# Docker process skips geth prereqs for docker building.
+geth-docker: bindings-docker
 	go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GETH_TARGET)\" to launch geth."
-contracts: $(CONTRACTS_TARGET) # for back-compat
+# Assumes contracts already built.
+bindings-docker: 
+	go generate $(GO_SRC)
+	touch $(BINDINGS_TARGET)
 
 # Real targets
 

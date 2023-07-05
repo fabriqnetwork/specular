@@ -23,23 +23,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    services:
-      docker:
-        image: docker:dind
-
     steps:
-      - name: Check machine OS
-        run: |
-          echo "Machine OS: ${{ runner.os }}"
-
-      - name: Check Docker version
-        run: |
-          docker version
-
-      - name: Install Docker Compose
-        uses: ndeloof/install-compose-action@v0.0.1
-        with:
-          version: v2.5.1
 
       - name: Checkout code
         uses: actions/checkout@v3
@@ -49,18 +33,21 @@ jobs:
       - name: Setup Node
         uses: ./.github/actions/node
 
+      - name: Cache Foundry toolchain
+        uses: actions/cache@v2
+        with:
+          path: ~/.foundry
+          key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-foundry-
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
       - name: Setup Testing Environment
         run: ./e2e/sbin/setup.sh
 
-      - name: Build containers
-        run: ./e2e/sbin/build-container.sh
-
       - name: Run Test
         run: ./e2e/sbin/test.sh
-
-      # This is a hack to solve the permission problem
-      # The geth/ and keystore/ folders are created by the container so their owner is root
-      # TODO: Find a better way to solve this
-      - name: Clean up 
-        run: sudo rm -rf ./e2e/project
-
