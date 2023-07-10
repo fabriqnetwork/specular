@@ -9,7 +9,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @notice Emitted when the L1 stateRoot is updated.
      */
-    event L1OracleValuesUpdated(uint256 blockNumber, bytes32 stateRoot);
+    event L1OracleValuesUpdated(uint256 blockNumber, bytes32 stateRoot, uint256 baseFee);
 
     /**
      * @notice The latest L1 block number known by the L2 system.
@@ -20,6 +20,11 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @notice The latest L1 stateRoot known by the L2 system.
      */
     bytes32 public stateRoot;
+
+    /**
+     * @notice The latest L1 base fee known by the L2 system.
+     */
+    uint256 public baseFee;
 
     /**
      * @notice The address of the L2 sequencer.
@@ -48,11 +53,13 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      *
      * @param _blockNumber   L1 blockNumber.
      * @param _stateRoot     L1 stateRoot.
+     * @param _baseFee       L1 baseFee.
      */
-    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot) external onlySequencer {
+    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) external onlySequencer {
         blockNumber = _blockNumber;
         stateRoot = _stateRoot;
-        emit L1OracleValuesUpdated(blockNumber, _stateRoot);
+        baseFee = _baseFee;
+        emit L1OracleValuesUpdated(blockNumber, _stateRoot, _baseFee);
     }
 
     /**

@@ -6,7 +6,7 @@ import {Encoding} from "./Encoding.sol";
 
 /**
  * @title Hashing
- * @notice Hashing handles Optimism's various different hashing schemes.
+ * @notice Hashing handles Specular's various different hashing schemes.
  */
 library Hashing {
     /**
