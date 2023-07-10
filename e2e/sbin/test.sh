@@ -1,29 +1,38 @@
 #!/bin/bash
 
-# Define constants
-HOST=localhost
-L1_PORT=8545
-L2_PORT=4011
-
-# Define directory structure
+# Configure variables
 SBIN_DIR=`dirname $0`
 SBIN_DIR="`cd "$SBIN_DIR"; pwd`"
-PROJECT_DIR=$SBIN_DIR/../project
-PROJECT_DATA_DIR=$PROJECT_DIR/specular-datadir
-CONTRACTS_DIR=$SBIN_DIR/../../contracts
-DOCKER_DIR=$SBIN_DIR/../../docker
+set -o allexport
+source $SBIN_DIR/configure.sh
+set +o allexport
 
-# Spin up containers
-cd $PROJECT_DIR
-docker compose -f $DOCKER_DIR/docker-compose-integration-test.yml up -d
-sleep 30
-$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_PORT
-$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_PORT
+# Spin up L1 node
+cd $CONTRACTS_DIR
+anvil --block-time 1 > $PROJECT_LOG_DIR/l1.log 2>&1 &
+ANVIL_PID=$!
+npx hardhat deploy --network localhost
+
+# Spin up L2 node
+cd $PROJECT_DATA_DIR
+$SBIN_DIR/sequencer.sh > $PROJECT_LOG_DIR/l2.log 2>&1 &
+L2GETH_PID=$!
+
+# Wait for nodes
+sleep 10
+$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT
+$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT
 
 # Run testing script
 cd $CONTRACTS_DIR
 npx ts-node scripts/testing.ts
 RESULT=$?
+
+# Kill nodes
+disown $L2GETH_PID
+disown $ANVIL_PID
+kill $L2GETH_PID
+kill $ANVIL_PID
 
 # Clean up
 $SBIN_DIR/clean.sh

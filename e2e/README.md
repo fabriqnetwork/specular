@@ -11,7 +11,6 @@ Run if genesis changes.
 ## Test
 
 ```sh
-./sbin/build-container.sh
 ./sbin/test.sh
 ```
 
