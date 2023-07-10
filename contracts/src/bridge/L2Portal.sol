@@ -114,6 +114,7 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
     function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable onlyProxy {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
+                version: 0,
                 nonce: nonce,
                 sender: msg.sender,
                 target: _target,

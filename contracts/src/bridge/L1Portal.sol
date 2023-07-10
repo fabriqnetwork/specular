@@ -215,6 +215,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
 
         bytes32 depositHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
+                version: 0,
                 nonce: nonce,
                 sender: from,
                 target: target,
