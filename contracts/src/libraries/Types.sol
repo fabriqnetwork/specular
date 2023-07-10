@@ -10,6 +10,7 @@ library Types {
      * @notice Struct representing a cross domain message.
      */
     struct CrossDomainMessage {
+        uint256 version;
         uint256 nonce;
         address sender;
         address target;

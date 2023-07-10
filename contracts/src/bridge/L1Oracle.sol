@@ -51,9 +51,9 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @notice Updates the L1 block values.
      *
-     * @param _blockNumber   L1 blockNumber.
-     * @param _stateRoot     L1 stateRoot.
-     * @param _baseFee       L1 baseFee.
+     * @param _blockNumber L1 blockNumber.
+     * @param _stateRoot L1 stateRoot.
+     * @param _baseFee L1 baseFee.
      */
     function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) external onlySequencer {
         blockNumber = _blockNumber;
@@ -65,7 +65,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     /**
      * @notice Updates the L2 sequencer address.
      *
-     * @param _sequencer   L2 sequencer address.
+     * @param _sequencer L2 sequencer address.
      */
     function setSequencer(address _sequencer) external onlyOwner {
         sequencer = _sequencer;
