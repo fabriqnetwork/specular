@@ -8,8 +8,10 @@ import (
 )
 
 // Creates and publishes batched events to a channel from `inCh` (one-to-many).
-// Publishes batch every `minBatchInterval` if batch is non-empty; otherwise every `maxBatchInterval`.
-// Setting either to 0 disables batching at that interval.
+// Publishes batch:
+// - every minBatchInterval (only if batch is non-empty); otherwise,
+// - every maxBatchInterval (regardless of batch size).
+// Setting either interval to 0 disables batching at that interval.
 func SubscribeBatched[T any](
 	ctx context.Context,
 	inCh chan T,
@@ -34,6 +36,7 @@ func SubscribeBatched[T any](
 		outCh = make(chan []T)
 		batch []T
 	)
+	log.Info("Starting batch sub.", "minBatchInterval", minBatchInterval, "maxBatchInterval", maxBatchInterval)
 	go func() {
 		defer close(outCh)
 		for {
@@ -41,20 +44,25 @@ func SubscribeBatched[T any](
 			case <-minTickerCh:
 				// Only publish batch if it's non-empty.
 				if len(batch) > 0 {
+					log.Info("Publishing batch...")
 					outCh <- batch
 					batch = []T{}
 					if maxBatchInterval > 0 {
 						maxTicker.Reset(maxBatchInterval)
 					}
+				} else {
+					log.Info("Nothing to publish.")
 				}
 			case <-maxTickerCh:
 				// Publish batch even if it's empty.
+				log.Info("Publishing batch...")
 				outCh <- batch
 				batch = []T{}
 				if minBatchInterval > 0 {
 					minTicker.Reset(minBatchInterval)
 				}
 			case ev := <-inCh:
+				log.Info("Received event")
 				if minBatchInterval == 0 {
 					outCh <- []T{ev}
 				} else {
@@ -146,7 +154,7 @@ func applyCh[T any](
 		case head := <-inCh:
 			err := callbackFn(ctx, head)
 			if err != nil {
-				log.Error("Failed to map", "error", err)
+				log.Errorf("Failed to map: %w", err)
 				return
 			}
 		case <-ctx.Done():

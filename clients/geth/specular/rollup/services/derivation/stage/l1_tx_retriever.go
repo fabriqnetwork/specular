@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // Retrieves transactions from L1 block associated with block ID returned from previous stage,
@@ -18,6 +19,7 @@ type L1TxRetriever struct {
 	queue []filteredBlock
 }
 
+// TODO: generalize to support other DA sources.
 type filteredBlock struct {
 	blockID types.BlockID
 	txs     []*ethTypes.Transaction
@@ -54,7 +56,7 @@ func (s *L1TxRetriever) ingest(ctx context.Context, l1BlockID types.BlockID) err
 	// Retrieve the entire block.
 	l1Block, err := s.l1Client.BlockByHash(ctx, l1BlockID.GetHash())
 	if err != nil {
-		return RetryableError{fmt.Errorf("Failed to get L1 block %s by hash: %w", l1BlockID, err)}
+		return NewRetryableError(fmt.Errorf("Failed to get L1 block %s by hash: %w", l1BlockID, err))
 	}
 	// Filter transactions in block by `filterFn`.
 	s.queue = append(s.queue, filteredBlock{l1BlockID, filterTransactions(l1Block, s.filterFn)})
@@ -73,6 +75,7 @@ func filterTransactions(block *ethTypes.Block, filterFn func(tx *ethTypes.Transa
 			txs = append(txs, tx)
 		}
 	}
+	log.Info("Filtered transactions", "block#", block.NumberU64(), "#filtered_txs", len(txs))
 	return txs
 }
 
@@ -129,20 +132,4 @@ func filterTransactions(block *ethTypes.Block, filterFn func(tx *ethTypes.Transa
 // 		return ethereum.FilterQuery{}, err
 // 	}
 // 	return ethereum.FilterQuery{BlockHash: &blockHash, Addresses: params.Addresses, Topics: topics}, nil
-// }
-
-///////////
-
-// type ExtractionStage struct {
-// 	prev     Stage[any, []types.Transaction]
-// 	l1Client EthClient
-// }
-
-// func (s *ExtractionStage) Step(ctx context.Context, _ any) (*types.Transaction, error) {
-// 	// s.prev.Step(ctx, _)
-// 	return nil, nil
-// }
-
-// func (s *ExtractionStage) Recover(ctx context.Context, l1BlockNumber uint64) error {
-// 	return s.prev.Recover(ctx, l1BlockNumber)
 // }

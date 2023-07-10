@@ -1,6 +1,7 @@
 package geth
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -12,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
@@ -30,6 +31,7 @@ type GethBackend interface {
 	ChainDb() ethdb.Database
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
+	Miner() *miner.Miner
 }
 
 var _ api.ExecutionBackend = (*ExecutionBackend)(nil)
@@ -40,7 +42,7 @@ func NewExecutionBackend(eth GethBackend, coinbase common.Address) *ExecutionBac
 
 // See [go-ethereum/eth/catalyst/api.go]::ConsensusAPI::forkchoiceUpdated
 // Only updates fork-choice, does not build payloads.
-func (b *ExecutionBackend) ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoiceResponse, error) {
+func (b *ExecutionBackend) ForkchoiceUpdate(ctx context.Context, update *ForkChoiceState) (*ForkChoiceResponse, error) {
 	if update.HeadBlockHash == (common.Hash{}) {
 		log.Warn("Forkchoice requested update to zero hash")
 		return &STATUS_INVALID, nil
@@ -103,11 +105,22 @@ func (b *ExecutionBackend) ForkchoiceUpdate(update *ForkChoiceState) (*ForkChoic
 	return &valid, nil
 }
 
-func (b *ExecutionBackend) BuildPayload(attrs api.BuildPayloadAttributes) error {
+// Builds a payload on the canonical head. Updates fork-choice head.
+// Attempts to include `attrs.Txs()` if non-nil. If not possible to do so, an error is returned.
+// Attempts to include txs from the txpool if `attrs.NoTxPool()` is false.
+// Subject to change:
+// - Return a real response
+// - Async build process like in ForkchoiceUpdate
+// - Forkchoice head is automatically updated. Should it be?
+// - Block size is currently determined by: core.CalcGasLimit
+func (b *ExecutionBackend) BuildPayload(
+	ctx context.Context,
+	attrs api.BuildPayloadAttributes,
+) (*api.BuildPayloadResponse, error) {
 	parent := b.eth.BlockChain().CurrentHeader()
 	state, err := b.eth.BlockChain().StateAt(parent.Root)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	state.StartPrefetcher("chain")
 	defer state.StopPrefetcher()
@@ -137,12 +150,15 @@ func (b *ExecutionBackend) BuildPayload(attrs api.BuildPayloadAttributes) error 
 	if attrs.Txs() != nil {
 		txs, err := decodeRLP(attrs.Txs())
 		if err != nil {
-			return fmt.Errorf("Failed to decode transactions: %w", err)
+			return nil, fmt.Errorf("Failed to decode transactions: %w", err)
 		}
 		for _, tx := range txs {
 			state.Prepare(tx.Hash(), env.tcount)
 			if err := b.commitTransaction(env, tx); err != nil {
-				return fmt.Errorf("Failed to commit force-included transaction: %w", err)
+				return nil, fmt.Errorf(
+					"Failed to commit force-included transaction (tx=%s, nonce=%d): %w",
+					tx.Hash(), tx.Nonce(), err,
+				)
 			}
 		}
 	}
@@ -154,7 +170,7 @@ func (b *ExecutionBackend) BuildPayload(attrs api.BuildPayloadAttributes) error 
 	}
 	if env.tcount == 0 {
 		log.Info("No transactions to include in payload")
-		return nil
+		return nil, nil
 	}
 	// Finalize header
 	header.Root = state.IntermediateRoot(b.eth.BlockChain().Config().IsEIP158(header.Number))
@@ -180,7 +196,7 @@ func (b *ExecutionBackend) BuildPayload(attrs api.BuildPayloadAttributes) error 
 	}
 	_, err = b.eth.BlockChain().WriteBlockAndSetHead(block, env.receipts, logs, state, true)
 	log.Info("Built payload", "block#", block.NumberU64(), "#txs", env.tcount)
-	return err
+	return nil, err
 }
 
 // Commits transactions in the given transaction queue.
@@ -247,15 +263,13 @@ func (b *ExecutionBackend) commitTransaction(env *environment, tx *types.Transac
 }
 
 func decodeRLP(txs [][]byte) ([]*types.Transaction, error) {
-	var decodedTxs []*types.Transaction
-	for _, tx := range txs {
-		// TODO: use tx.DecodeRLP instead?
-		var decodedTx *types.Transaction
-		err := rlp.DecodeBytes(tx, decodedTx)
-		if err != nil {
-			return nil, err
+	decodedTxs := make([]*types.Transaction, len(txs))
+	for i := range decodedTxs {
+		var decodedTx types.Transaction
+		if err := decodedTx.UnmarshalBinary(txs[i]); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal tx %d: %w", i, err)
 		}
-		decodedTxs = append(decodedTxs, decodedTx)
+		decodedTxs[i] = &decodedTx
 	}
 	return decodedTxs, nil
 }

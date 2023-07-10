@@ -82,7 +82,7 @@ func (s *L2ForkchoiceUpdater) ingest(ctx context.Context, relation types.BlockRe
 		return nil
 	}
 	// Update fork-choice.
-	fcResponse, err := s.execBackend.ForkchoiceUpdate(&l2Forkchoice)
+	fcResponse, err := s.execBackend.ForkchoiceUpdate(ctx, &l2Forkchoice)
 	if err != nil {
 		return fmt.Errorf("Failed to update fork-choice state: %w", err)
 	}
@@ -104,7 +104,7 @@ func (s *L2ForkchoiceUpdater) findRecoveryPoint(ctx context.Context) (types.Bloc
 func (s *L2ForkchoiceUpdater) ensureForkChoiceInitialized(ctx context.Context) error {
 	err := s.l2Client.EnsureDialed(ctx)
 	if err != nil {
-		return RetryableError{fmt.Errorf("failed to create l2 client: %w", err)}
+		return NewRetryableError(fmt.Errorf("failed to create l2 client: %w", err))
 	}
 	if s.l2ForkChoice != (ForkChoiceState{}) {
 		return nil
@@ -113,7 +113,7 @@ func (s *L2ForkchoiceUpdater) ensureForkChoiceInitialized(ctx context.Context) e
 	if err != nil {
 		return fmt.Errorf("Failed to get genesis-floored fork-choice state: %w", err)
 	}
-	_, err = s.execBackend.ForkchoiceUpdate(&forkChoice)
+	_, err = s.execBackend.ForkchoiceUpdate(ctx, &forkChoice)
 	if err != nil {
 		return fmt.Errorf("Failed to set initial fork-choice state: %w", err)
 	}
@@ -126,13 +126,13 @@ func (s *L2ForkchoiceUpdater) ensureForkChoiceInitialized(ctx context.Context) e
 func GetForkChoice(ctx context.Context, l2Client L2Client, cfg GenesisConfig) (ForkChoiceState, error) {
 	forkChoice, err := eth.GetForkChoice(ctx, l2Client)
 	if err != nil {
-		return ForkChoiceState{}, RetryableError{fmt.Errorf("Failed to get fork-choice state: %w", err)}
+		return ForkChoiceState{}, NewRetryableError(fmt.Errorf("Failed to get fork-choice state: %w", err))
 	}
 	if forkChoice.FinalizedBlockHash == (common.Hash{}) {
 		log.Info("Using Genesis block for finalized block.")
 		genesisL2Header, err := l2Client.HeaderByNumber(ctx, common.Big0)
 		if err != nil {
-			return ForkChoiceState{}, RetryableError{fmt.Errorf("Failed to get genesis L2 header: %w", err)}
+			return ForkChoiceState{}, NewRetryableError(fmt.Errorf("Failed to get genesis L2 header: %w", err))
 		}
 		forkChoice.FinalizedBlockHash = genesisL2Header.Hash()
 	}

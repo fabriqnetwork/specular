@@ -68,20 +68,14 @@ var (
 		Name:  "rollup.l2.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a signer",
 	}
+	l2TargetBlockTimeFlag = &cli.DurationFlag{
+		Name:  "rollup.l2.target-block-time",
+		Usage: "The target time between L2 blocks produced",
+	}
 	// Sequencer config flags
 	sequencerAddrFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer.addr",
 		Usage: "The sequencer address to be unlocked (pass passphrash via --password)",
-	}
-	sequencerMinExecIntervalFlag = &cli.UintFlag{
-		Name:  "rollup.sequencer.min-execution-interval",
-		Usage: "Minimum time between block executions (seconds); 0 to disable",
-		Value: 4,
-	}
-	sequencerMaxExecIntervalFlag = &cli.UintFlag{
-		Name:  "rollup.sequencer.max-execution-interval",
-		Usage: "Maximum time between block executions (seconds); 0 to disable",
-		Value: 0,
 	}
 	sequencerSequencingIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.sequencing-interval",
@@ -148,11 +142,10 @@ var (
 	l2Flags = []cli.Flag{
 		l2EndpointFlag,
 		l2ClefEndpointFlag,
+		l2TargetBlockTimeFlag,
 	}
 	sequencerCLIFlags = []cli.Flag{
 		sequencerAddrFlag,
-		sequencerMinExecIntervalFlag,
-		sequencerMaxExecIntervalFlag,
 		sequencerSequencingIntervalFlag,
 	}
 	validatorCLIFlags = []cli.Flag{

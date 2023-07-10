@@ -1,4 +1,4 @@
-package sequencer
+package disseminator
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/da"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
@@ -17,7 +18,7 @@ import (
 )
 
 // Disseminates batches of L2 blocks via L1.
-type batchDisseminator struct {
+type BatchDisseminator struct {
 	cfg          Config
 	batchBuilder BatchBuilder
 	l1TxMgr      TxManager
@@ -34,19 +35,29 @@ type L2ReorgDetectedError struct{ err error }
 
 func (e L2ReorgDetectedError) Error() string { return e.err.Error() }
 
-func newBatchDisseminator(
+func NewBatchDisseminator(
 	cfg Config,
 	batchBuilder BatchBuilder,
 	l1TxMgr TxManager,
-) *batchDisseminator {
-	return &batchDisseminator{cfg: cfg, batchBuilder: batchBuilder, l1TxMgr: l1TxMgr}
+	l2Client L2Client,
+) *BatchDisseminator {
+	return &BatchDisseminator{cfg: cfg, batchBuilder: batchBuilder, l1TxMgr: l1TxMgr, l2Client: l2Client}
 }
 
-func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error {
-	d.l2Client = l2Client
+func (s *BatchDisseminator) Start(ctx context.Context, eg api.ErrGroup) error {
+	log.Info("Starting batch disseminator...")
+	if err := s.l2Client.EnsureDialed(ctx); err != nil {
+		return fmt.Errorf("Failed to create L2 client: %w", err)
+	}
+	eg.Go(func() error { return s.start(ctx) })
+	log.Info("Sequencer started")
+	return nil
+}
+
+func (d *BatchDisseminator) start(ctx context.Context) error {
 	// Start with latest safe state.
 	d.revertToFinalized()
-	var ticker = time.NewTicker(d.cfg.GetSequencingInterval())
+	var ticker = time.NewTicker(d.cfg.GetDisseminationInterval())
 	defer ticker.Stop()
 	d.step(ctx)
 	for {
@@ -56,6 +67,7 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 				if errors.As(err, &unexpectedSystemStateError{}) {
 					return fmt.Errorf("Aborting: %w", err)
 				}
+				log.Errorf("Failed to step: %w", err)
 			}
 		case <-ctx.Done():
 			log.Info("Aborting.")
@@ -65,24 +77,22 @@ func (d *batchDisseminator) start(ctx context.Context, l2Client L2Client) error 
 }
 
 // TODO: document
-func (d *batchDisseminator) step(ctx context.Context) error {
+func (d *BatchDisseminator) step(ctx context.Context) error {
 	if err := d.appendToBuilder(ctx); err != nil {
-		log.Error("Failed to append to batch builder", "error", err)
 		if errors.As(err, &L2ReorgDetectedError{}) {
-			log.Error("Reorg detected, reverting to safe state.")
+			log.Error("Reorg detected, reverting to safe state.", "error", err)
 			d.revertToFinalized()
 		}
-		return err
+		return fmt.Errorf("Failed to append to batch builder: %w", err)
 	}
 	if err := d.sequenceBatches(ctx); err != nil {
-		log.Error("Failed to sequence batches", "error", err)
-		return err
+		return fmt.Errorf("Failed to sequence batches: %w", err)
 	}
 	return nil
 }
 
 // TODO: document
-func (d *batchDisseminator) revertToFinalized() error {
+func (d *BatchDisseminator) revertToFinalized() error {
 	finalizedHeader, err := d.l2Client.HeaderByTag(context.Background(), eth.Finalized)
 	if err != nil {
 		return fmt.Errorf("Failed to get last finalized header: %w", err)
@@ -92,7 +102,7 @@ func (d *batchDisseminator) revertToFinalized() error {
 }
 
 // Appends blocks to batch builder.
-func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
+func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 	start, end, err := d.pendingL2BlockRange(ctx)
 	if err != nil {
 		return fmt.Errorf("Failed to get l2 block number: %w", err)
@@ -118,14 +128,14 @@ func (d *batchDisseminator) appendToBuilder(ctx context.Context) error {
 			if errors.As(err, &da.InvalidBlockError{}) {
 				return L2ReorgDetectedError{err}
 			}
-			return fmt.Errorf("Failed to append block (num=%s): %w", i, err)
+			return fmt.Errorf("Failed to append block (num=%d): %w", i, err)
 		}
 	}
 	return nil
 }
 
 // Determines first and last unsafe block numbers.
-func (d *batchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, uint64, error) {
+func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, uint64, error) {
 	var (
 		lastAppended = d.batchBuilder.LastAppended()
 		start        uint64
@@ -153,7 +163,7 @@ func (d *batchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 }
 
 // Sequences batches until batch builder runs out (or signal from `ctx`).
-func (d *batchDisseminator) sequenceBatches(ctx context.Context) error {
+func (d *BatchDisseminator) sequenceBatches(ctx context.Context) error {
 	for {
 		// Non-blocking ctx check.
 		select {
@@ -174,7 +184,7 @@ func (d *batchDisseminator) sequenceBatches(ctx context.Context) error {
 // Fetches a batch from batch builder and sequences to L1.
 // Blocking call until batch is sequenced and N confirmations received.
 // Note: this does not guarantee safety (re-org resistance) but should make re-orgs less likely.
-func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
+func (d *BatchDisseminator) sequenceBatch(ctx context.Context) error {
 	// Construct tx data.
 	batchAttrs, err := d.batchBuilder.Build()
 	if err != nil {
@@ -190,7 +200,7 @@ func (d *batchDisseminator) sequenceBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("Failed to send batch transaction: %w", err)
 	}
-	log.Info("Sequenced batch to L1", "first_block#", batchAttrs.FirstL2BlockNumber(), "tx_hash", receipt.TxHash)
+	log.Info("Sequenced batch to L1", "tx_hash", receipt.TxHash, "l1Block#", receipt.BlockNumber)
 	d.batchBuilder.Advance()
 	return nil
 }

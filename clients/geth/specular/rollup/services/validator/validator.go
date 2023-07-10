@@ -18,14 +18,6 @@ import (
 
 const interval = 10 * time.Second
 
-type errAssertionOverflowedLocalInbox struct {
-	Msg string
-}
-
-func (e *errAssertionOverflowedLocalInbox) Error() string {
-	return fmt.Sprint("assertion overflowed local inbox with msg:", e.Msg)
-}
-
 type Validator struct {
 	cfg               Config
 	l2ClientCreatorFn l2ClientCreatorFn
@@ -67,10 +59,6 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 		}
 	}
 	// end, err := v.SyncL2ChainToL1Head(ctx, v.Config.L1RollupGenesisBlock)
-	// if err != nil {
-	// 	return fmt.Errorf("Failed to sync L2 chain to head: %w", err)
-	// }
-	// TODO: handle synchronization between two parties modifying blockchain.
 	// go v.SyncLoop(ctx, end+1, nil)
 	if v.cfg.GetIsActiveStaker() {
 		eg.Go(func() error { return v.eventLoop(ctx) })
@@ -82,12 +70,6 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 }
 
 func (v *Validator) eventLoop(ctx context.Context) error {
-	// createdCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionCreated](
-	// 	ctx,
-	// 	v.l1Syncer.LatestHeaderBroker,
-	// 	v.l1Client.FilterAssertionCreated,
-	// 	v.l1State.Head().Number.Uint64(),
-	// )
 	var createdCh = make(chan *bindings.IRollupAssertionCreated)
 
 	var ticker = time.NewTicker(interval)
@@ -142,12 +124,6 @@ func (v *Validator) eventLoop(ctx context.Context) error {
 }
 
 func (v *Validator) challengeLoop(ctx context.Context) error {
-	// challengeCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
-	// 	ctx,
-	// 	v.L1Syncer.LatestHeaderBroker,
-	// 	v.l1Client.FilterAssertionCreated,
-	// 	v.L1State.Head().Number.Uint64(),
-	// )
 	challengeCh := make(chan *bindings.IRollupAssertionChallenged)
 
 	for {
@@ -161,8 +137,6 @@ func (v *Validator) challengeLoop(ctx context.Context) error {
 		}
 	}
 }
-
-func (v *Validator) handleChallenge(ev *bindings.IRollupAssertionChallenged) {}
 
 func (v *Validator) validate() error {
 	// TODO: refactor `tryValidateAssertion`.
@@ -213,140 +187,11 @@ func (v *Validator) createAssertion(ctx context.Context) (*assertion.Assertion, 
 
 // TODO: Safe or finalized block.
 func (v *Validator) getNextAssertion(ctx context.Context) (common.Hash, *big.Int) {
-	// createCh <- struct{}{}
 	// Update queued assertion to latest batch
 	// vmHash := batch.LastBlockRoot()
 	// inboxSize.Add(queuedAssertion.InboxSize, batch.Size())
 	// queuedAssertion.EndBlock = batch.LastBlockNumber()
 	return common.Hash{}, nil
-}
-
-// Gets the last validated assertion.
-// func (v *Validator) GetLastValidatedAssertion(ctx context.Context) (*assertion.Assertion, error) {
-// 	opts := bind.FilterOpts{Start: v.cfg.L1().RollupGenesisBlock(), Context: ctx}
-// 	assertionID, err := v.rollupState.GetLastValidatedAssertionID(&opts)
-
-// 	var assertionCreatedEvent *bindings.IRollupAssertionCreated
-// 	var lastValidatedAssertion bindings.IRollupAssertion
-// 	if err != nil {
-// 		// If no assertion was validated (or other errors encountered), try to use the genesis assertion.
-// 		log.Warn("No validated assertions found, using genesis assertion", "err", err)
-// 		assertionCreatedEvent, err = v.rollupState.GetGenesisAssertionCreated(&opts)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-// 		}
-// 		// Check that the genesis assertion is correct.
-// 		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
-// 		genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("Failed to get genesis root, err: %w", err)
-// 		}
-// 		genesisRoot := genesisBlock.Root()
-// 		if vmHash != genesisRoot {
-// 			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
-// 		}
-// 		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
-// 		// Get assertion.
-// 		lastValidatedAssertion, err = v.rollupState.GetAssertion(ctx, assertionCreatedEvent.AssertionID)
-// 	} else {
-// 		// If an assertion was validated, use it.
-// 		log.Info("Last validated assertion ID found", "assertionID", assertionID)
-// 		lastValidatedAssertion, err = v.rollupState.GetAssertion(ctx, assertionID)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
-// 		}
-// 		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
-// 		assertionCreatedIter, err := v.rollupState.FilterAssertionCreated(&opts)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-// 		}
-// 		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
-// 	}
-// 	// Initialize assertion.
-// 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
-// 	// Set its boundaries using parent. TODO: move this out. Use local caching.
-// 	opts = bind.FilterOpts{Start: v.cfg.L1().RollupGenesisBlock(), Context: ctx}
-// 	parentAssertionCreatedIter, err := v.rollupState.FilterAssertionCreated(&opts)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
-// 	}
-// 	parentAssertionCreatedEvent, err := filterAssertionCreatedWithID(parentAssertionCreatedIter, lastValidatedAssertion.Parent)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
-// 	}
-// 	err = v.setL2BlockBoundaries(ctx, assertion, parentAssertionCreatedEvent)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("Failed to set L2 block boundaries for last validated assertion, err: %w", err)
-// 	}
-// 	return assertion, nil
-// }
-
-func filterAssertionCreatedWithID(iter *bindings.IRollupAssertionCreatedIterator, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error) {
-	var assertionCreated *bindings.IRollupAssertionCreated
-	for iter.Next() {
-		// Assumes invariant: only one `AssertionCreated` event per assertion ID.
-		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
-			assertionCreated = iter.Event
-			break
-		}
-	}
-	if iter.Error() != nil {
-		return nil, fmt.Errorf("Failed to iterate through `AssertionCreated` events, err: %w", iter.Error())
-	}
-	if assertionCreated == nil {
-		return nil, fmt.Errorf("No `AssertionCreated` event found for %v.", assertionID)
-	}
-	return assertionCreated, nil
-}
-
-// TODO: clean up.
-func (v *Validator) setL2BlockBoundaries(
-	ctx context.Context,
-	assertion *assertion.Assertion,
-	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
-) error {
-	block, err := v.l2Client.BlockByNumber(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("Failed to get current L2 block, err: %w", err)
-	}
-	numBlocks := block.Number().Uint64()
-	if numBlocks == 0 {
-		log.Info("Zero-initializing assertion block boundaries.")
-		assertion.StartBlock = 0
-		assertion.EndBlock = 0
-		return nil
-	}
-	startFound := false
-	// Note: by convention defined in Rollup.sol, the parent VmHash is the
-	// same as the child only when the assertion is the genesis assertion.
-	// This is a hack to avoid mis-setting `assertion.StartBlock`.
-	if assertion.ID == parentAssertionCreatedEvent.AssertionID {
-		parentAssertionCreatedEvent.VmHash = common.Hash{}
-		startFound = true
-	}
-	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID)
-	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
-	for i := uint64(0); i <= numBlocks; i++ {
-		// TODO: remove assumption of VM hash being the block root.
-		block, err := v.l2Client.BlockByNumber(ctx, big.NewInt(0).SetUint64(i))
-		if err != nil {
-			return fmt.Errorf("Failed to get L2 block, err: %w", err)
-		}
-		root := block.Root()
-		if root == parentAssertionCreatedEvent.VmHash {
-			log.Info("Found start block", "l2 block#", i+1)
-			assertion.StartBlock = i + 1
-			startFound = true
-		} else if root == assertion.VmHash {
-			log.Info("Found end block", "l2 block#", i)
-			assertion.EndBlock = i
-			if !startFound {
-				return fmt.Errorf("Found end block before start block for assertion with hash %d", assertion.VmHash)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("Could not find start or end block for assertion with hash %s", assertion.VmHash)
 }
 
 func (v *Validator) Stake(ctx context.Context) error {
@@ -362,78 +207,3 @@ func (v *Validator) Stake(ctx context.Context) error {
 	}
 	return nil
 }
-
-// This goroutine tries to confirm created assertions
-// func (a *Asserter) resolutionLoop(ctx context.Context) {
-// 	defer a.wg.Done()
-
-// 	headCh := a.L1Syncer.LatestHeaderBroker.Subscribe()
-// 	confirmedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionConfirmed](
-// 		ctx, a.L1Syncer.LatestHeaderBroker, a.L1Client.FilterAssertionConfirmed, a.L1State.Latest().Number.Uint64(),
-// 	)
-// 	challengedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
-// 		ctx, a.L1Syncer.LatestHeaderBroker, a.L1Client.FilterAssertionChallenged, a.L1State.Latest().Number.Uint64(),
-// 	)
-
-// 	// Current pending assertion from sequencing goroutine
-// 	// TODO: watch multiple pending assertions
-// 	var pendingAssertion *assertion.Assertion
-// 	pendingConfirmationSent := true
-// 	pendingConfirmed := true
-
-// 	for {
-// 		select {
-// 		case header := <-headCh:
-// 			// New block mined on L1
-// 			log.Info("Received new header", "number", header.Number.Uint64())
-// 			if !pendingConfirmationSent && !pendingConfirmed {
-// 				if header.Number.Uint64() >= pendingAssertion.Deadline.Uint64() {
-// 					log.Info("We can now confirm", "pending assertion", pendingAssertion.Deadline.Uint64())
-// 					// Confirmation period has past, confirm it
-// 					_, err := s.L1Client.ConfirmFirstUnresolvedAssertion()
-// 					if errors.Is(err, core.ErrInsufficientFunds) {
-// 						log.Crit("Insufficient Funds to send Tx", "error", err)
-// 					}
-// 					if err != nil {
-// 						// log.Error("Failed to confirm DA", "error", err)
-// 						log.Crit("Failed to confirm DA", "err", err)
-// 						// TODO: wait some time before retry
-// 					}
-// 					pendingConfirmationSent = true
-// 				}
-// 			}
-// 		case ev := <-confirmedCh:
-// 			log.Info("Received `AssertionConfirmed` event ", "assertion id", ev.AssertionID)
-// 			// New confirmed assertion
-// 			if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
-// 				// Notify sequencing goroutine
-// 				s.confirmedIDCh <- pendingAssertion.ID
-// 				pendingConfirmed = true
-// 			}
-// 		case newPendingAssertion := <-s.resolveAssertionCh:
-// 			log.Info("Received pending assertion")
-// 			// New assertion created by sequencing goroutine
-// 			if !pendingConfirmed {
-// 				// TODO: support multiple pending assertion
-// 				log.Error("Got another DA request before current is confirmed")
-// 				continue
-// 			}
-// 			pendingAssertion = newPendingAssertion.Copy()
-// 			pendingConfirmationSent = false
-// 			pendingConfirmed = false
-// 		case ev := <-challengedCh:
-// 			// New challenge raised
-// 			log.Info("Received `AssertionChallenged` event ", "assertion id", ev.AssertionID)
-// 			// if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
-// 			// 	a.challengeCh <- &challengeCtx{
-// 			// 		ev.ChallengeAddr,
-// 			// 		pendingAssertion,
-// 			// 	}
-// 			// 	wait(ctx, s.challengeResoutionCh, "challenge resolution")
-// 			// }
-// 		case <-ctx.Done():
-// 			log.Info("Aborting.")
-// 			return
-// 		}
-// 	}
-// }

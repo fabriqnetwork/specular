@@ -10,9 +10,9 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 const (
@@ -25,7 +25,7 @@ var DefaultRetryOpts = []retry.Option{
 	retry.Delay(defaultRetryDelay),
 	retry.LastErrorOnly(true),
 	retry.OnRetry(func(n uint, err error) {
-		log.Error("Failed attempt", "attempt", n, "err", err)
+		log.Errorf("Failed attempt: %w", err, "attempt", n)
 	}),
 }
 

@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // `DerivationBlock` represents a block from which the L2 chain can be derived.
@@ -46,7 +47,7 @@ func (e *DecodeTxBatchError) Error() string {
 }
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
-func BlocksFromDecoded(calldata []any) ([]DerivationBlock, error) {
+func BlocksFromData(calldata []any) ([]DerivationBlock, error) {
 	if len(calldata) != 4 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(calldata))}
 	}
@@ -78,6 +79,7 @@ func BlocksFromDecoded(calldata []any) ([]DerivationBlock, error) {
 			numTxs++
 			batchOffset += txLengths[numTxs-1].Uint64()
 		}
+		log.Trace("Block decoded", "block#", ctx.blockNumber, "numTxs", ctx.numTxs)
 		blocks = append(blocks, DerivationBlock{ctx, txs})
 	}
 	return blocks, nil

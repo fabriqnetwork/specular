@@ -47,7 +47,7 @@ func (s *Stage[T, U]) Pull(ctx context.Context) (out U, err error) {
 	}
 	err = s.processor.ingest(ctx, s.cached)
 	if err != nil {
-		log.Error("Failed to ingest pulled input.", "err", err)
+		log.Errorf("Failed to ingest pulled input: %w", err)
 		return out, err
 	}
 	// Successfully processed cached input,

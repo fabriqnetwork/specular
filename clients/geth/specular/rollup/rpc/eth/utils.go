@@ -8,10 +8,10 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/beacon"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/ethengine"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
@@ -55,13 +55,11 @@ func SubscribeNewHeadByPolling(
 	})
 }
 
-type ForkChoiceState = beacon.ForkchoiceStateV1
-
-func GetForkChoice(ctx context.Context, client ethClient) (ForkChoiceState, error) {
+func GetForkChoice(ctx context.Context, client ethClient) (ethengine.ForkChoiceState, error) {
 	// Get latest head
 	l2Head, err := client.HeaderByTag(ctx, Latest)
 	if err != nil {
-		return ForkChoiceState{}, fmt.Errorf("Failed to get latest L2 block header: %w", err)
+		return ethengine.ForkChoiceState{}, fmt.Errorf("Failed to get latest L2 block header: %w", err)
 	}
 	// Get safe head
 	var l2SafeHash common.Hash
@@ -69,7 +67,7 @@ func GetForkChoice(ctx context.Context, client ethClient) (ForkChoiceState, erro
 	if err == nil {
 		l2SafeHash = l2Safe.Hash()
 	} else if !errors.Is(err, ethereum.NotFound) {
-		return ForkChoiceState{}, fmt.Errorf("Failed to get safe L2 block header: %w", err)
+		return ethengine.ForkChoiceState{}, fmt.Errorf("Failed to get safe L2 block header: %w", err)
 	}
 	// Get finalized head
 	var l2FinalizedHash common.Hash
@@ -77,9 +75,9 @@ func GetForkChoice(ctx context.Context, client ethClient) (ForkChoiceState, erro
 	if err == nil {
 		l2FinalizedHash = l2Finalized.Hash()
 	} else if !errors.Is(err, ethereum.NotFound) {
-		return ForkChoiceState{}, fmt.Errorf("Failed to get finalized L2 block header: %w", err)
+		return ethengine.ForkChoiceState{}, fmt.Errorf("Failed to get finalized L2 block header: %w", err)
 	}
-	return ForkChoiceState{
+	return ethengine.ForkChoiceState{
 		HeadBlockHash:      l2Head.Hash(),
 		SafeBlockHash:      l2SafeHash,
 		FinalizedBlockHash: l2FinalizedHash,

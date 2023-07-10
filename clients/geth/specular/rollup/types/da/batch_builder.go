@@ -95,11 +95,10 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 		idx                 int
 	)
 	for idx, block = range b.pendingBlocks {
-		// Construct context (`contexts` is a flat array of 3-tuples)
+		// Construct context (`contexts` is a flat array of 2-tuples)
 		contexts = append(contexts, big.NewInt(0).SetUint64(block.NumTxs()))
-		contexts = append(contexts, big.NewInt(0).SetUint64(block.BlockNumber()))
 		contexts = append(contexts, big.NewInt(0).SetUint64(block.Timestamp()))
-		numBytes += 3 * 8
+		numBytes += 2 * 8
 		// Construct txData.
 		for _, tx := range block.Txs() {
 			curLen := buf.Len()
@@ -121,6 +120,7 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 		firstL2BlockNumber = big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
 		attrs              = &BatchAttributes{contexts, txLengths, firstL2BlockNumber, buf.Bytes()}
 	)
+	log.Info("Serialized l2 blocks", "first", firstL2BlockNumber, "last", b.pendingBlocks[idx].BlockNumber())
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[idx+1:]
 	log.Trace("Advanced pending blocks", "len", len(b.pendingBlocks))

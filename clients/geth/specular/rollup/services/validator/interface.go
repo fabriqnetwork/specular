@@ -21,10 +21,10 @@ type Config interface {
 	GetStakeAmount() uint64
 }
 
-type L1Config interface {
-	Endpoint() string
-	ChainID() uint64
-}
+// type L1Config interface {
+// 	Endpoint() string
+// 	ChainID() uint64
+// }
 
 type RollupState interface {
 	GetStaker(ctx context.Context, stakerAddr common.Address) (*derivation.Staker, error)

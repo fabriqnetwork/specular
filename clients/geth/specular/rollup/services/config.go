@@ -49,11 +49,12 @@ func ParseSystemConfig(cliCtx *cli.Context) (*systemConfig, error) {
 func parseTOML(path string, cfg *systemConfig) error {
 	_, err := toml.DecodeFile(path, cfg)
 	if err != nil {
-		return fmt.Errorf("Couldn't decode TOML config: %w", err)
+		return fmt.Errorf("couldn't decode TOML config: %w", err)
 	}
 	// Print full config to stdout in TOML format for sanity.
+	log.Info("Outputting full system config (including unconfigured defaults)...")
 	if err := toml.NewEncoder(os.Stdout).Encode(cfg); err != nil {
-		return fmt.Errorf("Couldn't re-encode TOML: %w", err)
+		return fmt.Errorf("couldn't re-encode TOML: %w", err)
 	}
 	return nil
 }
@@ -79,7 +80,6 @@ func parseFlags(cliCtx *cli.Context) *systemConfig {
 		if cliCtx.String(validatorAddrFlag.Name) != "" {
 			validatorAddr = common.HexToAddress(cliCtx.String(validatorAddrFlag.Name))
 			validatorPassphrase = pwList[0]
-			pwList = pwList[1:]
 		}
 	}
 
@@ -124,41 +124,54 @@ func (c L1Config) GetRollupAddr() common.Address         { return c.RollupAddr }
 
 // L2 configuration
 type L2Config struct {
-	Endpoint     string `toml:"endpoint,omitempty"`      // L2 API endpoint
-	ClefEndpoint string `toml:"clef_endpoint,omitempty"` // The Clef Endpoint used for signing TXs
+	Endpoint              string                      `toml:"endpoint,omitempty"`      // L2 API endpoint
+	ClefEndpoint          string                      `toml:"clef_endpoint,omitempty"` // The Clef Endpoint used for signing TXs
+	BlockProductionPolicy BlockProductionPolicyConfig `toml:"block_production_policy,omitempty"`
 }
+
+// TODO: these should be configured in L1 contracts; we can read from there.
+type BlockProductionPolicyConfig struct {
+	TargetBlockTime time.Duration `toml:"target_block_time,omitempty"`
+	IsEmptyAllowed  bool          `toml:"is_empty_allowed,omitempty"`
+}
+
+func (c BlockProductionPolicyConfig) GetTargetBlockTime() time.Duration { return c.TargetBlockTime }
+func (c BlockProductionPolicyConfig) GetIsEmptyAllowed() bool           { return c.IsEmptyAllowed }
 
 func newL2ConfigFromCLI(cliCtx *cli.Context) L2Config {
 	return L2Config{
 		Endpoint:     cliCtx.String(l2EndpointFlag.Name),
 		ClefEndpoint: cliCtx.String(l2ClefEndpointFlag.Name),
+		BlockProductionPolicy: BlockProductionPolicyConfig{
+			TargetBlockTime: cliCtx.Duration(l2TargetBlockTimeFlag.Name),
+		},
 	}
 }
 
 func (c L2Config) GetEndpoint() string     { return c.Endpoint }
 func (c L2Config) GetClefEndpoint() string { return c.ClefEndpoint }
+func (c L2Config) GetBlockProductionPolicy() BlockProductionPolicyConfig {
+	return c.BlockProductionPolicy
+}
 
 // Sequencer node configuration
 type SequencerConfig struct {
 	AccountAddr common.Address `toml:"account_addr,omitempty"`
 	// The passphrase of the sequencer account
 	Passphrase string `toml:"passphrase,omitempty"`
-	// Minimum time between block production. If 0, txs executed immediately -- FCFS.
-	MinExecutionInterval time.Duration `toml:"min_execution_interval,omitempty"`
-	// Maximum time between block production. Must be >= `minExecutionInterval`.
-	MaxExecutionInterval time.Duration `toml:"max_execution_interval,omitempty"`
-	// Time between batch sequencing attempts
-	SequencingInterval time.Duration `toml:"sequencing_interval,omitempty"`
+	// Max # of l2 blocks the safe head should lag behind the unsafe head. If <= 0, enforcement disabled.
+	MaxSafeLag uint `toml:"max_safe_lag,omitempty"`
+	// Time between batch dissemination (DA) attempts
+	DisseminationInterval time.Duration `toml:"dissemination_interval,omitempty"`
 	// Transaction manager configuration
 	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
 
-func (c SequencerConfig) GetAccountAddr() common.Address         { return c.AccountAddr }
-func (c SequencerConfig) GetPassphrase() string                  { return c.Passphrase }
-func (c SequencerConfig) GetMinExecutionInterval() time.Duration { return c.MinExecutionInterval }
-func (c SequencerConfig) GetMaxExecutionInterval() time.Duration { return c.MaxExecutionInterval }
-func (c SequencerConfig) GetSequencingInterval() time.Duration   { return c.SequencingInterval }
-func (c SequencerConfig) GetTxMgrCfg() txmgr.Config              { return c.TxMgrCfg }
+func (c SequencerConfig) GetAccountAddr() common.Address          { return c.AccountAddr }
+func (c SequencerConfig) GetPassphrase() string                   { return c.Passphrase }
+func (c SequencerConfig) GetMaxSafeLag() uint                     { return c.MaxSafeLag }
+func (c SequencerConfig) GetDisseminationInterval() time.Duration { return c.DisseminationInterval }
+func (c SequencerConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
 
 func newSequencerConfigFromCLI(
 	cliCtx *cli.Context,
@@ -166,12 +179,10 @@ func newSequencerConfigFromCLI(
 	txMgrCfg txmgr.Config,
 ) SequencerConfig {
 	return SequencerConfig{
-		AccountAddr:          common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
-		Passphrase:           passphrase,
-		MinExecutionInterval: time.Duration(cliCtx.Uint(sequencerMinExecIntervalFlag.Name)) * time.Second,
-		MaxExecutionInterval: time.Duration(cliCtx.Uint(sequencerMaxExecIntervalFlag.Name)) * time.Second,
-		SequencingInterval:   time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
-		TxMgrCfg:             txMgrCfg,
+		AccountAddr:           common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
+		Passphrase:            passphrase,
+		DisseminationInterval: time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
+		TxMgrCfg:              txMgrCfg,
 	}
 }
 

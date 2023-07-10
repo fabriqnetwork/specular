@@ -12,3 +12,21 @@ func AsAny(err error, targets ...any) bool {
 	}
 	return false
 }
+
+type CategorizedError[T comparable] struct {
+	Cat T
+	Err error
+}
+
+func (e *CategorizedError[T]) Unwrap() error { return e.Err }
+func (e *CategorizedError[T]) Category() T   { return e.Cat }
+func (e *CategorizedError[T]) Error() string { return e.Err.Error() }
+
+// Shallow comparison: categories must be equal.
+func (e *CategorizedError[T]) Is(target error) bool {
+	err, ok := target.(*CategorizedError[T])
+	if !ok {
+		return false
+	}
+	return e.Cat == err.Cat
+}

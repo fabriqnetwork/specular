@@ -23,6 +23,9 @@ func NewEthState() *EthState { return &EthState{} }
 func (s *EthState) Head() types.BlockID      { return s.headers.Load(Latest) }
 func (s *EthState) Safe() types.BlockID      { return s.headers.Load(Safe) }
 func (s *EthState) Finalized() types.BlockID { return s.headers.Load(Finalized) }
+func (s *EthState) Tips() (types.BlockID, types.BlockID, types.BlockID) {
+	return s.Head(), s.Safe(), s.Finalized()
+}
 
 func (s *EthState) OnLatest(_ context.Context, header *ethTypes.Header) error {
 	prev := s.headers.LoadAndStore(Latest, types.NewBlockIDFromHeader(header))

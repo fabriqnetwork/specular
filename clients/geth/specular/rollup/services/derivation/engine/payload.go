@@ -16,8 +16,8 @@ func NewBuildPayloadAttributes(
 	suggestedFeeRecipient common.Address,
 	txs [][]byte,
 	noTxPool bool,
-) BuildPayloadAttributes {
-	return BuildPayloadAttributes{
+) *BuildPayloadAttributes {
+	return &BuildPayloadAttributes{
 		timestamp:             timestamp,
 		random:                random,
 		suggestedFeeRecipient: suggestedFeeRecipient,
@@ -26,10 +26,10 @@ func NewBuildPayloadAttributes(
 	}
 }
 
-func (a BuildPayloadAttributes) Timestamp() uint64   { return a.timestamp }
-func (a BuildPayloadAttributes) Random() common.Hash { return a.random }
-func (a BuildPayloadAttributes) SuggestedFeeRecipient() common.Address {
+func (a *BuildPayloadAttributes) Timestamp() uint64   { return a.timestamp }
+func (a *BuildPayloadAttributes) Random() common.Hash { return a.random }
+func (a *BuildPayloadAttributes) SuggestedFeeRecipient() common.Address {
 	return a.suggestedFeeRecipient
 }
-func (a BuildPayloadAttributes) Txs() [][]byte  { return a.txs }
-func (a BuildPayloadAttributes) NoTxPool() bool { return a.noTxPool }
+func (a *BuildPayloadAttributes) Txs() [][]byte  { return a.txs }
+func (a *BuildPayloadAttributes) NoTxPool() bool { return a.noTxPool }

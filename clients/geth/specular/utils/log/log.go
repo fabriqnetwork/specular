@@ -8,28 +8,28 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-func Trace(msg string, args ...interface{}) {
-	log.Trace(getLogPrefix()+" | "+msg, args...)
-}
+type Logger = log.Logger
 
-func Debug(msg string, args ...interface{}) {
-	log.Debug(getLogPrefix()+" | "+msg, args...)
-}
+// Wraps geth logger to add a prefix to all log messages.
+type logger struct{ l Logger }
 
-func Info(msg string, args ...interface{}) {
-	log.Info(getLogPrefix()+" | "+msg, args...)
-}
+func New(ctx ...interface{}) log.Logger { return &logger{log.New(ctx...)} }
 
-func Warn(msg string, args ...interface{}) {
-	log.Warn(getLogPrefix()+" | "+msg, args...)
-}
+func (l *logger) New(ctx ...interface{}) log.Logger { return &logger{l.l.New(ctx...)} }
+func (l *logger) GetHandler() log.Handler           { return l.l.GetHandler() }
+func (l *logger) SetHandler(h log.Handler)          { l.l.SetHandler(h) }
 
-func Error(msg string, args ...interface{}) {
-	log.Error(getLogPrefix()+" | "+msg, args...)
-}
+func (l *logger) Trace(msg string, ctx ...interface{}) { l.l.Trace(getLogPrefix()+" | "+msg, ctx...) }
+func (l *logger) Debug(msg string, ctx ...interface{}) { l.l.Debug(getLogPrefix()+" | "+msg, ctx...) }
+func (l *logger) Info(msg string, ctx ...interface{})  { l.l.Info(getLogPrefix()+" | "+msg, ctx...) }
+func (l *logger) Warn(msg string, ctx ...interface{})  { l.l.Warn(getLogPrefix()+" | "+msg, ctx...) }
+func (l *logger) Error(msg string, ctx ...interface{}) { l.l.Error(getLogPrefix()+" | "+msg, ctx...) }
+func (l *logger) Crit(msg string, ctx ...interface{})  { l.l.Crit(getLogPrefix()+" | "+msg, ctx...) }
 
-func Crit(msg string, args ...interface{}) {
-	log.Crit(getLogPrefix()+" | "+msg, args...)
+// Prettier error logging.
+func (l *logger) Errorf(msg string, err error, args ...interface{}) {
+	wrappedErr := fmt.Errorf(getLogPrefix()+" | "+msg, err)
+	log.Error(wrappedErr.Error(), args...)
 }
 
 func getLogPrefix() string {

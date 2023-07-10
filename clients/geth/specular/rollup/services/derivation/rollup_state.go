@@ -66,6 +66,7 @@ func (s *RollupState) GetAssertion(ctx context.Context, assertionID *big.Int) (*
 	return assertion, nil
 }
 
+// TODO: getTransactionReceipts via alchemy and cache
 func (s *RollupState) OnAssertionCreated(
 	ctx context.Context,
 	l1BlockID types.BlockID,

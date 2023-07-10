@@ -19,8 +19,10 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/driver"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/derivation/stage"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/disseminator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/types/da"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
@@ -34,8 +36,10 @@ type accountManager interface {
 
 // Creates services configured by cfg:
 // - Driver (always)
-// - Sequencer (if configured)
-// - Validator (if configured)
+//   - Sequencer (if sequencer configured)
+//
+// - L2 block data disseminator (if sequencer configured)
+// - Validator (if validator configured)
 func CreateRollupServices(
 	accMgr accountManager,
 	execBackend api.ExecutionBackend,
@@ -58,13 +62,13 @@ func CreateRollupServices(
 	}
 	services = append(services, driver)
 
-	// Create sequencer
+	// Create sequencer-related services
 	if (cfg.Sequencer().GetAccountAddr() != common.Address{}) {
-		sequencer, err := createSequencer(ctx, cfg, accMgr, execBackend)
+		disseminator, err := createDisseminator(ctx, cfg, accMgr, execBackend)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to initialize sequencer: %w", err)
 		}
-		services = append(services, sequencer)
+		services = append(services, disseminator)
 	}
 	// Create validator
 	if (cfg.Validator().GetAccountAddr() != common.Address{}) {
@@ -85,7 +89,7 @@ func createDriver(
 	cfg *systemConfig,
 	execBackend api.ExecutionBackend,
 	rollupState *derivation.RollupState,
-) (*derivation.Driver, error) {
+) (*driver.Driver, error) {
 	if err := bridge.EnsureUtilInit(); err != nil {
 		return nil, fmt.Errorf("Failed to initialize bridge util: %w", err)
 	}
@@ -107,33 +111,47 @@ func createDriver(
 		L1Config
 		genesisConfig
 	}
+	var seq *sequencer.PlanningSequencer
+	// TODO fix
+	if cfg.Sequencer().AccountAddr != (common.Address{}) {
+		// attrsBuilder := engine.NewAttributesBuilder(cfg.L1().GetChainID())
+		var (
+		// attrsBuilder = engine.PayloadAttrsBuilder{SuggestedFeeRecipient: cfg.Sequencer().GetAccountAddr()}
+		// engineClient = l2rpc.NewEngineClient(c ethengine.Client)
+		// engineMgr = engine.NewManager(engineClient)
+		)
+		seq = sequencer.NewPlanningSequencer(
+			sequencer.NewSequencer(nil, nil),
+			cfg.GetBlockProductionPolicy().TargetBlockTime,
+		)
+	}
 	var (
 		derivCfg      = derivationConfig{cfg.L1(), NewGenesisConfig(genesisL1BlockID)}
 		l2Client      = eth.NewLazyDialedEthClient(cfg.L2().GetEndpoint(), nil)
 		terminalStage = stage.CreatePipeline(derivCfg, execBackend, rollupState, l2Client, l1Client, l1State)
-		driver        = derivation.NewDriver(cfg.Driver(), terminalStage)
+		driver        = driver.NewDriver(cfg.Driver(), terminalStage, seq)
 	)
 	return driver, nil
 }
 
-func createSequencer(
+func createDisseminator(
 	ctx context.Context,
 	cfg *systemConfig,
 	accountMgr accountManager,
 	execBackend api.ExecutionBackend,
-) (*sequencer.Sequencer, error) {
+) (*disseminator.BatchDisseminator, error) {
 	l1TxMgr, err := createTxManager(
 		ctx, cfg, accountMgr, cfg.Sequencer().GetAccountAddr(), cfg.L2().GetClefEndpoint(), cfg.Sequencer().GetPassphrase(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 tx manager: %w", err)
+		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
 	batchBuilder, err := da.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize batch builder: %w", err)
+		return nil, fmt.Errorf("failed to initialize batch builder: %w", err)
 	}
 	l2Client := eth.NewLazyDialedEthClient(cfg.L2().GetEndpoint(), nil)
-	return sequencer.NewSequencer(cfg.Sequencer(), execBackend, l2Client, l1TxMgr, batchBuilder), nil
+	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
 }
 
 func createValidator(
@@ -152,7 +170,7 @@ func createValidator(
 		ctx, cfg, accountMgr, cfg.Validator().GetAccountAddr(), cfg.L2().GetClefEndpoint(), cfg.Validator().GetPassphrase(),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize tx manager: %w", err)
+		return nil, fmt.Errorf("failed to initialize tx manager: %w", err)
 	}
 	return validator.NewValidator(cfg.Validator(), l2ClientCreatorFn, l1TxMgr, proofBackend, rollupState), nil
 }
@@ -160,11 +178,11 @@ func createValidator(
 func createRollupState(ctx context.Context, cfg L1Config) (*derivation.RollupState, error) {
 	bridgeClient, err := bridge.DialWithRetry(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 bridge client: %w", err)
+		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
 	}
 	rollupState := derivation.NewRollupState(bridgeClient)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize assertion manager: %w", err)
+		return nil, fmt.Errorf("failed to initialize assertion manager: %w", err)
 	}
 	return rollupState, nil
 }
@@ -190,11 +208,11 @@ func createTxManager(
 ) (*bridge.TxManager, error) {
 	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, cfg.GetChainID())
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize transactor: %w", err)
+		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
 	}
 	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to initialize l1 client: %w", err)
+		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
 	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
 		return transactor.Signer(address, tx)
@@ -215,7 +233,7 @@ func createTransactor(
 	if clefEndpoint != "" {
 		clef, err := external.NewExternalSigner(clefEndpoint)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to initialize external signer from clef endpoint: %w", err)
+			return nil, fmt.Errorf("failed to initialize external signer from clef endpoint: %w", err)
 		}
 		return bind.NewClefTransactor(clef, accounts.Account{Address: accountAddress}), nil
 	}
@@ -228,11 +246,11 @@ func createTransactor(
 	}
 	json, err := ks.Export(accounts.Account{Address: accountAddress}, passphrase, "")
 	if err != nil {
-		return nil, fmt.Errorf("Failed to export account: %w", err)
+		return nil, fmt.Errorf("failed to export account: %w", err)
 	}
 	transactor, err := bind.NewTransactorWithChainID(bytes.NewReader(json), passphrase, new(big.Int).SetUint64(chainID))
 	if err != nil {
-		return nil, fmt.Errorf("Failed to create transactor: %w", err)
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
 	}
 	return transactor, nil
 }
