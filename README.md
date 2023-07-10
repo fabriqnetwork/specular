@@ -1,6 +1,7 @@
 # Specular Monorepo
 
-## Directory Structure
+Welcome to the Specular monorepo, containing the code for the Specular L2 protocol and related code.
+In this repo you will find:
 
 <pre>
 ├── <a href="./clients/geth">clients/geth</a>: Specular L2 clients
@@ -11,6 +12,48 @@
 │       └── <a href="./clients/geth/specular/rollup">rollup</a>: Specular rollup services
 └── <a href="./contracts">contracts</a>: Specular L1 contracts
 </pre>
+
+## Getting Started for Developers
+
+### Development Environment Requirements
+
+To contribute to the Specular monorepo, it will be handy to have the Specular environment and
+toolchain set up. The Specular toolchain depends on:
+
+* go
+* Node with pNPM
+
+These can be installed on macOS with:
+
+```
+> brew install go pnpm
+```
+
+and on DEB-based systems:
+
+```
+> apt-get install go pnpm
+```
+
+### Submodule Dependencies
+
+The Specular repository depends on a few other projects that are connected to the Specular
+repository via git submodules including:
+
+* blockscout
+* go-ethereum
+* forge-std
+
+To collect and set up the required submodules, run:
+
+```
+> git submodule init
+> git submodule update --recursive
+```
+
+### Building the Project Locally
+
+TODO
 
 ## License
 
