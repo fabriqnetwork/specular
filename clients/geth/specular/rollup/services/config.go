@@ -27,6 +27,7 @@ type Config struct {
 	L1FeeOverhead        int64          // Gas cost of sequencing a Tx
 	L1FeeMultiplier      float64        // Scalar value to increase L1 fee
 	L1OracleAddress      common.Address // L2 Address of the L1Oracle
+	L1OracleBaseFeeSlot  common.Hash    // L1 basefee storage slot of the L1Oracle
 }
 
 func (c *Config) GetCoinbase() common.Address {
@@ -47,4 +48,8 @@ func (c *Config) GetL1FeeMultiplier() float64 {
 
 func (c *Config) GetL1OracleAddress() common.Address {
 	return c.L1OracleAddress
+}
+
+func (c *Config) GetL1OracleBaseFeeSlot() common.Hash {
+	return c.L1OracleBaseFeeSlot
 }

@@ -1,4 +1,4 @@
-package entry
+package rollup
 
 import (
 	"bytes"
@@ -17,26 +17,29 @@ const (
 	txDataOne  = 16
 )
 
-// keccak256("specular.basefee")
-const BASEFEE_SLOT = "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168"
-
 type RollupConfig interface {
-	GetCoinbase() common.Address        // recipient of the L1 Fee
-	GetL2ChainID() uint64               // chain ID of the specular rollup
-	GetL1FeeOverhead() int64            // fixed cost of submitting a tx to L1
-	GetL1FeeMultiplier() float64        // value to scale the L1 Fee
-	GetL1OracleAddress() common.Address // contract providing the L1 basefee
+	GetCoinbase() common.Address         // recipient of the L1 Fee
+	GetL2ChainID() uint64                // chain ID of the specular rollup
+	GetL1FeeOverhead() int64             // fixed cost of submitting a tx to L1
+	GetL1FeeMultiplier() float64         // value to scale the L1 Fee
+	GetL1OracleAddress() common.Address  // contract providing the L1 basefee
+	GetL1OracleBaseFeeSlot() common.Hash // L1 basefee storage slot
 }
 
-// SpecularEVMPreTransferHook is injected into the EVM and runs before every transfer
+// MakeSpecularEVMPreTransferHook creates specular's vm.EVMHook function
+// which is injected into the EVM and runs before every transfer
 // currently this is only used to calculate & charge the L1 Fee
-func SpecularEVMPreTransferHook(msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
-	tx := transactionFromMessage(msg, cfg)
-	fee, err := calculateL1Fee(tx, evm, cfg)
-	if err != nil {
-		return err
+func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
+	log.Info("Injected Specular EVM hook")
+	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
+	return func(msg types.Message, evm *vm.EVM) error {
+		tx := transactionFromMessage(msg, cfg)
+		fee, err := calculateL1Fee(tx, evm, cfg)
+		if err != nil {
+			return err
+		}
+		return chargeL1Fee(fee, msg, evm, cfg)
 	}
-	return chargeL1Fee(fee, msg, evm, cfg)
 }
 
 // creates a Transaction from a transaction
@@ -101,7 +104,7 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 		zeroes, ones = zeroesAndOnes(rlp)
 
 		txDataGas    = big.NewInt(zeroes*txDataZero + ones*txDataOne + cfg.GetL1FeeOverhead())
-		basefee      = readStorageSlot(evm, cfg.GetL1OracleAddress(), common.HexToHash(BASEFEE_SLOT))
+		basefee      = readStorageSlot(evm, cfg.GetL1OracleAddress(), cfg.GetL1OracleBaseFeeSlot())
 		feeMutiplier = cfg.GetL1FeeMultiplier()
 
 		l1Fee       = new(big.Int).Mul(txDataGas, basefee)

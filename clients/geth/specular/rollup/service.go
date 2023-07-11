@@ -80,6 +80,9 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 		auth,
 		retryOpts,
 	)
+	if err != nil {
+		log.Crit("Failed to register the Rollup service: cannot create l1 client", "err", err)
+	}
 	var service node.Lifecycle
 	switch cfg.Node {
 	case services.NODE_SEQUENCER:

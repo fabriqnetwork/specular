@@ -106,6 +106,11 @@ var (
 		Usage: "The address of the L1Oracle contract",
 		Value: "0xff00000000000000000000000000000000000002",
 	}
+	RollupL1OracleBaseFeeSlotFlag = &cli.StringFlag{
+		Name:  "rollup.l1-oracle-base-fee-slot",
+		Usage: "The address of the L1Oracle contract",
+		Value: "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168", // keccak256("specular.basefee")
+	}
 	// <specular modification/>
 )
 
@@ -181,5 +186,6 @@ func MakeRollupConfig(ctx *cli.Context, cfg *ethconfig.Config) *rollup.Config {
 		L1FeeOverhead:        RollupL1FeeOverheadFlag.Value,
 		L1FeeMultiplier:      RollupL1FeeMultiplierFlag.Value,
 		L1OracleAddress:      common.HexToAddress(RollupL1OracleAddressFlag.Value),
+		L1OracleBaseFeeSlot:  common.HexToHash(RollupL1OracleBaseFeeSlotFlag.Value),
 	}
 }

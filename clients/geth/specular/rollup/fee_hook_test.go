@@ -1,4 +1,4 @@
-package entry
+package rollup
 
 import (
 	"fmt"
