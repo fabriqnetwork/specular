@@ -43,6 +43,7 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
 	specularUtils "github.com/specularl2/specular/clients/geth/specular/cmd/utils"
+	entry "github.com/specularl2/specular/clients/geth/specular/entry/geth"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
 	"github.com/specularl2/specular/clients/geth/specular/rollup"
@@ -195,7 +196,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		rollupConfig := specularUtils.MakeRollupConfig(ctx, &cfg.Eth)
 
 		vmConfig := eth.BlockChain().GetVMConfig()
-		vmConfig.SpecularEVMPreTransferHook = rollup.MakeSpecularEVMPreTransferHook(rollupConfig)
+		vmConfig.SpecularEVMPreTransferHook = entry.MakeSpecularEVMPreTransferHook(rollupConfig)
 
 		rollup.RegisterRollupService(stack, eth, eth.APIBackend, rollupConfig)
 	}

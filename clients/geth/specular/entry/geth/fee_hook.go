@@ -12,9 +12,11 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
 )
 
+// TODO: maybe move these constants to the rollup config or a separate file
 const (
-	txDataZero = 4
-	txDataOne  = 16
+	txDataZero          = 4
+	txDataOne           = 16
+	txSignatureOverhead = 68
 )
 
 type RollupConfig interface {
@@ -103,7 +105,7 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 	var (
 		zeroes, ones = zeroesAndOnes(rlp)
 
-		txDataGas    = big.NewInt(zeroes*txDataZero + ones*txDataOne + cfg.GetL1FeeOverhead())
+		txDataGas    = big.NewInt(zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne + cfg.GetL1FeeOverhead())
 		basefee      = readStorageSlot(evm, cfg.GetL1OracleAddress(), cfg.GetL1OracleBaseFeeSlot())
 		feeMutiplier = cfg.GetL1FeeMultiplier()
 
