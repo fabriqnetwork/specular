@@ -41,7 +41,8 @@
       "contract": "UUPSPlaceholder",
       "balance": "0",
       "storage": {
-        "_owner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+        "_owner": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+        "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168": "0xdeaddead"
       }
     },
     {
