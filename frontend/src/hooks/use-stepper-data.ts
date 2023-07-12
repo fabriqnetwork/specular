@@ -5,9 +5,13 @@ export enum Step {
   Login = 'login',
   Deposit = 'deposit',
   Withdraw = 'withdraw',
-  Confirm = 'confirm',
-  Pending = 'pending',
+  ConfirmDeposit = 'confirmDeposit',
+  ConfirmWithdraw = 'confirmWithdraw',
+  PendingDeposit = 'pendingDeposit',
+  PendingWithdraw = 'pendingWithdraw',
   Overview = 'overview',
+  FinalizeDeposit = 'finalizeDeposit',
+  FinalizeWithdrawl = 'finalizeWithdrawl',
 }
 
 interface StepperData {

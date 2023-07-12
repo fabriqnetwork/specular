@@ -6,10 +6,10 @@ import { NETWORKS } from '../../chains';
 
 interface NetworkButtonProps {
   isMetamask: boolean;
-  switchChainInMetaMask: (chainId: string) => void;
+  switchChain: (chainId: string) => void;
 }
 
-const NetworkButton = ({ isMetamask, switchChainInMetaMask }: NetworkButtonProps) => {
+const NetworkButton = ({ isMetamask, switchChain }: NetworkButtonProps) => {
   const classes = useNetworkErrorStyles();
   const chainId = process.env.REACT_APP_NETWORK_ID as string;
   const name = NETWORKS[chainId].chainName;
@@ -17,7 +17,7 @@ const NetworkButton = ({ isMetamask, switchChainInMetaMask }: NetworkButtonProps
     return <p className={classes.networkName}>{name}</p>;
   }
   return (
-    <div className={classes.switchNetworkButton} onClick={() => switchChainInMetaMask(chainId)}>
+    <div className={classes.switchNetworkButton} onClick={() => switchChain(chainId)}>
       <MetamaskIcon width="20" height="20" style={{ marginRight: 5 }} />
       <b>{name}</b>
     </div>
@@ -26,10 +26,10 @@ const NetworkButton = ({ isMetamask, switchChainInMetaMask }: NetworkButtonProps
 
 interface NetworkErrorProps {
   isMetamask: boolean;
-  switchChainInMetaMask: (chainId: string) => void;
+  switchChain: (chainId: string) => void;
 }
 
-function NetworkError({ isMetamask, switchChainInMetaMask }: NetworkErrorProps) {
+function NetworkError({ isMetamask, switchChain }: NetworkErrorProps) {
   const classes = useNetworkErrorStyles();
 
   return (
@@ -40,7 +40,7 @@ function NetworkError({ isMetamask, switchChainInMetaMask }: NetworkErrorProps) 
         <p className={classes.description}>
           Please, connect to
         </p>
-        <NetworkButton isMetamask={isMetamask} switchChainInMetaMask={switchChainInMetaMask} />
+        <NetworkButton isMetamask={isMetamask} switchChain={switchChain} />
       </div>
     </div>
   );

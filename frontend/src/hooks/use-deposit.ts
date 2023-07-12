@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ethers, BigNumberish, providers } from 'ethers';
+import { ethers, BigNumberish } from 'ethers';
 
 import {
   L1PORTAL_ADDRESS,
@@ -57,9 +57,9 @@ function useDeposit() {
         to: L1PORTAL_ADDRESS,
         value: ethers.utils.parseUnits(weiToEther(amount),  NETWORKS[wallet.chainId].nativeCurrency.decimals),
       });
-        
+
       console.log(tx)
-      
+
       await tx.wait();
       setData({ status: 'pending', data: tx });
       await tx.wait();

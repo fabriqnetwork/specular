@@ -21,7 +21,7 @@ const web3Modal = new SafeAppWeb3Modal({
         description: 'Scan with Coinbase Wallet to connect',
       },
       package: WalletLink,
-      connector: async (ProviderPackage) => {
+      connector: async (ProviderPackage: any) => {
         const provider = new ProviderPackage({ appName: 'Specular Bridge' }).makeWeb3Provider({}, 0);
         await provider.enable();
         return provider;
@@ -37,7 +37,7 @@ const web3Modal = new SafeAppWeb3Modal({
       options: {
         rpc: rpc,
       },
-      connector: async (ProviderPackage, options) => {
+      connector: async (ProviderPackage: any, options: any) => {
         const provider = new ProviderPackage(options);
         await provider.enable();
         return provider;
@@ -46,10 +46,10 @@ const web3Modal = new SafeAppWeb3Modal({
   },
 });
 
-async function switchChainInMetaMask(chainId: string) {
+async function switchChain(chainId: string) {
   const { name, symbol, chainName, rpcUrl, blockExplorerUrl } = NETWORKS[chainId];
   try {
-    await window.ethereum.request({
+    await window.ethereum?.request({
       method: 'wallet_switchEthereumChain',
       params: [
         {
@@ -63,7 +63,7 @@ async function switchChainInMetaMask(chainId: string) {
     if ((switchError as any).code === 4902) {
       try {
         if (chainId !== '100') throw Error();
-        await window.ethereum.request({
+        await window.ethereum?.request({
           method: 'wallet_addEthereumChain',
           params: [
             {
@@ -99,7 +99,7 @@ function useWallet() {
     if (provider && provider.currentProvider && provider.currentProvider.close) {
       await provider.currentProvider.close();
     }
-    await web3Modal.clearCachedProvider();
+    await (web3Modal as any).clearCachedProvider();
     window.location.reload();
   }, [wallet]);
 
@@ -115,17 +115,17 @@ function useWallet() {
     }
     if (provider.on) {
       provider.on('close', closeConnection);
-      provider.on('disconnect', closeConnection);
+      //provider.on('disconnect', closeConnection);
       provider.on('accountsChanged', (accounts: Array<any>) => accounts.length ? connect() : window.location.reload());
       // provider.on('networkChanged', connect);
-      provider.on('chainChanged', () => window.location.reload());
+      provider.on('chainChanged', () => connect());
     }
     provider.autoRefreshOnNetworkChange = false;
     await connect();
   }, [closeConnection]);
 
   const disconnectWallet = useCallback(async () => {
-    await web3Modal.clearCachedProvider();
+    await (web3Modal as any).clearCachedProvider();
     window.location.reload();
   }, []);
 
@@ -150,7 +150,7 @@ function useWallet() {
     isMetamask,
     loadWallet,
     disconnectWallet,
-    switchChainInMetaMask,
+    switchChain,
   });
 };
 

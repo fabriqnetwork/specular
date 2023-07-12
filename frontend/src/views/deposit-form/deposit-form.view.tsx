@@ -6,6 +6,7 @@ import useDepositFormStyles from './deposit-form.styles'
 import useDepositFormData from '../../hooks/use-deposit-form-data'
 import Header from '../shared/header/header.view'
 import { ReactComponent as InfoIcon } from '../../images/info-icon.svg'
+import { ReactComponent as DownArrow } from '../../images/down-arrow.svg'
 
 interface DepositFormProps {
   wallet: any,
@@ -22,8 +23,8 @@ function DepositForm ({
   onSubmit,
   onDisconnectWallet
 }: DepositFormProps) {
-  const { values, amounts, error, changeDepositValue } = useDepositFormData()
-  const classes = useDepositFormStyles({ error: error ?? false })
+  const { values, amounts, l1balance, l2balance, error, changeDepositValue } = useDepositFormData(wallet)
+  const classes = useDepositFormStyles({ error: !!error })
 
   const inputEl = useRef<HTMLInputElement>(null)
 
@@ -40,13 +41,13 @@ function DepositForm ({
   }, [amounts, onAmountChange])
 
   return (
+
     <div className={classes.depositForm}>
       <Header
         address={wallet.address}
         title={`xDAI → ETH`}
         onDisconnectWallet={onDisconnectWallet}
       />
-      
       <form
         className={classes.form}
         onSubmit={(event) => {
@@ -54,9 +55,9 @@ function DepositForm ({
           onSubmit(amounts.from)
         }}
       >
-        <div className={classes.fromInputGroup}>
-          <p className={classes.fromTokenSymbol}>
-            {"ETH"}
+        <div className={classes.card}>
+          <p className={classes.cardTitleText}>
+            {"Chiado xDai"}
           </p>
           <input
             ref={inputEl}
@@ -66,12 +67,24 @@ function DepositForm ({
             onChange={event => changeDepositValue(event.target.value)}
           />
           <p className={classes.toValue}>
-            {formatUnits(amounts.to, '1')} {'ETH'}
+            Balance: {formatUnits(l1balance, 18)} {'xDai'}
+          </p>
+        </div>
+        <DownArrow className={classes.cardIcon} />
+        <div className={classes.card}>
+          <p className={classes.cardTitleText}>
+            {"Specular ETH"}
+          </p>
+          <p>
+            {formatUnits(amounts.to, 18)} {'ETH'}
+          </p>
+          <p className={classes.toValue}>
+            Balance: {formatUnits(l2balance, 18)} {'ETH'}
           </p>
         </div>
         {(error || depositData.status === 'failed') && (
           <div className={classes.inputErrorContainer}>
-            <InfoIcon className={classes.inputErrorIcon} />
+            <InfoIcon className={classes.cardErrorIcon} />
             <p>{error || depositData.error}</p>
           </div>
         )}

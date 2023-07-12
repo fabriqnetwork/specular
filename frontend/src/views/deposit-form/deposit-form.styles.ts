@@ -15,7 +15,7 @@ interface Theme {
     medium: number;
     extraBold: number;
   };
-  
+
   palette: {
     grey: {
       light1: string;
@@ -36,31 +36,11 @@ const useDepositFormStyles = createUseStyles((theme:Theme) => ({
   depositForm: {
     flex: 1,
   },
-  balanceCard: {
-    background: theme.palette.grey.light1,
-    padding: `${theme.spacing(3)}px ${theme.spacing(5)}px`,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: theme.spacing(7.5),
-    borderRadius: theme.spacing(2),
-  },
-  balance: {
-    fontWeight: theme.fontWeights.bold,
-  },
-  depositAllButton: {
-    background: 'transparent',
-    border: 'none',
-    cursor: 'pointer',
-    '&:disabled': {
-      cursor: 'default',
-    },
-  },
   form: {
     display: 'flex',
     flexDirection: 'column',
   },
-  fromInputGroup: ({ error }: DepositFormStylesProps) => ({
+  card: ({ error }: DepositFormStylesProps) => ({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
@@ -69,8 +49,9 @@ const useDepositFormStyles = createUseStyles((theme:Theme) => ({
     border: `2px solid ${error ? theme.palette.red : theme.palette.grey.light2}`,
     borderRadius: `${theme.spacing(2.5)}px`,
   }),
-  fromTokenSymbol: {
-    fontSize: theme.spacing(2.5),
+  cardTitleText: {
+    paddingBottom:  theme.spacing(1),
+    fontSize: theme.spacing(4),
     fontWeight: theme.fontWeights.bold,
   },
   fromInput: {
@@ -105,12 +86,18 @@ const useDepositFormStyles = createUseStyles((theme:Theme) => ({
     color: theme.palette.red,
     marginTop: theme.spacing(2),
   },
-  inputErrorIcon: {
+  cardErrorIcon: {
     marginRight: theme.spacing(1),
     minWidth: theme.spacing(2),
     '& path': {
       fill: theme.palette.red,
     },
+  },
+  cardIcon: {
+    marginTop: theme.spacing(4),
+    alignSelf: 'center',
+    maxWidth: theme.spacing(10),
+    maxHeight: theme.spacing(10),
   },
   submitButton: {
     fontSize: theme.spacing(2),

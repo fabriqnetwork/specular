@@ -3,9 +3,10 @@ import { BigNumber } from 'ethers'
 import { formatUnits } from 'ethers/lib/utils'
 
 import useWithdrawFormStyles from './withdraw-form.styles'
-import useWithdrawFormData from '../../hooks/use-withdraw-form-data'
+import useWithdrawFormData from '../../hooks/use-deposit-form-data'
 import Header from '../shared/header/header.view'
 import { ReactComponent as InfoIcon } from '../../images/info-icon.svg'
+import { ReactComponent as DownArrow } from '../../images/down-arrow.svg'
 
 interface WithdrawFormProps {
   wallet: any,
@@ -22,8 +23,8 @@ function WithdrawForm ({
   onSubmit,
   onDisconnectWallet
 }: WithdrawFormProps) {
-  const { values, amounts, error, changeWithdrawValue } = useWithdrawFormData()
-  const classes = useWithdrawFormStyles({ error: error ?? false })
+  const { values, amounts, l1balance, l2balance, error, changeDepositValue } = useWithdrawFormData(wallet)
+  const classes = useWithdrawFormStyles({ error: !!error })
 
   const inputEl = useRef<HTMLInputElement>(null)
 
@@ -40,13 +41,13 @@ function WithdrawForm ({
   }, [amounts, onAmountChange])
 
   return (
+
     <div className={classes.withdrawForm}>
       <Header
         address={wallet.address}
         title={`xDAI → ETH`}
         onDisconnectWallet={onDisconnectWallet}
       />
-      
       <form
         className={classes.form}
         onSubmit={(event) => {
@@ -54,24 +55,36 @@ function WithdrawForm ({
           onSubmit(amounts.from)
         }}
       >
-        <div className={classes.fromInputGroup}>
-          <p className={classes.fromTokenSymbol}>
-            {"ETH"}
+        <div className={classes.card}>
+          <p className={classes.cardTitleText}>
+            {"Chiado xDai"}
           </p>
           <input
             ref={inputEl}
             className={classes.fromInput}
             placeholder='0.0'
             value={values.from}
-            onChange={event => changeWithdrawValue(event.target.value)}
+            onChange={event => changeDepositValue(event.target.value)}
           />
           <p className={classes.toValue}>
-            {formatUnits(amounts.to, '1')} {'ETH'}
+            Balance: {formatUnits(l1balance, 18)} {'xDai'}
+          </p>
+        </div>
+        <DownArrow className={classes.cardIcon} />
+        <div className={classes.card}>
+          <p className={classes.cardTitleText}>
+            {"Specular ETH"}
+          </p>
+          <p>
+            {formatUnits(amounts.to, 18)} {'ETH'}
+          </p>
+          <p className={classes.toValue}>
+            Balance: {formatUnits(l2balance, 18)} {'ETH'}
           </p>
         </div>
         {(error || depositData.status === 'failed') && (
           <div className={classes.inputErrorContainer}>
-            <InfoIcon className={classes.inputErrorIcon} />
+            <InfoIcon className={classes.cardErrorIcon} />
             <p>{error || depositData.error}</p>
           </div>
         )}
