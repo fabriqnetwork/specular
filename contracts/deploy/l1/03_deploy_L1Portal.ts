@@ -1,15 +1,17 @@
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
-import { Manifest } from "@openzeppelin/upgrades-core";
+// import { Manifest } from "@openzeppelin/upgrades-core";
 import { getProxyName } from "../utils";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, ethers, upgrades, network } = hre;
+  const { deployments, getNamedAccounts, ethers, upgrades } = hre;
   const { save } = deployments;
   const { deployer } = await getNamedAccounts();
   const deployerSigner = await ethers.getSigner(deployer);
 
-  const rollupProxyAddress = (await deployments.get("Rollup")).address;
+  // this returns the impl address
+  // const rollupProxyAddress = (await deployments.get("Rollup")).address;
+  const rollupProxyAddress = "0xF6168876932289D073567f347121A267095f3DD6";
 
   const L1Portal = await ethers.getContractFactory("L1Portal", deployerSigner);
   const l1Portal = await upgrades.deployProxy(L1Portal, [rollupProxyAddress], {
