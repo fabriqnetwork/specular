@@ -22,13 +22,13 @@ async function main() {
   const l1BalanceStart = await l1Token.balanceOf(l1Bridger.address);
 
   const MintableERC20FactoryFactory = await ethers.getContractFactory(
-    "OptimismMintableERC20Factory",
+    "MintableERC20Factory",
     l2Relayer
   );
   const mintableERC20Factory = await MintableERC20FactoryFactory.deploy(
     l2StandardBridge.address
   );
-  const deployTx = await mintableERC20Factory.createOptimismMintableERC20(
+  const deployTx = await mintableERC20Factory.createMintableERC20(
     l1Token.address,
     "TestToken",
     "TT"
@@ -40,7 +40,7 @@ async function main() {
   const l2TokenAddr = deployEvent.args.localToken;
 
   const MintableERC20Factory = await ethers.getContractFactory(
-    "OptimismMintableERC20",
+    "MintableERC20",
     l2Relayer
   );
   const l2Token = MintableERC20Factory.attach(l2TokenAddr);

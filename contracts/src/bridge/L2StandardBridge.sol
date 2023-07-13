@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {StandardBridge} from "./StandardBridge.sol";
 import {L2Portal} from "./L2Portal.sol";
-import {IOptimismMintableERC20} from "./mintable/IOptimismMintableERC20.sol";
+import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
 contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, OwnableUpgradeable {
@@ -75,7 +75,7 @@ contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, Own
         bytes memory _extraData
     ) internal override {
         if (_isNonNativeTokenPair(_localToken, _remoteToken)) {
-            IOptimismMintableERC20(_localToken).burn(_from, _amount);
+            IMintableERC20(_localToken).burn(_from, _amount);
         } else {
             IERC20(_localToken).safeTransferFrom(_from, address(this), _amount);
             deposits[_localToken][_remoteToken] = deposits[_localToken][_remoteToken] + _amount;

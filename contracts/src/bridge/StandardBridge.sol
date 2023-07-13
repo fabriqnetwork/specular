@@ -8,7 +8,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
 import {SafeCall} from "../libraries/SafeCall.sol";
-import {IOptimismMintableERC20} from "./mintable/IOptimismMintableERC20.sol";
+import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 
 /// @title StandardBridge
 /// @notice StandardBridge is a base contract for the L1 and L2 standard ERC20 bridges. It handles
@@ -198,7 +198,7 @@ abstract contract StandardBridge {
         bytes calldata _extraData
     ) public onlyOtherBridge {
         if (_isNonNativeTokenPair(_localToken, _remoteToken)) {
-            IOptimismMintableERC20(_localToken).mint(_to, _amount);
+            IMintableERC20(_localToken).mint(_to, _amount);
         } else {
             deposits[_localToken][_remoteToken] = deposits[_localToken][_remoteToken] - _amount;
             IERC20(_localToken).safeTransfer(_to, _amount);
@@ -242,18 +242,18 @@ abstract contract StandardBridge {
         bytes memory _extraData
     ) internal virtual {}
 
-    /// @notice Checks if the "other token" is the correct pair token for the OptimismMintableERC20.
-    /// @param _localToken  OptimismMintableERC20 to check against.
+    /// @notice Checks if the "other token" is the correct pair token for the MintableERC20.
+    /// @param _localToken  MintableERC20 to check against.
     /// @param _remoteToken Pair token to check.
 
     function _isNonNativeTokenPair(address _localToken, address _remoteToken) internal view returns (bool) {
-        if (!ERC165Checker.supportsInterface(_localToken, type(IOptimismMintableERC20).interfaceId)) {
+        if (!ERC165Checker.supportsInterface(_localToken, type(IMintableERC20).interfaceId)) {
             return false;
         }
 
         require(
-            _remoteToken == IOptimismMintableERC20(_localToken).remoteToken(),
-            "StandardBridge: wrong remote token for Optimism Mintable ERC20 local token"
+            _remoteToken == IMintableERC20(_localToken).REMOTE_TOKEN(),
+            "StandardBridge: wrong remote token for  Mintable ERC20 local token"
         );
 
         return true;
