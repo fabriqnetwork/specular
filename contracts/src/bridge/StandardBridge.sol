@@ -112,7 +112,7 @@ abstract contract StandardBridge {
         _initiateBridgeETH(msg.sender, _to, msg.value, _minGasLimit, _extraData);
     }
 
-        /// @notice Sends ERC20 tokens to the sender's address on the other chain. Note that if the
+    /// @notice Sends ERC20 tokens to the sender's address on the other chain. Note that if the
     ///         ERC20 token on the other chain does not recognize the local token as the correct
     ///         pair token, the ERC20 bridge will fail and the tokens will be returned to sender on
     ///         this chain.

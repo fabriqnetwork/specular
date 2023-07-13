@@ -5,7 +5,6 @@ import { deployUUPSProxiedContract } from "../utils";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { sequencer, deployer } = await hre.getNamedAccounts();
-  console.log({ sequencer, deployer });
   await deployUUPSProxiedContract(hre, deployer, "SequencerInbox", [sequencer]);
 };
 

@@ -37,7 +37,7 @@ function createConfig(network: string) {
     url: getNetworkURL(network),
     accounts: getNetworkAccounts(network),
     live,
-    saveDeployments: live, // Do not save deployments on localhost
+    saveDeployments: true,
   };
 
   // Set deploy scripts for L1 or L2

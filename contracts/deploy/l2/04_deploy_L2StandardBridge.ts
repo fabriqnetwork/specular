@@ -9,8 +9,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const l2PortalProxyAddress = (await deployments.get(getProxyName("L2Portal")))
     .address;
 
-  // TODO: read this from companion chain deployments
-  const l1StandardBridgeAddress = "0xE7C2a73131dd48D8AC46dCD7Ab80C8cbeE5b410A";
+  const l1StandardBridgeAddress = (
+    await companionNetworks.l1.deployments.get(getProxyName("L1StandardBridge"))
+  ).address;
 
   const args = [l2PortalProxyAddress, l1StandardBridgeAddress];
 

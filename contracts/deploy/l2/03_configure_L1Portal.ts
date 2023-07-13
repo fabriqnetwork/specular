@@ -16,11 +16,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const deployerSigner = await provider.getSigner(deployer);
 
   // Get L1Portal contract on L1
-  // const l1PortalProxyAddress = (
-  //   await companionNetworks.l1.deployments.get(getProxyName("L1Portal"))
-  // ).address;
-
-  const l1PortalProxyAddress = "0x13D69Cf7d6CE4218F646B759Dcf334D82c023d8e";
+  const l1PortalProxyAddress = (
+    await companionNetworks.l1.deployments.get(getProxyName("L1Portal"))
+  ).address;
 
   const l1Portal = await ethers.getContractAt(
     "L1Portal",

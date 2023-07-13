@@ -9,9 +9,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployer } = await getNamedAccounts();
   const deployerSigner = await ethers.getSigner(deployer);
 
-  // this returns the impl address
-  // const rollupProxyAddress = (await deployments.get("Rollup")).address;
-  const rollupProxyAddress = "0xF6168876932289D073567f347121A267095f3DD6";
+  const rollupProxyAddress = (await deployments.get(getProxyName("Rollup")))
+    .address;
 
   const L1Portal = await ethers.getContractFactory("L1Portal", deployerSigner);
   const l1Portal = await upgrades.deployProxy(L1Portal, [rollupProxyAddress], {

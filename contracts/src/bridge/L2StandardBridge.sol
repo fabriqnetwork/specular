@@ -25,8 +25,7 @@ contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, Own
     modifier onlyOtherBridge() override {
         address origSender = AddressAliasHelper.undoL1ToL2Alias(L2_PORTAL.l1Sender());
         require(
-            msg.sender == address(PORTAL_ADDRESS) &&
-            origSender == address(OTHER_BRIDGE),
+            msg.sender == address(PORTAL_ADDRESS) && origSender == address(OTHER_BRIDGE),
             "StandardBridge: function can only be called from the other bridge"
         );
 
