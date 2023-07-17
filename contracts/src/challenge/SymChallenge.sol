@@ -37,6 +37,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     error TxContextInconsistent();
 
     uint256 private constant MAX_BISECTION_DEGREE = 2;
+    uint256 private constant numSteps = 0;
 
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
     bytes32 public bisectionHash;
@@ -96,13 +97,27 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
     // TODO: use minimum of challenger/defender's proposed numSteps.
     function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
+
+        // This can be run before turn checking and probably saves gas
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
         }
+
         require(_numSteps > 0, "INVALID_NUM_STEPS");
-        bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, _numSteps);
-        // TODO: consider emitting a different event?
-        emit Bisected(bisectionHash, 0, _numSteps);
+
+        // Assumption: Defender goes first, Challenger goes second
+        if (turn == Turn.Defender) {
+          numSteps = _numSteps;
+        }
+
+        if (turn == Turn.Challenger) {
+
+          numSteps = _numSteps < numSteps ? _numSteps : numSteps;
+
+          bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
+          // TODO: consider emitting a different event?
+          emit Bisected(bisectionHash, 0, numSteps);
+        }
     }
 
     function bisectExecution(
@@ -112,12 +127,14 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external override onlyOnTurn postInitialization {
+
         // Verify provided prev bisection.
-        bytes32 prevHash =
-            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+        bytes32 prevHash = ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }
+
         require(challengedSegmentIndex > 0 && challengedSegmentIndex < prevBisection.length, "INVALID_INDEX");
         // Require agreed upon start state hash and disagreed upon end state hash.
         require(bisection[0] == prevBisection[challengedSegmentIndex - 1], "INVALID_START");
