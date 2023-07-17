@@ -110,7 +110,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         if (turn == Turn.Defender && msg.sender == defender) {
           numSteps = _numSteps;
         } else {
-          // revert 
+          revert NotYourTurn();
         }
 
         if (turn == Turn.Challenger && msg.sender == challenger) {
@@ -121,7 +121,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
           // TODO: consider emitting a different event?
           emit Bisected(bisectionHash, 0, numSteps);
         } else {
-          // revert 
+          revert NotYourTurn();
         }
     }
 
