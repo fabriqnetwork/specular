@@ -95,7 +95,6 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    // TODO: use minimum of challenger/defender's proposed numSteps.
     function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
 
         // This can be run before turn checking and probably saves gas
