@@ -106,17 +106,22 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         require(_numSteps > 0, "INVALID_NUM_STEPS");
 
         // Assumption: Defender goes first, Challenger goes second
-        if (turn == Turn.Defender) {
+        // TODO: Might think about removing `onlyOnTurn` as this is replication in logic
+        if (turn == Turn.Defender && msg.sender == defender) {
           numSteps = _numSteps;
+        } else {
+          // revert 
         }
 
-        if (turn == Turn.Challenger) {
+        if (turn == Turn.Challenger && msg.sender == challenger) {
 
           numSteps = _numSteps < numSteps ? _numSteps : numSteps;
 
           bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
           // TODO: consider emitting a different event?
           emit Bisected(bisectionHash, 0, numSteps);
+        } else {
+          // revert 
         }
     }
 
