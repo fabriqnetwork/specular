@@ -37,9 +37,9 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     error TxContextInconsistent();
 
     uint256 private constant MAX_BISECTION_DEGREE = 2;
-    uint256 private constant numSteps = 0;
 
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
+    uint256 private numSteps = 0;
     bytes32 public bisectionHash;
     // Initial state used to initialize bisectionHash (write-once).
     bytes32 private startStateHash;
@@ -147,18 +147,20 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Compute segment start/length.
         uint256 challengedSegmentStart = prevChallengedSegmentStart;
         uint256 challengedSegmentLength = prevChallengedSegmentLength;
+
+        // prevBisection.length == 2 means first round
         if (prevBisection.length > 2) {
-            // prevBisection.length == 2 means first round
-            uint256 firstSegmentLength =
-                ChallengeLib.firstSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
-            uint256 otherSegmentLength =
-                ChallengeLib.otherSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+
+            uint256 firstSegmentLength = ChallengeLib.firstSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+            uint256 otherSegmentLength = ChallengeLib.otherSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+
             challengedSegmentLength = challengedSegmentIndex == 1 ? firstSegmentLength : otherSegmentLength;
 
             if (challengedSegmentIndex > 1) {
                 challengedSegmentStart += firstSegmentLength + otherSegmentLength * (challengedSegmentIndex - 2);
             }
         }
+
         require(challengedSegmentLength > 1, "TOO_SHORT");
 
         // Require that bisection has the correct length. This is only ever less than BISECTION_DEGREE at the last bisection.
