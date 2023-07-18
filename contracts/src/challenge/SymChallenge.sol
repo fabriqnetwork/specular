@@ -93,7 +93,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    function proposeDetails(
+    function proposeChallenge(
         bytes32 _endStateHash,
         uint256 _numSteps
     ) external {
@@ -117,8 +117,10 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
         if (turn == Turn.Challenger && msg.sender == challenger) {
 
-          numSteps = _numSteps < numSteps ? _numSteps : numSteps;
-          endStateHash = _numSteps < numSteps ? _endStateHash : endStateHash;
+          if (_numSteps < numSteps) {
+            numSteps = _numSteps;
+            endStateHash = _endStateHash;
+          }
 
           // set the bisection between assertions that the challenger and defender resolve.
           bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
@@ -143,7 +145,6 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
         // Verify provided prev bisection.
         bytes32 prevHash = ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
-
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }

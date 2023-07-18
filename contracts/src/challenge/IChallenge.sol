@@ -76,11 +76,11 @@ interface IChallenge {
  */
 interface ISymChallenge is IChallenge {
     /**
-     * @notice Initializes the length of the challenge. Must be called by defender before bisection rounds begin.
+     * @notice Takes proposals for the `endStateHash` and the `numSteps` from challenger and defender and chooses the pair with the least `numSteps`
      * @param _numSteps Number of steps executed from the start of the assertion to its end.
      * If this parameter is incorrect, the defender will be slashed (assuming successful execution of the protocol by the challenger).
      */
-    function initializeChallengeLength(uint256 _numSteps) external;
+    function proposeChallenge(bytes32 _endStateHash, uint256 _numSteps) external;
 
     /**
      * @notice Bisects a segment. The challenged segment is defined by: {`challengedSegmentStart`, `challengedSegmentLength`, `bisection[0]`, `oldEndHash`}
