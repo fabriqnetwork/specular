@@ -39,7 +39,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     uint256 private constant MAX_BISECTION_DEGREE = 2;
 
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
-    uint256 private numSteps = 0;
+    uint256 public numSteps;
     bytes32 public bisectionHash;
     // Initial state used to initialize bisectionHash (write-once).
     bytes32 private startStateHash;
