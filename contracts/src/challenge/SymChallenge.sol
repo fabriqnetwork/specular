@@ -95,36 +95,75 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
+    function _initialize(
+        address _defender,
+        address _challenger,
+        IVerifier _verifier,
+        IDAProvider _daProvider,
+        IChallengeResultReceiver _resultReceiver,
+        bytes32 _startStateHash,
+        uint256 challengePeriod
+    ) external {
+        if (turn != Turn.NoChallenge || bisectionHash != 0) {
+            revert AlreadyInitialized();
+        }
+        if (_defender == address(0) || _challenger == address(0)) {
+            revert ZeroAddress();
+        }
+        defender = _defender;
+        challenger = _challenger;
+        verifier = _verifier;
+        daProvider = _daProvider;
+        resultReceiver = _resultReceiver;
+        startStateHash = _startStateHash;
 
+        turn = Turn.Defender;
+        lastMoveBlock = block.number;
+        defenderTimeLeft = challengePeriod;
+        challengerTimeLeft = challengePeriod;
+    }
+
+    function proposeDetails(
+        bytes32 _endStateHash,
+        uint256 _numSteps
+    ) external {
         // This can be run before turn checking and probably saves gas
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
         }
-
         require(_numSteps > 0, "INVALID_NUM_STEPS");
 
-        // Assumption: Defender goes first, Challenger goes second
-        // TODO: Might think about removing `onlyOnTurn` as this is replication in logic
+        // Defender proposes `numSteps` and `endStateHash` first
         if (turn == Turn.Defender && msg.sender == defender) {
+
           numSteps = _numSteps;
+          endStateHash = _endStateHash;
+          turn = Turn.Challenger;
+
         } else {
           revert NotYourTurn();
         }
 
+        // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
         if (turn == Turn.Challenger && msg.sender == challenger) {
 
           numSteps = _numSteps < numSteps ? _numSteps : numSteps;
+          endStateHash = _numSteps < numSteps ? _endStateHash : endStateHash;
 
+          // set the bisection between assertions that the challenger and defender resolve.
           bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
-          // TODO: consider emitting a different event?
+
+          // log event for all listeners, esp. defender and challanger
           emit Bisected(bisectionHash, 0, numSteps);
+
+          turn = Turn.Defender;
+
         } else {
           revert NotYourTurn();
         }
     }
 
-    function bisectExecution(
+    function bisectExecution (
         bytes32[] calldata bisection,
         uint256 challengedSegmentIndex,
         bytes32[] calldata prevBisection,
@@ -181,25 +220,26 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external override onlyOnTurn {
+
         // Verify provided prev bisection.
-        bytes32 prevHash =
-            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+        bytes32 prevHash = ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }
+
         require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
         require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
-        {
-            // Verify tx inclusion.
-            daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
-            // Verify tx context consistency.
-            // TODO: leaky abstraction (assumes `txInclusionProof` structure).
-            (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
-            if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
-                revert TxContextInconsistent();
-            }
+
+        // Verify tx inclusion.
+        daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
+        // Verify tx context consistency.
+        // TODO: leaky abstraction (assumes `txInclusionProof` structure).
+        (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
+        if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
+            revert TxContextInconsistent();
         }
+
         // Verify OSP.
         bytes32 endHash = verifier.verifyOneStepProof(prevBisection[challengedStepIndex - 1], ctx, oneStepProof);
         // Require that the end state differs from the counterparty's.

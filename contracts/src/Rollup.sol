@@ -307,29 +307,28 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
-        external
-        override
-        returns (address)
-    {
+    function challengeAssertion(
+        address[2] calldata players,
+        uint256[2] calldata assertionIDs
+    ) external override returns (address) {
+
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 parentID = assertions[defenderAssertionID].parent;
-        {
-            uint256 challengerAssertionID = assertionIDs[1];
-            // Require IDs ordered and in-range.
-            if (defenderAssertionID >= challengerAssertionID) {
-                revert WrongOrder();
-            }
-            if (challengerAssertionID > lastCreatedAssertionID) {
-                revert UnproposedAssertion();
-            }
-            if (lastConfirmedAssertionID >= defenderAssertionID) {
-                revert AssertionAlreadyResolved();
-            }
-            // Require that players have attested to sibling assertions.
-            if (parentID != assertions[challengerAssertionID].parent) {
-                revert NotSiblings();
-            }
+        uint256 challengerAssertionID = assertionIDs[1];
+
+        // Require IDs ordered and in-range.
+        if (defenderAssertionID >= challengerAssertionID) {
+            revert WrongOrder();
+        }
+        if (challengerAssertionID > lastCreatedAssertionID) {
+            revert UnproposedAssertion();
+        }
+        if (lastConfirmedAssertionID >= defenderAssertionID) {
+            revert AssertionAlreadyResolved();
+        }
+        // Require that players have attested to sibling assertions.
+        if (parentID != assertions[challengerAssertionID].parent) {
+            revert NotSiblings();
         }
         // Require that neither player is currently engaged in a challenge.
         address defender = players[0];
@@ -352,7 +351,8 @@ contract Rollup is RollupBase {
             daProvider,
             IChallengeResultReceiver(address(this)),
             assertions[parentID].stateHash,
-            assertions[defenderAssertionID].stateHash,
+            // TODO: confirm removing this. Let Defender & Challenger propose
+            /*assertions[defenderAssertionID].stateHash,*/
             challengePeriod
         );
         return challengeAddr;
