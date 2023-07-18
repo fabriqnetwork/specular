@@ -34,7 +34,7 @@ WORKDIR /specular/clients/geth/specular
 RUN make geth-docker
 
 # Specular geth image
-FROM alpine:3.17
+FROM alpine:3
 
 WORKDIR /specular
 
