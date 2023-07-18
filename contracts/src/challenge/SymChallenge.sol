@@ -106,45 +106,45 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Defender proposes `numSteps` and `endStateHash` first
         if (turn == Turn.Defender && msg.sender == defender) {
 
-          numSteps = _numSteps;
-          endStateHash = _endStateHash;
-          turn = Turn.Challenger;
+            numSteps = _numSteps;
+            endStateHash = _endStateHash;
+            turn = Turn.Challenger;
 
         } else {
-          revert NotYourTurn();
+            revert NotYourTurn();
         }
 
         // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
         if (turn == Turn.Challenger && msg.sender == challenger) {
 
-          if (_numSteps < numSteps) {
-            numSteps = _numSteps;
-            endStateHash = _endStateHash;
-          }
+            if (_numSteps < numSteps) {
+                numSteps = _numSteps;
+                endStateHash = _endStateHash;
+            }
 
-          // set the bisection between assertions that the challenger and defender resolve.
-          bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
+            // set the bisection between assertions that the challenger and defender resolve.
+            bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
 
-          // log event for all listeners, esp. defender and challanger
-          emit Bisected(bisectionHash, 0, numSteps);
+            // log event for all listeners, esp. defender and challanger
+            emit Bisected(bisectionHash, 0, numSteps);
 
-          turn = Turn.Defender;
+            turn = Turn.Defender;
 
         } else {
-          revert NotYourTurn();
+            revert NotYourTurn();
         }
     }
 
-    function bisectExecution (
+    function bisectExecution(
         bytes32[] calldata bisection,
         uint256 challengedSegmentIndex,
         bytes32[] calldata prevBisection,
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external override onlyOnTurn postInitialization {
-
         // Verify provided prev bisection.
-        bytes32 prevHash = ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+        bytes32 prevHash =
+            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }
@@ -160,9 +160,10 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
         // prevBisection.length == 2 means first round
         if (prevBisection.length > 2) {
-
-            uint256 firstSegmentLength = ChallengeLib.firstSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
-            uint256 otherSegmentLength = ChallengeLib.otherSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+            uint256 firstSegmentLength =
+                ChallengeLib.firstSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+            uint256 otherSegmentLength =
+                ChallengeLib.otherSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
 
             challengedSegmentLength = challengedSegmentIndex == 1 ? firstSegmentLength : otherSegmentLength;
 
@@ -193,7 +194,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     ) external override onlyOnTurn {
 
         // Verify provided prev bisection.
-        bytes32 prevHash = ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
+        bytes32 prevHash =
+            ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }

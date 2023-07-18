@@ -307,10 +307,11 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function challengeAssertion(
-        address[2] calldata players,
-        uint256[2] calldata assertionIDs
-    ) external override returns (address) {
+    function challengeAssertion( address[2] calldata players, uint256[2] calldata assertionIDs) 
+        external
+        override
+        returns (address)
+    {
 
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 parentID = assertions[defenderAssertionID].parent;
