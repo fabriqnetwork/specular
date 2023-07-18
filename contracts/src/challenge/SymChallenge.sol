@@ -56,46 +56,16 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     }
 
     /**
-     * @notice Initializes contract.
+     * @notice Initializes contract. Called by `Rollup.sol` when a challenge is initiated. Challenge requires additional inputs from defender and challenger to be executed.
      * @param _defender Defending party.
      * @param _challenger Challenging party. Challenger starts.
      * @param _verifier Address of the verifier contract.
      * @param _daProvider DA provider.
      * @param _resultReceiver Address of contract that will receive the outcome (via callback `completeChallenge`).
      * @param _startStateHash Commitment to agreed-upon start state.
-     * @param _endStateHash Commitment to disagreed-upon end state being challenged.
      */
+
     function initialize(
-        address _defender,
-        address _challenger,
-        IVerifier _verifier,
-        IDAProvider _daProvider,
-        IChallengeResultReceiver _resultReceiver,
-        bytes32 _startStateHash,
-        bytes32 _endStateHash,
-        uint256 challengePeriod
-    ) external {
-        if (turn != Turn.NoChallenge) {
-            revert AlreadyInitialized();
-        }
-        if (_defender == address(0) || _challenger == address(0)) {
-            revert ZeroAddress();
-        }
-        defender = _defender;
-        challenger = _challenger;
-        verifier = _verifier;
-        daProvider = _daProvider;
-        resultReceiver = _resultReceiver;
-        startStateHash = _startStateHash;
-        endStateHash = _endStateHash;
-
-        turn = Turn.Defender;
-        lastMoveBlock = block.number;
-        defenderTimeLeft = challengePeriod;
-        challengerTimeLeft = challengePeriod;
-    }
-
-    function _initialize(
         address _defender,
         address _challenger,
         IVerifier _verifier,
