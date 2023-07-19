@@ -196,15 +196,16 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Require that this is the last round.
         require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
 
-        // Verify tx inclusion.
-        daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
-        // Verify tx context consistency.
-        // TODO: leaky abstraction (assumes `txInclusionProof` structure).
-        (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
-        if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
-            revert TxContextInconsistent();
+        {
+            // Verify tx inclusion.
+            daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);
+            // Verify tx context consistency.
+            // TODO: leaky abstraction (assumes `txInclusionProof` structure).
+            (, bytes32 txContextHash) = DeserializationLib.deserializeBytes32(txInclusionProof, 0);
+            if (VerificationContextLib.txContextHash(ctx) != txContextHash) {
+                revert TxContextInconsistent();
+            }
         }
-
         // Verify OSP.
         bytes32 endHash = verifier.verifyOneStepProof(prevBisection[challengedStepIndex - 1], ctx, oneStepProof);
         // Require that the end state differs from the counterparty's.
