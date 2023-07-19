@@ -57,7 +57,7 @@ type L1BridgeClient interface {
 	GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error)
 	// IChallenge.sol
 	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
-	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
+	ProposeChallenge(endStateHash [32]byte, numSteps *big.Int) (*types.Transaction, error)
 	CurrentChallengeResponder() (common.Address, error)
 	CurrentChallengeResponderTimeLeft() (*big.Int, error)
 	TimeoutChallenge() (*types.Transaction, error)
@@ -450,10 +450,10 @@ func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challenge
 	return nil
 }
 
-func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error) {
+func (c *EthBridgeClient) ProposeChallenge(endStateHash [32]byte, numSteps *big.Int) (*types.Transaction, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.challenge.InitializeChallengeLength(numSteps) }
+	f := func() (*types.Transaction, error) { return c.challenge.ProposeChallenge(endStateHash, numSteps) }
 	return retryTransactingFunction(f, c.retryOpts)
 }
 

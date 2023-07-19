@@ -457,10 +457,10 @@ func (s *Sequencer) handleChallenge(
 	if err != nil {
 		return fmt.Errorf("Failed to generate states, err: %w", err)
 	}
-	_, err = s.L1Client.InitializeChallengeLength(new(big.Int).SetUint64(uint64(len(states)) - 1))
-	if err != nil {
-		return fmt.Errorf("Failed to initialize challenge, err: %w", err)
-	}
+	//_, err = s.L1Client.ProposeChallenge(chalCtx.assertion.EndBlock, new(big.Int).SetUint64(uint64(len(states)) - 1))
+	//if err != nil {
+		//return fmt.Errorf("Failed to initialize challenge, err: %w", err)
+	//}
 
 	subCtx, subCancel := context.WithCancel(ctx)
 	defer subCancel()

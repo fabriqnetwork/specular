@@ -93,7 +93,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    function proposeChallenge(bytes32 _endStateHash, uint256 _numSteps) external {
+    function proposeChallenge(bytes32 _endStateHash, uint256 _numSteps) external override onlyOnTurn {
         // This can be run before turn checking and probably saves gas
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
@@ -101,16 +101,13 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         require(_numSteps > 0, "INVALID_NUM_STEPS");
 
         // Defender proposes `numSteps` and `endStateHash` first
-        if (turn == Turn.Defender && msg.sender == defender) {
+        if (turn == Turn.Defender) {
             numSteps = _numSteps;
             endStateHash = _endStateHash;
-            turn = Turn.Challenger;
-        } else {
-            revert NotYourTurn();
         }
 
         // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
-        if (turn == Turn.Challenger && msg.sender == challenger) {
+        if (turn == Turn.Challenger) {
             if (_numSteps < numSteps) {
                 numSteps = _numSteps;
                 endStateHash = _endStateHash;
@@ -121,10 +118,6 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
             // log event for all listeners, esp. defender and challanger
             emit Bisected(bisectionHash, 0, numSteps);
-
-            turn = Turn.Defender;
-        } else {
-            revert NotYourTurn();
         }
     }
 
