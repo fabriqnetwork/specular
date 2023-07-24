@@ -18,6 +18,8 @@ import {
   DEPOSIT_BALANCE_THRESHOLD,
 } from "../constants";
 
+import { NETWORKS } from '../chains';
+
 interface Data {
   status: string;
   error?: string;
@@ -63,10 +65,10 @@ async function generateDepositProof(
 }
 type SwitchChainFunction = (arg: string) => void;
 
-function useFinalizeDeposit(switchChain: SwitchChainFunction) {
+function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
   const [data, setData] = useState<Data>(INITIAL_DATA);
 
-  const finalizeDeposit = async (wallet: wallet, amount: ethers.BigNumberish, pendingDeposit:PendingDeposit): Promise<void> => {
+  const finalizeWithdraw = async (wallet: wallet, amount: ethers.BigNumberish, pendingDeposit:PendingDeposit): Promise<void> => {
 
     if (!wallet) {
       setData({ status: 'failed', error: "Wallet doesn't exist" });
@@ -76,7 +78,7 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
     const l2Balance  = await l2Provider.getBalance(wallet.address);
 
     setData({ status: 'loading' });
-    const targetBalance = ethers.utils.parseEther(ethers.utils.formatUnits(l2Balance, 18));
+    const targetBalance = ethers.utils.parseEther(ethers.utils.formatUnits(l2Balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals));
     if (DEPOSIT_BALANCE_THRESHOLD.gt(targetBalance)) {
       // if (true) {
       // request sequencer to help finalization
@@ -117,7 +119,7 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
     switchChain(CHIADO_NETWORK_ID.toString());
   };
 
-  return { finalizeDeposit, data };
+  return { finalizeWithdraw, data };
 }
 
-export default useFinalizeDeposit;
+export default useFinalizeWithdraw;

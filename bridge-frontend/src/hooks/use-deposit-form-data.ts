@@ -1,5 +1,8 @@
 import { useEffect, useState } from 'react';
 import { BigNumber, ethers } from 'ethers';
+import { NETWORKS } from '../chains';
+import {SPECULAR_NETWORK_ID} from '../constants';
+
 
 const INITIAL_VALUES = { from: '', to: '' };
 const INITIAL_AMOUNTS = { from: BigNumber.from(0), to: BigNumber.from(0) };
@@ -59,14 +62,14 @@ function useDepositFormData(wallet: any, l1Provider:any, l2Provider:any): Deposi
   }, [wallet]);
 
   const changeDepositValue = (newFromValue: string): void => {
-    const INPUT_REGEX = new RegExp(`^\\d*(?:\\.\\d{0,${18}})?$`);
+    const INPUT_REGEX = new RegExp(`^\\d*(?:\\.\\d{0,${ NETWORKS[wallet.chainId].nativeCurrency.decimals}})?$`);
     if (INPUT_REGEX.test(newFromValue)) {
       try {
-        const newFromAmount = ethers.utils.parseUnits(newFromValue.length > 0 ? newFromValue : '0', 18);
+        const newFromAmount = ethers.utils.parseUnits(newFromValue.length > 0 ? newFromValue : '0',  NETWORKS[wallet.chainId].nativeCurrency.decimals);
         const newToAmount = newFromAmount;
 
         setAmounts({ from: newFromAmount, to: newToAmount });
-        setValues({ from: newFromValue, to: ethers.utils.formatUnits(newToAmount, 18) });
+        setValues({ from: newFromValue, to: ethers.utils.formatUnits(newToAmount,  NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals) });
         if (newFromAmount.gt(l1balance)) {
           setError("You don't have enough funds");
         } else {

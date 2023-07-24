@@ -7,6 +7,8 @@ import useDepositFormData from '../../hooks/use-deposit-form-data'
 import Header from '../shared/header/header.view'
 import InfoIcon from '@mui/icons-material/Info';
 import DownArrow from '@mui/icons-material/ArrowDownward';
+import { NETWORKS } from '../../chains';
+import {SPECULAR_NETWORK_ID, CHIADO_NETWORK_ID} from '../../constants';
 
 interface DepositFormProps {
   wallet: {
@@ -64,7 +66,7 @@ function DepositForm ({
       >
         <div className={classes.card}>
           <p className={classes.cardTitleText}>
-            {"Chiado xDai"}
+            {NETWORKS[CHIADO_NETWORK_ID].name+" "+NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <input
             ref={inputEl}
@@ -74,19 +76,19 @@ function DepositForm ({
             onChange={event => changeDepositValue(event.target.value)}
           />
           <p className={classes.toValue}>
-            Balance: {formatUnits(l1balance, 18)} {'xDai'}
+            Balance: {formatUnits(l1balance, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
           </p>
         </div>
         <DownArrow className={classes.cardIcon} />
         <div className={classes.card}>
           <p className={classes.cardTitleText}>
-            {"Specular ETH"}
+            {NETWORKS[SPECULAR_NETWORK_ID].name+" "+NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <p>
-            {formatUnits(amounts.to, 18)} {'ETH'}
+            {formatUnits(amounts.to, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <p className={classes.toValue}>
-            Balance: {formatUnits(l2balance, 18)} {'ETH'}
+            Balance: {formatUnits(l2balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
           </p>
         </div>
         {(error || depositData.status === 'failed') && (

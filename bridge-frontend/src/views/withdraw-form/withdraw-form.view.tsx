@@ -8,13 +8,16 @@ import Header from '../shared/header/header.view'
 import InfoIcon from '@mui/icons-material/Info';
 import DownArrow from '@mui/icons-material/ArrowDownward';
 
+import { NETWORKS } from '../../chains';
+import {SPECULAR_NETWORK_ID, CHIADO_NETWORK_ID} from '../../constants';
+
 interface WithdrawFormProps {
   wallet: {
     address: string;
     chainId: number;
     provider: any;
   },
-  depositData: any,
+  withdrawData: any,
   onAmountChange: () => void,
   l1Provider: any,
   l2Provider: any,
@@ -24,7 +27,7 @@ interface WithdrawFormProps {
 
 function WithdrawForm ({
   wallet,
-  depositData,
+  withdrawData,
   onAmountChange,
   l1Provider,
   l2Provider,
@@ -64,7 +67,7 @@ function WithdrawForm ({
       >
         <div className={classes.card}>
           <p className={classes.cardTitleText}>
-            {"Specular ETH"}
+          {NETWORKS[SPECULAR_NETWORK_ID].name+" "+NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <input
             ref={inputEl}
@@ -74,25 +77,25 @@ function WithdrawForm ({
             onChange={event => changeWithdrawValue(event.target.value)}
           />
           <p className={classes.toValue}>
-            Balance: {formatUnits(l2balance, 18)} {'ETH'}
+            Balance: {formatUnits(l2balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
           </p>
         </div>
         <DownArrow className={classes.cardIcon} />
         <div className={classes.card}>
           <p className={classes.cardTitleText}>
-          {"Chiado xDai"}
+          {NETWORKS[CHIADO_NETWORK_ID].name+" "+NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <p>
-            {formatUnits(amounts.to, 18)} {'xDai'}
+            {formatUnits(amounts.to, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <p className={classes.toValue}>
-            Balance: {formatUnits(l1balance, 18)} {'xDai'}
+            Balance: {formatUnits(l1balance, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
           </p>
         </div>
-        {(error || depositData.status === 'failed') && (
+        {(error || withdrawData.status === 'failed') && (
           <div className={classes.inputErrorContainer}>
             <InfoIcon className={classes.cardErrorIcon} />
-            <p>{error || depositData.error}</p>
+            <p>{error || withdrawData.error}</p>
           </div>
         )}
         <button

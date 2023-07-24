@@ -17,7 +17,9 @@ import {
   L1ORACLE_ADDRESS,
   DEPOSIT_BALANCE_THRESHOLD,
 } from "../constants";
-
+import {
+  NETWORKS
+} from "../chains";
 interface Data {
   status: string;
   error?: string;
@@ -76,7 +78,7 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
     const l2Balance  = await l2Provider.getBalance(wallet.address);
 
     setData({ status: 'loading' });
-    const targetBalance = ethers.utils.parseEther(ethers.utils.formatUnits(l2Balance, 18));
+    const targetBalance = ethers.utils.parseEther(ethers.utils.formatUnits(l2Balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals));
     if (DEPOSIT_BALANCE_THRESHOLD.gt(targetBalance)) {
       // if (true) {
       // request sequencer to help finalization

@@ -16,13 +16,13 @@ interface TxOverviewProps {
     chainId: number;
     provider: any;
   };
-  depositData: {
+  transactionData: {
     status: string;
     data?: {
       hash: string;
     };
   };
-  finalizeDepositData: {
+  finalizeTransactionData: {
     status: string;
     data?: string;
   };
@@ -32,8 +32,8 @@ interface TxOverviewProps {
 
 function TxOverview({
   wallet,
-  depositData,
-  finalizeDepositData,
+  transactionData,
+  finalizeTransactionData,
   onDisconnectWallet,
   isMetamask,
 }: TxOverviewProps) {
@@ -51,7 +51,7 @@ function TxOverview({
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[CHIADO_NETWORK_ID].blockExplorerUrl}/tx/${depositData?.data?.hash}`}
+          href={`${NETWORKS[CHIADO_NETWORK_ID].blockExplorerUrl}/tx/${transactionData?.data?.hash}`}
           target='_blank'
           rel='noopener noreferrer'
           >
@@ -68,7 +68,7 @@ function TxOverview({
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${finalizeDepositData?.data}`}
+          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${finalizeTransactionData?.data}`}
           target='_blank'
           rel='noopener noreferrer'
         >

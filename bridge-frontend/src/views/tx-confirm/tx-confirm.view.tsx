@@ -9,24 +9,24 @@ interface TxConfirmProps {
     chainId: number;
     provider: any;
   };
-  depositData: {
+  transactionData: {
     status: string;
   };
   onGoBack: () => void;
   onGoToPendingStep: () => void;
 }
 
-function TxConfirm({ wallet, depositData, onGoBack, onGoToPendingStep }: TxConfirmProps) {
+function TxConfirm({ wallet, transactionData, onGoBack, onGoToPendingStep }: TxConfirmProps) {
   const classes = useTxConfirmStyles();
 
   useEffect(() => {
-    if (depositData.status === 'failed') {
+    if (transactionData.status === 'failed') {
       onGoBack();
     }
-    if (depositData.status === 'pending') {
+    if (transactionData.status === 'pending') {
       onGoToPendingStep();
     }
-  }, [depositData, onGoBack, onGoToPendingStep]);
+  }, [transactionData, onGoBack, onGoToPendingStep]);
 
   return (
     <div className={classes.txConfirm}>

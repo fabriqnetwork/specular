@@ -7,10 +7,14 @@ import DepositForm from '../deposit-form/deposit-form.view'
 import WithdrawForm from '../withdraw-form/withdraw-form.view'
 import TxConfirm from '../tx-confirm/tx-confirm.view'
 import useDeposit from '../../hooks/use-deposit'
+import useWithdraw from '../../hooks/use-withdraw'
 import useFinalizeDeposit from '../../hooks/use-finalize-deposit'
+import useFinalizeWithdraw from '../../hooks/use-finalize-withdraw'
 import TxPending from '../tx-pending/tx-pending.view'
 import TxPendingFinalizeDeposit from '../tx-pending-finalize-deposit/tx-pending-finalize-deposit.view'
+import TxPendingFinalizeWithdraw from '../tx-pending-finalize-withdraw/tx-pending-finalize-withdraw.view'
 import TxFinalizeDeposit from '../tx-finalize-deposit/tx-finalize-deposit.view'
+import TxFinalizeWithdraw from '../tx-finalize-withdraw/tx-finalize-withdraw.view'
 import TxOverview from '../tx-overview/tx-overview.view'
 import NetworkError from '../network-error/network-error.view'
 import { ethers } from 'ethers'
@@ -39,6 +43,8 @@ function Stepper () {
   const { step, switchStep } = useStep()
   const { deposit, data: depositData, resetData: resetDepositData } = useDeposit()
   const { finalizeDeposit, data: finalizeDepositData } = useFinalizeDeposit(switchChain)
+  const { withdraw, data: withdrawData, resetData: resetWithdrawData } = useWithdraw()
+  const { finalizeWithdraw, data: finalizeWithdrawData } = useFinalizeWithdraw(switchChain)
   const [amount, setAmount] = useState(ethers.BigNumber.from("0"));
 
   const initialPendingDeposit: PendingDeposit = {
@@ -46,6 +52,21 @@ function Stepper () {
     proofL1BlockNumber: undefined,
     depositHash: "",
     depositTx: {
+      nonce:ethers.BigNumber.from("0"),
+      sender:"",
+      target: "",
+      value:ethers.BigNumber.from("0"),
+      gasLimit:ethers.BigNumber.from("0"),
+      data: ""
+    }
+  };
+  const initialPendingWithdraw: PendingWithdrawal = {
+    l2BlockNumber: 0,
+    proofL2BlockNumber: undefined,
+    inboxSize: undefined,
+    assertionID: undefined,
+    withdrawalHash: "",
+    withdrawalTx: {
       nonce:ethers.BigNumber.from("0"),
       sender:"",
       target: "",
@@ -71,8 +92,7 @@ function Stepper () {
       data: ""
     }
   };
-  const [pendingWithdrawal, setPendingWithdrawal] = useState(initialPendingWithdrawal)
-  const [isWithdrawalReadyToFinalize, setIsWithdrawalReadyToFinalize] = useState(false)
+  const [pendingWithdraw, setPendingWithdraw] = useState(initialPendingWithdrawal)
 
 
   const tabs = [
@@ -162,12 +182,12 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <WithdrawForm
                   wallet={wallet}
-                  depositData={depositData}
-                  onAmountChange={resetDepositData}
+                  withdrawData={withdrawData}
+                  onAmountChange={resetWithdrawData}
                   l1Provider={l1Provider}
                   l2Provider={l2Provider}
                   onSubmit={(fromAmount) => {
-                    deposit(wallet, fromAmount)
+                    withdraw(wallet, fromAmount)
                     switchStep(Step.ConfirmWithdraw)
                   }}
                   onDisconnectWallet={disconnectWallet}
@@ -179,7 +199,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <TxConfirm
                   wallet={wallet}
-                  depositData={depositData}
+                  transactionData={depositData}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToPendingStep={() => switchStep(Step.PendingDeposit)}
                 />
@@ -190,7 +210,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <TxConfirm
                   wallet={wallet}
-                  depositData={depositData}
+                  transactionData={withdrawData}
                   onGoBack={() => switchStep(Step.Withdraw)}
                   onGoToPendingStep={() => switchStep(Step.PendingWithdraw)}
                 />
@@ -201,7 +221,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <TxPending
                   wallet={wallet}
-                  depositData={depositData}
+                  transactionData={depositData}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToFinalizeStep={() => switchStep(Step.PendingFinalizeDeposit)}
                 />
@@ -212,7 +232,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <TxPending
                   wallet={wallet}
-                  depositData={depositData}
+                  transactionData={withdrawData}
                   onGoBack={() => switchStep(Step.Withdraw)}
                   onGoToFinalizeStep={() => switchStep(Step.PendingFinalizeWithdraw)}
                 />
@@ -232,10 +252,10 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
             case Step.PendingFinalizeWithdraw: {
               console.log("PendingWithdraw")
               return (
-                <TxPendingFinalizeDeposit
+                <TxPendingFinalizeWithdraw
                   wallet={wallet}
-                  depositData={depositData}
-                  setPendingDeposit={setPendingDeposit}
+                  depositData={withdrawData}
+                  setPendingWithdraw={setPendingWithdraw}
                   onGoToFinalizeStep={() => switchStep(Step.FinalizeWithdrawl)}
                 />
               )
@@ -257,12 +277,14 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
             }
             case Step.FinalizeWithdrawl: {
               console.log("FinalizeWithdrawl")
+              finalizeWithdraw(wallet,amount,pendingDeposit)
               return (
-                <TxPending
+                <TxFinalizeWithdraw
                   wallet={wallet}
-                  depositData={depositData}
+                  withdrawData={withdrawData}
+                  finalizeWithdrawData={finalizeWithdrawData}
                   onGoBack={() => switchStep(Step.Withdraw)}
-                  onGoToFinalizeStep={() => switchStep(Step.Overview)}
+                  onGoToOverviewStep={() => switchStep(Step.Overview)}
                 />
               )
             }
@@ -271,8 +293,8 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <TxOverview
                   wallet={wallet}
-                  finalizeDepositData={finalizeDepositData}
-                  depositData={depositData}
+                  finalizeTransactionData={finalizeDepositData}
+                  transactionData={depositData}
                   onDisconnectWallet={disconnectWallet}
                   isMetamask={isMetamask}
                 />

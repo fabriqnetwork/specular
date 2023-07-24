@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Header from '../shared/header/header.view';
-import useTxPendingStyles from './tx-pending-finalize-deposit.styles';
+import useTxPendingStyles from './tx-pending-finalize-withdraw.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
@@ -20,7 +20,7 @@ import {
   IRollup__factory,
   ISequencerInbox__factory,
 } from "../../typechain-types";
-import type { PendingDeposit } from "../../types";
+import type { PendingWithdrawal } from "../../types";
 
 interface TxPendingProps {
  wallet: {
@@ -34,33 +34,35 @@ interface TxPendingProps {
       hash: string;
     };
   };
-  setPendingDeposit: (arg0:PendingDeposit) => void;
+  setPendingWithdraw: (arg0:PendingWithdrawal) => void;
   onGoToFinalizeStep: () => void;
 
 }
 
-function TxPendingFinalizeDeposit({ wallet, depositData, setPendingDeposit, onGoToFinalizeStep }: TxPendingProps) {
+function TxPendingFinalizeWithdraw({ wallet, depositData, setPendingWithdraw, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
 
-  const l1Provider =  wallet.provider
-  const l1Portal = IL1Portal__factory.connect(
+  const l2Provider =  wallet.provider
+  const l2Portal = IL2Portal__factory.connect(
     L1PORTAL_ADDRESS,
-    l1Provider
+    l2Provider
   );
-  var isDepositInitiated: boolean = false;
+  var isWithdrawInitiated: boolean = false;
   var isL1OracleValuesUpdated: boolean = false;
-  var pendingDeposit :PendingDeposit;
+  var pendingWithdraw :PendingWithdrawal;
 
   useEffect(() => {
-    l1Portal.on(
-      l1Portal.filters.DepositInitiated(),
-      (nonce:ethers.BigNumber, sender:string, target:string, value:ethers.BigNumber, gasLimit:ethers.BigNumber, data:string, depositHash:string, event:any) => {
+    l2Portal.on(
+      l2Portal.filters.WithdrawalInitiated(),
+      (nonce:ethers.BigNumber, sender:string, target:string, value:ethers.BigNumber, gasLimit:ethers.BigNumber, data:string, withdrawalHash:string, event:any) => {
         if (event.transactionHash === depositData.data?.hash) {
-          const newPendingDeposit: PendingDeposit = {
-            l1BlockNumber: event.blockNumber,
-            proofL1BlockNumber: undefined,
-            depositHash: depositHash,
-            depositTx: {
+          const newPendingWithdrawal: PendingWithdrawal = {
+            l2BlockNumber: event.blockNumber,
+            proofL2BlockNumber: undefined,
+            inboxSize: undefined,
+            assertionID: undefined,
+            withdrawalHash: withdrawalHash,
+            withdrawalTx: {
               nonce,
               sender,
               target,
@@ -69,12 +71,12 @@ function TxPendingFinalizeDeposit({ wallet, depositData, setPendingDeposit, onGo
               data,
             },
           }
-          setPendingDeposit(newPendingDeposit);
+          setPendingWithdraw(newPendingWithdrawal);
           onGoToFinalizeStep();
-        }
       }
-    )
-  }, [l1Portal, depositData, setPendingDeposit, onGoToFinalizeStep]);
+    }
+  )
+  }, [l2Portal, depositData, setPendingWithdraw, onGoToFinalizeStep]);
 
   return (
     <div className={classes.txOverview}>
@@ -97,4 +99,4 @@ function TxPendingFinalizeDeposit({ wallet, depositData, setPendingDeposit, onGo
   );
 }
 
-export default TxPendingFinalizeDeposit;
+export default TxPendingFinalizeWithdraw;

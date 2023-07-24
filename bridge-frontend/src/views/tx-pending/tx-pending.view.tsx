@@ -11,7 +11,7 @@ interface TxPendingProps {
     chainId: number;
     provider: any;
   };
-  depositData: {
+  transactionData: {
     status: string;
     data?: {
       hash: string;
@@ -21,17 +21,17 @@ interface TxPendingProps {
   onGoToFinalizeStep: () => void;
 }
 
-function TxPending({ wallet, depositData, onGoBack, onGoToFinalizeStep }: TxPendingProps) {
+function TxPending({ wallet, transactionData, onGoBack, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
 
   useEffect(() => {
-    if (depositData.status === 'failed') {
+    if (transactionData.status === 'failed') {
       onGoBack();
     }
-    if (depositData.status === 'successful') {
+    if (transactionData.status === 'successful') {
       onGoToFinalizeStep();
     }
-  }, [depositData, onGoBack, onGoToFinalizeStep]);
+  }, [transactionData, onGoBack, onGoToFinalizeStep]);
 
   return (
     <div className={classes.txOverview}>
@@ -42,7 +42,7 @@ function TxPending({ wallet, depositData, onGoBack, onGoToFinalizeStep }: TxPend
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[wallet.chainId].blockExplorerUrl}/tx/${depositData?.data?.hash}`}
+          href={`${NETWORKS[wallet.chainId].blockExplorerUrl}/tx/${transactionData?.data?.hash}`}
           target='_blank'
           rel='noopener noreferrer'
         >
