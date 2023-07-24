@@ -5,7 +5,6 @@ import github from '../../images/github.svg';
 import medium from '../../images/medium.svg';
 import { Grid, Typography } from "@mui/material";
 import Logo  from '../../images/footer-logo.svg'
-import TestnetLogo  from '../../images/footer-logo-testnet.svg'
 import useWindowSize from '../../hooks/use-window-size'
 
 const footerLinks = [
@@ -35,7 +34,7 @@ let month = newDate.getMonth() + 1;
 let year = newDate.getFullYear();
 var pjson = require('../../../package.json');
 let version = pjson.version;
-let useProd; 
+let useProd;
 if (process.env.REACT_APP_PROD === 'true') {
     useProd = <></>;
   } else {
@@ -48,7 +47,7 @@ if (process.env.REACT_APP_PROD === 'true') {
                 </Typography>
             </div>;
   }
-const size = useWindowSize(); 
+const size = useWindowSize();
 
 let footerLogo;
 
