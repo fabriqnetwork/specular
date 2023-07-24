@@ -31,7 +31,7 @@ const useStepperStyles = createUseStyles((theme: any) => ({
     zIndex: 1
   },
   tab: {
-    minWidth: '250px',
+    minWidth: '235px',
     height: '40px',
     padding: '0 20px',
     background: theme.palette.secondary,

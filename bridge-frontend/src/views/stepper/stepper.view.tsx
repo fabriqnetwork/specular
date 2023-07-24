@@ -55,7 +55,6 @@ function Stepper () {
     }
   };
   const [pendingDeposit, setPendingDeposit] = useState(initialPendingDeposit)
-  const [isDepositReadyToFinalize, setIsDepositReadyToFinalize] = useState(false)
 
   const initialPendingWithdrawal: PendingWithdrawal = {
     l2BlockNumber: 0,
@@ -89,84 +88,9 @@ function Stepper () {
     switchStep(tab.step);
   }, [activeTab, switchStep]);
 
+
   const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
   const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
-
-  const l1Portal = IL1Portal__factory.connect(
-    L1PORTAL_ADDRESS,
-    l1Provider
-  );
-  const l2Portal = IL2Portal__factory.connect(
-    L2PORTAL_ADDRESS,
-    l2Provider
-  );
-  const l1Oracle = L1Oracle__factory.connect(
-    L1ORACLE_ADDRESS,
-    l2Provider
-  );
-
-  useEffect(() => {
-  l1Portal.on(
-    l1Portal.filters.DepositInitiated(),
-    (nonce, sender, target, value, gasLimit, data, depositHash, event) => {
-      if (event.transactionHash === depositData.data?.hash) {
-        const newPendingDeposit: PendingDeposit = {
-          l1BlockNumber: event.blockNumber,
-          proofL1BlockNumber: undefined,
-          depositHash: depositHash,
-          depositTx: {
-            nonce,
-            sender,
-            target,
-            value,
-            gasLimit,
-            data,
-          },
-        };
-        setPendingDeposit(newPendingDeposit);
-      }
-    }
-  );
-
-  l2Portal.on(
-    l2Portal.filters.WithdrawalInitiated(),
-    (nonce, sender, target, value, gasLimit, data, withdrawalHash, event) => {
-      if (event.transactionHash === depositData.data?.hash) {
-        const newPendingWithdrawal: PendingWithdrawal = {
-          l2BlockNumber: event.blockNumber,
-          proofL2BlockNumber: undefined,
-          inboxSize: undefined,
-          assertionID: undefined,
-          withdrawalHash: withdrawalHash,
-          withdrawalTx: {
-            nonce,
-            sender,
-            target,
-            value,
-            gasLimit,
-            data,
-          },
-        };
-        setPendingWithdrawal(newPendingWithdrawal);
-      }
-    }
-  );
-
-  l1Oracle.on(
-    l1Oracle.filters.L1OracleValuesUpdated(),
-    (blockNumber) => {
-      setIsDepositReadyToFinalize(false);
-      if (pendingDeposit === undefined) {
-        return;
-      }
-      if (blockNumber.gte(pendingDeposit.l1BlockNumber)) {
-        setIsDepositReadyToFinalize(true);
-        pendingDeposit.proofL1BlockNumber = blockNumber.toNumber();
-      }
-    }
-  );
-}, [l1Oracle, l1Portal, depositData, pendingDeposit,setPendingDeposit]);
-
 
 if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULAR_NETWORK_ID) ){
   return (
@@ -279,7 +203,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   wallet={wallet}
                   depositData={depositData}
                   onGoBack={() => switchStep(Step.Deposit)}
-                  onGoToFinalizeStep={() => switchStep(Step.FinalizeDeposit)}
+                  onGoToFinalizeStep={() => switchStep(Step.PendingFinalizeDeposit)}
                 />
               )
             }
@@ -295,7 +219,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               )
             }
             case Step.PendingFinalizeDeposit: {
-              console.log("PendingDeposit")
+              console.log("PendingFinalizeDeposit")
               return (
                 <TxPendingFinalizeDeposit
                   wallet={wallet}
@@ -320,7 +244,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               console.log("FinalizeDeposit")
               console.log("pendingDeposit"+pendingDeposit)
               finalizeDeposit(wallet,amount,pendingDeposit)
-              console.log("pendingDeposit called")
+              console.log("pendingDeposit done")
               return (
                 <TxFinalizeDeposit
                   wallet={wallet}

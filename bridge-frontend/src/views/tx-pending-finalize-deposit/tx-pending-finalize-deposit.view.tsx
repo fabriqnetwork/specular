@@ -36,6 +36,7 @@ interface TxPendingProps {
   };
   setPendingDeposit: (arg0:PendingDeposit) => void;
   onGoToFinalizeStep: () => void;
+
 }
 
 function TxPendingFinalizeDeposit({ wallet, depositData, setPendingDeposit, onGoToFinalizeStep }: TxPendingProps) {
@@ -46,11 +47,14 @@ function TxPendingFinalizeDeposit({ wallet, depositData, setPendingDeposit, onGo
     L1PORTAL_ADDRESS,
     l1Provider
   );
+  var isDepositInitiated: boolean = false;
+  var isL1OracleValuesUpdated: boolean = false;
+  var pendingDeposit :PendingDeposit;
 
   useEffect(() => {
     l1Portal.on(
       l1Portal.filters.DepositInitiated(),
-      (nonce, sender, target, value, gasLimit, data, depositHash, event) => {
+      (nonce:ethers.BigNumber, sender:string, target:string, value:ethers.BigNumber, gasLimit:ethers.BigNumber, data:string, depositHash:string, event:any) => {
         if (event.transactionHash === depositData.data?.hash) {
           const newPendingDeposit: PendingDeposit = {
             l1BlockNumber: event.blockNumber,
@@ -65,8 +69,8 @@ function TxPendingFinalizeDeposit({ wallet, depositData, setPendingDeposit, onGo
               data,
             },
           }
-         setPendingDeposit(newPendingDeposit);
-         onGoToFinalizeStep();
+          setPendingDeposit(newPendingDeposit)
+          onGoToFinalizeStep();
         }
       }
     )

@@ -11,7 +11,11 @@
 # production
 /build
 
+#type-chain
+/src/typechain-types
+
 # misc
+/src/.DS_Store
 .DS_Store
 .env.local
 .env.development.local

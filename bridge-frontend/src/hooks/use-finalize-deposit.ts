@@ -100,7 +100,10 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
       provider,
     );
     try {
-      const latestBlockNumber = await l1Oracle.blockNumber();
+      var latestBlockNumber = await l1Oracle.blockNumber();
+      while(!latestBlockNumber.gte(pendingDeposit.l1BlockNumber)) {
+        latestBlockNumber = await l1Oracle.blockNumber();
+      }
       pendingDeposit.proofL1BlockNumber = latestBlockNumber.toNumber();
       const proof = await generateDepositProof(pendingDeposit);
       const tx = await l2Portal.finalizeDepositTransaction(
