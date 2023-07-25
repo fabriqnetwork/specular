@@ -75,7 +75,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         IChallengeResultReceiver _resultReceiver,
         bytes32 _startStateHash,
         bytes32 _endStateDefenseHash,
-        bytes32 _endStateChallenegeHash,
+        bytes32 _endStateChallengeHash,
         uint256 challengePeriod
     ) external {
         if (turn != Turn.NoChallenge || bisectionHash != 0) {

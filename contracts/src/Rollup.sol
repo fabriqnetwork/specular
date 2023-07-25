@@ -341,6 +341,9 @@ contract Rollup is RollupBase {
         // Initialize challenge.
         SymChallenge challenge = new SymChallenge();
         address challengeAddr = address(challenge);
+        bytes32 startStateHash = assertions[parentID].stateHash;
+        bytes32 endStateDefenderHash = assertions[defenderAssertionID].stateHash;
+        bytes32 endStateChallengerHash = assertions[challengerAssertionID].stateHash;
         stakers[challenger].currentChallenge = challengeAddr;
         stakers[defender].currentChallenge = challengeAddr;
         emit AssertionChallenged(defenderAssertionID, challengeAddr);
@@ -350,9 +353,9 @@ contract Rollup is RollupBase {
             verifier,
             daProvider,
             IChallengeResultReceiver(address(this)),
-            assertions[parentID].stateHash,
-            assertions[defenderAssertionID].stateHash,
-            assertions[challengerAssertionID].stateHash,
+            startStateHash,
+            endStateDefenderHash,
+            endStateChallengerHash,
             challengePeriod
         );
         return challengeAddr;
