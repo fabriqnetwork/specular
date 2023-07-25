@@ -351,8 +351,8 @@ contract Rollup is RollupBase {
             daProvider,
             IChallengeResultReceiver(address(this)),
             assertions[parentID].stateHash,
-            // TODO: confirm removing this. Let Defender & Challenger propose
-            /*assertions[defenderAssertionID].stateHash,*/
+            assertions[defenderAssertionID].stateHash,
+            assertions[challengerAssertionID].stateHash,
             challengePeriod
         );
         return challengeAddr;

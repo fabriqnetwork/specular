@@ -43,6 +43,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     bytes32 public bisectionHash;
     // Initial state used to initialize bisectionHash (write-once).
     bytes32 private startStateHash;
+    bytes32 private endStateDefenseHash;
+    bytes32 private endStateChallengeHash;
     bytes32 private endStateHash;
 
     /**
@@ -72,6 +74,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         IDAProvider _daProvider,
         IChallengeResultReceiver _resultReceiver,
         bytes32 _startStateHash,
+        bytes32 _endStateDefenseHash,
+        bytes32 _endStateChallenegeHash,
         uint256 challengePeriod
     ) external {
         if (turn != Turn.NoChallenge || bisectionHash != 0) {
@@ -86,6 +90,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         daProvider = _daProvider;
         resultReceiver = _resultReceiver;
         startStateHash = _startStateHash;
+        endStateDefenseHash = _endStateDefenseHash;
+        endStateChallengeHash = _endStateChallengeHash;
 
         turn = Turn.Defender;
         lastMoveBlock = block.number;
@@ -93,7 +99,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    function proposeChallenge(bytes32 _endStateHash, uint256 _numSteps) external override onlyOnTurn {
+    function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
         // This can be run before turn checking and probably saves gas
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
@@ -103,14 +109,15 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Defender proposes `numSteps` and `endStateHash` first
         if (turn == Turn.Defender) {
             numSteps = _numSteps;
-            endStateHash = _endStateHash;
         }
 
         // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
         if (turn == Turn.Challenger) {
             if (_numSteps < numSteps) {
                 numSteps = _numSteps;
-                endStateHash = _endStateHash;
+                endStateHash = endStateChallengeHash;
+            } else {
+                endStateHash = endStateDefenseHash;
             }
 
             // set the bisection between assertions that the challenger and defender resolve.
