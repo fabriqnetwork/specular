@@ -192,6 +192,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         emit Bisected(bisectionHash, challengedSegmentStart, challengedSegmentLength);
     }
 
+    // TODO: If bisection is not executed because both have commited to the same has at the same `numStep`, verify
+    //        there are no additional ops on the stack after the last step.
     function verifyOneStepProof(
         bytes calldata oneStepProof,
         bytes calldata txInclusionProof,
@@ -201,6 +203,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external override onlyOnTurn {
+
         // Verify provided prev bisection.
         bytes32 prevHash =
             ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
