@@ -65,6 +65,9 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
      * @param _daProvider DA provider.
      * @param _resultReceiver Address of contract that will receive the outcome (via callback `completeChallenge`).
      * @param _startStateHash Commitment to agreed-upon start state.
+     * @param _endStateDefenseHash Proposed DA end state hash of the defender.
+     * @param _endStateChallengeHash Proposed DA end state hash of the challenger.
+     * @param challengePeriod The duration that challenger/defender has for continuing the challenge
      */
 
     function initialize(
@@ -99,7 +102,13 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
+    // TODO: Clean up challenger/defender turn taking if possible
+    function initializeChallengeLength(uint256 _numSteps) external {
+
+        if (block.number - lastMoveBlock > currentResponderTimeLeft()) {
+            revert DeadlineExpired();
+        }
+
         // This can be run before turn checking and probably saves gas
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
@@ -107,17 +116,21 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         require(_numSteps > 0, "INVALID_NUM_STEPS");
 
         // Defender proposes `numSteps` and `endStateHash` first
-        if (turn == Turn.Defender) {
+        if (turn == Turn.Defender && msg.sender == defender) {
             numSteps = _numSteps;
+            turn = Turn.Challenger;
+            defenderTimeLeft = defenderTimeLeft - (block.number - lastMoveBlock);
         }
 
         // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
-        if (turn == Turn.Challenger) {
+        if (turn == Turn.Challenger && msg.sender == challenger) {
             if (_numSteps < numSteps) {
                 numSteps = _numSteps;
                 endStateHash = endStateChallengeHash;
+                turn = Turn.Defender;
             } else {
                 endStateHash = endStateDefenseHash;
+                turn = Turn.Challenger;
             }
 
             // set the bisection between assertions that the challenger and defender resolve.
@@ -125,7 +138,10 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
             // log event for all listeners, esp. defender and challanger
             emit Bisected(bisectionHash, 0, numSteps);
+
+            challengerTimeLeft = challengerTimeLeft - (block.number - lastMoveBlock);
         }
+        lastMoveBlock = block.number;
     }
 
     function bisectExecution(
