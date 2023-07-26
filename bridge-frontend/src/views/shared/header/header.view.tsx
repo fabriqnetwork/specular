@@ -1,4 +1,5 @@
 import useHeaderStyles from './header.styles';
+import * as React from 'react';
 
 interface HeaderProps {
   address?: string;

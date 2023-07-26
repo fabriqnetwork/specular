@@ -8,6 +8,7 @@ import WithdrawForm from '../withdraw-form/withdraw-form.view'
 import TxConfirm from '../tx-confirm/tx-confirm.view'
 import useDeposit from '../../hooks/use-deposit'
 import useWithdraw from '../../hooks/use-withdraw'
+import * as React from 'react';
 import useFinalizeDeposit from '../../hooks/use-finalize-deposit'
 import useFinalizeWithdraw from '../../hooks/use-finalize-withdraw'
 import TxPending from '../tx-pending/tx-pending.view'

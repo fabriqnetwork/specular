@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { BigNumber } from 'ethers'
 import { formatUnits } from 'ethers/lib/utils'
-
+import * as React from 'react';
 import useWithdrawFormStyles from './withdraw-form.styles'
 import useWithdrawFormData from '../../hooks/use-withdraw-form-data'
 import Header from '../shared/header/header.view'

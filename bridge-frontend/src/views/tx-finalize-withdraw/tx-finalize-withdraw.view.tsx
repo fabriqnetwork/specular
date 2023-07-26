@@ -4,6 +4,7 @@ import useTxFinalizeWithdrawStyles from './tx-finalize-withdraw.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
+import * as React from 'react';
 import {
   CHIADO_NETWORK_ID,
   SPECULAR_NETWORK_ID

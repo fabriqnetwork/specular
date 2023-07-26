@@ -59,8 +59,8 @@ async function generateDepositProof(
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   return {
-    accountProof: rawProof.accountProof,
-    storageProof: rawProof.storageProof[0].proof,
+    accountProof: (rawProof as any).accountProof,
+    storageProof: (rawProof as any).storageProof[0].proof,
   };
 }
 type SwitchChainFunction = (arg: string) => void;

@@ -4,6 +4,7 @@ import useTxPendingStyles from './tx-pending.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
+import * as React from 'react';
 
 interface TxPendingProps {
   wallet: {

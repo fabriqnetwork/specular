@@ -4,6 +4,7 @@ import useTxPendingStyles from './tx-pending-finalize-deposit.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
+import * as React from 'react';
 import { ethers } from 'ethers'
 import {
   L1PORTAL_ADDRESS

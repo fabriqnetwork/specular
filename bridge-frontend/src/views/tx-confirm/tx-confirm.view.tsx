@@ -1,5 +1,6 @@
 import useTxConfirmStyles from './tx-confirm.styles';
 import Header from '../shared/header/header.view';
+import * as React from 'react';
 import Spinner from '../shared/spinner/spinner.view';
 import { useEffect } from 'react';
 

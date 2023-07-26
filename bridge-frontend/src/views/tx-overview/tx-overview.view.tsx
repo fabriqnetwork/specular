@@ -4,6 +4,7 @@ import { ReactComponent as CheckIcon } from '../../images/check-icon.svg';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import { ReactComponent as MetaMaskLogo } from '../../images/metamask-logo.svg';
 import { NETWORKS } from '../../chains';
+import * as React from 'react';
 import {
   CHIADO_NETWORK_ID,
   SPECULAR_NETWORK_ID

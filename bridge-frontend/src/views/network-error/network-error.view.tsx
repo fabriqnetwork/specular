@@ -2,6 +2,7 @@ import useNetworkErrorStyles from './network-error.styles';
 import { ReactComponent as SwitchNetwork } from '../../images/switch-network.svg';
 import { ReactComponent as MetamaskIcon } from '../../images/metamask-fox.svg';
 import { NETWORKS } from '../../chains';
+import * as React from 'react';
 import {
   CHIADO_NETWORK_ID
 } from "../../constants";

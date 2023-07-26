@@ -9,10 +9,10 @@
 /coverage
 
 # production
-/build
+/build*
 
 #type-chain
-/src/typechain-types
+/src/typechain-types*
 
 # misc
 /src/.DS_Store
