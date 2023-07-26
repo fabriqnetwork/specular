@@ -13,7 +13,7 @@ interface NetworkButtonProps {
 
 const NetworkButton = ({ isMetamask, switchChain }: NetworkButtonProps) => {
   const classes = useNetworkErrorStyles();
-  const chainId = process.env.CHIADO_NETWORK_ID as string;
+  const chainId = CHIADO_NETWORK_ID.toString();
   const name = NETWORKS[chainId].chainName;
   if (!isMetamask) {
     return <p className={classes.networkName}>{name}</p>;
