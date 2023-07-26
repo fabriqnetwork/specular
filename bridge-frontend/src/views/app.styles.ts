@@ -9,39 +9,20 @@ const useAppStyles = createUseStyles((theme: any) => ({
   },
   '@font-face': [
     {
-      fontFamily: 'Modern Era',
-      src: "url('./fonts/modern-era/ModernEra-Regular.woff2') format('woff2')",
-      fallbacks: [
-        { src: "url('./fonts/modern-era/ModernEra-Regular.woff') format('woff')" },
-        { src: "url('./fonts/modern-era/ModernEra-Regular.ttf') format('truetype')" }
-      ],
       fontWeight: 400,
       fontStyle: 'normal'
     },
     {
-      fontFamily: 'Modern Era',
-      src: "url('./fonts/modern-era/ModernEra-Medium.woff2') format('woff2')",
-      fallbacks: [
-        { src: "url('./fonts/modern-era/ModernEra-Medium.woff') format('woff')" },
-        { src: "url('./fonts/modern-era/ModernEra-Medium.ttf') format('truetype')" }
-      ],
       fontWeight: 500,
       fontStyle: 'normal'
     },
     {
-      fontFamily: 'Modern Era',
-      src: "url('./fonts/modern-era/ModernEra-Bold.woff2') format('woff2')",
-      fallbacks: [
-        { src: "url('./fonts/modern-era/ModernEra-Bold.woff') format('woff')" },
-        { src: "url('./fonts/modern-era/ModernEra-Bold.ttf') format('truetype')" }
-      ],
       fontWeight: 700,
       fontStyle: 'normal'
     }
   ],
   '@global': {
     '*': {
-      fontFamily: 'Modern Era',
       boxSizing: 'border-box'
     },
     'body, input, button': {

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { getStorageKey, requestFundDeposit } from '../utils';
-import type { PendingDeposit, MessageProof } from "../types";
+import { getStorageKey, requestFundWithdraw } from '../utils';
+import type { PendingWithdrawal, MessageProof } from "../types";
 import {
   IL2Portal__factory,
   L1Oracle__factory,
@@ -37,10 +37,10 @@ interface wallet {
 const INITIAL_DATA: Data = { status: 'pending' };
 
 async function generateDepositProof(
-  deposit: PendingDeposit
+  deposit: PendingWithdrawal
 ): Promise<MessageProof> {
-  if (deposit.proofL1BlockNumber === undefined) {
-    throw new Error("proofL1BlockNumber is undefined");
+  if (deposit.proofL2BlockNumber === undefined) {
+    throw new Error("proofL2BlockNumber is undefined");
   }
   let rawProof = undefined;
   while (rawProof === undefined) {
@@ -49,8 +49,8 @@ async function generateDepositProof(
         "eth_getProof",
         [
           L1PORTAL_ADDRESS,
-          [getStorageKey(deposit.depositHash)],
-          ethers.utils.hexValue(deposit.proofL1BlockNumber),
+          [getStorageKey(deposit.withdrawalHash)],
+          ethers.utils.hexValue(deposit.proofL2BlockNumber),
         ]
       );
     } catch (e) {
@@ -68,7 +68,7 @@ type SwitchChainFunction = (arg: string) => void;
 function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
   const [data, setData] = useState<Data>(INITIAL_DATA);
 
-  const finalizeWithdraw = async (wallet: wallet, amount: ethers.BigNumberish, pendingDeposit:PendingDeposit): Promise<void> => {
+  const finalizeWithdraw = async (wallet: wallet, amount: ethers.BigNumberish, pendingWithdraw:PendingWithdrawal): Promise<void> => {
 
     if (!wallet) {
       setData({ status: 'failed', error: "Wallet doesn't exist" });
@@ -83,7 +83,7 @@ function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
       // if (true) {
       // request sequencer to help finalization
       try {
-        const txHash = await requestFundDeposit(pendingDeposit);
+        const txHash = await requestFundWithdraw(pendingWithdraw);
         setData({ status: 'successful', data: txHash });
       } catch (e) {
         console.error(e);
@@ -103,10 +103,10 @@ function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
     );
     try {
       const latestBlockNumber = await l1Oracle.blockNumber();
-      pendingDeposit.proofL1BlockNumber = latestBlockNumber.toNumber();
-      const proof = await generateDepositProof(pendingDeposit);
+      pendingWithdraw.proofL2BlockNumber = latestBlockNumber.toNumber();
+      const proof = await generateDepositProof(pendingWithdraw);
       const tx = await l2Portal.finalizeDepositTransaction(
-        pendingDeposit.depositTx,
+        pendingWithdraw.withdrawalTx,
         proof.accountProof,
         proof.storageProof
       );

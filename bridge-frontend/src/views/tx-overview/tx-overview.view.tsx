@@ -3,7 +3,6 @@ import useTxOverviewStyles from './tx-overview.styles';
 import { ReactComponent as CheckIcon } from '../../images/check-icon.svg';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import { ReactComponent as MetaMaskLogo } from '../../images/metamask-logo.svg';
-import useWatchAsset from '../../hooks/use-watch-asset';
 import { NETWORKS } from '../../chains';
 import {
   CHIADO_NETWORK_ID,
@@ -38,7 +37,6 @@ function TxOverview({
   isMetamask,
 }: TxOverviewProps) {
   const classes = useTxOverviewStyles();
-  const watchAsset = useWatchAsset();
 
   return (
     <div className={classes.txOverview}>

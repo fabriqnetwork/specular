@@ -1,7 +1,4 @@
-import { formatUnits } from 'ethers/lib/utils';
 import useHeaderStyles from './header.styles';
-import ArrowLeft from '@mui/icons-material/ArrowLeft';
-import CrossIcon from '@mui/icons-material/Clear';
 
 interface HeaderProps {
   address?: string;

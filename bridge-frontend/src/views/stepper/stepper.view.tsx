@@ -22,19 +22,9 @@ import DataLoader from '../data-loader/data-loader'
 import {
   CHIADO_NETWORK_ID,
   SPECULAR_NETWORK_ID,
-  L1PORTAL_ADDRESS,
-  L2PORTAL_ADDRESS,
   CHIADO_RPC_URL,
-  L1ORACLE_ADDRESS,
   SPECULAR_RPC_URL,
 } from "../../constants";
-import {
-  IL1Portal__factory,
-  IL2Portal__factory,
-  L1Oracle__factory,
-  IRollup__factory,
-  ISequencerInbox__factory,
-} from "../../typechain-types";
 import type { PendingDeposit, PendingWithdrawal } from "../../types";
 
 function Stepper () {
@@ -52,21 +42,6 @@ function Stepper () {
     proofL1BlockNumber: undefined,
     depositHash: "",
     depositTx: {
-      nonce:ethers.BigNumber.from("0"),
-      sender:"",
-      target: "",
-      value:ethers.BigNumber.from("0"),
-      gasLimit:ethers.BigNumber.from("0"),
-      data: ""
-    }
-  };
-  const initialPendingWithdraw: PendingWithdrawal = {
-    l2BlockNumber: 0,
-    proofL2BlockNumber: undefined,
-    inboxSize: undefined,
-    assertionID: undefined,
-    withdrawalHash: "",
-    withdrawalTx: {
       nonce:ethers.BigNumber.from("0"),
       sender:"",
       target: "",
@@ -277,7 +252,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
             }
             case Step.FinalizeWithdrawl: {
               console.log("FinalizeWithdrawl")
-              finalizeWithdraw(wallet,amount,pendingDeposit)
+              finalizeWithdraw(wallet,amount,pendingWithdraw)
               return (
                 <TxFinalizeWithdraw
                   wallet={wallet}

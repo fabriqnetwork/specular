@@ -23,28 +23,27 @@ function useWithdrawFormData(wallet: any, l1Provider:any, l2Provider:any): Withd
   const [l1balance, setl1balances] = useState<BigNumber>(BigNumber.from(0));
   const [l2balance, setl2balances] = useState<BigNumber>(BigNumber.from(0));
 
-
-  const GetL1Balance = async (wallet: any) => {
-    if (wallet) {
-      const balance = await l1Provider.getBalance(wallet.address);
-
-      return balance;
-    }
-    return BigNumber.from(0);
-  };
-
-  const GetL2Balance = async (wallet: any) => {
-      if (wallet) {
-      const balance  = await l2Provider.getBalance(wallet.address);
-      return balance;
-  }
-  return BigNumber.from(0);
-  };
-
   useEffect(() => {
     setValues(INITIAL_VALUES);
     setAmounts(INITIAL_AMOUNTS);
     setError(undefined);
+
+    const GetL1Balance = async (wallet: any) => {
+      if (wallet) {
+        const balance = await l1Provider.getBalance(wallet.address);
+
+        return balance;
+      }
+      return BigNumber.from(0);
+    };
+
+    const GetL2Balance = async (wallet: any) => {
+        if (wallet) {
+        const balance  = await l2Provider.getBalance(wallet.address);
+        return balance;
+    }
+    return BigNumber.from(0);
+    };
 
     const fetchL1Balance = async () => {
       const balance = await GetL1Balance(wallet);
@@ -58,7 +57,7 @@ function useWithdrawFormData(wallet: any, l1Provider:any, l2Provider:any): Withd
 
     fetchL1Balance();
     fetchL2Balance();
-  }, [wallet]);
+  }, [wallet, l1Provider,l2Provider]);
 
   const changeWithdrawValue = (newFromValue: string): void => {
     const INPUT_REGEX = new RegExp(`^\\d*(?:\\.\\d{0,${NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals}})?$`);

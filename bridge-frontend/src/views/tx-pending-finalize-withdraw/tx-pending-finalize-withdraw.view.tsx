@@ -6,19 +6,10 @@ import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
 import { ethers } from 'ethers'
 import {
-  CHIADO_NETWORK_ID,
-  SPECULAR_NETWORK_ID,
-  L1PORTAL_ADDRESS,
-  CHIADO_RPC_URL,
-  L1ORACLE_ADDRESS,
-  SPECULAR_RPC_URL,
+  L1PORTAL_ADDRESS
 } from "../../constants";
 import {
-  IL1Portal__factory,
   IL2Portal__factory,
-  L1Oracle__factory,
-  IRollup__factory,
-  ISequencerInbox__factory,
 } from "../../typechain-types";
 import type { PendingWithdrawal } from "../../types";
 
@@ -47,9 +38,6 @@ function TxPendingFinalizeWithdraw({ wallet, depositData, setPendingWithdraw, on
     L1PORTAL_ADDRESS,
     l2Provider
   );
-  var isWithdrawInitiated: boolean = false;
-  var isL1OracleValuesUpdated: boolean = false;
-  var pendingWithdraw :PendingWithdrawal;
 
   useEffect(() => {
     l2Portal.on(
