@@ -104,7 +104,6 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
 
     // TODO: Clean up challenger/defender turn taking if possible
     function initializeChallengeLength(uint256 _numSteps) external {
-
         if (block.number - lastMoveBlock > currentResponderTimeLeft()) {
             revert DeadlineExpired();
         }
