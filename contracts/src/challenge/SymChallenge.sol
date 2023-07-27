@@ -202,7 +202,6 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         uint256 prevChallengedSegmentStart,
         uint256 prevChallengedSegmentLength
     ) external override onlyOnTurn {
-
         // Verify provided prev bisection.
         bytes32 prevHash =
             ChallengeLib.computeBisectionHash(prevBisection, prevChallengedSegmentStart, prevChallengedSegmentLength);
