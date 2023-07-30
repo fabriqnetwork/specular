@@ -26,8 +26,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	"github.com/specularl2/specular/clients/geth/specular/prover/proof"
 	"github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 var ErrStepIdxAndHashMismatch = errors.New("step index and hash mismatch")
@@ -41,14 +43,14 @@ type OneStepProver struct {
 	rules                params.Rules
 	blockNumber          uint64
 	transactionIdx       uint64
-	committedGlobalState state.L2ELClientStateInterface
+	committedGlobalState prover_types.L2ELClientStateInterface
 	startInterState      *state.InterState
 	blockHashTree        *state.BlockHashTree
-	transaction          *types.Transaction
+	transaction          prover_types.Transaction
 	receipt              *types.Receipt
 
 	// Global
-	env             state.L2ELClientEVMInterface
+	env             prover_types.L2ELClientEVMInterface
 	counter         uint64
 	proof           *proof.OneStepProof
 	vmerr           error // Error from EVM execution
@@ -83,10 +85,10 @@ func NewProver(
 	rules params.Rules,
 	blockNumber uint64,
 	transactionIdx uint64,
-	committedGlobalState state.L2ELClientStateInterface,
+	committedGlobalState prover_types.L2ELClientStateInterface,
 	interState state.InterState,
 	blockHashTree *state.BlockHashTree,
-	transaction *types.Transaction,
+	transaction prover_types.Transaction,
 	receipt *types.Receipt,
 ) *OneStepProver {
 	return &OneStepProver{
@@ -107,7 +109,12 @@ func (l *OneStepProver) CaptureTxStart(gasLimit uint64) {}
 
 func (l *OneStepProver) CaptureTxEnd(restGas uint64) {}
 
-func (l *OneStepProver) CaptureStart(env state.L2ELClientEVMInterface, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (l *OneStepProver) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+	envw := &geth_prover.GethEVM{EVM: env}
+	l.CaptureStartImpl(envw, from, to, create, input, gas, value)
+}
+
+func (l *OneStepProver) CaptureStartImpl(env prover_types.L2ELClientEVMInterface, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	// We won't handle transaction initation proof here, it should be handlede outside tracing
 	l.env = env
 	l.counter = 1
@@ -124,10 +131,14 @@ func (l *OneStepProver) CaptureStart(env state.L2ELClientEVMInterface, from comm
 	log.Info("Capture Start", "from", from, "to", to)
 }
 
+func (l *OneStepProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmerr error) {
+	l.CaptureStateImpl(pc, op, gas, cost, &geth_prover.GethScopeContext{ScopeContext: scope}, rData, depth, vmerr)
+}
+
 // CaptureState will be called before the opcode execution
 // vmerr is for stack validation and gas validation
 // the execution error is captured in CaptureFault
-func (l *OneStepProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmerr error) {
+func (l *OneStepProver) CaptureStateImpl(pc uint64, op vm.OpCode, gas, cost uint64, scope prover_types.L2ELClientScopeContextInterface, rData []byte, depth int, vmerr error) {
 	if l.done {
 		// Something went wrong during tracing, exit early
 		return
@@ -183,7 +194,7 @@ func (l *OneStepProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, 
 		return
 	}
 	l.lastState = s
-	l.lastCode = scope.Contract.Code
+	l.lastCode = scope.Contract().Code()
 	l.lastCost = cost
 	// vmerr is not nil means the gas/stack validation failed, the opcode execution will
 	// not happen and the current call frame will be immediately reverted. This is the
@@ -252,9 +263,13 @@ func (l *OneStepProver) CaptureExit(output []byte, gasUsed uint64, vmerr error) 
 	}
 }
 
+func (l *OneStepProver) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+	l.CaptureFaultImpl(pc, op, gas, cost, &geth_prover.GethScopeContext{ScopeContext: scope}, depth, err)
+}
+
 // CaptureFault will be called when the stack/gas validation is passed but
 // the execution failed. The current call will immediately be reverted.
-func (l *OneStepProver) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, vmerr error) {
+func (l *OneStepProver) CaptureFaultImpl(pc uint64, op vm.OpCode, gas, cost uint64, scope prover_types.L2ELClientScopeContextInterface, depth int, vmerr error) {
 	l.vmerr = vmerr
 	// The next CaptureState or CaptureEnd will handle the proof generation if needed
 }

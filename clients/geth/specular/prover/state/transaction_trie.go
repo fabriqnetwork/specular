@@ -18,18 +18,19 @@ import (
 	"bytes"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethdb/memorydb"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
+
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type TransactionTrie struct {
-	transactions types.Transactions
+	transactions prover_types.Transactions
 	trie         *trie.Trie
 }
 
-func NewTransactionTrie(txs types.Transactions) *TransactionTrie {
+func NewTransactionTrie(txs prover_types.Transactions) *TransactionTrie {
 	t := trie.NewEmpty(trie.NewDatabase(memorydb.New()))
 	valueBuf := new(bytes.Buffer)
 	var indexBuf []byte
@@ -53,7 +54,7 @@ func (t *TransactionTrie) EncodeState() []byte {
 	return t.Root().Bytes()
 }
 
-func (t *TransactionTrie) GetTransaction(index int) *types.Transaction {
+func (t *TransactionTrie) GetTransaction(index int) prover_types.Transaction {
 	return t.transactions[index]
 }
 

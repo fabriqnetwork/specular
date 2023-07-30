@@ -1,13 +1,15 @@
-package state
+package types
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"math/big"
+	"github.com/holiman/uint256"
 )
 
 type L2ELClientStateInterface interface {
-	Prepare(thash common.Hash, ti int)
+	Prepare(thash, bhash common.Hash, ti int)
 	Copy() L2ELClientStateInterface
 	GetRootForProof() common.Hash
 	GetRefund() uint64
@@ -57,4 +59,25 @@ type L2ELClientEVMInterface interface {
 	Context() L2ELClientBlockContextInterface
 	// StateDB gives access to the underlying state
 	StateDB() L2ELClientStateInterface
+}
+
+type L2ELClientMemoryInterface interface {
+	Data() []byte
+}
+
+type L2ELClientStackInterface interface {
+	Data() []uint256.Int
+}
+
+type L2ELClientContractInterface interface {
+	Caller() common.Address
+	Address() common.Address
+	Value() *big.Int
+	Code() []byte
+}
+
+type L2ELClientScopeContextInterface interface {
+	Memory() L2ELClientMemoryInterface
+	Stack() L2ELClientStackInterface
+	Contract() L2ELClientContractInterface
 }

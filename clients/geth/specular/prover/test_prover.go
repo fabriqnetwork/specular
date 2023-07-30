@@ -17,8 +17,7 @@ package prover
 import (
 	"encoding/json"
 	"errors"
-	state2 "github.com/ethereum/go-ethereum/core/state"
-	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -30,8 +29,10 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	"github.com/specularl2/specular/clients/geth/specular/prover/proof"
 	"github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 func bytesToHex(s []byte) string {
@@ -96,18 +97,18 @@ type TestProver struct {
 	step uint64
 
 	// Context (read-only)
-	transaction          *types.Transaction
+	transaction          prover_types.Transaction
 	txctx                *vm.TxContext
 	receipt              *types.Receipt
 	rules                params.Rules
 	blockNumber          uint64
 	transactionIdx       uint64
-	committedGlobalState vm.StateDB
+	committedGlobalState prover_types.L2ELClientStateInterface
 	startInterState      *state.InterState
 	blockHashTree        *state.BlockHashTree
 
 	// Global
-	env             *vm.EVM
+	env             prover_types.L2ELClientEVMInterface
 	counter         uint64
 	vmerr           error // Error from EVM execution
 	err             error // Error from the tracer
@@ -131,13 +132,13 @@ type TestProver struct {
 
 func NewTestProver(
 	step uint64,
-	transaction *types.Transaction,
+	transaction prover_types.Transaction,
 	txctx *vm.TxContext,
 	receipt *types.Receipt,
 	rules params.Rules,
 	blockNumber uint64,
 	transactionIdx uint64,
-	committedGlobalState vm.StateDB,
+	committedGlobalState prover_types.L2ELClientStateInterface,
 	interState state.InterState,
 	blockHashTree *state.BlockHashTree,
 ) *TestProver {
@@ -160,6 +161,11 @@ func (l *TestProver) CaptureTxStart(gasLimit uint64) {}
 func (l *TestProver) CaptureTxEnd(restGas uint64) {}
 
 func (l *TestProver) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+	envw := &geth_prover.GethEVM{EVM: env}
+	l.CaptureStartImpl(envw, from, to, create, input, gas, value)
+}
+
+func (l *TestProver) CaptureStartImpl(env prover_types.L2ELClientEVMInterface, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	l.env = env
 	l.counter = 1
 	if create {
@@ -170,9 +176,9 @@ func (l *TestProver) CaptureStart(env *vm.EVM, from common.Address, to common.Ad
 	l.input = state.NewMemoryFromBytes(input)
 	l.accessListTrie = state.NewAccessListTrie()
 	l.selfDestructSet = state.NewSelfDestructSet()
-	l.startInterState.GlobalState = geth_prover.GethState{env.StateDB.Copy()} // This state includes gas-buying and nonce-increment
+	l.startInterState.GlobalState = env.StateDB().Copy() // This state includes gas-buying and nonce-increment
 	l.lastDepthState = l.startInterState
-	vmctx := env.Context
+	vmctx := env.Context()
 	recipient := common.Address{}
 	if l.transaction.To() != nil {
 		recipient = *l.transaction.To()
@@ -184,13 +190,13 @@ func (l *TestProver) CaptureStart(env *vm.EVM, from common.Address, to common.Ad
 		TxV:         bigToHex(v),
 		TxR:         bigToHex(r),
 		TxS:         bigToHex(s),
-		Coinbase:    addrToHex(vmctx.Coinbase),
-		Timestamp:   bigToHex(vmctx.Time),
-		BlockNumber: bigToHex(vmctx.BlockNumber),
-		Difficulty:  bigToHex(vmctx.Difficulty),
-		GasLimit:    uintToHex(vmctx.GasLimit),
+		Coinbase:    addrToHex(vmctx.Coinbase()),
+		Timestamp:   bigToHex(vmctx.Time()),
+		BlockNumber: bigToHex(vmctx.BlockNumber()),
+		Difficulty:  bigToHex(vmctx.Difficulty()),
+		GasLimit:    uintToHex(vmctx.GasLimit()),
 		ChainID:     bigToHex(l.transaction.ChainId()),
-		BaseFee:     bigToHex(vmctx.BaseFee),
+		BaseFee:     bigToHex(vmctx.BaseFee()),
 		Origin:      addrToHex(l.txctx.Origin),
 		Recipient:   addrToHex(recipient),
 		Value:       bigToHex(l.transaction.Value()),
@@ -203,6 +209,10 @@ func (l *TestProver) CaptureStart(env *vm.EVM, from common.Address, to common.Ad
 }
 
 func (l *TestProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmerr error) {
+	l.CaptureStateImpl(pc, op, gas, cost, &geth_prover.GethScopeContext{ScopeContext: scope}, rData, depth, vmerr)
+}
+
+func (l *TestProver) CaptureStateImpl(pc uint64, op vm.OpCode, gas, cost uint64, scope prover_types.L2ELClientScopeContextInterface, rData []byte, depth int, vmerr error) {
 	if l.done {
 		return
 	}
@@ -215,11 +225,11 @@ func (l *TestProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 	s := state.StateFromCaptured(
 		l.blockNumber,
 		l.transactionIdx,
-		geth_prover.GethState{l.committedGlobalState.(*state2.StateDB)},
+		l.committedGlobalState,
 		l.selfDestructSet,
 		l.blockHashTree,
 		l.accessListTrie,
-		&geth_prover.GethEVM{l.env},
+		l.env,
 		l.lastDepthState,
 		l.callFlag,
 		l.input,
@@ -247,7 +257,7 @@ func (l *TestProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 		}
 		// l.vmerr is the error of l.lastState, either before/during the opcode execution
 		// if l.vmerr is not nil, the current state s must be in the parent call frame of l.lastState
-		ctx := proof.NewProofGenContext(l.rules, l.env.Context.Coinbase, l.transaction, l.receipt, l.lastCode)
+		ctx := proof.NewProofGenContext(l.rules, l.env.Context().Coinbase(), l.transaction, l.receipt, l.lastCode)
 		osp, err := proof.GetIntraProof(ctx, l.lastState, s, l.vmerr)
 		if err != nil {
 			l.err = err
@@ -267,7 +277,7 @@ func (l *TestProver) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, sco
 		return
 	}
 	l.lastState = s
-	l.lastCode = scope.Contract.Code
+	l.lastCode = scope.Contract().Code()
 	l.lastCost = cost
 	// vmerr is not nil means the gas/stack validation failed, the opcode execution will
 	// not happen and the current call frame will be immediately reverted. This is the
@@ -336,7 +346,11 @@ func (l *TestProver) CaptureExit(output []byte, gasUsed uint64, vmerr error) {
 	}
 }
 
-func (l *TestProver) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, vmerr error) {
+func (l *TestProver) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+	l.CaptureFaultImpl(pc, op, gas, cost, &geth_prover.GethScopeContext{ScopeContext: scope}, depth, err)
+}
+
+func (l *TestProver) CaptureFaultImpl(pc uint64, op vm.OpCode, gas, cost uint64, scope prover_types.L2ELClientScopeContextInterface, depth int, vmerr error) {
 	l.vmerr = vmerr
 	// The next CaptureState or CaptureEnd will handle the proof generation if needed
 }
@@ -350,9 +364,13 @@ func (l *TestProver) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, 
 
 	if l.counter-1 == l.step {
 		l.done = true
+		if l.lastState == nil {
+			l.err = fmt.Errorf("prover shoudn't be run on the transfer transaction")
+			return
+		}
 		// If l.vmerr is not nil, the entire transaction execution will be reverted.
 		// Otherwise, the execution ended through STOP or RETURN opcode.
-		ctx := proof.NewProofGenContext(l.rules, l.env.Context.Coinbase, l.transaction, l.receipt, l.lastCode)
+		ctx := proof.NewProofGenContext(l.rules, l.env.Context().Coinbase(), l.transaction, l.receipt, l.lastCode)
 		osp, err := proof.GetIntraProof(ctx, l.lastState, nil, l.vmerr)
 		if err != nil {
 			l.err = err

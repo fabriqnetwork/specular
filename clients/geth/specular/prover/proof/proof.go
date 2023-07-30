@@ -24,17 +24,18 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type ProofGenContext struct {
 	rules       params.Rules
 	coinbase    common.Address
-	transaction *types.Transaction
+	transaction prover_types.Transaction
 	receipt     *types.Receipt
 	actualCode  []byte // For opcode proof when in CALLCODE/DELEGATECALL/STATICCALL
 }
 
-func NewProofGenContext(rules params.Rules, coinbase common.Address, transaction *types.Transaction, receipt *types.Receipt, actualCode []byte) ProofGenContext {
+func NewProofGenContext(rules params.Rules, coinbase common.Address, transaction prover_types.Transaction, receipt *types.Receipt, actualCode []byte) ProofGenContext {
 	return ProofGenContext{
 		rules:       rules,
 		coinbase:    coinbase,
@@ -145,11 +146,11 @@ func GetBlockFinalizationProof(interState *state.InterState) (*OneStepProof, err
 //     trie, and account proof of coinbase so verifier can finalize the transaction.
 func GetTransactionInitaitionProof(
 	chainConfig *params.ChainConfig,
-	vmctx state.L2ELClientBlockContextInterface,
-	tx *types.Transaction,
+	vmctx prover_types.L2ELClientBlockContextInterface,
+	tx prover_types.Transaction,
 	txctx *vm.TxContext,
 	interState *state.InterState,
-	statedb state.L2ELClientStateInterface,
+	statedb prover_types.L2ELClientStateInterface,
 ) (*OneStepProof, error) {
 	osp := EmptyProof()
 	osp.SetVerifierType(VerifierTypeInterTx)
@@ -194,7 +195,7 @@ func GetTransactionInitaitionProof(
 	var rules params.Rules
 	// 4. Instrinsic gas deduction
 	if success {
-		rules = chainConfig.Rules(vmctx.BlockNumber(), vmctx.Random != nil)
+		rules = chainConfig.Rules(vmctx.BlockNumber(), vmctx.Random() != nil)
 		// TODO: can we just hard-code the consensus rules here?
 		gas, err := core.IntrinsicGas(tx.Data(), tx.AccessList(), tx.To() == nil, rules.IsHomestead, rules.IsIstanbul)
 		if err != nil {

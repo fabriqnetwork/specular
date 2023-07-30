@@ -18,9 +18,9 @@ import (
 	"encoding/binary"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type Stack struct {
@@ -47,7 +47,7 @@ func NewStack(values []uint256.Int) *Stack {
 	return stack
 }
 
-func StackFromEVMStack(s *vm.Stack) *Stack {
+func StackFromEVMStack(s prover_types.L2ELClientStackInterface) *Stack {
 	return NewStack(s.Data())
 }
 

@@ -19,13 +19,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/rpc"
 	oss "github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 func (api *ProverAPI) GenerateProofForTest(ctx context.Context, hash common.Hash, cumulativeGasUsed, blockGasUsed *big.Int, step uint64, config *ProverConfig) (json.RawMessage, error) {
@@ -76,15 +76,16 @@ func (api *ProverAPI) GenerateProofForTest(ctx context.Context, hash common.Hash
 		transaction,
 		&txContext,
 		receipts[index],
-		api.backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random != nil),
+		api.backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random() != nil),
 		blockNumber,
 		index,
-		statedb.(geth_prover.GethState).StateDB,
+		statedb,
 		*its,
 		blockHashTree,
 	)
-	vmenv := api.backend.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), oss.L2ELClientConfig{Debug: true, Tracer: prover})
-	statedb.Prepare(hash, int(index))
+	vmenv := api.backend.NewEVM(vmctx, txContext, statedb, api.backend.ChainConfig(), prover_types.L2ELClientConfig{Debug: true, Tracer: prover})
+	// TODO: under geth situation we don't need to pass in the block hash
+	statedb.Prepare(hash, common.Hash{}, int(index))
 	_, err = api.backend.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)

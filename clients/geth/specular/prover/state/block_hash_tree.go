@@ -18,6 +18,7 @@ import (
 	basic_merkletree "github.com/cbergoon/merkletree"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/holiman/uint256"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 const RECENT_BLOCK_HASHES_LENGTH = 256
@@ -53,7 +54,7 @@ func NewBlockHashTree(hashes *BlockHashes) (*BlockHashTree, error) {
 	}, nil
 }
 
-func BlockHashTreeFromBlockContext(blockCtx L2ELClientBlockContextInterface) (*BlockHashTree, error) {
+func BlockHashTreeFromBlockContext(blockCtx prover_types.L2ELClientBlockContextInterface) (*BlockHashTree, error) {
 	// Get BlockHashes of block [current-255, current]
 	blockHashes := BlockHashes{}
 	currentBlockNum := blockCtx.BlockNumber().Uint64()

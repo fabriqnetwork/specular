@@ -16,7 +16,6 @@ package prover
 
 import (
 	"context"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -24,11 +23,12 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 // Backend interface provides the common API services (that are provided by
@@ -36,9 +36,9 @@ import (
 type L2ELClientBackend interface {
 	HeaderByHash(ctx context.Context, hash common.Hash) (*types.Header, error)
 	HeaderByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Header, error)
-	BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error)
-	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error)
-	GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error)
+	BlockByHash(ctx context.Context, hash common.Hash) (prover_types.Block, error)
+	BlockByNumber(ctx context.Context, number rpc.BlockNumber) (prover_types.Block, error)
+	GetTransaction(ctx context.Context, txHash common.Hash) (prover_types.Transaction, common.Hash, uint64, uint64, error)
 	GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error)
 	RPCGasCap() uint64
 	ChainConfig() *params.ChainConfig
@@ -47,15 +47,15 @@ type L2ELClientBackend interface {
 	// StateAtBlock returns the state corresponding to the stateroot of the block.
 	// N.B: For executing transactions on block N, the required stateRoot is block N-1,
 	// so this method should be called with the parent.
-	StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base state.L2ELClientStateInterface, checkLive, preferDisk bool) (state.L2ELClientStateInterface, error)
-	StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, state.L2ELClientBlockContextInterface, state.L2ELClientStateInterface, error)
+	StateAtBlock(ctx context.Context, block prover_types.Block, reexec uint64, base prover_types.L2ELClientStateInterface, checkLive, preferDisk bool) (prover_types.L2ELClientStateInterface, error)
+	StateAtTransaction(ctx context.Context, block prover_types.Block, txIndex int, reexec uint64) (core.Message, prover_types.L2ELClientBlockContextInterface, prover_types.L2ELClientStateInterface, error)
 
 	// functions from package vm:
-	NewEVM(blockCtx state.L2ELClientBlockContextInterface, txCtx vm.TxContext, statedb state.L2ELClientStateInterface, chainConfig *params.ChainConfig, config state.L2ELClientConfig) state.L2ELClientEVMInterface
+	NewEVM(blockCtx prover_types.L2ELClientBlockContextInterface, txCtx vm.TxContext, statedb prover_types.L2ELClientStateInterface, chainConfig *params.ChainConfig, config prover_types.L2ELClientConfig) prover_types.L2ELClientEVMInterface
 
 	// functions from package core:
-	NewEVMBlockContext(header *types.Header, chain core.ChainContext, author *common.Address) state.L2ELClientBlockContextInterface
-	ApplyMessage(evm state.L2ELClientEVMInterface, msg core.Message, gp *core.GasPool) (*core.ExecutionResult, error)
+	NewEVMBlockContext(header *types.Header, chain core.ChainContext, author *common.Address) prover_types.L2ELClientBlockContextInterface
+	ApplyMessage(evm prover_types.L2ELClientEVMInterface, msg core.Message, gp *core.GasPool) (*core.ExecutionResult, error)
 }
 
 // ProverAPI is the collection of Specular one-step proof APIs.

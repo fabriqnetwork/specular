@@ -18,9 +18,9 @@ import (
 	"encoding/binary"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
 	"github.com/specularl2/specular/clients/geth/specular/merkletree"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 const MaxMemoryCell uint64 = 1 << 17
@@ -62,7 +62,7 @@ func NewMemoryFromBytes(values []byte) *Memory {
 	}
 }
 
-func MemoryFromEVMMemory(mem *vm.Memory) *Memory {
+func MemoryFromEVMMemory(mem prover_types.L2ELClientMemoryInterface) *Memory {
 	return NewMemoryFromBytesWithCapacity(mem.Data(), MaxMemoryCell)
 }
 

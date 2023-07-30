@@ -1,18 +1,19 @@
 package geth_prover
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	oss "github.com/specularl2/specular/clients/geth/specular/prover/state"
-	"math/big"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type GethState struct {
 	StateDB *state.StateDB
 }
 
-func (g GethState) Prepare(thash common.Hash, ti int) {
+func (g GethState) Prepare(thash, bhash common.Hash, ti int) {
 	g.StateDB.Prepare(thash, ti)
 }
 
@@ -76,6 +77,6 @@ func (g GethState) GetCodeHash(address common.Address) common.Hash {
 	return g.StateDB.GetCodeHash(address)
 }
 
-func (g GethState) Copy() oss.L2ELClientStateInterface {
+func (g GethState) Copy() prover_types.L2ELClientStateInterface {
 	return &GethState{StateDB: g.StateDB.Copy()}
 }

@@ -2,6 +2,7 @@ package geth_prover
 
 import (
 	"context"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core"
@@ -11,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rpc"
-	oss "github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type GethBackend struct {
@@ -26,16 +27,19 @@ func (g GethBackend) HeaderByNumber(ctx context.Context, number rpc.BlockNumber)
 	return g.Backend.HeaderByNumber(ctx, number)
 }
 
-func (g GethBackend) BlockByHash(ctx context.Context, hash common.Hash) (*types.Block, error) {
-	return g.Backend.BlockByHash(ctx, hash)
+func (g GethBackend) BlockByHash(ctx context.Context, hash common.Hash) (prover_types.Block, error) {
+	block, err := g.Backend.BlockByHash(ctx, hash)
+	return &GethBlock{block}, err
 }
 
-func (g GethBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (*types.Block, error) {
-	return g.Backend.BlockByNumber(ctx, number)
+func (g GethBackend) BlockByNumber(ctx context.Context, number rpc.BlockNumber) (prover_types.Block, error) {
+	block, err := g.Backend.BlockByNumber(ctx, number)
+	return &GethBlock{block}, err
 }
 
-func (g GethBackend) GetTransaction(ctx context.Context, txHash common.Hash) (*types.Transaction, common.Hash, uint64, uint64, error) {
-	return g.Backend.GetTransaction(ctx, txHash)
+func (g GethBackend) GetTransaction(ctx context.Context, txHash common.Hash) (prover_types.Transaction, common.Hash, uint64, uint64, error) {
+	tx, bhash, bnum, idx, err := g.Backend.GetTransaction(ctx, txHash)
+	return &GethTransaction{tx}, bhash, bnum, idx, err
 }
 
 func (g GethBackend) GetReceipts(ctx context.Context, hash common.Hash) (types.Receipts, error) {
@@ -58,28 +62,36 @@ func (g GethBackend) ChainDb() ethdb.Database {
 	return g.Backend.ChainDb()
 }
 
-func (g GethBackend) StateAtBlock(ctx context.Context, block *types.Block, reexec uint64, base oss.L2ELClientStateInterface, checkLive, preferDisk bool) (oss.L2ELClientStateInterface, error) {
-	geth_state, e := base.(*GethState)
-	if e {
+func (g GethBackend) StateAtBlock(ctx context.Context, block prover_types.Block, reexec uint64, base prover_types.L2ELClientStateInterface, checkLive, preferDisk bool) (prover_types.L2ELClientStateInterface, error) {
+	geth_state, cast_failed := base.(*GethState)
+	if cast_failed {
 		panic("base state is not a GethState")
 	}
-	s, err := g.Backend.StateAtBlock(ctx, block, reexec, geth_state.StateDB, checkLive, preferDisk)
+	geth_block, cast_failed := block.(*GethBlock)
+	if cast_failed {
+		panic("block is not a GethBlock")
+	}
+	s, err := g.Backend.StateAtBlock(ctx, geth_block.Block, reexec, geth_state.StateDB, checkLive, preferDisk)
 	return GethState{StateDB: s}, err
 }
 
-func (g GethBackend) StateAtTransaction(ctx context.Context, block *types.Block, txIndex int, reexec uint64) (core.Message, oss.L2ELClientBlockContextInterface, oss.L2ELClientStateInterface, error) {
-	msg, block_context, state, err := g.Backend.StateAtTransaction(ctx, block, txIndex, reexec)
+func (g GethBackend) StateAtTransaction(ctx context.Context, block prover_types.Block, txIndex int, reexec uint64) (core.Message, prover_types.L2ELClientBlockContextInterface, prover_types.L2ELClientStateInterface, error) {
+	geth_block, cast_failed := block.(*GethBlock)
+	if cast_failed {
+		panic("block is not a GethBlock")
+	}
+	msg, block_context, state, err := g.Backend.StateAtTransaction(ctx, geth_block.Block, txIndex, reexec)
 	return msg, &GethBlockContext{block_context}, GethState{StateDB: state}, err
 }
 
-func (g GethBackend) NewEVM(blockCtx oss.L2ELClientBlockContextInterface, txCtx vm.TxContext, statedb oss.L2ELClientStateInterface, chainConfig *params.ChainConfig, config oss.L2ELClientConfig) oss.L2ELClientEVMInterface {
+func (g GethBackend) NewEVM(blockCtx prover_types.L2ELClientBlockContextInterface, txCtx vm.TxContext, statedb prover_types.L2ELClientStateInterface, chainConfig *params.ChainConfig, config prover_types.L2ELClientConfig) prover_types.L2ELClientEVMInterface {
 	return &GethEVM{vm.NewEVM(blockCtx.(*GethBlockContext).Context, txCtx, statedb.(GethState).StateDB, chainConfig, vm.Config{Debug: config.Debug, Tracer: config.Tracer.(vm.EVMLogger)})}
 }
 
-func (g GethBackend) NewEVMBlockContext(header *types.Header, chain core.ChainContext, author *common.Address) oss.L2ELClientBlockContextInterface {
+func (g GethBackend) NewEVMBlockContext(header *types.Header, chain core.ChainContext, author *common.Address) prover_types.L2ELClientBlockContextInterface {
 	return GethBlockContext{core.NewEVMBlockContext(header, chain, author)}
 }
 
-func (g GethBackend) ApplyMessage(evm oss.L2ELClientEVMInterface, msg core.Message, gp *core.GasPool) (*core.ExecutionResult, error) {
+func (g GethBackend) ApplyMessage(evm prover_types.L2ELClientEVMInterface, msg core.Message, gp *core.GasPool) (*core.ExecutionResult, error) {
 	return core.ApplyMessage(evm.(*GethEVM).EVM, msg, gp)
 }

@@ -21,7 +21,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/specularl2/specular/clients/geth/specular/prover/geth_prover"
 	"github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type GeneratedIntraState struct {
@@ -33,12 +35,12 @@ type IntraStateGenerator struct {
 	// Context (read-only)
 	blockNumber          uint64
 	transactionIdx       uint64
-	committedGlobalState state.L2ELClientStateInterface
+	committedGlobalState prover_types.L2ELClientStateInterface
 	startInterState      *state.InterState
 	blockHashTree        *state.BlockHashTree
 
 	// Global
-	env             state.L2ELClientEVMInterface
+	env             prover_types.L2ELClientEVMInterface
 	counter         int
 	states          []GeneratedIntraState
 	err             error
@@ -59,7 +61,7 @@ type IntraStateGenerator struct {
 
 func NewIntraStateGenerator(
 	blockNumber, transactionIdx uint64,
-	committedGlobalState state.L2ELClientStateInterface,
+	committedGlobalState prover_types.L2ELClientStateInterface,
 	interState state.InterState,
 	blockHashTree *state.BlockHashTree,
 ) *IntraStateGenerator {
@@ -76,7 +78,12 @@ func (l *IntraStateGenerator) CaptureTxStart(gasLimit uint64) {}
 
 func (l *IntraStateGenerator) CaptureTxEnd(restGas uint64) {}
 
-func (l *IntraStateGenerator) CaptureStart(env state.L2ELClientEVMInterface, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+func (l *IntraStateGenerator) CaptureStart(env *vm.EVM, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
+	envw := &geth_prover.GethEVM{EVM: env}
+	l.CaptureStartImpl(envw, from, to, create, input, gas, value)
+}
+
+func (l *IntraStateGenerator) CaptureStartImpl(env prover_types.L2ELClientEVMInterface, from common.Address, to common.Address, create bool, input []byte, gas uint64, value *big.Int) {
 	l.env = env
 	// To be consistent with stepIdx, but not necessary for state generation
 	l.counter = 1
@@ -94,10 +101,14 @@ func (l *IntraStateGenerator) CaptureStart(env state.L2ELClientEVMInterface, fro
 	// log.Info("Capture Start", "from", from, "to", to)
 }
 
+func (l *IntraStateGenerator) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmerr error) {
+	l.CaptureStateImpl(pc, op, gas, cost, &geth_prover.GethScopeContext{ScopeContext: scope}, rData, depth, vmerr)
+}
+
 // CaptureState will be called before the opcode execution
 // vmerr is for stack validation and gas validation
 // the execution error is captured in CaptureFault
-func (l *IntraStateGenerator) CaptureState(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, rData []byte, depth int, vmerr error) {
+func (l *IntraStateGenerator) CaptureStateImpl(pc uint64, op vm.OpCode, gas, cost uint64, scope prover_types.L2ELClientScopeContextInterface, rData []byte, depth int, vmerr error) {
 	if l.done {
 		// Something went wrong during tracing, exit early
 		return
@@ -181,10 +192,14 @@ func (l *IntraStateGenerator) CaptureExit(output []byte, gasUsed uint64, vmerr e
 	}
 }
 
+func (l *IntraStateGenerator) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+	l.CaptureFaultImpl(pc, op, gas, cost, &geth_prover.GethScopeContext{ScopeContext: scope}, depth, err)
+}
+
 // CaptureFault will be called when the stack/gas validation is passed but
 // the execution failed. The current call will immediately be reverted.
 // The error is handled in CaptureExit so nothing to do here.
-func (l *IntraStateGenerator) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
+func (l *IntraStateGenerator) CaptureFaultImpl(pc uint64, op vm.OpCode, gas, cost uint64, scope prover_types.L2ELClientScopeContextInterface, depth int, err error) {
 }
 
 func (l *IntraStateGenerator) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {

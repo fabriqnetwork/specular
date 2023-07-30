@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 )
 
 type OneStepState interface {
@@ -58,8 +59,8 @@ type IntraState struct {
 	Memory               *Memory
 	InputData            *Memory
 	ReturnData           *Memory
-	CommittedGlobalState L2ELClientStateInterface
-	GlobalState          L2ELClientStateInterface
+	CommittedGlobalState prover_types.L2ELClientStateInterface
+	GlobalState          prover_types.L2ELClientStateInterface
 	SelfDestructSet      *SelfDestructSet
 	LogSeries            *LogSeries
 	BlockHashTree        *BlockHashTree
@@ -148,25 +149,25 @@ func (s *IntraState) HashAsLastDepth(callFlag CallFlag, cost uint64) common.Hash
 
 func StateFromCaptured(
 	blockNumber, transactionIdx uint64,
-	committedGlobalState L2ELClientStateInterface,
+	committedGlobalState prover_types.L2ELClientStateInterface,
 	selfDestructSet *SelfDestructSet,
 	blockHashTree *BlockHashTree,
 	accessListTrie *AccessListTrie,
-	evm L2ELClientEVMInterface,
+	evm prover_types.L2ELClientEVMInterface,
 	lastDepthState OneStepState,
 	callFlag CallFlag,
 	inputData *Memory,
 	out, outSize, pc uint64,
 	op vm.OpCode,
 	gas, cost uint64,
-	scope *vm.ScopeContext,
+	scope prover_types.L2ELClientScopeContextInterface,
 	rData []byte,
 	depth int,
 ) *IntraState {
-	value, _ := uint256.FromBig(scope.Contract.Value())
-	contractAddress := scope.Contract.Address()
-	stack := StackFromEVMStack(scope.Stack)
-	memory := MemoryFromEVMMemory(scope.Memory)
+	value, _ := uint256.FromBig(scope.Contract().Value())
+	contractAddress := scope.Contract().Address()
+	stack := StackFromEVMStack(scope.Stack())
+	memory := MemoryFromEVMMemory(scope.Memory())
 	returnData := NewMemoryFromBytes(rData)
 	globalState := evm.StateDB().Copy()
 	refund := globalState.GetRefund()
@@ -181,7 +182,7 @@ func StateFromCaptured(
 		Refund:               refund,
 		LastDepthState:       lastDepthState,
 		ContractAddress:      contractAddress,
-		Caller:               scope.Contract.Caller(),
+		Caller:               scope.Contract().Caller(),
 		Value:                *value,
 		CallFlag:             callFlag,
 		Out:                  out,
@@ -205,7 +206,7 @@ func StateFromCaptured(
 type InterState struct {
 	BlockNumber       uint64
 	TransactionIdx    uint64
-	GlobalState       L2ELClientStateInterface
+	GlobalState       prover_types.L2ELClientStateInterface
 	CumulativeGasUsed *uint256.Int
 	BlockGasUsed      *uint256.Int
 	BlockHashTree     *BlockHashTree
@@ -238,9 +239,9 @@ func (s *InterState) IsInter() bool {
 
 func InterStateFromCaptured(
 	blockNumber, transactionIdx uint64,
-	statedb L2ELClientStateInterface,
+	statedb prover_types.L2ELClientStateInterface,
 	cumulativeGasUsed, blockGasUsed *big.Int,
-	transactions types.Transactions,
+	transactions prover_types.Transactions,
 	receipts types.Receipts,
 	blockHashTree *BlockHashTree,
 ) *InterState {
@@ -263,7 +264,7 @@ func InterStateFromCaptured(
 // Represent the state at the end of a finalized block
 type BlockState struct {
 	BlockNumber       uint64
-	GlobalState       L2ELClientStateInterface
+	GlobalState       prover_types.L2ELClientStateInterface
 	CumulativeGasUsed *uint256.Int
 	BlockHashTree     *BlockHashTree
 }
@@ -284,7 +285,7 @@ func (s *BlockState) IsInter() bool {
 	return true
 }
 
-func BlockStateFromBlock(blockNumber uint64, stateDB L2ELClientStateInterface, cumulativeGasUsed *big.Int, blockHashTree *BlockHashTree) (*BlockState, error) {
+func BlockStateFromBlock(blockNumber uint64, stateDB prover_types.L2ELClientStateInterface, cumulativeGasUsed *big.Int, blockHashTree *BlockHashTree) (*BlockState, error) {
 	g, _ := uint256.FromBig(cumulativeGasUsed)
 	return &BlockState{
 		BlockNumber:       blockNumber,

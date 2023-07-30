@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/specularl2/specular/clients/geth/specular/prover/proof"
 	"github.com/specularl2/specular/clients/geth/specular/prover/state"
+	prover_types "github.com/specularl2/specular/clients/geth/specular/prover/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
@@ -44,7 +45,7 @@ type ExecutionState struct {
 	CumulativeGasUsed *big.Int
 	BlockGasUsed      *big.Int
 	StateType         state.StateType
-	Block             *types.Block
+	Block             prover_types.Block
 	TransactionIdx    uint64
 	StepIdx           uint64
 }
@@ -103,7 +104,7 @@ func GenerateStates(backend L2ELClientBackend, ctx context.Context, startGasUsed
 	}
 	var (
 		states []*ExecutionState
-		block  *types.Block
+		block  prover_types.Block
 	)
 	chainCtx := createChainContext(backend, ctx)
 	cumulativeGasUsed := new(big.Int).Set(startGasUsed)
@@ -151,10 +152,12 @@ func GenerateStates(backend L2ELClientBackend, ctx context.Context, startGasUsed
 		// Trace all the transactions contained within
 		for i, tx := range transactions {
 			// Prepare the transaction context
-			msg, _ := tx.AsMessage(signer, block.BaseFee())
+			_msg, _ := tx.AsMessage(signer, block.BaseFee(), nil)
+			msg := _msg.(types.Message)
 			txContext := core.NewEVMTxContext(msg)
 			// Call Prepare to clear out the statedb access list
-			statedb.Prepare(tx.Hash(), i)
+			// TODO: don't need to supply the block hash here when geth
+			statedb.Prepare(tx.Hash(), common.Hash{}, i)
 
 			// Push the inter state before transaction i
 			blockGasUsed := new(big.Int).Sub(cumulativeGasUsed, cumulativeGasUsedBeforeBlock)
@@ -180,7 +183,7 @@ func GenerateStates(backend L2ELClientBackend, ctx context.Context, startGasUsed
 
 			// Execute transaction i with intra state generator enabled.
 			prover := NewIntraStateGenerator(block.NumberU64(), uint64(i), statedb, *its, blockHashTree)
-			vmenv := backend.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), state.L2ELClientConfig{Debug: true, Tracer: prover})
+			vmenv := backend.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), prover_types.L2ELClientConfig{Debug: true, Tracer: prover})
 			executionResult, err := backend.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 			if err != nil {
 				return nil, fmt.Errorf("tracing failed: %w", err)
@@ -350,7 +353,7 @@ func GenerateProof(backend L2ELClientBackend, ctx context.Context, startState *E
 	prover := NewProver(
 		startState.VMHash,
 		startState.StepIdx,
-		backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random != nil),
+		backend.ChainConfig().Rules(vmctx.BlockNumber(), vmctx.Random() != nil),
 		startState.Block.NumberU64(),
 		startState.TransactionIdx,
 		statedb,
@@ -360,10 +363,11 @@ func GenerateProof(backend L2ELClientBackend, ctx context.Context, startState *E
 		receipts[startState.TransactionIdx],
 	)
 	// Run the transaction with prover enabled.
-	vmenv := backend.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), state.L2ELClientConfig{Debug: true, Tracer: prover})
+	vmenv := backend.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), prover_types.L2ELClientConfig{Debug: true, Tracer: prover})
 	// Call Prepare to clear out the statedb access list
 	txHash := transactions[startState.TransactionIdx].Hash()
-	statedb.Prepare(txHash, int(startState.TransactionIdx))
+	// TODO: don't need to supply the block hash here when geth
+	statedb.Prepare(txHash, common.Hash{}, int(startState.TransactionIdx))
 	_, err = backend.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
