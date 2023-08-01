@@ -69,7 +69,6 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
      * @param _endStateChallengeHash Proposed DA end state hash of the challenger.
      * @param challengePeriod The duration that challenger/defender has for continuing the challenge
      */
-
     function initialize(
         address _defender,
         address _challenger,
@@ -191,8 +190,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         emit Bisected(bisectionHash, challengedSegmentStart, challengedSegmentLength);
     }
 
-    // TODO: If bisection is not executed because both have commited to the same has at the same `numStep`, verify
-    //        there are no additional ops on the stack after the last step.
+    // TODO: If bisection is not executed because both have commited to the same hash at the same `numStep`, verify
+    // there are no additional ops on the stack after the last step.
     function verifyOneStepProof(
         bytes calldata oneStepProof,
         bytes calldata txInclusionProof,
