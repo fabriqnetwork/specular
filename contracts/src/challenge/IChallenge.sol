@@ -76,7 +76,7 @@ interface IChallenge {
  */
 interface ISymChallenge is IChallenge {
     /**
-     * @notice Initializes the length of the challenge. Must be called by defender before bisection rounds begin.
+     * @notice Takes proposals for the `numSteps` from challenger and defender and chooses the hash with the least `numSteps`
      * @param _numSteps Number of steps executed from the start of the assertion to its end.
      * If this parameter is incorrect, the defender will be slashed (assuming successful execution of the protocol by the challenger).
      */

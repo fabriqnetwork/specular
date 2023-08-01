@@ -39,9 +39,12 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     uint256 private constant MAX_BISECTION_DEGREE = 2;
 
     // See `ChallengeLib.computeBisectionHash` for the format of this commitment.
+    uint256 public numSteps;
     bytes32 public bisectionHash;
     // Initial state used to initialize bisectionHash (write-once).
     bytes32 private startStateHash;
+    bytes32 private endStateDefenseHash;
+    bytes32 private endStateChallengeHash;
     bytes32 private endStateHash;
 
     /**
@@ -55,14 +58,16 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
     }
 
     /**
-     * @notice Initializes contract.
+     * @notice Initializes contract. Called by `Rollup.sol` when a challenge is initiated. Challenge requires additional inputs from defender and challenger to be executed.
      * @param _defender Defending party.
      * @param _challenger Challenging party. Challenger starts.
      * @param _verifier Address of the verifier contract.
      * @param _daProvider DA provider.
      * @param _resultReceiver Address of contract that will receive the outcome (via callback `completeChallenge`).
      * @param _startStateHash Commitment to agreed-upon start state.
-     * @param _endStateHash Commitment to disagreed-upon end state being challenged.
+     * @param _endStateDefenseHash Proposed DA end state hash of the defender.
+     * @param _endStateChallengeHash Proposed DA end state hash of the challenger.
+     * @param challengePeriod The duration that challenger/defender has for continuing the challenge
      */
     function initialize(
         address _defender,
@@ -71,10 +76,11 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         IDAProvider _daProvider,
         IChallengeResultReceiver _resultReceiver,
         bytes32 _startStateHash,
-        bytes32 _endStateHash,
+        bytes32 _endStateDefenseHash,
+        bytes32 _endStateChallengeHash,
         uint256 challengePeriod
     ) external {
-        if (turn != Turn.NoChallenge) {
+        if (turn != Turn.NoChallenge || bisectionHash != 0) {
             revert AlreadyInitialized();
         }
         if (_defender == address(0) || _challenger == address(0)) {
@@ -86,7 +92,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         daProvider = _daProvider;
         resultReceiver = _resultReceiver;
         startStateHash = _startStateHash;
-        endStateHash = _endStateHash;
+        endStateDefenseHash = _endStateDefenseHash;
+        endStateChallengeHash = _endStateChallengeHash;
 
         turn = Turn.Defender;
         lastMoveBlock = block.number;
@@ -94,15 +101,45 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         challengerTimeLeft = challengePeriod;
     }
 
-    // TODO: use minimum of challenger/defender's proposed numSteps.
-    function initializeChallengeLength(uint256 _numSteps) external override onlyOnTurn {
+    // TODO: Clean up challenger/defender turn taking if possible
+    function initializeChallengeLength(uint256 _numSteps) external {
+        if (block.number - lastMoveBlock > currentResponderTimeLeft()) {
+            revert DeadlineExpired();
+        }
+
+        // This can be run before turn checking and probably saves gas
         if (bisectionHash != 0) {
             revert AlreadyInitialized();
         }
         require(_numSteps > 0, "INVALID_NUM_STEPS");
-        bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, _numSteps);
-        // TODO: consider emitting a different event?
-        emit Bisected(bisectionHash, 0, _numSteps);
+
+        // Defender proposes `numSteps` and `endStateHash` first
+        if (turn == Turn.Defender && msg.sender == defender) {
+            numSteps = _numSteps;
+            turn = Turn.Challenger;
+            defenderTimeLeft = defenderTimeLeft - (block.number - lastMoveBlock);
+        }
+
+        // Challenger proposes `numSteps` and `endStateHash`. If they disagree, then use these vals
+        if (turn == Turn.Challenger && msg.sender == challenger) {
+            if (_numSteps < numSteps) {
+                numSteps = _numSteps;
+                endStateHash = endStateChallengeHash;
+                turn = Turn.Defender;
+            } else {
+                endStateHash = endStateDefenseHash;
+                turn = Turn.Challenger;
+            }
+
+            // set the bisection between assertions that the challenger and defender resolve.
+            bisectionHash = ChallengeLib.initialBisectionHash(startStateHash, endStateHash, numSteps);
+
+            // log event for all listeners, esp. defender and challanger
+            emit Bisected(bisectionHash, 0, numSteps);
+
+            challengerTimeLeft = challengerTimeLeft - (block.number - lastMoveBlock);
+        }
+        lastMoveBlock = block.number;
     }
 
     function bisectExecution(
@@ -118,6 +155,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }
+
         require(challengedSegmentIndex > 0 && challengedSegmentIndex < prevBisection.length, "INVALID_INDEX");
         // Require agreed upon start state hash and disagreed upon end state hash.
         require(bisection[0] == prevBisection[challengedSegmentIndex - 1], "INVALID_START");
@@ -126,18 +164,21 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         // Compute segment start/length.
         uint256 challengedSegmentStart = prevChallengedSegmentStart;
         uint256 challengedSegmentLength = prevChallengedSegmentLength;
+
+        // prevBisection.length == 2 means first round
         if (prevBisection.length > 2) {
-            // prevBisection.length == 2 means first round
             uint256 firstSegmentLength =
                 ChallengeLib.firstSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
             uint256 otherSegmentLength =
                 ChallengeLib.otherSegmentLength(prevChallengedSegmentLength, MAX_BISECTION_DEGREE);
+
             challengedSegmentLength = challengedSegmentIndex == 1 ? firstSegmentLength : otherSegmentLength;
 
             if (challengedSegmentIndex > 1) {
                 challengedSegmentStart += firstSegmentLength + otherSegmentLength * (challengedSegmentIndex - 2);
             }
         }
+
         require(challengedSegmentLength > 1, "TOO_SHORT");
 
         // Require that bisection has the correct length. This is only ever less than BISECTION_DEGREE at the last bisection.
@@ -149,6 +190,8 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         emit Bisected(bisectionHash, challengedSegmentStart, challengedSegmentLength);
     }
 
+    // TODO: If bisection is not executed because both have commited to the same hash at the same `numStep`, verify
+    // there are no additional ops on the stack after the last step.
     function verifyOneStepProof(
         bytes calldata oneStepProof,
         bytes calldata txInclusionProof,
@@ -164,9 +207,11 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         if (prevHash != bisectionHash) {
             revert PreviousStateInconsistent();
         }
+
         require(challengedStepIndex > 0 && challengedStepIndex < prevBisection.length, "INVALID_INDEX");
         // Require that this is the last round.
         require(prevChallengedSegmentLength / MAX_BISECTION_DEGREE <= 1, "BISECTION_INCOMPLETE");
+
         {
             // Verify tx inclusion.
             daProvider.verifyTxInclusion(ctx.encodedTx, txInclusionProof);

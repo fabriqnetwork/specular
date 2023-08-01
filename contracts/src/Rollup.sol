@@ -314,22 +314,21 @@ contract Rollup is RollupBase {
     {
         uint256 defenderAssertionID = assertionIDs[0];
         uint256 parentID = assertions[defenderAssertionID].parent;
-        {
-            uint256 challengerAssertionID = assertionIDs[1];
-            // Require IDs ordered and in-range.
-            if (defenderAssertionID >= challengerAssertionID) {
-                revert WrongOrder();
-            }
-            if (challengerAssertionID > lastCreatedAssertionID) {
-                revert UnproposedAssertion();
-            }
-            if (lastConfirmedAssertionID >= defenderAssertionID) {
-                revert AssertionAlreadyResolved();
-            }
-            // Require that players have attested to sibling assertions.
-            if (parentID != assertions[challengerAssertionID].parent) {
-                revert NotSiblings();
-            }
+        uint256 challengerAssertionID = assertionIDs[1];
+
+        // Require IDs ordered and in-range.
+        if (defenderAssertionID >= challengerAssertionID) {
+            revert WrongOrder();
+        }
+        if (challengerAssertionID > lastCreatedAssertionID) {
+            revert UnproposedAssertion();
+        }
+        if (lastConfirmedAssertionID >= defenderAssertionID) {
+            revert AssertionAlreadyResolved();
+        }
+        // Require that players have attested to sibling assertions.
+        if (parentID != assertions[challengerAssertionID].parent) {
+            revert NotSiblings();
         }
         // Require that neither player is currently engaged in a challenge.
         address defender = players[0];
@@ -342,6 +341,9 @@ contract Rollup is RollupBase {
         // Initialize challenge.
         SymChallenge challenge = new SymChallenge();
         address challengeAddr = address(challenge);
+        bytes32 startStateHash = assertions[parentID].stateHash;
+        bytes32 endStateDefenderHash = assertions[defenderAssertionID].stateHash;
+        bytes32 endStateChallengerHash = assertions[challengerAssertionID].stateHash;
         stakers[challenger].currentChallenge = challengeAddr;
         stakers[defender].currentChallenge = challengeAddr;
         emit AssertionChallenged(defenderAssertionID, challengeAddr);
@@ -351,8 +353,9 @@ contract Rollup is RollupBase {
             verifier,
             daProvider,
             IChallengeResultReceiver(address(this)),
-            assertions[parentID].stateHash,
-            assertions[defenderAssertionID].stateHash,
+            startStateHash,
+            endStateDefenderHash,
+            endStateChallengerHash,
             challengePeriod
         );
         return challengeAddr;
