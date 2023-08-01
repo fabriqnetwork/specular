@@ -33,9 +33,10 @@ function TxFinalizeDeposit({ wallet, depositData, finalizeDepositData, onGoBack,
   const classes = useTxFinalizeDepositStyles();
 
   useEffect(() => {
-    if (finalizeDepositData.status === 'failed') {
-      onGoBack();
-    }
+    // if (finalizeDepositData.status === 'failed') {
+    //   onGoBack();
+    // }
+    console.log(finalizeDepositData.data);
     if (finalizeDepositData.status === 'successful') {
       onGoToOverviewStep();
     }
@@ -51,7 +52,7 @@ function TxFinalizeDeposit({ wallet, depositData, finalizeDepositData, onGoBack,
           target='_blank'
           rel='noopener noreferrer'
         >
-          Check transaction details for deposit here
+          Check successful transaction details on {NETWORKS[CHIADO_NETWORK_ID].name} for deposit here
           <LinkIcon className={classes.buttonIcon} />
         </a>
       </div>
@@ -61,7 +62,7 @@ function TxFinalizeDeposit({ wallet, depositData, finalizeDepositData, onGoBack,
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${finalizeDepositData?.data}`}
+          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${finalizeDepositData.data}`}
           target='_blank'
           rel='noopener noreferrer'
         >

@@ -34,9 +34,9 @@ function TxFinalizeWithdraw({ wallet, withdrawData, finalizeWithdrawData, onGoBa
   const classes = useTxFinalizeWithdrawStyles();
 
   useEffect(() => {
-    if (finalizeWithdrawData.status === 'failed') {
-      onGoBack();
-    }
+    // if (finalizeWithdrawData.status === 'failed') {
+    //   onGoBack();
+    // }
     if (finalizeWithdrawData.status === 'successful') {
       onGoToOverviewStep();
     }

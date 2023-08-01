@@ -21,6 +21,7 @@ function TxConfirm({ wallet, transactionData, onGoBack, onGoToPendingStep }: TxC
   const classes = useTxConfirmStyles();
 
   useEffect(() => {
+    
     if (transactionData.status === 'failed') {
       onGoBack();
     }

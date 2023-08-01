@@ -22,7 +22,7 @@ interface wallet {
 
 
 
-const INITIAL_DATA: Data = { status: 'pending' };
+const INITIAL_DATA: Data = { status: 'waiting' };
 
 function weiToEther(wei: BigNumberish): string {
   const weiPerEther: ethers.BigNumber = ethers.BigNumber.from("1000000000000000000"); // 1 ether = 10^18 wei
@@ -42,12 +42,12 @@ function useDeposit() {
 
   const deposit = async (wallet: wallet, amount: ethers.BigNumberish): Promise<void> => {
     console.log("From wallet " + wallet.address + " Amount " + amount);
-    setData({ status: 'loading' });
 
     if (!wallet) {
       setData({ status: 'failed', error: "Wallet doesn't exist" });
       return;
     }
+
 
     try {
       console.log("In Try Block with amount " + weiToEther(amount));
@@ -59,11 +59,10 @@ function useDeposit() {
       });
 
       console.log(tx)
-
-      await tx.wait();
       setData({ status: 'pending', data: tx });
       await tx.wait();
       setData({ status: 'successful', data: tx });
+      console.log(tx)
 
     } catch (errorCatched) {
       const err: any = errorCatched;

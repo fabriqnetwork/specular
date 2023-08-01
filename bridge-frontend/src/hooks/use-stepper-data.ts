@@ -10,6 +10,7 @@ export enum Step {
   PendingDeposit = 'pendingDeposit',
   PendingWithdraw = 'pendingWithdraw',
   PendingFinalizeDeposit = 'pendingFinalizeDeposit',
+  PendingFinalizeDeposit1 = 'pendingFinalizeDeposit1',
   PendingFinalizeWithdraw = 'pendingFinalizeWithdraw',
   FinalizeDeposit = 'finalizeDeposit',
   FinalizeWithdrawl = 'finalizeWithdrawl',
