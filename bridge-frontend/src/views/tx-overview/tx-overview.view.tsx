@@ -54,15 +54,9 @@ function TxOverview({
           target='_blank'
           rel='noopener noreferrer'
           >
-          Check transaction details here
+          Check {NETWORKS[CHIADO_NETWORK_ID].name}'s transaction details here
           <LinkIcon className={classes.buttonIcon} />
         </a>
-        {isMetamask && (
-          <button className={classes.button}>
-            Add xDAI token to MetaMask
-            <MetaMaskLogo className={classes.buttonIcon} />
-          </button>
-        )}
       </div>
       <div className={classes.buttonGroup}>
         <a
@@ -71,15 +65,9 @@ function TxOverview({
           target='_blank'
           rel='noopener noreferrer'
         >
-          Check transaction details here
+          Check {NETWORKS[SPECULAR_NETWORK_ID].name}'s transaction details here
           <LinkIcon className={classes.buttonIcon} />
         </a>
-        {isMetamask && (
-          <button className={classes.button}>
-            Add xDAI token to MetaMask
-            <MetaMaskLogo className={classes.buttonIcon} />
-          </button>
-        )}
       </div>
     </div>
   );

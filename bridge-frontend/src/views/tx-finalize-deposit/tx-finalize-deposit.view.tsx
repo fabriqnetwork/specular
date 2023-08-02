@@ -33,9 +33,9 @@ function TxFinalizeDeposit({ wallet, depositData, finalizeDepositData, onGoBack,
   const classes = useTxFinalizeDepositStyles();
 
   useEffect(() => {
-    // if (finalizeDepositData.status === 'failed') {
-    //   onGoBack();
-    // }
+    if (finalizeDepositData.status === 'failed') {
+      onGoBack();
+    }
     console.log(finalizeDepositData.data);
     if (finalizeDepositData.status === 'successful') {
       onGoToOverviewStep();

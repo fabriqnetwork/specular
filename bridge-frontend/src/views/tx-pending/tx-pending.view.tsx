@@ -5,6 +5,9 @@ import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
 import * as React from 'react';
+import {
+  CHIADO_NETWORK_ID
+} from "../../constants";
 
 interface TxPendingProps {
   wallet: {
@@ -47,7 +50,7 @@ function TxPending({ wallet, transactionData, onGoBack, onGoToFinalizeStep }: Tx
           target='_blank'
           rel='noopener noreferrer'
         >
-          Check transaction status here
+          Check {NETWORKS[CHIADO_NETWORK_ID].name}'s transaction status here
           <LinkIcon className={classes.buttonIcon} />
         </a>
       </div>

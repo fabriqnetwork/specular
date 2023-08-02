@@ -53,10 +53,6 @@ function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit,switchCha
       L1ORACLE_ADDRESS,
       l2Provider
     );
-    const l1Portal = IL1Portal__factory.connect(
-      L1PORTAL_ADDRESS,
-      l1Provider
-    );
 
     l1Oracle.on(
       l1Oracle.filters.L1OracleValuesUpdated(),
@@ -90,9 +86,9 @@ function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit,switchCha
         >
           Transaction on {NETWORKS[CHIADO_NETWORK_ID].name} is successful. Check transaction details here
           <LinkIcon className={classes.buttonIcon} />
-          Waiting for confirmation from Oracle.
         </a>
       </div>
+      Waiting for confirmation from Oracle.
     </div>
   );
 }

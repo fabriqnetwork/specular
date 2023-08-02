@@ -12,6 +12,7 @@ import * as React from 'react';
 import useFinalizeDeposit from '../../hooks/use-finalize-deposit'
 import useFinalizeWithdraw from '../../hooks/use-finalize-withdraw'
 import TxPending from '../tx-pending/tx-pending.view'
+import TxPendingDeposit from '../tx-pending-deposit/tx-pending-deposit.view'
 import TxPendingFinalizeDeposit from '../tx-pending-finalize-deposit/tx-pending-finalize-deposit.view'
 import TxPendingFinalizeWithdraw from '../tx-pending-finalize-withdraw/tx-pending-finalize-withdraw.view'
 import TxFinalizeDeposit from '../tx-finalize-deposit/tx-finalize-deposit.view'
@@ -98,41 +99,6 @@ function Stepper () {
 
   const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
   const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
-
-useEffect(() => {
-
-const l1Portal = IL1Portal__factory.connect(
-  L1PORTAL_ADDRESS,
-  l1Provider
-);
-
-  l1Portal.on(
-    l1Portal.filters.DepositInitiated(),
-    (nonce:ethers.BigNumber, sender:string, target:string, value:ethers.BigNumber, gasLimit:ethers.BigNumber, data:string, depositHash:string, event:any) => {
-      console.log("Main L1 Portal transactionHash is "+event.transactionHash+"Deposit data hash is "+ depositData.status+" Deposit Data is "+depositData.data+" Deposit Data hash is "+depositData.data?.hash)
-      if (event.transactionHash === depositData.data?.hash) {
-        const newPendingDeposit: PendingDeposit = {
-          l1BlockNumber: event.blockNumber,
-          proofL1BlockNumber: undefined,
-          depositHash: depositHash,
-          depositTx: {
-            nonce,
-            sender,
-            target,
-            value,
-            gasLimit,
-            data,
-          },
-        }
-        console.log("Main Correct L1 Portal transactionHash is "+event.transactionHash)
-        setPendingDeposit({ status: 'initiated', data: newPendingDeposit});
-      }
-    }
-  );
-  },[depositData]
-)
-
-
 
 if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULAR_NETWORK_ID) ){
   return (
@@ -242,9 +208,12 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
             case Step.PendingDeposit: {
               console.log("PendingDeposit")
               return (
-                <TxPending
+                <TxPendingDeposit
                   wallet={wallet}
-                  transactionData={depositData}
+                  depositData={depositData}
+                  l1Provider={l1Provider}
+                  pendingDeposit={pendingDeposit}
+                  setPendingDeposit={setPendingDeposit}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToFinalizeStep={() => {
                     switchStep(Step.PendingFinalizeDeposit)
@@ -307,13 +276,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
             }
 
             case Step.FinalizeDeposit: {
-              // if (pendingDeposit.status !== 'finalized') {
-              //   setPendingDeposit({ status: 'finalized', data: pendingDeposit.data})
-              //   console.log("Chain Id is: "+wallet.chainId)
-              //   console.log("pendingDeposit"+pendingDeposit)
-              //   finalizeDeposit(wallet,amount,pendingDeposit,setPendingDeposit)
-              //   console.log("pendingDeposit done")
-              // }
+              console.log("FinalizeDeposit")
               return (
                 <TxFinalizeDeposit
                   wallet={wallet}
