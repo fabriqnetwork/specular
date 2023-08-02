@@ -34,9 +34,9 @@ function TxFinalizeWithdraw({ wallet, withdrawData, finalizeWithdrawData, onGoBa
   const classes = useTxFinalizeWithdrawStyles();
 
   useEffect(() => {
-    // if (finalizeWithdrawData.status === 'failed') {
-    //   onGoBack();
-    // }
+    if (finalizeWithdrawData.status === 'failed') {
+      onGoBack();
+    }
     if (finalizeWithdrawData.status === 'successful') {
       onGoToOverviewStep();
     }
@@ -48,7 +48,7 @@ function TxFinalizeWithdraw({ wallet, withdrawData, finalizeWithdrawData, onGoBa
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[CHIADO_NETWORK_ID].blockExplorerUrl}/tx/${withdrawData?.data?.hash}`}
+          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${withdrawData?.data?.hash}`}
           target='_blank'
           rel='noopener noreferrer'
         >
@@ -62,7 +62,7 @@ function TxFinalizeWithdraw({ wallet, withdrawData, finalizeWithdrawData, onGoBa
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${finalizeWithdrawData?.data}`}
+          href={`${NETWORKS[CHIADO_NETWORK_ID].blockExplorerUrl}/tx/${finalizeWithdrawData?.data}`}
           target='_blank'
           rel='noopener noreferrer'
         >

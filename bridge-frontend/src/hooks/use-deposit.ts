@@ -62,7 +62,6 @@ function useDeposit() {
       setData({ status: 'pending', data: tx });
       await tx.wait();
       setData({ status: 'successful', data: tx });
-      console.log(tx)
 
     } catch (errorCatched) {
       const err: any = errorCatched;

@@ -59,8 +59,6 @@ function useWithdraw() {
       });
 
       console.log(tx)
-
-      await tx.wait();
       setData({ status: 'pending', data: tx });
       await tx.wait();
       setData({ status: 'successful', data: tx });
