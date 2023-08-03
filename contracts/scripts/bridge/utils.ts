@@ -6,10 +6,10 @@ const l1Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:8545"
 );
 
-const l1BridgeAddr = "0xE7C2a73131dd48D8AC46dCD7Ab80C8cbeE5b410A";
-const l2BridgeAddr = "0xF6168876932289D073567f347121A267095f3DD6";
-const l1OracleAddress = "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1";
-const rollupAddress = "0xF6168876932289D073567f347121A267095f3DD6";
+const l1BridgeAddr = process.env.L1_BRIDGE_ADDR;
+const l2BridgeAddr = process.env.L2_BRIDGE_ADDR;
+const l1OracleAddress = process.env.L1_ORACLE_ADDR;
+const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {
   const l1Bridger = new ethers.Wallet(
