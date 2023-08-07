@@ -64,10 +64,6 @@ This is not really required, as formatting happens everytime you commit to the r
 forge fmt .
 ```
 
-## Fuzz Runs
-
-To increase the number of runs for the fuzz tests written for testing `Rollup.t.sol`, `SequencerInbox.t.sol`, etc. head over to `foundry.toml` and under the `[fuzz]` section put your desired number of runs infront of `runs`.
-
 ## Local Slither Check
 
 Install [`slither`](https://github.com/crytic/slither):

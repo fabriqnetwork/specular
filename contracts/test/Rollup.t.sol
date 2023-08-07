@@ -191,7 +191,6 @@ contract RollupTest is RollupBaseSetup {
             uint256 rollupConfirmationPeriod = rollup.confirmationPeriod();
             uint256 rollupChallengePeriod = rollup.challengePeriod();
             uint256 rollupMinimumAssertionPeriod = rollup.minimumAssertionPeriod();
-            uint256 rollupMaxGasPerAssertion = rollup.maxGasPerAssertion();
             uint256 rollupBaseStakeAmount = rollup.baseStakeAmount();
 
             assertEq(
@@ -208,11 +207,6 @@ contract RollupTest is RollupBaseSetup {
                 rollupMinimumAssertionPeriod,
                 minimumAssertionPeriod,
                 "Rollup.initialize failed to update minimumAssertionPeriod value correctly"
-            );
-            assertEq(
-                rollupMaxGasPerAssertion,
-                maxGasPerAssertion,
-                "Rollup.initialize failed to update maxGasPerAssertion value correctly"
             );
             assertEq(
                 rollupBaseStakeAmount,
