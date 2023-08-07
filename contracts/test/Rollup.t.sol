@@ -914,14 +914,6 @@ contract RollupTest is RollupBaseSetup {
 
     /////////////////////////
     // Advance Stake
-    /////////////////////////
-
-    function test_advanceStake_calledByNonStaker(
-        uint256 confirmationPeriod,
-        uint256 challengePeriod,
-        uint256 minimumAssertionPeriod,
-        uint256 baseStakeAmount,
-        uint256 assertionID,
         uint256 initialAssertionID,
         uint256 initialInboxSize
     ) external {
