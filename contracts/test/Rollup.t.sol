@@ -967,16 +967,8 @@ contract RollupTest is RollupBaseSetup {
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
 
-        vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
-
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        // Now Alice should be staked
-        (isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
+        _stake(alice, aliceAmountToStake);
 
         (,, uint256 stakerAssertionID,) = rollup.stakers(address(alice));
 
@@ -1013,17 +1005,9 @@ contract RollupTest is RollupBaseSetup {
 
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
-
-        vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        // Now Alice should be staked
-        (isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
+        _stake(alice, aliceAmountToStake);
 
         vm.expectRevert(IRollup.AssertionOutOfRange.selector);
         vm.prank(alice);
@@ -1041,46 +1025,19 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isAliceStaked);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
+
+        // Let's stake something on behalf of Bob and Alice
         uint256 aliceBalance = alice.balance;
-
-        // Bob also wants to stake on this assertion
-        (bool isBobStaked,,,) = rollup.stakers(bob);
-        assertTrue(!isBobStaked);
-
         uint256 bobBalance = bob.balance;
 
-        // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
         uint256 bobAmountToStake = minimumAmount * 10;
 
-        vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
-
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        vm.prank(bob);
         require(bobBalance >= bobAmountToStake, "Increase balance of Bob to proceed");
 
-        // slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: bobAmountToStake}();
-
-        // Now Alice should be staked
-        uint256 stakerAssertionID;
-
-        // stakers mapping gets updated
-        (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
-
-        // Bob should be marked as staked now
-        (isBobStaked,,,) = rollup.stakers(bob);
-        assertTrue(isBobStaked);
-
-        // Comparing lastConfirmedAssertionID and stakerAssertionID
-        emit log_named_uint("Last Confirmed Assertion ID", rollup.lastConfirmedAssertionID());
-        emit log_named_uint("Staker Assertion ID", stakerAssertionID);
-        emit log_named_uint("Last Created Assertion ID", rollup.lastCreatedAssertionID());
+        _stake(alice, aliceAmountToStake);
+        _stake(alice, bobAmountToStake);
 
         // Let's create a brand new assertion, so that the lastCreatedAssertionID goes up and we can successfully advance stake to the new ID after that
 
@@ -1103,9 +1060,6 @@ contract RollupTest is RollupBaseSetup {
         // be seen from the function `Rollup.initialize()`
 
         assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
-        (, uint256 amountStakedInitial, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
-
-        assertEq(assertionIDInitial, 0);
 
         vm.prank(alice);
         rollup.createAssertion(mockVmHash, mockInboxSize);
@@ -1116,7 +1070,7 @@ contract RollupTest is RollupBaseSetup {
         // The assertionID of alice should change after she called `createAssertion`
         (, uint256 amountStakedFinal, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
 
-        assertEq(amountStakedInitial, amountStakedFinal);
+        assertEq(aliceAmountToStake, amountStakedFinal);
         assertEq(assertionIDFinal, 1);
 
         // Advance stake of the staker
