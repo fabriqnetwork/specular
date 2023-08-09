@@ -76,7 +76,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(fetchedSequencerAddress, sequencerAddress);
     }
 
-    function test_fuzz_zeroValues(address _vault, address _sequencerInboxAddress, address _verifier) external {
+    function testFuzz_zeroValues_reverts(address _vault, address _sequencerInboxAddress, address _verifier) external {
         vm.assume(_vault >= address(0));
         vm.assume(_sequencerInboxAddress >= address(0));
         vm.assume(_verifier >= address(0));
@@ -103,7 +103,7 @@ contract RollupTest is RollupBaseSetup {
         }
     }
 
-    function test_initializeRollup_cannotReinitializeRollup() external {
+    function test_initialize_reinitializeRollup_reverts() external {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
             sequencerAddress, // vault
@@ -140,7 +140,7 @@ contract RollupTest is RollupBaseSetup {
         );
     }
 
-    function test_initializeRollup_valuesAfterInit(
+    function testFuzz_initialize_valuesAfterInit_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -220,7 +220,7 @@ contract RollupTest is RollupBaseSetup {
     // Staking
     ///////////////
 
-    function test_stake_isStaked(
+    function testFuzz_stake_isStaked_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -242,7 +242,7 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isAliceStaked);
     }
 
-    function test_stake_insufficentAmountStaking(
+    function testFuzz_stake_insufficentAmountStaking_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -275,7 +275,7 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isAliceStaked);
     }
 
-    function test_stake_sufficientAmountStakingAndNumStakersIncrement(
+    function testFuzz_stake_sufficientAmountStakingAndNumStakersIncrement_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -317,7 +317,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
     }
 
-    function test_stake_increaseStake(
+    function testFuzz_stake_increaseStake_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -387,7 +387,7 @@ contract RollupTest is RollupBaseSetup {
     // Remove Stake
     /////////////////////
 
-    function test_removeStake_forNonStaker(
+    function testFuzz_removeStake_forNonStaker_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -415,7 +415,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.removeStake(address(alice));
     }
 
-    function test_removeStake_forNonStaker_thirdPartyCall(
+    function testFuzz_removeStake_forNonStakerThirdPartyCall_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -443,7 +443,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.removeStake(address(alice));
     }
 
-    function test_removeStake_positiveCase(
+    function testFuzz_removeStake_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -492,7 +492,7 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isStakedAfterRemoveStake);
     }
 
-    function test_removeStake_fromUnconfirmedAssertionID(uint256 confirmationPeriod, uint256 challengePeriod)
+    function testFuzz_removeStake_fromUnconfirmedAssertionID_reverts(uint256 confirmationPeriod, uint256 challengePeriod)
         external
     {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
@@ -523,10 +523,6 @@ contract RollupTest is RollupBaseSetup {
         (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
         assertTrue(isAliceStaked);
         assertEq(stakerAssertionID, 0);
-
-        // Checking previous Sequencer Inbox Size
-        uint256 seqInboxSize = seqIn.getInboxSize();
-        emit log_named_uint("Sequencer Inbox Size", seqInboxSize);
 
         _increaseSequencerInboxSize();
 
@@ -577,6 +573,7 @@ contract RollupTest is RollupBaseSetup {
 
     // This function increases the inbox size by 6
     function _increaseSequencerInboxSize() internal {
+        uint256 seqInboxSizeInitial = seqIn.getInboxSize();
         uint256 numTxnsPerBlock = 3;
         uint256 firstL2BlockNumber = block.timestamp / 20;
 
@@ -602,6 +599,9 @@ contract RollupTest is RollupBaseSetup {
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+
+        uint256 seqInboxSizeFinal = seqIn.getInboxSize();
+        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 6, "Sequencer inbox size did not increase by 6");
     }
 
     function _initializeRollup(
