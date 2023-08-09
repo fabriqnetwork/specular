@@ -815,14 +815,13 @@ contract RollupTest is RollupBaseSetup {
         rollup.createAssertion(mockVmHash, mockInboxSize);
 
         // The assertionID of alice should change after she called `createAssertion`
-        (, uint256 stakedAmount, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
-        assertEq(stakedAmount, aliceAmountToStake, "Unexpected staked amount");
+        (,, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
         assertEq(assertionIDFinal, 1); // Alice is now staked on assertionID = 1 instead of assertionID = 0.
 
         // Alice tries to unstake
         vm.prank(alice);
         vm.expectRevert(IRollup.StakedOnUnconfirmedAssertion.selector);
-        rollup.unstake(stakedAmount);
+        rollup.unstake(aliceAmountToStake);
     }
 
     /////////////////////////
@@ -919,10 +918,11 @@ contract RollupTest is RollupBaseSetup {
         rollup.stake{value: amountToStake}();
 
         // Staker should now be staked on the genesis assertion id
-        (bool isStaked,, uint256 stakedAssertionId,) = rollup.stakers(staker);
+        (bool isStaked, uint256 stakedAmount, uint256 stakedAssertionId,) = rollup.stakers(staker);
         assertEq(
             stakedAssertionId, rollup.lastConfirmedAssertionID(), "Staker is not staked on the lastConfirmedAssertionId"
         );
+        assertEq(stakedAmount, amountToStake);
         assertTrue(isStaked);
     }
 }
