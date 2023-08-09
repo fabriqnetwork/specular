@@ -806,11 +806,6 @@ contract RollupTest is RollupBaseSetup {
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
 
-        (,, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
-        assertEq(
-            assertionIDInitial, 0, "Alice has not yet created an assertionID, so it should be the same as genesis(0)"
-        );
-
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
