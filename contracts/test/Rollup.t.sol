@@ -524,10 +524,6 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(isAliceStaked);
         assertEq(stakerAssertionID, 0);
 
-        // Checking previous Sequencer Inbox Size
-        uint256 seqInboxSize = seqIn.getInboxSize();
-        emit log_named_uint("Sequencer Inbox Size", seqInboxSize);
-
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
@@ -577,6 +573,7 @@ contract RollupTest is RollupBaseSetup {
 
     // This function increases the inbox size by 6
     function _increaseSequencerInboxSize() internal {
+        uint256 seqInboxSizeInitial = seqIn.getInboxSize();
         uint256 numTxnsPerBlock = 3;
         uint256 firstL2BlockNumber = block.timestamp / 20;
 
@@ -602,6 +599,9 @@ contract RollupTest is RollupBaseSetup {
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+
+        uint256 seqInboxSizeFinal = seqIn.getInboxSize();
+        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 6, "Sequencer inbox size did not increase by 6");
     }
 
     function _initializeRollup(
