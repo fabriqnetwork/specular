@@ -62,32 +62,32 @@ contract SequencerInboxTest is SequencerBaseSetup {
     /////////////////////////////////
     // SequencerInbox Tests
     /////////////////////////////////
-    function test_initializeSequencerInbox_withSequencerAddressZero() external {
+    function test_initializeSequencerInbox_withSequencerAddressZero_reverts() external {
         bytes memory seqInInitData = abi.encodeWithSignature("initialize(address)", address(0));
         vm.startPrank(sequencerOwner);
         vm.expectRevert(ZeroAddress.selector);
         seqIn = SequencerInbox(address(new ERC1967Proxy(address(implementationSequencer), seqInInitData)));
-        vm.stopPrank();
     }
 
-    function test_SequencerAddress() public {
+    function test_sequencerAddress_works() public {
         assertEq(seqIn.sequencerAddress(), sequencerAddress, "Sequencer Address is not as expected");
     }
 
-    function test_intializeSequencerInbox_cannotBeCalledTwice() external {
+    function test_intializeSequencerInbox_cannotBeCalledTwice_reverts() external {
         vm.expectRevert("Initializable: contract is already initialized");
 
         // Since seqIn has already been initialised once(in the setUp function), if we try to initialize it again, it should fail
         seqIn.initialize(makeAddr("random address"));
     }
 
-    function testFail_verifyTxInclusion_withEmptyProof() external view {
+    function test_verifyTxInclusion_withEmptyProof_fails() external {
+        vm.expectRevert("too short");
         bytes memory emptyProof = bytes("");
         seqIn.verifyTxInclusion(bytes(""), emptyProof);
     }
 
     // Only sequencer can append transaction batches to the sequencerInbox
-    function test_RevertWhen_InvalidSequencer() public {
+    function test_appendTxBatch_invalidSequencer_reverts() public {
         vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencerAddress));
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
@@ -95,7 +95,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
     }
 
-    function test_RevertWhen_EmptyBatch() public {
+    function test_appendTxBatch_emptyBatch_reverts() public {
         vm.expectRevert(ISequencerInbox.EmptyBatch.selector);
         vm.prank(sequencerAddress);
         uint256[] memory contexts = new uint256[](1);
@@ -106,7 +106,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
     //////////////////////////////
     // appendTxBatch
     //////////////////////////////
-    function test_appendTxBatch_positiveCase_1(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
+    function test_appendTxBatch_case1_succeeds(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
         // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
         txnBlocks = bound(txnBlocks, 1, 10);
@@ -154,7 +154,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         assertEq(inboxSizeFinal, expectedInboxSize);
     }
 
-    function test_appendTxBatch_positiveCase_2_hardcoded() public {
+    function test_appendTxBatch_case2Hardcoded_succeeds() public {
         //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // Here, we are assuming we have 2 transaction blocks with 3 transactions each (initial lower load hardcoded test)
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -196,7 +196,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         assertEq(inboxSizeFinal, expectedInboxSize);
     }
 
-    function test_appendTxBatch_revert_txBatchDataOverflow(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
+    function test_appendTxBatch_txBatchDataOverflow_reverts(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
         // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
         txnBlocks = bound(txnBlocks, 1, 10);
@@ -245,7 +245,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
     // TENTATIVE CODE CHANGE. TEST SUBJECT TO CHANGE BASED ON CHANGE IN CODE
     // Probable change: `appendTxBatch` passes even with malformed `contexts` array
     /////////////////////////////////////////////////////////////////////////////////////////
-    function test_appendTxBatch_incompleteDataInContextsArray(uint256 numTxnsPerBlock) public {
+    function test_appendTxBatch_incompleteDataInContextsArray_succeeds(uint256 numTxnsPerBlock) public {
         // Since we are assuming that we will have two transaction blocks and we have a total of 300 sample transactions right now.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 150);
         uint256 inboxSizeInitial = seqIn.getInboxSize();
@@ -283,7 +283,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
     // verifyTxInclusion
     // commit a batch and verify the Nth transaction
     //////////////////////////////
-    function test_verifyTxInclusion_positive(uint256 numTxPerBlock, uint256 numBlocks, uint256 txToVerify) public {
+    function test_verifyTxInclusion_succeeds(uint256 numTxPerBlock, uint256 numBlocks, uint256 txToVerify) public {
         numTxPerBlock = bound(numTxPerBlock, 1, 30);
         numBlocks = bound(numBlocks, 1, 5);
         uint256 numTx = numTxPerBlock * numBlocks;
@@ -322,6 +322,10 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         seqIn.verifyTxInclusion(encodedTx, proof);
     }
+
+    /////////////////////////
+    // Auxillary Functions
+    /////////////////////////
 
     function generateContexts(uint256 numBlocks, uint256 numTxPerBlock) public view returns (uint256[] memory) {
         uint256 txBlockTimestamp = block.timestamp - (2 * numBlocks);
