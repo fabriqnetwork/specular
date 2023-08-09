@@ -914,6 +914,14 @@ contract RollupTest is RollupBaseSetup {
 
     /////////////////////////
     // Advance Stake
+    /////////////////////////
+
+    function test_advanceStake_calledByNonStaker_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 baseStakeAmount,
+        uint256 assertionID,
         uint256 initialAssertionID,
         uint256 initialInboxSize
     ) external {
@@ -937,7 +945,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.advanceStake(assertionID);
     }
 
-    function test_advanceStake_calledWithRandomAssertionID(
+    function test_advanceStake_calledWithRandomAssertionID_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -984,7 +992,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.advanceStake(assertionID);
     }
 
-    function test_advanceStake_illegalAssertionID(
+    function testFuzz_advanceStake_illegalAssertionID_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -1022,7 +1030,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.advanceStake(assertionID);
     }
 
-    function test_advanceStake_positiveCase(uint256 confirmationPeriod, uint256 challengePeriod) external {
+    function testFuzz_advanceStake_succeeds(uint256 confirmationPeriod, uint256 challengePeriod) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
@@ -1080,21 +1088,14 @@ contract RollupTest is RollupBaseSetup {
         // To call Rollup.createAssertion(), we will need to pass in a param called uint256 inboxSize
         // The thing about inboxSize is that it needs to fulfill 2 require statements and to fulfill the 2nd one, the inboxSize from the SequencerInbox needs to be increased
 
-        // Checking previous Sequencer Inbox Size
-        uint256 seqInboxSize = seqIn.getInboxSize();
-        emit log_named_uint("Sequencer Inbox Size", seqInboxSize);
-
         // Increasing the sequencerInbox inboxSize
         _increaseSequencerInboxSize();
-
-        emit log_named_uint("Changed Sequencer Inbox Size", seqIn.getInboxSize());
 
         bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 6; // Which is smaller than the previously set sequencerInboxSize with the function _increaseSequencerInboxSize
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
-        vm.warp(block.timestamp + 50 days);
-        vm.roll(block.number + (50 * 86400) / 20);
+        vm.roll(block.number + rollup.minimumAssertionPeriod());
 
         // The method to mock startState(prevL2GasUsed, prevVmHash) to be equal to assertions.getStateHash(parentId)
         // is not known yet, so, let's assume they won't match and move forward.
