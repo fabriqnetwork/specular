@@ -2,7 +2,6 @@ import Header from '../shared/header/header.view';
 import useTxOverviewStyles from './tx-overview.styles';
 import { ReactComponent as CheckIcon } from '../../images/check-icon.svg';
 import LinkIcon from '@mui/icons-material/OpenInNew';
-import { ReactComponent as MetaMaskLogo } from '../../images/metamask-logo.svg';
 import { NETWORKS } from '../../chains';
 import * as React from 'react';
 import {
@@ -41,7 +40,7 @@ function TxOverview({
 
   var fromNetworkId = SPECULAR_NETWORK_ID;
   var toNetworkId = CHIADO_NETWORK_ID;
-  
+
   if(isDeposit){
     fromNetworkId = CHIADO_NETWORK_ID;
     toNetworkId = SPECULAR_NETWORK_ID;

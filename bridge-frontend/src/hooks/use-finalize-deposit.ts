@@ -8,7 +8,6 @@ import {
 } from "../typechain-types";
 import type { JsonRpcProvider } from "@ethersproject/providers";
 import {
-  CHIADO_NETWORK_ID,
   CHIADO_RPC_URL,
   SPECULAR_NETWORK_ID,
   SPECULAR_RPC_URL,

@@ -281,6 +281,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   pendingWithdraw={pendingWithdraw}
                   setPendingWithdraw={setPendingWithdraw}
                   switchChain={switchChain}
+                  onGoBack={() => switchStep(Step.Withdraw)}
                   onGoToFinalizeStep={() => {
                     switchStep(Step.FinalizingWithdraw)
                   }}

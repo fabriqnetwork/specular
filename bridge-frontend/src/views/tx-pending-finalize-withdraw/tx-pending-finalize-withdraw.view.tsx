@@ -7,11 +7,9 @@ import { NETWORKS } from '../../chains';
 import * as React from 'react';
 import { ethers } from 'ethers'
 import {
-  CHIADO_NETWORK_ID,
   CHIADO_RPC_URL,
   INBOX_ADDRESS,
   ROLLUP_ADDRESS,
-  SPECULAR_RPC_URL,
   SPECULAR_NETWORK_ID
 } from "../../constants";
 import {
@@ -39,14 +37,14 @@ interface TxPendingProps {
   pendingWithdraw: PendingWithdrawlData;
   setPendingWithdraw: (args1:any) => void;
   onGoToFinalizeStep: () => void;
+  onGoBack: () => void;
   switchChain: (args1:any) => void;
 
 }
 
-function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain, onGoToFinalizeStep }: TxPendingProps) {
+function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain,onGoBack, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
   const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
-  const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
   const sequencerInboxInterface = ISequencerInbox__factory.createInterface();
   const inboxSizeToBlockNumberMap = new Map<string, number>();
 
@@ -140,7 +138,7 @@ function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPen
           pendingWithdraw.data.inboxSize = undefined;
           pendingWithdraw.data.assertionID = undefined;
           pendingWithdraw.data.proofL2BlockNumber = undefined;
-          // isWithdrawalError.value = true;
+          onGoBack();
           return;
         }
         setPendingWithdraw(pendingWithdraw);

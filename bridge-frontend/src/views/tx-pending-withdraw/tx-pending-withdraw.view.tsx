@@ -7,14 +7,12 @@ import { NETWORKS } from '../../chains';
 import * as React from 'react';
 import {
   L2PORTAL_ADDRESS,
-  CHIADO_NETWORK_ID,
   SPECULAR_NETWORK_ID
 } from "../../constants";
 import type {PendingWithdrawal } from "../../types";
 import {
   IL2Portal__factory,
 } from "../../typechain-types";
-import { ethers } from 'ethers';
 
 interface PendingWithdrawlData {
   status: string;
