@@ -27,7 +27,7 @@ interface TxOverviewProps {
     data?: string;
   };
   onDisconnectWallet: () => void;
-  isMetamask: boolean;
+  isDeposit: boolean;
 }
 
 function TxOverview({
@@ -35,9 +35,17 @@ function TxOverview({
   transactionData,
   finalizeTransactionData,
   onDisconnectWallet,
-  isMetamask,
+  isDeposit,
 }: TxOverviewProps) {
   const classes = useTxOverviewStyles();
+
+  var fromNetworkId = SPECULAR_NETWORK_ID;
+  var toNetworkId = CHIADO_NETWORK_ID;
+  
+  if(isDeposit){
+    fromNetworkId = CHIADO_NETWORK_ID;
+    toNetworkId = SPECULAR_NETWORK_ID;
+  }
 
   return (
     <div className={classes.txOverview}>
@@ -50,22 +58,22 @@ function TxOverview({
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[CHIADO_NETWORK_ID].blockExplorerUrl}/tx/${transactionData?.data?.hash}`}
+          href={`${NETWORKS[fromNetworkId].blockExplorerUrl}/tx/${transactionData?.data?.hash}`}
           target='_blank'
           rel='noopener noreferrer'
           >
-          Check {NETWORKS[CHIADO_NETWORK_ID].name}'s transaction details here
+          Check {NETWORKS[fromNetworkId].name}'s transaction details here
           <LinkIcon className={classes.buttonIcon} />
         </a>
       </div>
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}
-          href={`${NETWORKS[SPECULAR_NETWORK_ID].blockExplorerUrl}/tx/${finalizeTransactionData?.data}`}
+          href={`${NETWORKS[toNetworkId].blockExplorerUrl}/tx/${finalizeTransactionData?.data}`}
           target='_blank'
           rel='noopener noreferrer'
         >
-          Check {NETWORKS[SPECULAR_NETWORK_ID].name}'s transaction details here
+          Check {NETWORKS[toNetworkId].name}'s transaction details here
           <LinkIcon className={classes.buttonIcon} />
         </a>
       </div>

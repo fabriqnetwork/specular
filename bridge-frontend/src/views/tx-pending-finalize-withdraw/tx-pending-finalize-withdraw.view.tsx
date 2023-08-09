@@ -37,12 +37,13 @@ interface TxPendingProps {
     };
   };
   pendingWithdraw: PendingWithdrawlData;
+  setPendingWithdraw: (args1:any) => void;
   onGoToFinalizeStep: () => void;
   switchChain: (args1:any) => void;
 
 }
 
-function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,switchChain, onGoToFinalizeStep }: TxPendingProps) {
+function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
   const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
   const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
@@ -79,6 +80,7 @@ function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,switch
           if (lastL2BlockNumber >= pendingWithdraw.data.l2BlockNumber) {
             if (pendingWithdraw.data?.inboxSize === undefined) {
               pendingWithdraw.data.inboxSize = inboxSize;
+              setPendingWithdraw(pendingWithdraw);
             }
             inboxSizeToBlockNumberMap.set(
               inboxSize.toString(),
@@ -109,8 +111,8 @@ function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,switch
           if (inboxSizeToBlockNumberMap.has(assertion.inboxSize.toString())) {
             // We already know the l2 block number of the assertion
             pendingWithdraw.data.assertionID = assertionID;
-            pendingWithdraw.data.proofL2BlockNumber =
-              inboxSizeToBlockNumberMap.get(assertion.inboxSize.toString());
+            pendingWithdraw.data.proofL2BlockNumber = inboxSizeToBlockNumberMap.get(assertion.inboxSize.toString());
+            setPendingWithdraw(pendingWithdraw);
             console.log(assertion.stateHash);
             // No need to keep the map
             inboxSizeToBlockNumberMap.clear();
@@ -119,6 +121,33 @@ function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,switch
       }
     }
   );
+  rollup.on(rollup.filters.AssertionConfirmed(), async (assertionID, event) => {
+    console.log("AssertionConfirmed", assertionID.toString());
+    if (pendingWithdraw) {
+      if (pendingWithdraw.data.assertionID === undefined) {
+        return;
+      }
+      console.log("pendingWithdrawal assertionID ", pendingWithdraw.data.assertionID.toString());
+      if (assertionID.gte(pendingWithdraw.data.assertionID)) {
+        // The assertion should be already finalized
+        const assertion = await rollup.getAssertion(
+          pendingWithdraw.data.assertionID
+        );
+        if (assertion.inboxSize.eq(0)) {
+          console.error("The assertion containing the withdrawal is rejected");
+          console.error("Assertion ID: ", pendingWithdraw.data.assertionID.toString()
+          );
+          pendingWithdraw.data.inboxSize = undefined;
+          pendingWithdraw.data.assertionID = undefined;
+          pendingWithdraw.data.proofL2BlockNumber = undefined;
+          // isWithdrawalError.value = true;
+          return;
+        }
+        setPendingWithdraw(pendingWithdraw);
+        onGoToFinalizeStep();
+      }
+    }
+  });
   },[pendingWithdraw]
   )
   return (

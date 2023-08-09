@@ -8,15 +8,11 @@ import * as React from 'react';
 import { ethers } from 'ethers'
 import {
   CHIADO_NETWORK_ID,
-  CHIADO_RPC_URL,
   L1ORACLE_ADDRESS,
-  L1PORTAL_ADDRESS,
   SPECULAR_RPC_URL,
-  SPECULAR_NETWORK_ID
 } from "../../constants";
 import {
-  L1Oracle__factory,
-  IL1Portal__factory
+  L1Oracle__factory
 } from "../../typechain-types";
 import type { PendingDeposit } from "../../types";
 
@@ -37,14 +33,14 @@ interface TxPendingProps {
     };
   };
   pendingDeposit: PendingData;
+  setPendingDeposit: (args1:any) => void;
   onGoToFinalizeStep: () => void;
   switchChain: (args1:any) => void;
 
 }
 
-function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit,switchChain, onGoToFinalizeStep }: TxPendingProps) {
+function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit, setPendingDeposit,switchChain, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
-  const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
   const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
   // switchChain(SPECULAR_NETWORK_ID.toString())
 
@@ -64,6 +60,7 @@ function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit,switchCha
         if (blockNumber.gte(pendingDeposit.data.l1BlockNumber) && pendingDeposit.status === 'initiated') {
           pendingDeposit.data.proofL1BlockNumber = blockNumber.toNumber();
           console.log("Main Oracle Correct Blocknumber is "+blockNumber);
+          setPendingDeposit(pendingDeposit);
           onGoToFinalizeStep();
         }
       }

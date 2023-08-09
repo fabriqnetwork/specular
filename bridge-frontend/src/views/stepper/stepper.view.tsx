@@ -1,4 +1,4 @@
-import { useEffect,useState, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import useStepperStyles from './stepper.styles'
 import useWallet from '../../hooks/use-wallet'
 import useStep, { Step } from '../../hooks/use-stepper-data'
@@ -26,15 +26,10 @@ import {
   CHIADO_NETWORK_ID,
   SPECULAR_NETWORK_ID,
   CHIADO_RPC_URL,
-  SPECULAR_RPC_URL,
-  L1ORACLE_ADDRESS,
-  L1PORTAL_ADDRESS
+  SPECULAR_RPC_URL
 } from "../../constants";
 import type { PendingDeposit, PendingWithdrawal } from "../../types";
-import {
-  L1Oracle__factory,
-  IL1Portal__factory,
-} from "../../typechain-types";
+
 
 function Stepper () {
   const classes = useStepperStyles()
@@ -88,6 +83,8 @@ function Stepper () {
 
   const INITIALPENDINGWITHDRAW = {status: 'pending', data: PENDINGWITHDRAW}
   const [pendingWithdraw, setPendingWithdraw] = useState<PendingWithdrawlData>(INITIALPENDINGWITHDRAW);
+  const [isDeposit, setIsDeposit] = useState<boolean>(true);
+
 
 
   const tabs = [
@@ -252,6 +249,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   wallet={wallet}
                   depositData={depositData}
                   pendingDeposit={pendingDeposit}
+                  setPendingDeposit={setPendingDeposit}
                   switchChain={switchChain}
                   onGoToFinalizeStep={() => {
                     switchStep(Step.FinalizingDeposit)
@@ -267,6 +265,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   transactionData={depositData}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToFinalizeStep={() => {
+                    setIsDeposit(true)
                     finalizeDeposit(wallet,amount,pendingDeposit,setPendingDeposit)
                     switchStep(Step.FinalizeDeposit)
                   }}
@@ -280,6 +279,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   wallet={wallet}
                   withdrawData={withdrawData}
                   pendingWithdraw={pendingWithdraw}
+                  setPendingWithdraw={setPendingWithdraw}
                   switchChain={switchChain}
                   onGoToFinalizeStep={() => {
                     switchStep(Step.FinalizingWithdraw)
@@ -292,9 +292,10 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               return (
                 <TxPending
                   wallet={wallet}
-                  transactionData={depositData}
-                  onGoBack={() => switchStep(Step.Deposit)}
+                  transactionData={withdrawData}
+                  onGoBack={() => switchStep(Step.Withdraw)}
                   onGoToFinalizeStep={() => {
+                    setIsDeposit(false)
                     finalizeWithdraw(wallet,amount,pendingWithdraw.data)
                     switchStep(Step.FinalizeDeposit)
                   }}
@@ -333,7 +334,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   finalizeTransactionData={finalizeDepositData}
                   transactionData={depositData}
                   onDisconnectWallet={disconnectWallet}
-                  isMetamask={isMetamask}
+                  isDeposit={isDeposit}
                 />
               )
             }
