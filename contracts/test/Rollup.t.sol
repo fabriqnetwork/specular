@@ -37,17 +37,21 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     address internal bob;
     address internal deployer;
     address internal sequencerAddress;
+    address internal defender;
+    address internal challenger;
 
     Verifier verifier = new Verifier();
 
     function setUp() public virtual {
         utils = new Utils();
-        users = utils.createUsers(4);
+        users = utils.createUsers(6);
 
         deployer = users[0];
         sequencerAddress = users[1];
         alice = users[2];
         bob = users[3];
+        defender = users[4];
+        challenger = users[5];
     }
 }
 
@@ -76,7 +80,11 @@ contract RollupTest is RollupBaseSetup {
         assertEq(fetchedSequencerAddress, sequencerAddress);
     }
 
-    function testFuzz_zeroValues_reverts(address _vault, address _sequencerInboxAddress, address _verifier) external {
+    function testFuzz_constructRollup_zeroValues_reverts(
+        address _vault,
+        address _sequencerInboxAddress,
+        address _verifier
+    ) external {
         vm.assume(_vault >= address(0));
         vm.assume(_sequencerInboxAddress >= address(0));
         vm.assume(_verifier >= address(0));
@@ -220,7 +228,7 @@ contract RollupTest is RollupBaseSetup {
     // Staking
     ///////////////
 
-    function testFuzz_stake_isStaked_succeeds(
+    function testFuzz_stakers_notStaked_works(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -242,7 +250,7 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isAliceStaked);
     }
 
-    function testFuzz_stake_insufficentAmountStaking_reverts(
+    function testFuzz_stake_insufficentStake_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -275,7 +283,7 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isAliceStaked);
     }
 
-    function testFuzz_stake_sufficientAmountStakingAndNumStakersIncrement_reverts(
+    function testFuzz_stake_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -299,16 +307,12 @@ contract RollupTest is RollupBaseSetup {
         assertEq(alice.balance, 0, "Alice should not have any balance left");
         assertEq(finalStakers, (initialStakers + 1), "Number of stakers should increase by 1");
 
-        // isStaked should return true for Alice now
-        (bool isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
-
         uint256 amountStaked;
         uint256 assertionID;
         address challengeAddress;
 
         // stakers mapping gets updated
-        (isAliceStaked, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
+        (, amountStaked, assertionID, challengeAddress) = rollup.stakers(alice);
 
         assertEq(amountStaked, aliceBalance, "amountStaked not updated properly");
         assertEq(assertionID, rollup.lastConfirmedAssertionID(), "assertionID not updated properly");
@@ -383,7 +387,7 @@ contract RollupTest is RollupBaseSetup {
     // Remove Stake
     /////////////////////
 
-    function testFuzz_removeStake_forNonStaker_reverts(
+    function testFuzz_removeStake_notStaked_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -411,7 +415,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.removeStake(address(alice));
     }
 
-    function testFuzz_removeStake_forNonStakerThirdPartyCall_reverts(
+    function testFuzz_removeStake_notStakedThirdPartyCall_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -450,28 +454,14 @@ contract RollupTest is RollupBaseSetup {
             confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID, initialInboxSize
         );
 
-        // Alice has not staked yet and therefore, this function should return `false`
-        (bool isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(!isAliceStaked);
-
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
-
-        emit log_named_uint("AB", aliceBalance);
 
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
 
-        vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
-
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        // Now Alice should be staked
-        (isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
+        _stake(alice, aliceAmountToStake);
 
         uint256 aliceBalanceBeforeRemoveStake = alice.balance;
 
@@ -488,7 +478,7 @@ contract RollupTest is RollupBaseSetup {
         assertTrue(!isStakedAfterRemoveStake);
     }
 
-    function testFuzz_removeStake_fromUnconfirmedAssertionID_reverts(
+    function testFuzz_removeStake_stakedOnUnconfirmedAssertion_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod
     ) external {
@@ -496,29 +486,21 @@ contract RollupTest is RollupBaseSetup {
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
         _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
 
-        // Alice has not staked yet and therefore, this function should return `false`
-        (bool isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(!isAliceStaked);
-
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
 
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
 
-        vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
+        _stake(alice, aliceAmountToStake);
 
         // Now Alice should be staked
         uint256 stakerAssertionID;
 
         // stakers mapping gets updated
-        (isAliceStaked,, stakerAssertionID,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
+        (,, stakerAssertionID,) = rollup.stakers(alice);
         assertEq(stakerAssertionID, 0);
 
         _increaseSequencerInboxSize();
@@ -527,8 +509,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 mockInboxSize = 6;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
-        vm.warp(block.timestamp + 50 days);
-        vm.roll(block.number + (50 * 86400) / 20);
+        vm.roll(block.number + rollup.minimumAssertionPeriod());
 
         assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
         (,, uint256 assertionIDInitial,) = rollup.stakers(address(alice));
@@ -552,7 +533,7 @@ contract RollupTest is RollupBaseSetup {
     // Unstaking
     ///////////////
 
-    function testFuzz_unstake_notAStaker_reverts(
+    function testFuzz_unstake_notStaked_reverts(
         uint256 randomAmount,
         uint256 confirmationPeriod,
         uint256 challengePeriod,
@@ -613,7 +594,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq((aliceBalanceFinal - aliceBalanceInitial), amountToWithdraw, "Desired amount could not be withdrawn.");
     }
 
-    function testFuzz_unstake_moreThanStakedAmount_reverts(
+    function testFuzz_unstake_insufficientStake_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -635,16 +616,9 @@ contract RollupTest is RollupBaseSetup {
         // Let's stake something on behalf of Alice
         uint256 aliceAmountToStake = minimumAmount * 10;
 
-        vm.prank(alice);
         require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
 
-        // Calling the staking function as Alice
-        //slither-disable-next-line arbitrary-send-eth
-        rollup.stake{value: aliceAmountToStake}();
-
-        // Now Alice should be staked
-        (isAliceStaked,,,) = rollup.stakers(alice);
-        assertTrue(isAliceStaked);
+        _stake(alice, aliceAmountToStake);
 
         amountToWithdraw =
             _generateRandomUintInRange((aliceAmountToStake - minimumAmount) + 1, type(uint256).max, amountToWithdraw);
@@ -654,7 +628,7 @@ contract RollupTest is RollupBaseSetup {
         rollup.unstake(amountToWithdraw);
     }
 
-    function testFuzz_unstake_fromUnconfirmedAssertionID_reverts(uint256 confirmationPeriod, uint256 challengePeriod)
+    function testFuzz_unstake_stakedOnUnconfirmedAssertion_reverts(uint256 confirmationPeriod, uint256 challengePeriod)
         external
     {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
@@ -814,6 +788,131 @@ contract RollupTest is RollupBaseSetup {
 
         assertEq(bobAmountToStake, bobAmountStakedFinal);
         assertEq(bobAssertionIdFinal, 1);
+    }
+
+    /////////////////////////
+    // Challenge Assertion
+    /////////////////////////
+
+    function testFuzz_challengeAssertion_wrongOrder_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 defenderAssertionID,
+        uint256 challengerAssertionID,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) public {
+        // Initializing the rollup
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            type(uint256).max,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        defenderAssertionID = bound(defenderAssertionID, challengerAssertionID, type(uint256).max);
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.WrongOrder.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
+
+    function testFuzz_challengeAssertion_unproposedAssertion_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize,
+        uint256 challengerAssertionID,
+        uint256 defenderAssertionID
+    ) public {
+        // Initializing the rollup
+        initialAssertionID = bound(initialAssertionID, 0, (type(uint256).max - 10));
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            type(uint256).max,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+
+        challengerAssertionID = bound(challengerAssertionID, lastCreatedAssertionID + 1, type(uint256).max);
+        defenderAssertionID = bound(defenderAssertionID, 0, challengerAssertionID - 1);
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.UnproposedAssertion.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
+
+    function testFuzz_challengeAssertion_assertionAlreadyResolved_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod
+    ) public {
+        // Initializing the rollup
+        confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+
+        uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
+
+        // Let's increase the lastCreatedAssertionID
+        {
+            uint256 minimumAmount = rollup.baseStakeAmount();
+            uint256 aliceBalance = alice.balance;
+
+            // Let's stake something on behalf of Alice
+            uint256 aliceAmountToStake = minimumAmount * 10;
+
+            require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+            _stake(alice, aliceAmountToStake);
+
+            _increaseSequencerInboxSize();
+
+            bytes32 mockVmHash = bytes32("");
+            uint256 mockInboxSize = 6;
+
+            // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
+            vm.roll(block.number + rollup.minimumAssertionPeriod());
+
+            vm.prank(alice);
+            rollup.createAssertion(mockVmHash, mockInboxSize);
+        }
+
+        uint256 defenderAssertionID = lastConfirmedAssertionID; //would be 0 in this case. cannot assign anything lower
+        uint256 challengerAssertionID = lastConfirmedAssertionID + 1; // that would mean 1
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.AssertionAlreadyResolved.selector);
+        rollup.challengeAssertion(players, assertionIDs);
     }
 
     /////////////////////////
