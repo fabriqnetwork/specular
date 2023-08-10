@@ -791,6 +791,131 @@ contract RollupTest is RollupBaseSetup {
     }
 
     /////////////////////////
+    // Challenge Assertion
+    /////////////////////////
+
+    function testFuzz_challengeAssertion_wrongOrder_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 defenderAssertionID,
+        uint256 challengerAssertionID,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize
+    ) public {
+        // Initializing the rollup
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            type(uint256).max,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        defenderAssertionID = bound(defenderAssertionID, challengerAssertionID, type(uint256).max);
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.WrongOrder.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
+
+    function testFuzz_challengeAssertion_unproposedAssertion_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize,
+        uint256 challengerAssertionID,
+        uint256 defenderAssertionID
+    ) public {
+        // Initializing the rollup
+        initialAssertionID = bound(initialAssertionID, 0, (type(uint256).max - 10));
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            type(uint256).max,
+            initialAssertionID,
+            initialInboxSize
+        );
+
+        uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
+
+        challengerAssertionID = bound(challengerAssertionID, lastCreatedAssertionID + 1, type(uint256).max);
+        defenderAssertionID = bound(defenderAssertionID, 0, challengerAssertionID - 1);
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.UnproposedAssertion.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
+
+    function testFuzz_challengeAssertion_assertionAlreadyResolved_reverts(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod
+    ) public {
+        // Initializing the rollup
+        confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+
+        uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
+
+        // Let's increase the lastCreatedAssertionID
+        {
+            uint256 minimumAmount = rollup.baseStakeAmount();
+            uint256 aliceBalance = alice.balance;
+
+            // Let's stake something on behalf of Alice
+            uint256 aliceAmountToStake = minimumAmount * 10;
+
+            require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
+            _stake(alice, aliceAmountToStake);
+
+            _increaseSequencerInboxSize();
+
+            bytes32 mockVmHash = bytes32("");
+            uint256 mockInboxSize = 6;
+
+            // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
+            vm.roll(block.number + rollup.minimumAssertionPeriod());
+
+            vm.prank(alice);
+            rollup.createAssertion(mockVmHash, mockInboxSize);
+        }
+
+        uint256 defenderAssertionID = lastConfirmedAssertionID; //would be 0 in this case. cannot assign anything lower
+        uint256 challengerAssertionID = lastConfirmedAssertionID + 1; // that would mean 1
+
+        address[2] memory players;
+        uint256[2] memory assertionIDs;
+
+        players[0] = defender;
+        players[1] = challenger;
+
+        assertionIDs[0] = defenderAssertionID;
+        assertionIDs[1] = challengerAssertionID;
+
+        vm.expectRevert(IRollup.AssertionAlreadyResolved.selector);
+        rollup.challengeAssertion(players, assertionIDs);
+    }
+
+    /////////////////////////
     // Auxillary Functions
     /////////////////////////
 
