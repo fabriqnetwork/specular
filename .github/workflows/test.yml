@@ -38,6 +38,10 @@ jobs:
       - name: Setup Node
         uses: ./.github/actions/node
 
+      - name: Setup ts-node
+        run: |
+          pnpm install ts-node
+
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
@@ -50,3 +54,7 @@ jobs:
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
         run: forge test -vvv
+
+      - name: Check forge tests names
+        run: pnpm lint:forge-tests:check
+
