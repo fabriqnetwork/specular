@@ -34,7 +34,7 @@ type RollupConfig interface {
 func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
 	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
-	return func(msg types.Message, evm *vm.EVM) error {
+	return func(msg vm.MessageInterface, evm *vm.EVM) error {
 		tx := transactionFromMessage(msg, cfg)
 		fee, err := calculateL1Fee(tx, evm, cfg)
 		if err != nil {
@@ -46,39 +46,39 @@ func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
 
 // creates a Transaction from a transaction
 // the Tx Type is reconstructed and the signature is left empty
-func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transaction {
+func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Transaction {
 	var txData types.TxData
-	if msg.GasTipCap() != nil {
+	if msg.GetGasTipCap() != nil {
 		txData = &types.DynamicFeeTx{
 			ChainID:    big.NewInt(int64(cfg.GetChainID())),
-			Nonce:      msg.Nonce(),
-			GasTipCap:  msg.GasTipCap(),
-			GasFeeCap:  msg.GasFeeCap(),
-			Gas:        msg.Gas(),
-			To:         msg.To(),
-			Value:      msg.Value(),
-			Data:       msg.Data(),
-			AccessList: msg.AccessList(),
+			Nonce:      msg.GetNonce(),
+			GasTipCap:  msg.GetGasTipCap(),
+			GasFeeCap:  msg.GetGasFeeCap(),
+			Gas:        msg.GetGasLimit(),
+			To:         msg.GetTo(),
+			Value:      msg.GetValue(),
+			Data:       msg.GetData(),
+			AccessList: msg.GetAccessList(),
 		}
-	} else if msg.AccessList() != nil {
+	} else if msg.GetAccessList() != nil {
 		txData = &types.AccessListTx{
 			ChainID:    big.NewInt(int64(cfg.GetChainID())),
-			Nonce:      msg.Nonce(),
-			GasPrice:   msg.GasPrice(),
-			Gas:        msg.Gas(),
-			To:         msg.To(),
-			Value:      msg.Value(),
-			Data:       msg.Data(),
-			AccessList: msg.AccessList(),
+			Nonce:      msg.GetNonce(),
+			GasPrice:   msg.GetGasPrice(),
+			Gas:        msg.GetGasLimit(),
+			To:         msg.GetTo(),
+			Value:      msg.GetValue(),
+			Data:       msg.GetData(),
+			AccessList: msg.GetAccessList(),
 		}
 	} else {
 		txData = &types.LegacyTx{
-			Nonce:    msg.Nonce(),
-			GasPrice: msg.GasPrice(),
-			Gas:      msg.Gas(),
-			To:       msg.To(),
-			Value:    msg.Value(),
-			Data:     msg.Data(),
+			Nonce:    msg.GetNonce(),
+			GasPrice: msg.GetGasPrice(),
+			Gas:      msg.GetGasLimit(),
+			To:       msg.GetTo(),
+			Value:    msg.GetValue(),
+			Data:     msg.GetData(),
 		}
 	}
 	return types.NewTx(txData)
@@ -145,8 +145,8 @@ func ScaleBigInt(num *big.Int, scalar float64) *big.Int {
 
 // subtract the L1 Fee from the sender of the Tx
 // add the Fee to the balance of the coinbase address
-func chargeL1Fee(l1Fee *big.Int, msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
-	senderBalance := evm.StateDB.GetBalance(msg.From())
+func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, evm *vm.EVM, cfg RollupConfig) error {
+	senderBalance := evm.StateDB.GetBalance(msg.GetFrom())
 	if senderBalance.Cmp(l1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}
