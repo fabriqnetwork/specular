@@ -245,16 +245,14 @@ abstract contract StandardBridge {
     /// @notice Checks if the "other token" is the correct pair token for the MintableERC20.
     /// @param _localToken  MintableERC20 to check against.
     /// @param _remoteToken Pair token to check.
-
     function _isNonNativeTokenPair(address _localToken, address _remoteToken) internal view returns (bool) {
         if (!ERC165Checker.supportsInterface(_localToken, type(IMintableERC20).interfaceId)) {
             return false;
         }
 
-        require(
-            _remoteToken == IMintableERC20(_localToken).REMOTE_TOKEN(),
-            "StandardBridge: wrong remote token for  Mintable ERC20 local token"
-        );
+        if (_remoteToken != IMintableERC20(_localToken).REMOTE_TOKEN()) {
+            return false;
+        }
 
         return true;
     }
