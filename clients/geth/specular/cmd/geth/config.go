@@ -30,12 +30,14 @@ import (
 
 	"github.com/urfave/cli/v2"
 
+	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/accounts/scwallet"
 	"github.com/ethereum/go-ethereum/accounts/usbwallet"
 	"github.com/ethereum/go-ethereum/cmd/utils"
-	"github.com/ethereum/go-ethereum/core/rawdb"
+	"github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
@@ -46,6 +48,7 @@ import (
 	entry "github.com/specularl2/specular/clients/geth/specular/entry/geth"
 	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
+	"github.com/specularl2/specular/clients/geth/specular/internal/version"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 )
 
@@ -53,10 +56,10 @@ var (
 	dumpConfigCommand = &cli.Command{
 		Action:      dumpConfig,
 		Name:        "dumpconfig",
-		Usage:       "Show configuration values",
-		ArgsUsage:   "",
+		Usage:       "Export configuration values in a TOML format",
+		ArgsUsage:   "<dumpfile (optional)>",
 		Flags:       flags.Merge(nodeFlags, rpcFlags),
-		Description: `The dumpconfig command shows configuration values.`,
+		Description: `Export configuration values in TOML format (to stdout by default).`,
 	}
 
 	configFileFlag = &cli.StringFlag{
@@ -115,17 +118,19 @@ func loadConfig(file string, cfg *gethConfig) error {
 }
 
 func defaultNodeConfig() node.Config {
+	git, _ := version.VCS()
 	cfg := node.DefaultConfig
 	cfg.Name = clientIdentifier
-	cfg.Version = params.VersionWithCommit(gitCommit, gitDate)
+	cfg.Version = params.VersionWithCommit(git.Commit, git.Date)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
 	cfg.IPCPath = "geth.ipc"
 	return cfg
 }
 
-// makeConfigNode loads geth configuration and creates a blank node instance.
-func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
+// loadBaseConfig loads the gethConfig based on the given command line
+// parameters and config file.
+func loadBaseConfig(ctx *cli.Context) gethConfig {
 	// Load defaults.
 	cfg := gethConfig{
 		Eth:     ethconfig.Defaults,
@@ -142,12 +147,18 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 
 	// Apply flags.
 	utils.SetNodeConfig(ctx, &cfg.Node)
+	return cfg
+}
+
+// makeConfigNode loads geth configuration and creates a blank node instance.
+func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
+	cfg := loadBaseConfig(ctx)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
 		utils.Fatalf("Failed to create the protocol stack: %v", err)
 	}
 	// Node doesn't by default populate account manager backends
-	if err := setAccountManagerBackends(stack); err != nil {
+	if err := setAccountManagerBackends(stack.Config(), stack.AccountManager(), stack.KeyStoreDir()); err != nil {
 		utils.Fatalf("Failed to set account manager backends: %v", err)
 	}
 
@@ -163,33 +174,17 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 // makeFullNode loads geth configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
-	if ctx.IsSet(utils.OverrideTerminalTotalDifficulty.Name) {
-		cfg.Eth.OverrideTerminalTotalDifficulty = flags.GlobalBig(ctx, utils.OverrideTerminalTotalDifficulty.Name)
+
+	if ctx.IsSet(utils.OverrideCancun.Name) {
+		v := ctx.Uint64(utils.OverrideCancun.Name)
+		cfg.Eth.OverrideCancun = &v
 	}
-	if ctx.IsSet(utils.OverrideTerminalTotalDifficultyPassed.Name) {
-		override := ctx.Bool(utils.OverrideTerminalTotalDifficultyPassed.Name)
-		cfg.Eth.OverrideTerminalTotalDifficultyPassed = &override
+	if ctx.IsSet(utils.OverrideVerkle.Name) {
+		v := ctx.Uint64(utils.OverrideVerkle.Name)
+		cfg.Eth.OverrideVerkle = &v
 	}
 
 	backend, eth := specularUtils.RegisterEthService(stack, &cfg.Eth)
-
-	// Warn users to migrate if they have a legacy freezer format.
-	if eth != nil && !ctx.IsSet(utils.IgnoreLegacyReceiptsFlag.Name) {
-		firstIdx := uint64(0)
-		// Hack to speed up check for mainnet because we know
-		// the first non-empty block.
-		ghash := rawdb.ReadCanonicalHash(eth.ChainDb(), 0)
-		if cfg.Eth.NetworkId == 1 && ghash == params.MainnetGenesisHash {
-			firstIdx = 46147
-		}
-		isLegacy, _, err := dbHasLegacyReceipts(eth.ChainDb(), firstIdx)
-		if err != nil {
-			log.Error("Failed to check db for legacy receipts", "err", err)
-		} else if isLegacy {
-			stack.Close()
-			utils.Fatalf("Database has receipts with a legacy format. Please run `geth db freezer-migrate`.")
-		}
-	}
 
 	// <specular modification>
 	if ctx.IsSet(services.CmdlineFlagName) {
@@ -210,6 +205,27 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	// Add the Ethereum Stats daemon if requested.
 	if cfg.Ethstats.URL != "" {
 		utils.RegisterEthStatsService(stack, backend, cfg.Ethstats.URL)
+	}
+
+	// Configure full-sync tester service if requested
+	if ctx.IsSet(utils.SyncTargetFlag.Name) && cfg.Eth.SyncMode == downloader.FullSync {
+		utils.RegisterFullSyncTester(stack, eth, ctx.Path(utils.SyncTargetFlag.Name))
+	}
+
+	// Start the dev mode if requested, or launch the engine API for
+	// interacting with external consensus client.
+	if ctx.IsSet(utils.DeveloperFlag.Name) {
+		simBeacon, err := catalyst.NewSimulatedBeacon(ctx.Uint64(utils.DeveloperPeriodFlag.Name), eth)
+		if err != nil {
+			utils.Fatalf("failed to register dev mode catalyst service: %v", err)
+		}
+		catalyst.RegisterSimulatedBeaconAPIs(stack, simBeacon)
+		stack.RegisterLifecycle(simBeacon)
+	} else if cfg.Eth.SyncMode != downloader.LightSync {
+		err := catalyst.Register(stack, eth)
+		if err != nil {
+			utils.Fatalf("failed to register catalyst service: %v", err)
+		}
 	}
 	return stack, backend
 }
@@ -294,15 +310,16 @@ func deprecated(field string) bool {
 		return true
 	case "ethconfig.Config.EWASMInterpreter":
 		return true
+	case "ethconfig.Config.TrieCleanCacheJournal":
+		return true
+	case "ethconfig.Config.TrieCleanCacheRejournal":
+		return true
 	default:
 		return false
 	}
 }
 
-func setAccountManagerBackends(stack *node.Node) error {
-	conf := stack.Config()
-	am := stack.AccountManager()
-	keydir := stack.KeyStoreDir()
+func setAccountManagerBackends(conf *node.Config, am *accounts.Manager, keydir string) error {
 	scryptN := keystore.StandardScryptN
 	scryptP := keystore.StandardScryptP
 	if conf.UseLightweightKDF {
@@ -313,8 +330,8 @@ func setAccountManagerBackends(stack *node.Node) error {
 	// Assemble the supported backends
 	if len(conf.ExternalSigner) > 0 {
 		log.Info("Using external signer", "url", conf.ExternalSigner)
-		if extapi, err := external.NewExternalBackend(conf.ExternalSigner); err == nil {
-			am.AddBackend(extapi)
+		if extBackend, err := external.NewExternalBackend(conf.ExternalSigner); err == nil {
+			am.AddBackend(extBackend)
 			return nil
 		} else {
 			return fmt.Errorf("error connecting to external signer: %v", err)

@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
@@ -78,7 +79,14 @@ func (b *Batcher) CommitTransactions(txs []*types.Transaction) error {
 			continue
 		}
 		// Start executing the transaction
-		b.state.Prepare(tx.Hash(), b.tcount)
+
+		// Convert the transaction into a Message object so that we can get the
+		// sender. This method performs an ecrecover, which can be expensive.
+		msg, _ := core.TransactionToMessage(tx, types.LatestSignerForChainID(tx.ChainId()), nil)
+		rules := b.chainConfig.Rules(b.header.Number, false, b.header.Time)
+
+		b.state.Prepare(rules, msg.From, b.coinbase, msg.To, vm.ActivePrecompiles(rules), tx.AccessList())
+
 		snap := b.state.Snapshot()
 		receipt, err := core.ApplyTransaction(b.chainConfig, b.chain, &b.coinbase, b.gasPool, b.state, b.header, tx, &b.header.GasUsed, *b.chain.GetVMConfig())
 		if err != nil {
@@ -162,7 +170,7 @@ func (b *Batcher) commitBlock() error {
 // startNewBlock should be called when a block is full and inserted into the
 // blockchain. It will reset the batcher except batched blocks
 func (b *Batcher) startNewBlock() error {
-	parent := b.chain.CurrentBlock()
+	parent := b.chain.GetBlockByHash(b.chain.CurrentHeader().Hash())
 	if parent == nil {
 		return fmt.Errorf("missing parent")
 	}
@@ -171,10 +179,12 @@ func (b *Batcher) startNewBlock() error {
 		ParentHash: parent.Hash(),
 		Number:     num.Add(num, common.Big1),
 		GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil),
+		BaseFee:    parent.BaseFee(),
 		Time:       uint64(time.Now().Unix()),
 		Coinbase:   b.coinbase,
-		Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
+		Difficulty: common.Big0,
 	}
+
 	state, err := b.chain.StateAt(parent.Root())
 	if err != nil {
 		return err

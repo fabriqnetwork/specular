@@ -84,7 +84,7 @@ func GenerateStates(
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	statedb, err := backend.StateAtBlock(ctx, parent, reexec, nil, true, false)
+	statedb, _, err := backend.StateAtBlock(ctx, parent, reexec, nil, true, false)
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +100,7 @@ func GenerateStates(
 		if block == nil {
 			return nil, fmt.Errorf("block #%d not found", num)
 		}
-		signer := types.MakeSigner(backend.ChainConfig(), block.Number())
+		signer := types.MakeSigner(backend.ChainConfig(), block.Number(), block.Time())
 		blockCtx := core.NewEVMBlockContext(block.Header(), createChainContext(backend, ctx), nil)
 		// Trace all the transactions contained within
 		for i, tx := range block.Transactions() {
@@ -111,14 +111,17 @@ func GenerateStates(
 				TransactionIdx: uint64(i),
 				StepIdx:        0,
 			})
-			msg, _ := tx.AsMessage(signer, block.BaseFee())
+			msg, _ := core.TransactionToMessage(tx, signer, block.BaseFee())
 			txContext := core.NewEVMTxContext(msg)
 			prover := prover.NewStateGenerator()
 			// Run the transaction with tracing enabled.
-			vmenv := vm.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover, NoBaseFee: true})
+
+			vmenv := vm.NewEVM(blockCtx, txContext, statedb, backend.ChainConfig(), vm.Config{Tracer: prover, NoBaseFee: true})
+			rules := backend.ChainConfig().Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
+
 			// Call Prepare to clear out the statedb access list
-			statedb.Prepare(tx.Hash(), i)
-			_, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+			statedb.Prepare(rules, msg.From, vmenv.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
+			_, err := core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
 			if err != nil {
 				return nil, fmt.Errorf("tracing failed: %w", err)
 			}
@@ -137,7 +140,7 @@ func GenerateStates(
 		}
 		// Get next statedb if we are not at the last block
 		if num < endNum-1 {
-			statedb, err = backend.StateAtBlock(ctx, block, reexec, statedb, true, false)
+			statedb, _, err = backend.StateAtBlock(ctx, block, reexec, statedb, true, false)
 			if err != nil {
 				return nil, err
 			}
@@ -163,18 +166,19 @@ func GenerateProof(backend Backend, ctx context.Context, startState *ExecutionSt
 	if config != nil && config.Reexec != nil {
 		reexec = *config.Reexec
 	}
-	msg, vmctx, statedb, err := backend.StateAtTransaction(ctx, startState.Block, int(startState.TransactionIdx), reexec)
+	msg, vmctx, statedb, _, err := backend.StateAtTransaction(ctx, startState.Block, int(startState.TransactionIdx), reexec)
 	if err != nil {
 		return nil, err
 	}
 	txContext := core.NewEVMTxContext(msg)
 	prover := prover.NewProver(startState.VMHash, startState.StepIdx)
 	// Run the transaction with tracing enabled.
-	vmenv := vm.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), vm.Config{Debug: true, Tracer: prover, NoBaseFee: true})
+	vmenv := vm.NewEVM(vmctx, txContext, statedb, backend.ChainConfig(), vm.Config{Tracer: prover, NoBaseFee: true})
+	rules := backend.ChainConfig().Rules(vmenv.Context.BlockNumber, vmenv.Context.Random != nil, vmenv.Context.Time)
 	// Call Prepare to clear out the statedb access list
-	txHash := startState.Block.Transactions()[startState.TransactionIdx].Hash()
-	statedb.Prepare(txHash, int(startState.TransactionIdx))
-	_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.Gas()))
+	statedb.Prepare(rules, msg.From, vmenv.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
+
+	_, err = core.ApplyMessage(vmenv, msg, new(core.GasPool).AddGas(msg.GasLimit))
 	if err != nil {
 		return nil, fmt.Errorf("tracing failed: %w", err)
 	}

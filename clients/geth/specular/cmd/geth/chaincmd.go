@@ -38,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/trie"
 	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
 	"github.com/urfave/cli/v2"
 )
@@ -192,7 +193,7 @@ func initGenesis(ctx *cli.Context) error {
 		if err != nil {
 			utils.Fatalf("Failed to open database: %v", err)
 		}
-		_, hash, err := core.SetupGenesisBlock(chaindb, genesis)
+		_, hash, err := core.SetupGenesisBlock(chaindb, trie.NewDatabase(chaindb), genesis)
 		if err != nil {
 			utils.Fatalf("Failed to write genesis block: %v", err)
 		}
@@ -226,7 +227,7 @@ func importChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, db := utils.MakeChain(ctx, stack)
+	chain, db := utils.MakeChain(ctx, stack, false)
 	defer db.Close()
 
 	// Start periodically gathering memory profiles
@@ -301,7 +302,7 @@ func exportChain(ctx *cli.Context) error {
 	stack, _ := makeConfigNode(ctx)
 	defer stack.Close()
 
-	chain, _ := utils.MakeChain(ctx, stack)
+	chain, _ := utils.MakeChain(ctx, stack, true)
 	start := time.Now()
 
 	var err error
@@ -318,8 +319,8 @@ func exportChain(ctx *cli.Context) error {
 		if first < 0 || last < 0 {
 			utils.Fatalf("Export error: block number must be greater than 0\n")
 		}
-		if head := chain.CurrentFastBlock(); uint64(last) > head.NumberU64() {
-			utils.Fatalf("Export error: block number %d larger than head block %d\n", uint64(last), head.NumberU64())
+		if head := chain.CurrentBlock(); uint64(last) > head.Number.Uint64() {
+			utils.Fatalf("Export error: block number %d larger than head block %d\n", uint64(last), head.Number.Uint64())
 		}
 		err = utils.ExportAppendChain(chain, fp, uint64(first), uint64(last))
 	}
