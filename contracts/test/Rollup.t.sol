@@ -23,6 +23,8 @@ import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import {StringsUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
+
 import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
@@ -100,7 +102,8 @@ contract RollupTest is RollupBaseSetup {
             0, //baseStakeAmount,
             0, // initialAssertionID
             0, // initialInboxSize
-            bytes32("")
+            bytes32(""),
+            new address[](0) // validators
         );
         if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
             vm.startPrank(deployer);
@@ -124,7 +127,8 @@ contract RollupTest is RollupBaseSetup {
             0, //baseStakeAmount,
             0, // initialAssertionID
             0, // initialInboxSize
-            bytes32("")
+            bytes32(""),
+            new address[](0) // validators
         );
 
         vm.startPrank(deployer);
@@ -145,7 +149,8 @@ contract RollupTest is RollupBaseSetup {
             0, //baseStakeAmount,
             0, // initialAssertionID
             0, // initialInboxSize
-            bytes32("")
+            bytes32(""),
+            new address[](0) // validators
         );
     }
 
@@ -169,7 +174,8 @@ contract RollupTest is RollupBaseSetup {
                 baseStakeAmount, //baseStakeAmount
                 initialAssertionID,
                 initialInboxSize,
-                bytes32("") //initialVMHash
+                bytes32(""), //initialVMHash
+                new address[](0) // validators
             );
 
             vm.startPrank(deployer);
@@ -226,10 +232,177 @@ contract RollupTest is RollupBaseSetup {
     }
 
     ////////////////
+    // Admin
+    ///////////////
+
+    function testFuzz_addValidators_succeeds() external {
+        // Initialize rollup with an empty validator whitelist
+        _initializeRollup(
+            0, // confirmationPeriod
+            0, // challengePeriod
+            0, // minimumAssertionPeriod
+            1, // baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            new address[](0) // validator whitelist
+        );
+
+        // Adding a validator to whitelist as non-admin should fail
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                StringsUpgradeable.toHexString(alice),
+                " is missing role ",
+                StringsUpgradeable.toHexString(uint256(rollup.DEFAULT_ADMIN_ROLE()), 32)
+            )
+        );
+        vm.prank(alice);
+        rollup.addValidator(alice);
+
+        // Update validator whitelist as deployer, adding alice to whitelist
+        vm.prank(deployer);
+        rollup.addValidator(alice);
+
+        // Alice should now be whitelisted
+        assertTrue(rollup.hasRole(rollup.VALIDATOR_ROLE(), alice), "Expected address to be in validator whitelist");
+        // Bob should not be in whitelist
+        assertFalse(rollup.hasRole(rollup.VALIDATOR_ROLE(), bob), "Expected address not to be in validator whitelist");
+    }
+
+    function testFuzz_removeValidators_succeeds() external {
+        // Initialize rollup with alice in the validator whitelist
+        address[] memory validators = new address[](1);
+        validators[0] = alice;
+        _initializeRollup(
+            0, // confirmationPeriod
+            0, // challengePeriod
+            0, // minimumAssertionPeriod
+            1, // baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            validators // validator whitelist
+        );
+
+        // Removing validators from whitelist as non-admin should fail
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                StringsUpgradeable.toHexString(alice),
+                " is missing role ",
+                StringsUpgradeable.toHexString(uint256(rollup.DEFAULT_ADMIN_ROLE()), 32)
+            )
+        );
+        vm.prank(alice);
+        rollup.removeValidator(alice);
+
+        // Update validator whitelist as deployer, removing alice from whitelist
+        vm.prank(deployer);
+        rollup.removeValidator(alice);
+
+        assertFalse(rollup.hasRole(rollup.VALIDATOR_ROLE(), alice), "Expected address to be in validator whitelist");
+    }
+
+    function testFuzz_removeOwnValidatorRole_succeeds() external {
+        address[] memory validators = new address[](1);
+        validators[0] = alice;
+        // Initialize rollup with alice in validator whitelist
+        _initializeRollup(
+            0, // confirmationPeriod
+            0, // challengePeriod
+            0, // minimumAssertionPeriod
+            1, // baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            validators // validator whitelist
+        );
+
+        // Alice removes themself from validator whitelist
+        vm.prank(alice);
+        rollup.removeOwnValidatorRole();
+
+        assertFalse(rollup.hasRole(rollup.VALIDATOR_ROLE(), alice), "Expected address to be in validator whitelist");
+    }
+
+    function test_whitelistedFunctions_succeeds() external {
+        address[] memory validators = new address[](1);
+        validators[0] = alice;
+        // Initialize rollup with alice in validator whitelist
+        _initializeRollup(
+            0, // confirmationPeriod
+            0, // challengePeriod
+            0, // minimumAssertionPeriod
+            1, // baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            validators // validator whitelist
+        );
+
+        uint256 baseStakeAmount = rollup.baseStakeAmount();
+
+        // Alice should be allowed to stake
+        vm.prank(alice);
+        //slither-disable-next-line arbitrary-send-eth
+        rollup.stake{value: baseStakeAmount}();
+
+        // Bob should not be allowed to stake
+        vm.expectRevert(
+            abi.encodePacked(
+                "AccessControl: account ",
+                StringsUpgradeable.toHexString(bob),
+                " is missing role ",
+                StringsUpgradeable.toHexString(uint256(rollup.VALIDATOR_ROLE()), 32)
+            )
+        );
+        vm.prank(bob);
+        rollup.stake{value: baseStakeAmount}();
+    }
+
+    function test_addValidators_roleAlreadyGranted_reverts() external {
+        address[] memory validators = new address[](1);
+        validators[0] = alice;
+        // Initialize rollup with alice in validator whitelist
+        _initializeRollup(
+            0, // confirmationPeriod
+            0, // challengePeriod
+            0, // minimumAssertionPeriod
+            1, // baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            validators // validator whitelist
+        );
+
+        // Add already whitelisted validator
+        vm.expectRevert(IRollup.RoleAlreadyGranted.selector);
+        vm.prank(deployer);
+        rollup.addValidator(alice);
+    }
+
+    function test_removeValidators_noRoleToRevoke_reverts() external {
+        // Initialize rollup with empty validator whitelist
+        _initializeRollup(
+            0, // confirmationPeriod
+            0, // challengePeriod
+            0, // minimumAssertionPeriod
+            1, // baseStakeAmount,
+            0, // initialAssertionID
+            0, // initialInboxSize
+            new address[](0) // validator whitelist
+        );
+
+        address[] memory validators = new address[](1);
+        validators[0] = alice;
+
+        // Remove validator not in the whitelist
+        vm.expectRevert(IRollup.NoRoleToRevoke.selector);
+        vm.prank(deployer);
+        rollup.removeValidator(alice);
+    }
+
+    ////////////////
     // Staking
     ///////////////
 
-    function testFuzz_stakers_notStaked_works(
+    function testFuzz_stakers_notStaked_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
@@ -605,6 +778,7 @@ contract RollupTest is RollupBaseSetup {
 
         // Try to remove Alice's stake
         vm.expectRevert(IRollup.StakedOnUnconfirmedAssertion.selector);
+        vm.prank(bob); // validator only
         rollup.removeStake(address(alice));
     }
 
@@ -1026,6 +1200,7 @@ contract RollupTest is RollupBaseSetup {
         assertionIDs[1] = challengerAssertionID;
 
         vm.expectRevert(IRollup.WrongOrder.selector);
+        vm.prank(alice); // validator only
         rollup.challengeAssertion(players, assertionIDs);
     }
 
@@ -1064,6 +1239,7 @@ contract RollupTest is RollupBaseSetup {
         assertionIDs[1] = challengerAssertionID;
 
         vm.expectRevert(IRollup.UnproposedAssertion.selector);
+        vm.prank(alice); // validator only
         rollup.challengeAssertion(players, assertionIDs);
     }
 
@@ -1113,6 +1289,7 @@ contract RollupTest is RollupBaseSetup {
         assertionIDs[1] = challengerAssertionID;
 
         vm.expectRevert(IRollup.AssertionAlreadyResolved.selector);
+        vm.prank(alice); // validator only
         rollup.challengeAssertion(players, assertionIDs);
     }
 
@@ -1177,6 +1354,29 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialAssertionID,
         uint256 initialInboxSize
     ) internal {
+        address[] memory validators = new address[](2);
+        validators[0] = alice;
+        validators[1] = bob;
+        _initializeRollup(
+            confirmationPeriod,
+            challengePeriod,
+            minimumAssertionPeriod,
+            baseStakeAmount,
+            initialAssertionID,
+            initialInboxSize,
+            validators
+        );
+    }
+
+    function _initializeRollup(
+        uint256 confirmationPeriod,
+        uint256 challengePeriod,
+        uint256 minimumAssertionPeriod,
+        uint256 baseStakeAmount,
+        uint256 initialAssertionID,
+        uint256 initialInboxSize,
+        address[] memory validators
+    ) internal {
         bytes memory initializingData = abi.encodeWithSelector(
             Rollup.initialize.selector,
             sequencerAddress,
@@ -1188,7 +1388,8 @@ contract RollupTest is RollupBaseSetup {
             baseStakeAmount, //baseStakeAmount
             initialAssertionID,
             initialInboxSize,
-            bytes32("") //initialVMHash
+            bytes32(""), //initialVMHash
+            validators // validators to whitelist
         );
 
         // Deploying the rollup contract as the rollup owner/deployer
@@ -1196,6 +1397,13 @@ contract RollupTest is RollupBaseSetup {
         Rollup implementationRollup = new Rollup();
         rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
         vm.stopPrank();
+
+        // Check initial validators are in the whitelist
+        for (uint256 i = 0; i < validators.length; i++) {
+            assertTrue(
+                rollup.hasRole(rollup.VALIDATOR_ROLE(), validators[i]), "Expected address to be in validator whitelist"
+            );
+        }
     }
 
     function _stake(address staker, uint256 amountToStake) internal {

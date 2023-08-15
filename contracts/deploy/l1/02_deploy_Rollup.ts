@@ -28,7 +28,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   }
 
   const { deployments, getNamedAccounts } = hre;
-  const { sequencer, deployer } = await getNamedAccounts();
+  const { sequencer, validator, deployer } = await getNamedAccounts();
   const sequencerInboxProxyAddress = (
     await deployments.get(getProxyName("SequencerInbox"))
   ).address;
@@ -46,6 +46,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
     initialVMHash, // bytes32 _initialVMhash
+    [validator], // address[] calldata _validators
   ];
 
   await deployUUPSProxiedContract(hre, deployer, "Rollup", args);
