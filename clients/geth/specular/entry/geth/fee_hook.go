@@ -51,8 +51,7 @@ func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
 func MakeSpecularL1FeeReader(cfg RollupConfig) vm.EVMReader {
 	log.Info("Injected Specular EVM reader")
 	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
-	return func(msg types.Message, db vm.StateDB) (*big.Int, error) {
-		tx := transactionFromMessage(msg, cfg)
+	return func(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 		return calculateL1Fee(tx, db, cfg)
 	}
 }
