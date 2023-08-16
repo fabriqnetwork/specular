@@ -197,6 +197,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 
 		vmConfig := eth.BlockChain().GetVMConfig()
 		vmConfig.SpecularEVMPreTransferHook = entry.MakeSpecularEVMPreTransferHook(rollupConfig)
+		vmConfig.SpecularL1FeeReader = entry.MakeSpecularL1FeeReader(rollupConfig)
 
 		rollup.RegisterRollupService(stack, eth, eth.APIBackend, rollupConfig)
 	}
