@@ -75,13 +75,13 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
     /**
      * @notice Initializer;
      */
-    function initialize(address _l1Oracle, address _l1PortolAddress) public initializer {
-        if (_l1Oracle == address(0) || _l1PortolAddress == address(0)) {
+    function initialize(address _l1Oracle, address _l1PortalAddress) public initializer {
+        if (_l1Oracle == address(0) || _l1PortalAddress == address(0)) {
             revert ZeroAddress();
         }
 
         l1Oracle = L1Oracle(_l1Oracle);
-        l1PortalAddress = _l1PortolAddress;
+        l1PortalAddress = _l1PortalAddress;
         l1Sender = DEFAULT_L1_SENDER;
 
         __Ownable_init();

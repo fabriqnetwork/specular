@@ -37,7 +37,7 @@ function createConfig(network: string) {
     url: getNetworkURL(network),
     accounts: getNetworkAccounts(network),
     live,
-    saveDeployments: live, // Do not save deployments on localhost
+    saveDeployments: true,
   };
 
   // Set deploy scripts for L1 or L2
@@ -101,7 +101,7 @@ function getNetworkURL(network: string) {
 const config: HardhatUserConfig = {
   defaultNetwork: "hardhat",
   solidity: {
-    version: "0.8.9",
+    version: "0.8.11",
     settings: {
       optimizer: {
         enabled: true,
