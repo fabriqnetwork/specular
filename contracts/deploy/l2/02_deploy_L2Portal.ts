@@ -24,7 +24,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
       await deployments.get(getProxyName("L2Portal"))
     ).address
   );
-  const tx = await l2Portal.donateETH({ value: ethers.utils.parseUnits("10") });
+
+  const value = ethers.utils.parseUnits(process.env.L2_PORTAL_FUNDING_ETH);
+  const tx = await l2Portal.donateETH({ value });
   const r = await tx.wait();
   console.log({ msg: "funded l2 portal", receipt: r });
 };

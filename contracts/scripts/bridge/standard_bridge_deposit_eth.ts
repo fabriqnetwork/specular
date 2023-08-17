@@ -21,7 +21,7 @@ async function main() {
 
   const initEvent = await l1Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
-    version: 1,
+    version: 0,
     nonce: initEvent.args.nonce,
     sender: initEvent.args.sender,
     target: initEvent.args.target,

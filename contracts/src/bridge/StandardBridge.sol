@@ -7,6 +7,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
+import {IStandardBridge} from "./IStandardBridge.sol";
 import {SafeCall} from "../libraries/SafeCall.sol";
 import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 
@@ -14,7 +15,7 @@ import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 /// @notice StandardBridge is a base contract for the L1 and L2 standard ERC20 bridges. It handles
 ///         the core bridging logic, including escrowing tokens that are native to the local chain
 ///         and minting/burning tokens that are native to the remote chain.
-abstract contract StandardBridge {
+abstract contract StandardBridge is IStandardBridge {
     using SafeERC20 for IERC20;
 
     /// @notice The L2 gas limit set when eth is depoisited using the receive() function.
@@ -29,52 +30,6 @@ abstract contract StandardBridge {
     /// @notice Mapping that stores deposits for a given pair of local and remote tokens.
     mapping(address => mapping(address => uint256)) public deposits;
 
-    /// @notice Emitted when an ETH bridge is initiated to the other chain.
-    /// @param from      Address of the sender.
-    /// @param to        Address of the receiver.
-    /// @param amount    Amount of ETH sent.
-    /// @param extraData Extra data sent with the transaction.
-    event ETHBridgeInitiated(address indexed from, address indexed to, uint256 amount, bytes extraData);
-
-    /// @notice Emitted when an ETH bridge is finalized on this chain.
-    /// @param from      Address of the sender.
-    /// @param to        Address of the receiver.
-    /// @param amount    Amount of ETH sent.
-    /// @param extraData Extra data sent with the transaction.
-    event ETHBridgeFinalized(address indexed from, address indexed to, uint256 amount, bytes extraData);
-
-    /// @notice Emitted when an ERC20 bridge is initiated to the other chain.
-    /// @param localToken  Address of the ERC20 on this chain.
-    /// @param remoteToken Address of the ERC20 on the remote chain.
-    /// @param from        Address of the sender.
-    /// @param to          Address of the receiver.
-    /// @param amount      Amount of the ERC20 sent.
-    /// @param extraData   Extra data sent with the transaction.
-    event ERC20BridgeInitiated(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-
-    /// @notice Emitted when an ERC20 bridge is finalized on this chain.
-    /// @param localToken  Address of the ERC20 on this chain.
-    /// @param remoteToken Address of the ERC20 on the remote chain.
-    /// @param from        Address of the sender.
-    /// @param to          Address of the receiver.
-    /// @param amount      Amount of the ERC20 sent.
-    /// @param extraData   Extra data sent with the transaction.
-    event ERC20BridgeFinalized(
-        address indexed localToken,
-        address indexed remoteToken,
-        address indexed from,
-        address to,
-        uint256 amount,
-        bytes extraData
-    );
-
     /// @notice Ensures that the caller is a cross-chain message from the other bridge.
     modifier onlyOtherBridge() virtual;
 
@@ -87,42 +42,17 @@ abstract contract StandardBridge {
     ///         Must be implemented by contracts that inherit.
     receive() external payable virtual;
 
-    /// @notice Sends ETH to the sender's address on the other chain.
-    /// @param _minGasLimit Minimum amount of gas that the bridge can be relayed with.
-    /// @param _extraData   Extra data to be sent with the transaction. Note that the recipient will
-    ///                     not be triggered with this data, but it will be emitted and can be used
-    ///                     to identify the transaction.
+    /// @inheritdoc IStandardBridge
     function bridgeETH(uint32 _minGasLimit, bytes calldata _extraData) public payable {
         _initiateBridgeETH(msg.sender, msg.sender, msg.value, _minGasLimit, _extraData);
     }
 
-    /// @notice Sends ETH to a receiver's address on the other chain. Note that if ETH is sent to a
-    ///         smart contract and the call fails, the ETH will be temporarily locked in the
-    ///         StandardBridge on the other chain until the call is replayed. If the call cannot be
-    ///         replayed with any amount of gas (call always reverts), then the ETH will be
-    ///         permanently locked in the StandardBridge on the other chain. ETH will also
-    ///         be locked if the receiver is the other bridge, because finalizeBridgeETH will revert
-    ///         in that case.
-    /// @param _to          Address of the receiver.
-    /// @param _minGasLimit Minimum amount of gas that the bridge can be relayed with.
-    /// @param _extraData   Extra data to be sent with the transaction. Note that the recipient will
-    ///                     not be triggered with this data, but it will be emitted and can be used
-    ///                     to identify the transaction.
+    /// @inheritdoc IStandardBridge
     function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) public payable {
         _initiateBridgeETH(msg.sender, _to, msg.value, _minGasLimit, _extraData);
     }
 
-    /// @notice Sends ERC20 tokens to the sender's address on the other chain. Note that if the
-    ///         ERC20 token on the other chain does not recognize the local token as the correct
-    ///         pair token, the ERC20 bridge will fail and the tokens will be returned to sender on
-    ///         this chain.
-    /// @param _localToken  Address of the ERC20 on this chain.
-    /// @param _remoteToken Address of the corresponding token on the remote chain.
-    /// @param _amount      Amount of local tokens to deposit.
-    /// @param _minGasLimit Minimum amount of gas that the bridge can be relayed with.
-    /// @param _extraData   Extra data to be sent with the transaction. Note that the recipient will
-    ///                     not be triggered with this data, but it will be emitted and can be used
-    ///                     to identify the transaction.
+    /// @inheritdoc IStandardBridge
     function bridgeERC20(
         address _localToken,
         address _remoteToken,
@@ -133,18 +63,7 @@ abstract contract StandardBridge {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, msg.sender, _amount, _minGasLimit, _extraData);
     }
 
-    /// @notice Sends ERC20 tokens to a receiver's address on the other chain. Note that if the
-    ///         ERC20 token on the other chain does not recognize the local token as the correct
-    ///         pair token, the ERC20 bridge will fail and the tokens will be returned to sender on
-    ///         this chain.
-    /// @param _localToken  Address of the ERC20 on this chain.
-    /// @param _remoteToken Address of the corresponding token on the remote chain.
-    /// @param _to          Address of the receiver.
-    /// @param _amount      Amount of local tokens to deposit.
-    /// @param _minGasLimit Minimum amount of gas that the bridge can be relayed with.
-    /// @param _extraData   Extra data to be sent with the transaction. Note that the recipient will
-    ///                     not be triggered with this data, but it will be emitted and can be used
-    ///                     to identify the transaction.
+    /// @inheritdoc IStandardBridge
     function bridgeERC20To(
         address _localToken,
         address _remoteToken,
@@ -156,14 +75,7 @@ abstract contract StandardBridge {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, _to, _amount, _minGasLimit, _extraData);
     }
 
-    /// @notice Finalizes an ETH bridge on this chain. Can only be triggered by the other
-    ///         StandardBridge contract on the remote chain.
-    /// @param _from      Address of the sender.
-    /// @param _to        Address of the receiver.
-    /// @param _amount    Amount of ETH being bridged.
-    /// @param _extraData Extra data to be sent with the transaction. Note that the recipient will
-    ///                   not be triggered with this data, but it will be emitted and can be used
-    ///                   to identify the transaction.
+    /// @inheritdoc IStandardBridge
     function finalizeBridgeETH(address _from, address _to, uint256 _amount, bytes calldata _extraData)
         external
         payable
@@ -179,16 +91,7 @@ abstract contract StandardBridge {
         emit ETHBridgeFinalized(_from, _to, _amount, _extraData);
     }
 
-    /// @notice Finalizes an ERC20 bridge on this chain. Can only be triggered by the other
-    ///         StandardBridge contract on the remote chain.
-    /// @param _localToken  Address of the ERC20 on this chain.
-    /// @param _remoteToken Address of the corresponding token on the remote chain.
-    /// @param _from        Address of the sender.
-    /// @param _to          Address of the receiver.
-    /// @param _amount      Amount of the ERC20 being bridged.
-    /// @param _extraData   Extra data to be sent with the transaction. Note that the recipient will
-    ///                     not be triggered with this data, but it will be emitted and can be used
-    ///                     to identify the transaction.
+    /// @inheritdoc IStandardBridge
     function finalizeBridgeERC20(
         address _localToken,
         address _remoteToken,
