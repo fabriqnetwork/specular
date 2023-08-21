@@ -74,6 +74,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256[] calldata contexts,
         uint256[] calldata txLengths,
         uint256 firstL2BlockNumber,
+        uint256 txBatchVersion,
         bytes calldata txBatch
     ) external override whenNotPaused {
         if (msg.sender != sequencerAddress) {
