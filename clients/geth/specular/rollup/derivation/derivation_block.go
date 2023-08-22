@@ -48,18 +48,23 @@ func (e *DecodeTxBatchError) Error() string {
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
 func BlocksFromData(calldata []any) ([]DerivationBlock, error) {
-	if len(calldata) != 4 {
+	if len(calldata) != 5 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(calldata))}
 	}
 	var (
 		contexts           = calldata[0].([]*big.Int)
 		txLengths          = calldata[1].([]*big.Int)
 		firstL2BlockNumber = calldata[2].(*big.Int)
-		txBatch            = calldata[3].([]byte)
+    // TODO: Uncomment when version is actually used
+		// txBatchVersion     = calldata[3].(*big.Int)
+		txBatch            = calldata[4].([]byte)
 	)
 	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
 	}
+
+  // TODO: As new transaction versions are added, break this out into a separate series
+  // of functions for each version that will be available
 	var (
 		batchOffset, numTxs uint64
 		blocks              = make([]DerivationBlock, 0, len(contexts)/2)

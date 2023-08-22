@@ -34,6 +34,8 @@ import "./libraries/Errors.sol";
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     // Total number of transactions
     uint256 private inboxSize;
+    // Current TX Version for serialization/deserialization
+    uint256 public constant currentTxBatchVersion = 0;
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
 
@@ -79,6 +81,10 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     ) external override whenNotPaused {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
+        }
+
+        if (txBatchVersion != currentTxBatchVersion) {
+            revert TxBatchVersionIncorrect();
         }
 
         uint256 numTxs = inboxSize;

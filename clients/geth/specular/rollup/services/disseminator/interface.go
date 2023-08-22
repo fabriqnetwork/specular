@@ -32,6 +32,7 @@ type TxManager interface {
 		contexts []*big.Int,
 		txLengths []*big.Int,
 		firstL2BlockNumber *big.Int,
+		txBatchVersion *big.Int,
 		txBatch []byte,
 	) (*ethTypes.Receipt, error)
 }

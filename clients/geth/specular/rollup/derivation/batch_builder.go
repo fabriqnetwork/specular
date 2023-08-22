@@ -24,12 +24,14 @@ type BatchAttributes struct {
 	contexts           []*big.Int
 	txLengths          []*big.Int
 	firstL2BlockNumber *big.Int
+	txBatchVersion     *big.Int
 	txBatch            []byte // encoded batch of transactions.
 }
 
 func (a *BatchAttributes) Contexts() []*big.Int         { return a.contexts }
 func (a *BatchAttributes) TxLengths() []*big.Int        { return a.txLengths }
 func (a *BatchAttributes) FirstL2BlockNumber() *big.Int { return a.firstL2BlockNumber }
+func (a *BatchAttributes) TxBatchVersion() *big.Int     { return a.txBatchVersion }
 func (a *BatchAttributes) TxBatch() []byte              { return a.txBatch }
 
 type HeaderRef interface {
@@ -119,7 +121,8 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 	// Construct batch attributes.
 	var (
 		firstL2BlockNumber = big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
-		attrs              = &BatchAttributes{contexts, txLengths, firstL2BlockNumber, buf.Bytes()}
+    txBatchVersion     = big.NewInt(0) // TODO: find a good place to store this
+		attrs              = &BatchAttributes{contexts, txLengths, firstL2BlockNumber, txBatchVersion, buf.Bytes()}
 	)
 	log.Info("Serialized l2 blocks", "first", firstL2BlockNumber, "last", b.pendingBlocks[idx].BlockNumber())
 	// Advance queue.
