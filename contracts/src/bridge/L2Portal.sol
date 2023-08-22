@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
 
 import {SafeCall} from "../libraries/SafeCall.sol";
 import {Types} from "../libraries/Types.sol";
@@ -111,7 +112,7 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable onlyProxy {
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable onlyProxy whenNotPaused {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
                 version: 0,
@@ -137,7 +138,7 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
         Types.CrossDomainMessage memory depositTx,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
-    ) external onlyProxy {
+    ) external onlyProxy whenNotPaused {
         // Prevent nested deposits within deposits.
         require(l1Sender == DEFAULT_L1_SENDER, "L2Portal: can only trigger one deposit per transaction");
 

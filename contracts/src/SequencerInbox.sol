@@ -22,14 +22,16 @@
 
 pragma solidity ^0.8.0;
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
+
 import "./ISequencerInbox.sol";
 import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable, PauseableUpgradable {
     // Total number of transactions
     uint256 private inboxSize;
     // accumulators[i] is an accumulator of transactions in txBatch i.
@@ -43,6 +45,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         }
         sequencerAddress = _sequencerAddress;
         __Ownable_init();
+        __Pausable_init();
         __UUPSUpgradeable_init();
     }
 
@@ -64,7 +67,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256[] calldata txLengths,
         uint256 firstL2BlockNumber,
         bytes calldata txBatch
-    ) external override {
+    ) external override whenNotPaused {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
         }

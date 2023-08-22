@@ -18,12 +18,16 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
 
-contract Faucet is UUPSUpgradeable, OwnableUpgradeable {
+contract Faucet is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     function initialize() public initializer {
+        __Pausable_init();
         __Ownable_init();
+        __UUPSUpgradeable_init();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
@@ -45,7 +49,7 @@ contract Faucet is UUPSUpgradeable, OwnableUpgradeable {
         payable(msg.sender).transfer(address(this).balance);
     }
 
-    function requestFunds(address payable requestor) public payable onlyOwner {
+    function requestFunds(address payable requestor) public payable onlyOwner whenNotPaused {
         require(block.timestamp > lockTime[requestor], "Lock time has not expired.");
         require(address(this).balance > amountAllowed, "Not enough funds in faucet.");
 
