@@ -39,6 +39,9 @@ interface ISequencerInbox is IDAProvider {
     /// @dev Thrown when overflow occurs reading txBatch (likely due to malformed txLengths)
     error TxBatchDataOverflow();
 
+    /// @dev Thrown when the sequencer tries to submit a incorrectly versioned batch
+    error TxBatchVersionIncorrect();
+
     /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.
      * @param contexts Array of contexts, where each context is represented by a uint256 2-tuple:
@@ -55,4 +58,6 @@ interface ISequencerInbox is IDAProvider {
         uint256 txBatchVersion,
         bytes calldata txBatch
     ) external;
+
+    /*function getTxBatchVersion() external view returns (uint256);*/
 }

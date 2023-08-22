@@ -14,6 +14,7 @@ import (
 // TxBatch represents a transaction batch to be sequenced to L1 sequencer inbox
 // It may contain multiple blocks
 type TxBatch struct {
+	TxBatchVersion     *big.Int
 	Blocks             types.Blocks
 	FirstL2BlockNumber *big.Int
 	Contexts           []SequenceContext
@@ -46,6 +47,8 @@ func NewTxBatch(blocks []*types.Block, maxBatchSize uint64) *TxBatch {
 	var txs []*types.Transaction
 	gasUsed := new(big.Int)
 
+  // TODO this should probably be somewhere else
+	txBatchVersion := big.NewInt(0)
 	firstL2BlockNumber := blocks[0].Number()
 
 	for _, block := range blocks {
@@ -59,7 +62,7 @@ func NewTxBatch(blocks []*types.Block, maxBatchSize uint64) *TxBatch {
 		gasUsed.Add(gasUsed, new(big.Int).SetUint64(block.GasUsed()))
 	}
 
-	return &TxBatch{blocks, firstL2BlockNumber, contexts, txs, gasUsed}
+	return &TxBatch{txBatchVersion, blocks, firstL2BlockNumber, contexts, txs, gasUsed}
 }
 
 func (b *TxBatch) LastBlockNumber() uint64 {
@@ -74,7 +77,7 @@ func (b *TxBatch) InboxSize() *big.Int {
 	return new(big.Int).SetUint64(uint64(b.Txs.Len()))
 }
 
-func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, *big.Int, []byte, error) {
+func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, *big.Int, *big.Int, []byte, error) {
 	var contexts, txLengths []*big.Int
 	for _, ctx := range b.Contexts {
 		contexts = append(contexts, big.NewInt(0).SetUint64(ctx.NumTxs))
@@ -85,14 +88,15 @@ func (b *TxBatch) SerializeToArgs() ([]*big.Int, []*big.Int, *big.Int, []byte, e
 	for _, tx := range b.Txs {
 		curLen := buf.Len()
 		if err := writeTx(buf, tx); err != nil {
-			return nil, nil, nil, nil, err
+			return nil, nil, nil, nil, nil, err
 		}
 		txLengths = append(txLengths, big.NewInt(int64(buf.Len()-curLen)))
 	}
 
+	txBatchVersion := b.TxBatchVersion
 	firstL2BlockNumber := b.FirstL2BlockNumber
 
-	return contexts, txLengths, firstL2BlockNumber, buf.Bytes(), nil
+	return contexts, txLengths, firstL2BlockNumber, txBatchVersion, buf.Bytes(), nil
 }
 
 // Splits batch into blocks
