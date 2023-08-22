@@ -4,8 +4,9 @@ pragma solidity ^0.8.4;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
 
-contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     /**
      * @notice Emitted when the L1 stateRoot is updated.
      */
@@ -43,6 +44,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function initialize(address _sequencer) public initializer {
         sequencer = _sequencer;
         __Ownable_init();
+        __Pausable_init();
         __UUPSUpgradeable_init();
     }
 

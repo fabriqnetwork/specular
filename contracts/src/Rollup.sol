@@ -22,9 +22,10 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
 
 import "./challenge/IChallenge.sol";
 import "./challenge/SymChallenge.sol";
@@ -38,7 +39,8 @@ abstract contract RollupBase is
     IChallengeResultReceiver,
     Initializable,
     UUPSUpgradeable,
-    OwnableUpgradeable
+    OwnableUpgradeable,
+    PausableUpgradeable
 {
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
@@ -63,6 +65,7 @@ abstract contract RollupBase is
     function __RollupBase_init() internal onlyInitializing {
         __Ownable_init();
         __UUPSUpgradeable_init();
+        __Pausable_init();
     }
 }
 
@@ -210,7 +213,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function stake() external payable override {
+    function stake() external payable override whenNotPaused {
         if (isStaked(msg.sender)) {
             stakers[msg.sender].amountStaked += msg.value;
         } else {
@@ -259,7 +262,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function advanceStake(uint256 assertionID) external override stakedOnly {
+    function advanceStake(uint256 assertionID) external override stakedOnly whenNotPaused {
         Staker storage staker = stakers[msg.sender];
         if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
@@ -280,7 +283,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly {
+    function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly whenNotPaused {
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
@@ -309,7 +312,7 @@ contract Rollup is RollupBase {
     /// @inheritdoc IRollup
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
         external
-        override
+        override whenNotPaused
         returns (address)
     {
         uint256 defenderAssertionID = assertionIDs[0];
