@@ -54,6 +54,14 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         _disableInitializers();
     }
 
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IDAProvider

@@ -30,6 +30,14 @@ contract Faucet is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableU
         __UUPSUpgradeable_init();
     }
 
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     // amountAllowed is initialized in the genesis.json
