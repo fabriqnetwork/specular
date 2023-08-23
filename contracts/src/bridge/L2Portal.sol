@@ -89,6 +89,14 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
         __UUPSUpgradeable_init();
     }
 
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /**

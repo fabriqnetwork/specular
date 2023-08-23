@@ -100,6 +100,14 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
         l2PortalAddress = _l2PortalAddress;
     }
 
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /**

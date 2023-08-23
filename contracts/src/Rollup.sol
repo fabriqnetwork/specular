@@ -135,6 +135,14 @@ contract Rollup is RollupBase {
         _disableInitializers();
     }
 
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
+    }
+
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
     /// @inheritdoc IRollup

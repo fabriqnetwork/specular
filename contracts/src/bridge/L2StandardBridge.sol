@@ -44,6 +44,14 @@ contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, Own
         __StandardBridge_init(_l2Portal, _otherBridge);
     }
 
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
+    }
+
     /// @inheritdoc StandardBridge
     receive() external payable override {
         _initiateBridgeETH(msg.sender, msg.sender, msg.value, RECEIVE_DEFAULT_GAS_LIMIT, bytes(""));

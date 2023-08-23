@@ -57,7 +57,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
      * @param _stateRoot L1 stateRoot.
      * @param _baseFee L1 baseFee.
      */
-    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) external onlySequencer {
+    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) external onlySequencer whenNotPaused {
         blockNumber = _blockNumber;
         stateRoot = _stateRoot;
         baseFee = _baseFee;
