@@ -22,22 +22,14 @@ import (
 const timeInterval = 3 * time.Second
 
 // TODO: get rid of batcher; use engine API
-// TODO: modularize challenge
-
-type challengeCtx struct {
-	challengeAddr common.Address
-	assertion     *rollupTypes.Assertion
-}
 
 // Current Sequencer assumes no Berlin+London fork on L2
 type Sequencer struct {
 	*services.BaseService
 
-	blockCh              chan types.Blocks
-	pendingAssertionCh   chan *rollupTypes.Assertion
-	confirmedIDCh        chan *big.Int
-	challengeCh          chan *challengeCtx
-	challengeResoutionCh chan struct{}
+	blockCh            chan types.Blocks
+	pendingAssertionCh chan *rollupTypes.Assertion
+	confirmedIDCh      chan *big.Int
 }
 
 func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Sequencer, error) {
@@ -46,12 +38,10 @@ func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1Bri
 		return nil, fmt.Errorf("Failed to create base service, err: %w", err)
 	}
 	return &Sequencer{
-		BaseService:          base,
-		blockCh:              make(chan types.Blocks, 4096),
-		pendingAssertionCh:   make(chan *rollupTypes.Assertion, 4096),
-		confirmedIDCh:        make(chan *big.Int, 4096),
-		challengeCh:          make(chan *challengeCtx),
-		challengeResoutionCh: make(chan struct{}),
+		BaseService:        base,
+		blockCh:            make(chan types.Blocks, 4096),
+		pendingAssertionCh: make(chan *rollupTypes.Assertion, 4096),
+		confirmedIDCh:      make(chan *big.Int, 4096),
 	}, nil
 }
 
@@ -260,7 +250,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 			log.Info(
 				"Serialized new Tx Batch",
 				"#txs", len(batch.Txs),
-				"#numBlocks", len(contexts) / 2,
+				"#numBlocks", len(contexts)/2,
 				"#firsBlockNumber", firstL2BlockNumber,
 			)
 
@@ -334,9 +324,6 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	confirmedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionConfirmed](
 		ctx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterAssertionConfirmed, s.L1Syncer.Latest.Number.Uint64(),
 	)
-	challengedCh := client.SubscribeHeaderMapped[*bindings.IRollupAssertionChallenged](
-		ctx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterAssertionChallenged, s.L1Syncer.Latest.Number.Uint64(),
-	)
 
 	// Current pending assertion from sequencing goroutine
 	// TODO: watch multiple pending assertions
@@ -384,16 +371,6 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 			pendingAssertion = newPendingAssertion.Copy()
 			pendingConfirmationSent = false
 			pendingConfirmed = false
-		case ev := <-challengedCh:
-			// New challenge raised
-			log.Info("Received `AssertionChallenged` event ", "assertion id", ev.AssertionID)
-			if ev.AssertionID.Cmp(pendingAssertion.ID) == 0 {
-				s.challengeCh <- &challengeCtx{
-					ev.ChallengeAddr,
-					pendingAssertion,
-				}
-				wait(ctx, s.challengeResoutionCh, "challenge resolution")
-			}
 		case <-ctx.Done():
 			log.Info("Aborting.")
 			return
@@ -410,123 +387,6 @@ func wait(ctx context.Context, ch <-chan struct{}, taskName string) {
 	case <-ctx.Done():
 		log.Info("Aborting wait for %s", taskName)
 		return
-	}
-}
-
-func (s *Sequencer) challengeLoop(ctx context.Context) {
-	defer s.Wg.Done()
-	// Watch L1 blockchain for challenge timeout
-	headCh := make(chan *types.Header, 4096)
-	headSub, err := s.L1Client.ResubscribeErrNewHead(ctx, headCh)
-	if err != nil {
-		log.Crit("Failed to watch l1 chain head", "err", err)
-	}
-	defer headSub.Unsubscribe()
-	for {
-		select {
-		case chalCtx := <-s.challengeCh:
-			err := s.handleChallenge(ctx, chalCtx, headCh)
-			if err != nil {
-				log.Crit("Failed to handle challenge", "err", err)
-			}
-		case <-headCh:
-			continue // consume channel values
-		case <-ctx.Done():
-			log.Info("Aborting.")
-			return
-		}
-	}
-}
-
-func (s *Sequencer) handleChallenge(
-	ctx context.Context,
-	chalCtx *challengeCtx,
-	headCh chan *types.Header,
-) error {
-	err := s.L1Client.InitNewChallengeSession(ctx, chalCtx.challengeAddr)
-	if err != nil {
-		return fmt.Errorf("Failed to access ongoing challenge (address=%s), err: %w", chalCtx.challengeAddr, err)
-	}
-	states, err := proof.GenerateStates(
-		s.ProofBackend,
-		ctx,
-		chalCtx.assertion.StartBlock,
-		chalCtx.assertion.EndBlock+1,
-		nil,
-	)
-	if err != nil {
-		return fmt.Errorf("Failed to generate states, err: %w", err)
-	}
-	_, err = s.L1Client.InitializeChallengeLength(new(big.Int).SetUint64(uint64(len(states)) - 1))
-	if err != nil {
-		return fmt.Errorf("Failed to initialize challenge, err: %w", err)
-	}
-
-	subCtx, subCancel := context.WithCancel(ctx)
-	defer subCancel()
-	bisectedCh := client.SubscribeHeaderMapped[*bindings.ISymChallengeBisected](
-		subCtx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterBisected, s.L1Syncer.Latest.Number.Uint64(),
-	)
-	challengeCompletedCh := client.SubscribeHeaderMapped[*bindings.ISymChallengeCompleted](
-		subCtx, s.L1Syncer.LatestHeaderBroker, s.L1Client.FilterChallengeCompleted, s.L1Syncer.Latest.Number.Uint64(),
-	)
-	log.Info("to generate state from", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
-	log.Info("backend", "start", chalCtx.assertion.StartBlock, "to", chalCtx.assertion.EndBlock)
-	var opponentTimeoutBlock uint64
-	for {
-		select {
-		case ev := <-bisectedCh:
-			// case get bisection, if is our turn
-			//   if in single step, submit proof
-			//   if multiple step, track current segment, update
-			responder, err := s.L1Client.CurrentChallengeResponder()
-			if err != nil {
-				// TODO: error handling
-				log.Error("Cannot get current responder", "error", err)
-				continue
-			}
-			if responder == common.Address(s.Config.Coinbase) {
-				// If it's our turn
-				err := services.RespondBisection(ctx, s.ProofBackend, s.L1Client, ev, states, common.Hash{}, false)
-				if err != nil {
-					// TODO: error handling
-					log.Error("Cannot respond to bisection", "error", err)
-					continue
-				}
-			} else {
-				opponentTimeLeft, err := s.L1Client.CurrentChallengeResponderTimeLeft()
-				if err != nil {
-					// TODO: error handling
-					log.Error("Cannot get current responder left time", "error", err)
-					continue
-				}
-				log.Info("Opponent time left", "time", opponentTimeLeft)
-				opponentTimeoutBlock = ev.Raw.BlockNumber + opponentTimeLeft.Uint64()
-			}
-		case header := <-headCh:
-			if opponentTimeoutBlock == 0 {
-				continue
-			}
-			// TODO: can we use >= here?
-			if header.Number.Uint64() > opponentTimeoutBlock {
-				_, err := s.L1Client.TimeoutChallenge()
-				if err != nil {
-					log.Error("Cannot timeout opponent", "error", err)
-					continue
-					// TODO: wait some time before retry
-					// TODO: fix race condition
-				}
-			}
-		case ev := <-challengeCompletedCh:
-			// TODO: handle if we are not winner --> state corrupted
-			log.Info("Challenge completed", "winner", ev.Winner)
-			states = []*proof.ExecutionState{}
-			s.challengeResoutionCh <- struct{}{}
-			return nil
-		case <-ctx.Done():
-			log.Info("Aborting.")
-			return nil
-		}
 	}
 }
 
@@ -549,7 +409,6 @@ func (s *Sequencer) Start() error {
 	go s.batchingLoop(ctx)
 	go s.sequencingLoop(ctx)
 	go s.confirmationLoop(ctx)
-	go s.challengeLoop(ctx)
 	log.Info("Sequencer started")
 	return nil
 }
