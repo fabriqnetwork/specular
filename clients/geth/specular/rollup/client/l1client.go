@@ -415,47 +415,6 @@ func (c *EthBridgeClient) GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bi
 	return nil, fmt.Errorf("No genesis `AssertionCreated` event found")
 }
 
-func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	challenge, err := bindings.NewISymChallenge(challengeAddress, c.client)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize challenge contract, err: %w", err)
-	}
-	c.challenge = &bindings.ISymChallengeSession{
-		Contract:     challenge,
-		CallOpts:     bind.CallOpts{Pending: true, Context: ctx},
-		TransactOpts: *c.transactOpts,
-	}
-	return nil
-}
-
-func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.challenge.InitializeChallengeLength(numSteps) }
-	return retryTransactingFunction(f, c.retryOpts)
-}
-
-func (c *EthBridgeClient) CurrentChallengeResponder() (common.Address, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.CurrentResponder()
-}
-
-func (c *EthBridgeClient) CurrentChallengeResponderTimeLeft() (*big.Int, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.CurrentResponderTimeLeft()
-}
-
-func (c *EthBridgeClient) TimeoutChallenge() (*types.Transaction, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.challenge.Timeout() }
-	return retryTransactingFunction(f, c.retryOpts)
-}
-
 func (c *EthBridgeClient) VerifyOneStepProof(
 	proof []byte,
 	txInclusionProof []byte,
