@@ -43,7 +43,7 @@ var (
 	// RollupFlags
 	RollupNodeFlag = &cli.StringFlag{
 		Name:  "rollup.node",
-		Usage: "Start node as rollup sequencer or validator",
+		Usage: "Start node as rollup sequencer",
 		Value: "",
 	}
 	RollupCoinBaseFlag = &cli.StringFlag{
