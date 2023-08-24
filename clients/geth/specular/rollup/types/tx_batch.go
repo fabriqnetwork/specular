@@ -139,13 +139,14 @@ func writePrimitive(w *bytes.Buffer, data interface{}) error {
 // TxBatchFromDecoded decodes the input of SequencerInbox#appendTxBatch call
 // It will only fill Contexts and Txs fields
 func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
-	if len(decoded) != 4 {
+	if len(decoded) != 5 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(decoded))}
 	}
 	contexts := decoded[0].([]*big.Int)
 	txLengths := decoded[1].([]*big.Int)
 	firstL2BlockNumber := decoded[2].(*big.Int)
-	txBatch := decoded[3].([]byte)
+  // txBatchVersion := decoded[4].(*big.Int)
+	txBatch := decoded[4].([]byte)
 
 	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
@@ -155,6 +156,7 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	var ctxs []SequenceContext
 	var batchOffset uint64
 	var numTxs uint64
+  // TODO: Break out as a separate function as new serialization/deserialization is needed
 	for i := 0; i < len(contexts); i += 2 {
 		ctx := SequenceContext{
 			NumTxs:    contexts[i].Uint64(),
