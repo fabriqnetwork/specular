@@ -2,8 +2,8 @@
 
 ## Running a local network
 
-This guide will demonstrate how to set up a rollup network containing L2 sequencer validator nodes, running over a Hardhat L1 node---all on your local machine.
-After the 3 nodes are running, you can use MetaMask to send custom transactions to the sequencer, and see how transactions are executed on the L2 network, sequenced to the L1 network, and validated and confirmed.
+This guide will demonstrate how to set up a rollup network containing L2 sequencer nodes, running over a Hardhat L1 node---all on your local machine.
+After the 3 nodes are running, you can use MetaMask to send custom transactions to the sequencer, and see how transactions are executed on the L2 network, sequenced to the L1 network, and confirmed.
 In this example, all nodes operate honestly (no challenges are issued).
 
 ### Build
@@ -46,18 +46,14 @@ npx hardhat node
 # Terminal #2: start sequencer
 cd SPECULAR_REPO/clients/geth/specular/sbin
 ./start_sequencer.sh
-
-# Terminal #3: start validator
-cd SPECULAR_REPO/clients/geth/specular/sbin
-./start_validator.sh
 ```
 
 Make sure there are logs for `Sequencer started` and `Validator started` in the respective consoles.
-In the first terminal where L1 node is running, you can see both sequencer and validator are staked on the Rollup contract.
+In the first terminal where L1 node is running, you can see the sequencer staked on the Rollup contract.
 
 **Restarts**
 
-Currently, the sequencer and validator must start in a clean environment; i.e. you need to clean and reinitialize both L1 and L2 on every start.
+Currently, the sequencer must start in a clean environment; i.e. you need to clean and reinitialize both L1 and L2 on every start.
 
 To restart the L1 node, use `Ctrl-C` to stop the current running one and run `npx hardhat node` again.
 
@@ -69,8 +65,8 @@ Do not forget to reset MetaMask account if you have sent some transactions on L2
 
 **Configuration**
 
-1. Go to `data/keys`, import the sequencer and validator keys to MetaMask.
-Both accounts are pre-funded with 10 ETH each on L2 network, and you can use them to send transactions. Note: on L2, these two accounts are just normal accounts; not to be confused with the sequencer/validator roles on L1 (the addresses are just being reused).
+1. Go to `data/keys`, import the sequencer key to MetaMask.
+Both accounts are pre-funded with 10 ETH each on L2 network, and you can use them to send transactions. Note: on L2, these two accounts are just normal accounts; not to be confused with the sequencer roles on L1 (the addresses are just being reused).
 2. In `Settings -> Networks`, create a new network called `L2` which connects to the sequencer.
 The sequencer node should be running while creating the network.
 Enter `http://localhost:4011` for RPC URL, `13527` for Chain ID, `ETH` for currency symbol (we haven't changed the symbol yet).
@@ -82,15 +78,13 @@ Select the appropriate account, go to `Setting -> Advanced`, and click `Reset Ac
 This ensures the account nonce cache in MetaMask is cleared.
 
 Now, you can use the pre-funded account to send transactions.
-For example, you can send 1 ETH from the sequencer account to the validator account on L2.
 
 After an L2 transaction, in the Hardhat node console, observe the resultant transactions occuring on L1:
 - sequencer calls `appendTxBatch` to sequence transaction
 - sequencer calls `createAssertion` to create disputable assertion
-- validator calls `advanceStake` after validating the assertion
 - sequencer calls `confirmFirstUnresolvedAssertion` to confirm the assertion after every stakers staked on the assertion
 
-*Make sure that sequencer node and validator node are all started before sending any transaction to L2.*
+*Make sure that sequencer node is started before sending any transaction to L2.*
 
 ### Scenario Parameters
 

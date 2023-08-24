@@ -17,8 +17,6 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
-const syncRange uint64 = 10000
-
 type L1BridgeClient interface {
 	TransactionByHash(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error)
 	BlockNumber(ctx context.Context) (uint64, error)
@@ -55,19 +53,6 @@ type L1BridgeClient interface {
 	FilterAssertionConfirmed(opts *bind.FilterOpts) (*bindings.IRollupAssertionConfirmedIterator, error)
 	FilterAssertionRejected(opts *bind.FilterOpts) (*bindings.IRollupAssertionRejectedIterator, error)
 	GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bindings.IRollupAssertionCreated, error)
-	// IChallenge.sol
-	InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error
-	InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error)
-	CurrentChallengeResponder() (common.Address, error)
-	CurrentChallengeResponderTimeLeft() (*big.Int, error)
-	TimeoutChallenge() (*types.Transaction, error)
-	BisectExecution(
-		bisection [][32]byte,
-		challengedSegmentIndex *big.Int,
-		prevBisection [][32]byte,
-		prevChallengedSegmentStart *big.Int,
-		prevChallengedSegmentLength *big.Int,
-	) (*types.Transaction, error)
 	VerifyOneStepProof(
 		proof []byte,
 		txInclusionProof []byte,
@@ -77,11 +62,6 @@ type L1BridgeClient interface {
 		prevChallengedSegmentStart *big.Int,
 		prevChallengedSegmentLength *big.Int,
 	) (*types.Transaction, error)
-	WatchBisected(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeBisected) (event.Subscription, error)
-	WatchChallengeCompleted(opts *bind.WatchOpts, sink chan<- *bindings.ISymChallengeCompleted) (event.Subscription, error)
-	FilterBisected(opts *bind.FilterOpts) (*bindings.ISymChallengeBisectedIterator, error)
-	FilterChallengeCompleted(opts *bind.FilterOpts) (*bindings.ISymChallengeCompletedIterator, error)
-	DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error)
 }
 
 // Basically a thread-safe shim for `ethclient.Client` and `bindings`.
@@ -435,68 +415,6 @@ func (c *EthBridgeClient) GetGenesisAssertionCreated(opts *bind.FilterOpts) (*bi
 	return nil, fmt.Errorf("No genesis `AssertionCreated` event found")
 }
 
-func (c *EthBridgeClient) InitNewChallengeSession(ctx context.Context, challengeAddress common.Address) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	challenge, err := bindings.NewISymChallenge(challengeAddress, c.client)
-	if err != nil {
-		return fmt.Errorf("Failed to initialize challenge contract, err: %w", err)
-	}
-	c.challenge = &bindings.ISymChallengeSession{
-		Contract:     challenge,
-		CallOpts:     bind.CallOpts{Pending: true, Context: ctx},
-		TransactOpts: *c.transactOpts,
-	}
-	return nil
-}
-
-func (c *EthBridgeClient) InitializeChallengeLength(numSteps *big.Int) (*types.Transaction, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.challenge.InitializeChallengeLength(numSteps) }
-	return retryTransactingFunction(f, c.retryOpts)
-}
-
-func (c *EthBridgeClient) CurrentChallengeResponder() (common.Address, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.CurrentResponder()
-}
-
-func (c *EthBridgeClient) CurrentChallengeResponderTimeLeft() (*big.Int, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.CurrentResponderTimeLeft()
-}
-
-func (c *EthBridgeClient) TimeoutChallenge() (*types.Transaction, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) { return c.challenge.Timeout() }
-	return retryTransactingFunction(f, c.retryOpts)
-}
-
-func (c *EthBridgeClient) BisectExecution(
-	bisection [][32]byte,
-	challengedSegmentIndex *big.Int,
-	prevBisection [][32]byte,
-	prevChallengedSegmentStart *big.Int,
-	prevChallengedSegmentLength *big.Int,
-) (*types.Transaction, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	f := func() (*types.Transaction, error) {
-		return c.challenge.BisectExecution(
-			bisection,
-			challengedSegmentIndex,
-			prevBisection,
-			prevChallengedSegmentStart,
-			prevChallengedSegmentLength,
-		)
-	}
-	return retryTransactingFunction(f, c.retryOpts)
-}
-
 func (c *EthBridgeClient) VerifyOneStepProof(
 	proof []byte,
 	txInclusionProof []byte,
@@ -520,44 +438,6 @@ func (c *EthBridgeClient) VerifyOneStepProof(
 		)
 	}
 	return retryTransactingFunction(f, c.retryOpts)
-}
-
-func (c *EthBridgeClient) WatchBisected(
-	opts *bind.WatchOpts,
-	sink chan<- *bindings.ISymChallengeBisected,
-) (event.Subscription, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.Contract.WatchBisected(opts, sink)
-}
-
-func (c *EthBridgeClient) WatchChallengeCompleted(
-	opts *bind.WatchOpts,
-	sink chan<- *bindings.ISymChallengeCompleted,
-) (event.Subscription, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.Contract.WatchCompleted(opts, sink)
-}
-
-func (c *EthBridgeClient) FilterBisected(opts *bind.FilterOpts) (*bindings.ISymChallengeBisectedIterator, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.Contract.FilterBisected(opts)
-}
-
-func (c *EthBridgeClient) FilterChallengeCompleted(
-	opts *bind.FilterOpts,
-) (*bindings.ISymChallengeCompletedIterator, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challenge.Contract.FilterCompleted(opts)
-}
-
-func (c *EthBridgeClient) DecodeBisectExecutionInput(tx *types.Transaction) ([]interface{}, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.challengeAbi.Methods["bisectExecution"].Inputs.Unpack(tx.Data()[4:])
 }
 
 func retryTransactingFunction(f func() (*types.Transaction, error), retryOpts []retry.Option) (*types.Transaction, error) {

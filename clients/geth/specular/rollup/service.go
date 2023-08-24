@@ -18,12 +18,10 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
 // RegisterRollupService registers rollup service configured by ctx
-// Either a sequncer service or a validator service will be registered
 func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config) {
 	// Unlock account for L1 transaction signer
 	var ks *keystore.KeyStore
@@ -87,8 +85,6 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	switch cfg.Node {
 	case services.NODE_SEQUENCER:
 		service, err = sequencer.New(eth, proofBackend, l1Client, cfg)
-	case services.NODE_VALIDATOR:
-		service, err = validator.New(eth, proofBackend, l1Client, cfg)
 	case services.NODE_INDEXER:
 		service, err = indexer.New(eth, proofBackend, l1Client, cfg)
 	default:
