@@ -4,7 +4,7 @@ GO_SRC = ./...
 GOBIN = ./build/bin
 # TODO use env variables
 SPECULAR_DIR = ./
-CONTRACTS_DIR = ../../../contracts
+CONTRACTS_DIR = ../../../../contracts/
 # geth
 GETH_SRC = ./cmd/geth/
 GETH_TARGET = $(GOBIN)/geth
@@ -24,6 +24,7 @@ install: specular $(GETH_TARGET) $(CLEF_TARGET)
 # Builds specular go source
 # TODO: use real target to optimize build time
 specular: $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
+	@echo "running go build"
 	go build $(GO_SRC)
 # for back-compat
 geth: $(GETH_TARGET)
@@ -46,7 +47,7 @@ geth-docker: bindings-docker
 	@echo "Done building geth."
 	@echo "Run \"$(GETH_TARGET)\" to launch geth."
 # Assumes contracts already built.
-bindings-docker: 
+bindings-docker:
 	go generate $(GO_SRC)
 	touch $(BINDINGS_TARGET)
 

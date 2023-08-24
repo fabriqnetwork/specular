@@ -5,7 +5,7 @@ services:
     image: ${L2_DOCKER_TAG:-specularl2/l2geth:latest}
     build:
       context: ../..
-      dockerfile: ./clients/geth/specular/Dockerfile
+      dockerfile: ./services/el_clients/geth/specular/Dockerfile
     volumes:
       - ${SPECULAR_DATADIR:-$PWD/specular-datadir}:/specular
     env_file:
