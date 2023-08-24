@@ -296,7 +296,6 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		case id := <-s.confirmedIDCh:
 			// New assertion confirmed
 			if pendingAssertion.ID.Cmp(id) == 0 {
-				confirmedAssertion = pendingAssertion
 				if pendingAssertion.VmHash == queuedAssertion.VmHash {
 					// We are done here, waiting for new batches
 					pendingAssertion = nil
@@ -375,18 +374,6 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 			log.Info("Aborting.")
 			return
 		}
-	}
-}
-
-func wait(ctx context.Context, ch <-chan struct{}, taskName string) {
-	log.Info("Waiting for %s...", taskName)
-	select {
-	case <-ch:
-		log.Info("%s notification received", taskName)
-		return
-	case <-ctx.Done():
-		log.Info("Aborting wait for %s", taskName)
-		return
 	}
 }
 
