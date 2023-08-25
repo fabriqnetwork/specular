@@ -3,6 +3,7 @@ package validator
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
@@ -13,6 +14,13 @@ type Validator struct {
 	cfg      Config
 	l1TxMgr  TxManager
 	l2Client L2Client
+
+	pendingConfirmation []assertion
+}
+
+type assertion struct {
+	assertionID      *big.Int
+	confirmationTime uint64 // L1 block number at which the assertion is eligible for confirmation.
 }
 
 func NewValidator(cfg Config, l1TxMgr TxManager, l2Client L2Client) *Validator {
@@ -48,5 +56,19 @@ func (v *Validator) start(ctx context.Context) error {
 
 // TODO: implement.
 func (v *Validator) step(ctx context.Context) error {
+	if err := v.createAssertion(); err != nil {
+		return fmt.Errorf("failed to create assertion: %w", err)
+	}
+	// TODO: or reject, depending on circumstances.
+	if err := v.confirmFirstUnresolvedAssertion(); err != nil {
+		return fmt.Errorf("failed to confirm assertion: %w", err)
+	}
 	return nil
 }
+
+// If enough time has passed and txs have been sequenced to L1, create a new assertion.
+// Add it to the queue for confirmation.
+func (v *Validator) createAssertion() error { return nil }
+
+// If the first unresolved assertion is eligible for confirmation, trigger its confirmation.
+func (v *Validator) confirmFirstUnresolvedAssertion() error { return nil }

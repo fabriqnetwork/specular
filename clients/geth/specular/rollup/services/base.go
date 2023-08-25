@@ -15,6 +15,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
@@ -231,40 +233,23 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	if err != nil {
 		return fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
 	}
-	// Decode input to appendTxBatch transaction.
-	decoded, err := b.L1Client.DecodeAppendTxBatchInput(tx)
+	in, err := bridge.UnpackAppendTxBatchInput(tx)
 	if err != nil {
 		return fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
 	}
-	// Construct batch. TODO: decode into blocks directly.
-	batch, err := rollupTypes.TxBatchFromDecoded(decoded)
+	blocks, err := derivation.BlocksFromData(in)
 	if err != nil {
-		return fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
+		return fmt.Errorf("Failed to split AppendTxBatch input into blocks, err: %w", err)
 	}
-	log.Info("Decoded batch", "#txs", len(batch.Txs))
-	blocks := batch.SplitToBlocks()
-	log.Info("Batch split into blocks", "#blocks", len(blocks))
-
-	currentBlockNumber := batch.FirstL2BlockNumber.Uint64()
+	log.Info("Decoded blocks", "#blocks", len(blocks))
 	localBlockNumber := b.Eth.BlockChain().CurrentBlock().NumberU64()
-	log.Info("Batch starts with block number", "#firstL2BlockNumber", currentBlockNumber)
-
 	// Commit only blocks ahead of the current L2 chain.
 	for i := range blocks {
-		log.Trace(
-			"Comparing current block number to last block on local chain",
-			"#currentBlockNumber", currentBlockNumber,
-			"#lastLocalBlock", localBlockNumber,
-		)
-
-		if currentBlockNumber > localBlockNumber {
-			log.Info("Commiting batch starting from block", "#blockNumber", currentBlockNumber)
+		if blocks[i].BlockNumber() > localBlockNumber {
 			blocks = blocks[i:]
-			b.commitBlocks(currentBlockNumber, blocks)
+			b.commitBlocks(blocks)
 			break
 		}
-
-		currentBlockNumber += 1
 	}
 
 	return nil
@@ -314,7 +299,8 @@ func (b *BaseService) setL2BlockBoundaries(
 // commitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
 // TODO: use StateProcessor::Process() instead
-func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTypes.SequenceBlock) error {
+func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
+	firstL2BlockNumber := blocks[0].BlockNumber()
 	log.Trace(
 		"Committing blocks",
 		"#firstL2BlockNumber", firstL2BlockNumber,
@@ -353,14 +339,22 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTy
 			ParentHash: parent.Hash(),
 			Number:     new(big.Int).SetUint64(currentBlockNumber),
 			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
-			Time:       sblock.Timestamp,
+			Time:       sblock.Timestamp(),
 			Coinbase:   b.Config.GetAccountAddr(),
 			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
 		}
-
 		gasPool := new(core.GasPool).AddGas(header.GasLimit)
 		var receipts []*types.Receipt
-		for idx, tx := range sblock.Txs {
+
+		var txs []*types.Transaction
+		for i, tx := range sblock.Txs() {
+			err := txs[i].UnmarshalBinary(tx)
+			if err != nil {
+				return err
+			}
+		}
+
+		for idx, tx := range txs {
 			state.Prepare(tx.Hash(), idx)
 			addr := b.Config.GetAccountAddr()
 			receipt, err := core.ApplyTransaction(
@@ -376,7 +370,7 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTy
 		header.Root = state.IntermediateRoot(b.Chain().Config().IsEIP158(header.Number))
 		header.UncleHash = types.CalcUncleHash(nil)
 		// Assemble block
-		block := types.NewBlock(header, sblock.Txs, nil, receipts, trie.NewStackTrie(nil))
+		block := types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil))
 		hash := block.Hash()
 		// Finalize receipts and logs
 		var logs []*types.Log
