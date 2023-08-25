@@ -29,6 +29,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
+<<<<<<< HEAD
 // TODO: this is the last Geth-specific interface here; remove.
 type accountManager interface {
 	Backends(reflect.Type) []accounts.Backend
@@ -53,6 +54,20 @@ func CreateRollupServices(
 ) ([]api.Service, error) {
 	var services []api.Service
 	legacyService, err := createLegacyService(accMgr, execBackend, proofBackend, cfg)
+=======
+// Tries to connect to Clef as a signer and if not reverts to using Geth as the signer
+func GetAuth(stack *node.Node, cfg *services.Config) *bind.TransactOpts {
+	var ks *keystore.KeyStore
+	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
+		ks = keystores[0].(*keystore.KeyStore)
+	}
+	if ks == nil {
+		log.Crit("Failed to register the Rollup service: keystore not found")
+	}
+	
+  chainID := big.NewInt(int64(cfg.L1ChainID))
+	json, err := ks.Export(accounts.Account{Address: cfg.Coinbase}, cfg.Passphrase, "")
+>>>>>>> b33380a (rebase)
 	if err != nil {
 		return nil, err
 	}

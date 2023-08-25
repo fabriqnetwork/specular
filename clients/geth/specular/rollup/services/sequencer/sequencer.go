@@ -83,7 +83,7 @@ func (s *Sequencer) addTxsToBatchAndCommit(
 	return batchTxs, nil
 }
 
-// This goroutine fetches txs from txpool and batches them
+// `batchingLoop` is a goroutine which fetches txs from the txpool and batches them
 func (s *Sequencer) batchingLoop(ctx context.Context) {
 	defer s.Wg.Done()
 
