@@ -221,7 +221,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function stake() external payable override whenNotPaused {
+    function stake() external payable override {
         if (isStaked(msg.sender)) {
             stakers[msg.sender].amountStaked += msg.value;
         } else {
@@ -320,7 +320,7 @@ contract Rollup is RollupBase {
     /// @inheritdoc IRollup
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
         external
-        override whenNotPaused
+        override
         returns (address)
     {
         uint256 defenderAssertionID = assertionIDs[0];
