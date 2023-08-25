@@ -21,9 +21,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
 )
 
-// RegisterRollupService registers rollup service configured by ctx
-func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config) {
-	// Unlock account for L1 transaction signer
+// Tries to connect to Clef as a signer and if not reverts to using Geth as the signer
+func GetAuth(stack *node.Node, cfg *services.Config) *bind.TransactOpts {
 	var ks *keystore.KeyStore
 	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
 		ks = keystores[0].(*keystore.KeyStore)
@@ -31,7 +30,8 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	if ks == nil {
 		log.Crit("Failed to register the Rollup service: keystore not found")
 	}
-	chainID := big.NewInt(int64(cfg.L1ChainID))
+	
+  chainID := big.NewInt(int64(cfg.L1ChainID))
 	json, err := ks.Export(accounts.Account{Address: cfg.Coinbase}, cfg.Passphrase, "")
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)
@@ -52,23 +52,29 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 		}
 	}
 
-	// Register services
-	ctx := context.Background()
+  return auth
+}
+
+// Constructs an EthBridgeClient for communicating with L1
+func GetEthBridgeClient(stack *node.Node, cfg *services.Config) *client.EthBridgeClient {
+
+  auth := GetAuth(stack, cfg)
+	
+  ctx := context.Background()
+
 	retryOpts := []retry.Option{
 		retry.Context(ctx),
 		retry.Attempts(3),
 		retry.Delay(5 * time.Second),
 		retry.LastErrorOnly(true),
 		retry.RetryIf(func(err error) bool {
-			// limit retry to connection error, nonce error
-			// if err == ? {
-			// 	return false
 			return true
 		}),
 		retry.OnRetry(func(n uint, err error) {
 			log.Error("Failed attempt", "attempt", n, "err", err)
 		}),
 	}
+
 	l1Client, err := client.NewEthBridgeClient(
 		ctx,
 		cfg.L1Endpoint,
@@ -81,7 +87,18 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	if err != nil {
 		log.Crit("Failed to register the Rollup service: cannot create l1 client", "err", err)
 	}
+
+  return l1Client
+
+}
+
+// RegisterRollupService registers rollup service configured by ctx
+func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config) {
+
+  l1Client := GetEthBridgeClient(stack, cfg)
+
 	var service node.Lifecycle
+  var err error
 	switch cfg.Node {
 	case services.NODE_SEQUENCER:
 		service, err = sequencer.New(eth, proofBackend, l1Client, cfg)
