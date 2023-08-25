@@ -239,7 +239,7 @@ func (c *EthBridgeClient) FilterTxBatchAppendedEvents(
 func (c *EthBridgeClient) DecodeAppendTxBatchInput(tx *types.Transaction) ([]interface{}, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return c.inboxAbi.Methods["appendTxBatch"].Inputs.Unpack(tx.Data()[4:])
+	return c.inboxAbi.Methods["appendTxBatch"].Inputs.Unpack(tx.Data()[5:])
 }
 
 func (c *EthBridgeClient) GetStaker() (bindings.IRollupStaker, error) {

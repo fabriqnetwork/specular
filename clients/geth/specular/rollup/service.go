@@ -98,12 +98,9 @@ func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend 
 	l1Client := GetEthBridgeClient(stack, cfg)
 
 	var service node.Lifecycle
-<<<<<<< HEAD
-  var err error
-=======
 	var err error
->>>>>>> db27b44 (cleaning up)
-	switch cfg.Node {
+	
+  switch cfg.Node {
 	case services.NODE_SEQUENCER:
 		service, err = sequencer.New(eth, proofBackend, l1Client, cfg)
 	case services.NODE_INDEXER:
