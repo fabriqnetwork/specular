@@ -30,8 +30,8 @@ func GetAuth(stack *node.Node, cfg *services.Config) *bind.TransactOpts {
 	if ks == nil {
 		log.Crit("Failed to register the Rollup service: keystore not found")
 	}
-	
-  chainID := big.NewInt(int64(cfg.L1ChainID))
+
+	chainID := big.NewInt(int64(cfg.L1ChainID))
 	json, err := ks.Export(accounts.Account{Address: cfg.Coinbase}, cfg.Passphrase, "")
 	if err != nil {
 		log.Crit("Failed to register the Rollup service", "err", err)
@@ -52,15 +52,15 @@ func GetAuth(stack *node.Node, cfg *services.Config) *bind.TransactOpts {
 		}
 	}
 
-  return auth
+	return auth
 }
 
 // Constructs an EthBridgeClient for communicating with L1
 func GetEthBridgeClient(stack *node.Node, cfg *services.Config) *client.EthBridgeClient {
 
-  auth := GetAuth(stack, cfg)
-	
-  ctx := context.Background()
+	auth := GetAuth(stack, cfg)
+
+	ctx := context.Background()
 
 	retryOpts := []retry.Option{
 		retry.Context(ctx),
@@ -88,17 +88,21 @@ func GetEthBridgeClient(stack *node.Node, cfg *services.Config) *client.EthBridg
 		log.Crit("Failed to register the Rollup service: cannot create l1 client", "err", err)
 	}
 
-  return l1Client
+	return l1Client
 
 }
 
 // RegisterRollupService registers rollup service configured by ctx
 func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config) {
 
-  l1Client := GetEthBridgeClient(stack, cfg)
+	l1Client := GetEthBridgeClient(stack, cfg)
 
 	var service node.Lifecycle
+<<<<<<< HEAD
   var err error
+=======
+	var err error
+>>>>>>> db27b44 (cleaning up)
 	switch cfg.Node {
 	case services.NODE_SEQUENCER:
 		service, err = sequencer.New(eth, proofBackend, l1Client, cfg)
