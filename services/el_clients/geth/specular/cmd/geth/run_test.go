@@ -25,7 +25,7 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/internal/cmdtest"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/internal/cmdtest"
 )
 
 type testgeth struct {

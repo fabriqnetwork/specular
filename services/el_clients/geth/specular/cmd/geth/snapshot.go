@@ -34,7 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/internal/flags"
 	cli "github.com/urfave/cli/v2"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/rpc/eth/txmgr"
 )
 
 // Adds bridge contract method bindings to EthTxManager.

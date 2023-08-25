@@ -5,10 +5,10 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/bindings"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/proof"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/client"
+	rollupTypes "github.com/specularl2/specular/services/el_clients/geth/specular/rollup/types"
 )
 
 func NewAssertionFrom(

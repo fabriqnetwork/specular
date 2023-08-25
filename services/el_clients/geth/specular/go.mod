@@ -1,4 +1,4 @@
-module github.com/specularl2/specular/clients/geth/specular
+module github.com/specularl2/specular/services/el_clients/geth/specular
 
 go 1.19
 
