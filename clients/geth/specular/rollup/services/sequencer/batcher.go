@@ -116,8 +116,7 @@ func (b *Batcher) Batch() (types.Blocks, error) {
 	return blocks, nil
 }
 
-// commitBlock will assemble the current block, insert it into the blockchain
-// and start a new block
+// commitBlock will assemble the current block, insert it into the blockchain and start a new block
 func (b *Batcher) commitBlock() error {
 	// TODO: return if nothing to be committed
 
