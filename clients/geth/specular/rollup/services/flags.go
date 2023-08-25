@@ -63,7 +63,7 @@ var (
 		Usage: "The L2 chain ID",
 	}
 	l2L1FeeOverheadFlag = &cli.Int64Flag{
-		Name:  "l2.l1-fee-overhead",
+		Name:  "rollup.l2.l1-fee-overhead",
 		Usage: "Gas cost of sequencing a Tx",
 		Value: 0,
 	}
@@ -109,6 +109,7 @@ var (
 	}
 	l2Flags = []cli.Flag{
 		l2EndpointFlag,
+		l2ChainIDFlag,
 		l2L1FeeOverheadFlag,
 		l2L1FeeMultiplierFlag,
 		l2L1OracleAddressFlag,
