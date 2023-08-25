@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/urfave/cli/v2"
 )
 
 type Config struct {
@@ -44,4 +45,73 @@ type Config struct {
 	SafeAbortNonceTooLowCount uint64
 
 	From common.Address
+}
+
+const (
+	ResubmissionTimeoutFlagName       = "resubmission-timeout"
+	TxSendTimeoutFlagName             = "send-timeout"
+	TxNotInMempoolTimeoutFlagName     = "not-in-mempool-timeout"
+	NetworkTimeoutFlagName            = "network-timeout"
+	ReceiptQueryIntervalFlagName      = "receipt-query-interval"
+	NumConfirmationsFlagName          = "num-confirmations"
+	SafeAbortNonceTooLowCountFlagName = "safe-abort-nonce-too-low-count"
+)
+
+func CLIFlags(namespace string) []cli.Flag {
+	return []cli.Flag{
+		&cli.Uint64Flag{
+			Name:  namespace + "." + NumConfirmationsFlagName,
+			Usage: "Number of confirmations which we will wait after sending a transaction",
+			Value: 10,
+		},
+		&cli.Uint64Flag{
+			Name:  namespace + "." + SafeAbortNonceTooLowCountFlagName,
+			Usage: "Number of ErrNonceTooLow observations required to give up on a tx at a particular nonce without receiving confirmation",
+			Value: 3,
+		},
+		&cli.DurationFlag{
+			Name:  namespace + "." + ResubmissionTimeoutFlagName,
+			Usage: "Duration we will wait before resubmitting a transaction to L1",
+			Value: 48 * time.Second,
+		},
+		&cli.DurationFlag{
+			Name:  namespace + "." + NetworkTimeoutFlagName,
+			Usage: "Timeout for all network operations",
+			Value: 2 * time.Second,
+		},
+		&cli.DurationFlag{
+			Name:  namespace + "." + TxSendTimeoutFlagName,
+			Usage: "Timeout for sending transactions. If 0 it is disabled.",
+			Value: 0,
+		},
+		&cli.DurationFlag{
+			Name:  namespace + "." + TxNotInMempoolTimeoutFlagName,
+			Usage: "Timeout for aborting a tx send if the tx does not make it to the mempool.",
+			Value: 2 * time.Minute,
+		},
+		&cli.DurationFlag{
+			Name:  namespace + "." + ReceiptQueryIntervalFlagName,
+			Usage: "Frequency to poll for receipts",
+			Value: 12 * time.Second,
+		},
+	}
+}
+
+func NewConfigFromCLI(
+	cliCtx *cli.Context,
+	namespace string,
+	chainID *big.Int,
+	from common.Address,
+) Config {
+	return Config{
+		ResubmissionTimeout:       cliCtx.Duration(namespace + "." + ResubmissionTimeoutFlagName),
+		ChainID:                   chainID,
+		TxSendTimeout:             cliCtx.Duration(namespace + "." + TxSendTimeoutFlagName),
+		TxNotInMempoolTimeout:     cliCtx.Duration(namespace + "." + TxNotInMempoolTimeoutFlagName),
+		NetworkTimeout:            cliCtx.Duration(namespace + "." + NetworkTimeoutFlagName),
+		ReceiptQueryInterval:      cliCtx.Duration(namespace + "." + ReceiptQueryIntervalFlagName),
+		NumConfirmations:          cliCtx.Uint64(namespace + "." + NumConfirmationsFlagName),
+		SafeAbortNonceTooLowCount: cliCtx.Uint64(namespace + "." + SafeAbortNonceTooLowCountFlagName),
+		From:                      from,
+	}
 }

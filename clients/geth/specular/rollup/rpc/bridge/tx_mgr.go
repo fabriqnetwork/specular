@@ -20,8 +20,8 @@ type EthTxManager interface {
 }
 
 type bridgeConfig interface {
-	SequencerInboxAddr() common.Address
-	RollupAddr() common.Address
+	GetSequencerInboxAddr() common.Address
+	GetRollupAddr() common.Address
 }
 
 func NewTxManager(txMgr EthTxManager, cfg bridgeConfig) (*TxManager, error) {
@@ -42,7 +42,7 @@ func (m *TxManager) AppendTxBatch(
 	if err != nil {
 		return nil, err
 	}
-	addr := m.cfg.SequencerInboxAddr()
+	addr := m.cfg.GetSequencerInboxAddr()
 	return m.Send(ctx, txmgr.TxCandidate{TxData: data, To: &addr})
 }
 
@@ -89,6 +89,6 @@ func (m *TxManager) RejectFirstUnresolvedAssertion(ctx context.Context, stakerAd
 }
 
 func (m *TxManager) sendRollupTx(ctx context.Context, data []byte) (*types.Receipt, error) {
-	addr := m.cfg.RollupAddr()
+	addr := m.cfg.GetRollupAddr()
 	return m.Send(ctx, txmgr.TxCandidate{TxData: data, To: &addr})
 }

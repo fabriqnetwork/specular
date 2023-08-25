@@ -13,14 +13,14 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 )
 
 // Batcher assumes exclusive control of underlying blockchain, i.e.
 // mining and blockchain insertion can not happen.
 // TODO: support Berlin+London fork
 type Batcher struct {
-	eth         services.Backend
+	eth         api.ExecutionBackend
 	chain       *core.BlockChain
 	chainConfig *params.ChainConfig
 
@@ -37,7 +37,7 @@ type Batcher struct {
 	receipts []*types.Receipt
 }
 
-func NewBatcher(coinbase common.Address, eth services.Backend) (*Batcher, error) {
+func NewBatcher(coinbase common.Address, eth api.ExecutionBackend) (*Batcher, error) {
 	b := &Batcher{
 		coinbase: coinbase,
 		eth:      eth,

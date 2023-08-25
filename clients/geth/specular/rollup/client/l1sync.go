@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 type L1Syncer struct {

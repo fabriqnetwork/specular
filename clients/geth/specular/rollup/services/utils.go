@@ -8,6 +8,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
@@ -25,7 +26,7 @@ func NewAssertionFrom(
 }
 
 // For debugging purposes.
-func LogBlockChainInfo(backend Backend, start, end uint64) {
+func LogBlockChainInfo(backend api.ExecutionBackend, start, end uint64) {
 	for i := start; i < end; i++ {
 		block := backend.BlockChain().GetBlockByNumber(i)
 		log.Info("Block", "number", i, "hash", block.Hash(), "root", block.Root(), "num txs", len(block.Transactions()))

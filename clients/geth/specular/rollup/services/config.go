@@ -1,55 +1,139 @@
 package services
 
 import (
+	"math/big"
+	"time"
+
+	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
+	"github.com/urfave/cli/v2"
 )
 
-const (
-	NODE_SEQUENCER = "sequencer"
-	NODE_VALIDATOR = "validator"
-	NODE_INDEXER   = "indexer"
-)
-
-// Config is the configuration of rollup services
-type Config struct {
-	Node                 string         // Rollup node type, either sequencer or validator
-	Coinbase             common.Address // The account used for L1 and L2 activity
-	Passphrase           string         // The passphrase of the coinbase account
-	ClefEndpoint         string         // The Clef Endpoint used for signing TXs
-	L1Endpoint           string         // L1 API endpoint
-	L1ChainID            uint64         // L1 chain ID
-	L2ChainID            uint64         // L2 chain ID
-	SequencerAddr        common.Address // Validator only
-	SequencerInboxAddr   common.Address // L1 SequencerInbox contract address
-	RollupAddr           common.Address // L1 Rollup contract address
-	L1RollupGenesisBlock uint64         // L1 Rollup genesis block
-	RollupStakeAmount    uint64         // Amount of stake
-	L1FeeOverhead        int64          // Gas cost of sequencing a Tx
-	L1FeeMultiplier      float64        // Scalar value to increase L1 fee
-	L1OracleAddress      common.Address // L2 Address of the L1Oracle
-	L1OracleBaseFeeSlot  common.Hash    // L1 basefee storage slot of the L1Oracle
+type SystemConfig struct {
+	L1Config        `toml:"l1,omitempty"`
+	L2Config        `toml:"l2,omitempty"`
+	SequencerConfig `toml:"sequencer,omitempty"`
 }
 
-func (c *Config) GetCoinbase() common.Address {
-	return c.Coinbase
+func (c *SystemConfig) L1() L1Config               { return c.L1Config }
+func (c *SystemConfig) L2() L2Config               { return c.L2Config }
+func (c *SystemConfig) Sequencer() SequencerConfig { return c.SequencerConfig }
+
+// Parses all CLI flags and returns a full system config.
+func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
+	return parseFlags(cliCtx), nil
 }
 
-func (c *Config) GetL2ChainID() uint64 {
-	return c.L2ChainID
+func parseFlags(cliCtx *cli.Context) *SystemConfig {
+	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.MiningEnabledFlag)
+	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.DeveloperFlag)
+	var (
+		sequencerAddr       common.Address
+		sequencerPassphrase string
+		pwList              = utils.MakePasswordList(cliCtx)
+	)
+	if cliCtx.String(sequencerAddrFlag.Name) != "" {
+		sequencerAddr = common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name))
+		sequencerPassphrase = pwList[0]
+	}
+
+	var (
+		l1ChainID         = big.NewInt(0).SetUint64(cliCtx.Uint64(l1ChainIDFlag.Name))
+		sequencerTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, sequencerTxMgrNamespace, l1ChainID, sequencerAddr)
+	)
+	return &SystemConfig{
+		L1Config:        newL1ConfigFromCLI(cliCtx),
+		L2Config:        newL2ConfigFromCLI(cliCtx),
+		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerPassphrase, sequencerTxMgrCfg),
+	}
 }
 
-func (c *Config) GetL1FeeOverhead() int64 {
-	return c.L1FeeOverhead
+// L1 configuration
+type L1Config struct {
+	Endpoint           string         `toml:"endpoint,omitempty"`             // L1 API endpoint
+	ChainID            uint64         `toml:"chainid,omitempty"`              // L1 chain ID
+	RollupGenesisBlock uint64         `toml:"rollup_genesis,omitempty"`       // L1 Rollup genesis block
+	SequencerInboxAddr common.Address `toml:"sequencer_inbox_addr,omitempty"` // L1 SequencerInbox contract address
+	RollupAddr         common.Address `toml:"rollup_addr,omitempty"`          // L1 Rollup contract address
+	StakeAmount        uint64         `toml:"stake_amount,omitempty"`         // Amount of stake
 }
 
-func (c *Config) GetL1FeeMultiplier() float64 {
-	return c.L1FeeMultiplier
+func newL1ConfigFromCLI(cliCtx *cli.Context) L1Config {
+	return L1Config{
+		Endpoint:           cliCtx.String(l1EndpointFlag.Name),
+		ChainID:            cliCtx.Uint64(l1ChainIDFlag.Name),
+		RollupGenesisBlock: cliCtx.Uint64(l1RollupGenesisBlockFlag.Name),
+		SequencerInboxAddr: common.HexToAddress(cliCtx.String(l1SequencerInboxAddrFlag.Name)),
+		RollupAddr:         common.HexToAddress(cliCtx.String(l1RollupAddrFlag.Name)),
+		StakeAmount:        cliCtx.Uint64(l1RollupStakeAmountFlag.Name),
+	}
 }
 
-func (c *Config) GetL1OracleAddress() common.Address {
-	return c.L1OracleAddress
+func (c L1Config) GetEndpoint() string                   { return c.Endpoint }
+func (c L1Config) GetChainID() uint64                    { return c.ChainID }
+func (c L1Config) GetRollupGenesisBlock() uint64         { return c.RollupGenesisBlock }
+func (c L1Config) GetSequencerInboxAddr() common.Address { return c.SequencerInboxAddr }
+func (c L1Config) GetRollupAddr() common.Address         { return c.RollupAddr }
+func (c L1Config) GetRollupStakeAmount() uint64          { return c.StakeAmount }
+
+// L2 configuration
+type L2Config struct {
+	Endpoint            string         `toml:"endpoint,omitempty"`                // L2 API endpoint
+	ChainID             uint64         `toml:"chainid,omitempty"`                 // L2 chain ID
+	L1FeeOverhead       int64          `toml:"l1_fee_overhead,omitempty"`         // Gas cost of sequencing a tx
+	L1FeeMultiplier     float64        `toml:"l1_fee_multiplier,omitempty"`       // Scalar value to increase L1 fee
+	L1OracleAddress     common.Address `toml:"l1_oracle_address,omitempty"`       // L2 Address of the L1Oracle
+	L1OracleBaseFeeSlot common.Hash    `toml:"l1_oracle_base_fee_slot,omitempty"` // L1 basefee storage slot of the L1Oracle
 }
 
-func (c *Config) GetL1OracleBaseFeeSlot() common.Hash {
-	return c.L1OracleBaseFeeSlot
+func newL2ConfigFromCLI(cliCtx *cli.Context) L2Config {
+	return L2Config{
+		Endpoint:            cliCtx.String(l2EndpointFlag.Name),
+		ChainID:             cliCtx.Uint64(l2ChainIDFlag.Name),
+		L1FeeOverhead:       cliCtx.Int64(l2L1FeeOverheadFlag.Name),
+		L1FeeMultiplier:     l2L1FeeMultiplierFlag.Value,
+		L1OracleAddress:     common.HexToAddress(l2L1OracleAddressFlag.Value),
+		L1OracleBaseFeeSlot: common.HexToHash(l2L1OracleBaseFeeSlotFlag.Value),
+	}
+}
+
+func (c L2Config) GetEndpoint() string                 { return c.Endpoint }
+func (c L2Config) GetChainID() uint64                  { return c.ChainID }
+func (c L2Config) GetL1FeeOverhead() int64             { return c.L1FeeOverhead }
+func (c L2Config) GetL1FeeMultiplier() float64         { return c.L1FeeMultiplier }
+func (c L2Config) GetL1OracleAddress() common.Address  { return c.L1OracleAddress }
+func (c L2Config) GetL1OracleBaseFeeSlot() common.Hash { return c.L1OracleBaseFeeSlot }
+
+// Sequencer node configuration
+type SequencerConfig struct {
+	AccountAddr common.Address `toml:"account_addr,omitempty"`
+	// The Clef Endpoint used for signing txs
+	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
+	// The passphrase of the sequencer account
+	Passphrase string `toml:"passphrase,omitempty"`
+	// Time between batch dissemination (DA) attempts
+	DisseminationInterval time.Duration `toml:"dissemination_interval,omitempty"`
+	// Transaction manager configuration
+	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
+}
+
+func (c SequencerConfig) GetAccountAddr() common.Address          { return c.AccountAddr }
+func (c SequencerConfig) GetClefEndpoint() string                 { return c.ClefEndpoint }
+func (c SequencerConfig) GetPassphrase() string                   { return c.Passphrase }
+func (c SequencerConfig) GetDisseminationInterval() time.Duration { return c.DisseminationInterval }
+func (c SequencerConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
+
+func newSequencerConfigFromCLI(
+	cliCtx *cli.Context,
+	passphrase string,
+	txMgrCfg txmgr.Config,
+) SequencerConfig {
+	return SequencerConfig{
+		AccountAddr:           common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
+		ClefEndpoint:          cliCtx.String(sequencerClefEndpointFlag.Name),
+		Passphrase:            passphrase,
+		DisseminationInterval: time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
+		TxMgrCfg:              txMgrCfg,
+	}
 }

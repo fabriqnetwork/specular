@@ -15,14 +15,16 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
+// TODO: delete.
 type BaseService struct {
-	Config *Config
+	Config BaseConfig
 
-	Eth          Backend
+	Eth          api.ExecutionBackend
 	ProofBackend proof.Backend
 	L1Client     client.L1BridgeClient
 	L1Syncer     *client.L1Syncer
@@ -31,7 +33,13 @@ type BaseService struct {
 	Wg     sync.WaitGroup
 }
 
-func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
+type BaseConfig interface {
+	GetRollupGenesisBlock() uint64
+	GetAccountAddr() common.Address
+	GetRollupStakeAmount() uint64
+}
+
+func NewBaseService(eth api.ExecutionBackend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg BaseConfig) (*BaseService, error) {
 	return &BaseService{
 		Config:       cfg,
 		Eth:          eth,
@@ -42,19 +50,9 @@ func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1B
 }
 
 // Starts the rollup service.
-func (b *BaseService) Start() (context.Context, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	b.Cancel = cancel
+func (b *BaseService) Start(ctx context.Context, eg api.ErrGroup) error {
 	b.L1Syncer = client.NewL1Syncer(ctx, b.L1Client)
 	b.L1Syncer.Start(ctx)
-	return ctx, nil
-}
-
-func (b *BaseService) Stop() error {
-	log.Info("Stopping service...")
-	b.Cancel()
-	b.Wg.Wait()
-	log.Info("Service stopped.")
 	return nil
 }
 
@@ -64,7 +62,7 @@ func (b *BaseService) Chain() *core.BlockChain {
 
 // Gets the last validated assertion.
 func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTypes.Assertion, error) {
-	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
+	opts := bind.FilterOpts{Start: b.Config.GetRollupGenesisBlock(), Context: ctx}
 	assertionID, err := b.L1Client.GetLastValidatedAssertionID(&opts)
 
 	var assertionCreatedEvent *bindings.IRollupAssertionCreated
@@ -108,7 +106,7 @@ func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTyp
 	// Initialize assertion.
 	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
 	// Set its boundaries using parent. TODO: move this out. Use local caching.
-	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
+	opts = bind.FilterOpts{Start: b.Config.GetRollupGenesisBlock(), Context: ctx}
 	parentAssertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
@@ -130,7 +128,7 @@ func (b *BaseService) Stake(ctx context.Context) error {
 		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
 	}
 	if !staker.IsStaked {
-		err = b.L1Client.Stake(big.NewInt(int64(b.Config.RollupStakeAmount)))
+		err = b.L1Client.Stake(big.NewInt(int64(b.Config.GetRollupStakeAmount())))
 	}
 	if err != nil {
 		return fmt.Errorf("Failed to stake, err: %w", err)
@@ -356,7 +354,7 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTy
 			Number:     new(big.Int).SetUint64(currentBlockNumber),
 			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
 			Time:       sblock.Timestamp,
-			Coinbase:   b.Config.SequencerAddr,
+			Coinbase:   b.Config.GetAccountAddr(),
 			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
 		}
 
@@ -364,8 +362,9 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTy
 		var receipts []*types.Receipt
 		for idx, tx := range sblock.Txs {
 			state.Prepare(tx.Hash(), idx)
+			addr := b.Config.GetAccountAddr()
 			receipt, err := core.ApplyTransaction(
-				chainConfig, b.Chain(), &b.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
+				chainConfig, b.Chain(), &addr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
 			if err != nil {
 				log.Warn("Error while applying transactions", "#err", err)
 				return err

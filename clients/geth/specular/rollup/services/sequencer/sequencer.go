@@ -14,15 +14,15 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 const timeInterval = 3 * time.Second
 
-// TODO: get rid of batcher; use engine API
-
+// TODO: delete this implementation.
 // Current Sequencer assumes no Berlin+London fork on L2
 type Sequencer struct {
 	*services.BaseService
@@ -32,7 +32,7 @@ type Sequencer struct {
 	confirmedIDCh      chan *big.Int
 }
 
-func New(eth services.Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *services.Config) (*Sequencer, error) {
+func New(eth api.ExecutionBackend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg services.BaseConfig) (*Sequencer, error) {
 	base, err := services.NewBaseService(eth, proofBackend, l1Client, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to create base service, err: %w", err)
@@ -120,7 +120,7 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 	defer txsSub.Unsubscribe()
 
 	// Process txns via batcher
-	batcher, err := NewBatcher(s.Config.Coinbase, s.Eth)
+	batcher, err := NewBatcher(s.Config.GetAccountAddr(), s.Eth)
 	if err != nil {
 		log.Crit("Failed to start batcher", "err", err)
 	}
@@ -279,7 +279,7 @@ func (s *Sequencer) sequencingLoop(ctx context.Context) {
 		case ev := <-createdCh:
 			// New assertion created on L1 Rollup
 			log.Info("Received `AssertionCreated` event.", "assertion id", ev.AssertionID)
-			if common.Address(ev.AsserterAddr) == s.Config.Coinbase {
+			if common.Address(ev.AsserterAddr) == s.Config.GetAccountAddr() {
 				if ev.VmHash == pendingAssertion.VmHash {
 					// If assertion is created by us, get ID and deadline
 					pendingAssertion.ID = ev.AssertionID
@@ -377,16 +377,16 @@ func (s *Sequencer) confirmationLoop(ctx context.Context) {
 	}
 }
 
-func (s *Sequencer) Start() error {
+func (s *Sequencer) Start(ctx context.Context, eg api.ErrGroup) error {
 	log.Info("Starting sequencer...")
-	ctx, err := s.BaseService.Start()
+	err := s.BaseService.Start(ctx, eg)
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
 	if err := s.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
-	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.L1RollupGenesisBlock)
+	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.GetRollupGenesisBlock())
 	if err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}

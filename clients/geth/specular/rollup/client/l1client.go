@@ -14,7 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 type L1BridgeClient interface {
@@ -125,7 +125,6 @@ func NewEthBridgeClient(
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get ISequencerInbox ABI, err: %w", err)
 	}
-
 	challengeAbi, err := bindings.ISymChallengeMetaData.GetAbi()
 	if err != nil {
 		return nil, err
