@@ -108,7 +108,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
       _unpause();
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /**
      * @notice Accepts value so that users can send ETH directly to this contract and have the
@@ -116,7 +116,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
      *         function for EOAs. Contracts should call the initiateDeposit() function directly
      *         otherwise any deposited funds will be lost due to address aliasing.
      */
-    receive() external payable {
+    receive() external payable whenNotPaused {
         initiateDeposit(msg.sender, RECEIVE_DEFAULT_GAS_LIMIT, bytes(""));
     }
 

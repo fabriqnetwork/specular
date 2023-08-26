@@ -52,8 +52,10 @@ contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, Own
       _unpause();
     }
 
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
+
     /// @inheritdoc StandardBridge
-    receive() external payable override {
+    receive() external payable override whenNotPaused {
         _initiateBridgeETH(msg.sender, msg.sender, msg.value, RECEIVE_DEFAULT_GAS_LIMIT, bytes(""));
     }
 
@@ -111,6 +113,4 @@ contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, Own
             )
         );
     }
-
-    function _authorizeUpgrade(address) internal override onlyOwner {}
 }

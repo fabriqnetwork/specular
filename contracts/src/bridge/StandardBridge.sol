@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ERC165Checker} from "@openzeppelin/contracts/utils/introspection/ERC165Checker.sol";
@@ -13,7 +16,7 @@ import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 /// @notice StandardBridge is a base contract for the L1 and L2 standard ERC20 bridges. It handles
 ///         the core bridging logic, including escrowing tokens that are native to the local chain
 ///         and minting/burning tokens that are native to the remote chain.
-abstract contract StandardBridge is IStandardBridge {
+abstract contract StandardBridge is IStandardBridge, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     using SafeERC20 for IERC20;
 
     /// @notice The L2 gas limit set when eth is depoisited using the receive() function.
@@ -34,6 +37,17 @@ abstract contract StandardBridge is IStandardBridge {
     function __StandardBridge_init(address payable _portalAddress, address payable _otherBridge) internal {
         PORTAL_ADDRESS = _portalAddress;
         OTHER_BRIDGE = StandardBridge(_otherBridge);
+        __Ownable_init();
+        __Pausable_init();
+        __UUPSUpgradeable_init();
+    }
+    
+    function pause() public override onlyOwner {
+      _pause();
+    }
+
+    function unpause() public override onlyOwner {
+      _unpause();
     }
 
     /// @notice Allows EOAs to bridge ETH by sending directly to the bridge.
@@ -41,12 +55,12 @@ abstract contract StandardBridge is IStandardBridge {
     receive() external payable virtual;
 
     /// @inheritdoc IStandardBridge
-    function bridgeETH(uint32 _minGasLimit, bytes calldata _extraData) public payable {
+    function bridgeETH(uint32 _minGasLimit, bytes calldata _extraData) public payable whenNotPaused {
         _initiateBridgeETH(msg.sender, msg.sender, msg.value, _minGasLimit, _extraData);
     }
 
     /// @inheritdoc IStandardBridge
-    function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) public payable {
+    function bridgeETHTo(address _to, uint32 _minGasLimit, bytes calldata _extraData) public payable whenNotPaused {
         _initiateBridgeETH(msg.sender, _to, msg.value, _minGasLimit, _extraData);
     }
 
@@ -57,7 +71,7 @@ abstract contract StandardBridge is IStandardBridge {
         uint256 _amount,
         uint32 _minGasLimit,
         bytes calldata _extraData
-    ) public virtual {
+    ) public virtual whenNotPaused {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, msg.sender, _amount, _minGasLimit, _extraData);
     }
 
@@ -69,7 +83,7 @@ abstract contract StandardBridge is IStandardBridge {
         uint256 _amount,
         uint32 _minGasLimit,
         bytes calldata _extraData
-    ) public virtual {
+    ) public virtual whenNotPaused {
         _initiateBridgeERC20(_localToken, _remoteToken, msg.sender, _to, _amount, _minGasLimit, _extraData);
     }
 
@@ -78,6 +92,7 @@ abstract contract StandardBridge is IStandardBridge {
         external
         payable
         onlyOtherBridge
+        whenNotPaused
     {
         require(msg.value == _amount, "StandardBridge: amount sent does not match amount required");
         require(_to != address(this), "StandardBridge: cannot send to self");
@@ -97,7 +112,7 @@ abstract contract StandardBridge is IStandardBridge {
         address _to,
         uint256 _amount,
         bytes calldata _extraData
-    ) public onlyOtherBridge {
+    ) public onlyOtherBridge whenNotPaused {
         if (_isNonNativeTokenPair(_localToken, _remoteToken)) {
             IMintableERC20(_localToken).mint(_to, _amount);
         } else {

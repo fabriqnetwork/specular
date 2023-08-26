@@ -97,7 +97,7 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
       _unpause();
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /**
      * @notice Allows users to withdraw ETH by sending directly to this contract.
