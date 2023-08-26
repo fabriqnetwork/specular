@@ -48,7 +48,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
         __UUPSUpgradeable_init();
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /**
      * @notice Updates the L1 block values.

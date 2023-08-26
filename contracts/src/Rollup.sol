@@ -143,7 +143,7 @@ contract Rollup is RollupBase {
       _unpause();
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /// @inheritdoc IRollup
     function currentRequiredStake() public view override returns (uint256) {
