@@ -13,8 +13,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/bindings"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/utils/fmt"
 )
 
 type L1BridgeClient interface {

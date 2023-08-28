@@ -1,15 +1,17 @@
-module github.com/specularl2/specular/clients/geth/specular
+module github.com/specularl2/specular/services/el_clients/geth/specular
 
 go 1.19
 
 replace github.com/ethereum/go-ethereum => ../go-ethereum
+
+replace github.com/specularl2/specular/lib/el_golang_lib => ../../../../lib/el_golang_lib
 
 require (
 	github.com/avast/retry-go/v4 v4.3.3
 	github.com/cespare/cp v0.1.0
 	github.com/davecgh/go-spew v1.1.1
 	github.com/docker/docker v1.6.2
-	github.com/ethereum/go-ethereum v1.10.25
+	github.com/ethereum/go-ethereum v1.12.2
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
 	github.com/hashicorp/go-bexpr v0.1.10
 	github.com/jedisct1/go-minisign v0.0.0-20190909160543-45766022959e
@@ -17,6 +19,7 @@ require (
 	github.com/mattn/go-isatty v0.0.12
 	github.com/naoina/toml v0.1.2-0.20170918210437-9fafd6967416
 	github.com/olekukonko/tablewriter v0.0.5
+	github.com/specularl2/specular/lib/el_golang_lib v0.0.0-00010101000000-000000000000
 	github.com/tyler-smith/go-bip39 v1.0.1-0.20181017060643-dbb3b84ba2ef
 	github.com/urfave/cli/v2 v2.10.2
 )
@@ -65,6 +68,7 @@ require (
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
+	github.com/specularl2/specular/clients/geth/specular v0.0.0-20230824213155-fce068f96791 // indirect
 	github.com/status-im/keycard-go v0.0.0-20190316090335-8537d3370df4 // indirect
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7 // indirect
 	github.com/tklauser/go-sysconf v0.3.5 // indirect

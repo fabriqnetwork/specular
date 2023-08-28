@@ -30,7 +30,7 @@ import (
 	"github.com/fjl/memsize/memsizeui"
 	"github.com/mattn/go-colorable"
 	"github.com/mattn/go-isatty"
-	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 

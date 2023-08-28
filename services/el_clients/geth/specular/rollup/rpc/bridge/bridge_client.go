@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/bindings"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/client"
 )
 
 type BridgeClient struct {

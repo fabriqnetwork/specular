@@ -13,12 +13,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/proof"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/services/indexer"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/services/sequencer"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/rollup/utils/fmt"
 )
 
 // RegisterRollupService registers rollup service configured by ctx

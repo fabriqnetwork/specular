@@ -24,7 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/console"
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 

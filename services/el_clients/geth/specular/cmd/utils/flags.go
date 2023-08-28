@@ -32,9 +32,9 @@ import (
 	"github.com/ethereum/go-ethereum/les"
 	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	rollup "github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/internal/ethapi"
+	"github.com/specularl2/specular/services/el_clients/geth/specular/proof"
+	rollup "github.com/specularl2/specular/services/el_clients/geth/specular/rollup/services"
 	"github.com/urfave/cli/v2"
 )
 
