@@ -45,7 +45,7 @@ export async function getSignersAndContracts() {
   const l1PortalAddress = await l1StandardBridge.PORTAL_ADDRESS();
   const L1PortalFactory = await ethers.getContractFactory(
     "L1Portal",
-    l1Bridger
+    l1Relayer
   );
   const l1Portal = L1PortalFactory.attach(l1PortalAddress);
 
@@ -65,10 +65,17 @@ export async function getSignersAndContracts() {
   const RollupFactory = await ethers.getContractFactory("Rollup", l1Relayer);
   const rollup = await RollupFactory.attach(rollupAddress);
 
-  l1Portal.on("*", (...args) => console.log({ ...args }));
-  l2Portal.on("*", (...args) => console.log({ ...args }));
-  l1StandardBridge.on("*", (...args) => console.log({ ...args }));
-  l2StandardBridge.on("*", (...args) => console.log({ ...args }));
+  const InboxFactory = await ethers.getContractFactory(
+    "SequencerInbox",
+    l1Relayer
+  );
+  const daProvider = await rollup.daProvider();
+  const inbox = await InboxFactory.attach(daProvider);
+
+  // l1Portal.on("*", (...args) => console.log({ ...args }));
+  // l2Portal.on("*", (...args) => console.log({ ...args }));
+  // l1StandardBridge.on("*", (...args) => console.log({ ...args }));
+  // l2StandardBridge.on("*", (...args) => console.log({ ...args }));
 
   return {
     l1Provider,
@@ -83,6 +90,7 @@ export async function getSignersAndContracts() {
     l2StandardBridge,
     l1Oracle,
     rollup,
+    inbox,
   };
 }
 
