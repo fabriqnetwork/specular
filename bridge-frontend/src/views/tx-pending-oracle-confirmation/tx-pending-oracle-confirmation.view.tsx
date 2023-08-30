@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Header from '../shared/header/header.view';
-import useTxPendingStyles from './tx-pending-finalize-deposit.styles';
+import useTxPendingStyles from './tx-pending-oracle-confirmation.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
@@ -34,12 +34,12 @@ interface TxPendingProps {
   };
   pendingDeposit: PendingData;
   setPendingDeposit: (args1:any) => void;
-  onGoToFinalizeStep: () => void;
+  onGoToNextStep: () => void;
   switchChain: (args1:any) => void;
 
 }
 
-function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit, setPendingDeposit,switchChain, onGoToFinalizeStep }: TxPendingProps) {
+function TxPendingOracleConfirmation({ wallet, depositData,pendingDeposit, setPendingDeposit,switchChain, onGoToNextStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
   const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
   // switchChain(SPECULAR_NETWORK_ID.toString())
@@ -61,7 +61,7 @@ function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit, setPendi
           pendingDeposit.data.proofL1BlockNumber = blockNumber.toNumber();
           console.log("Main Oracle Correct Blocknumber is "+blockNumber);
           setPendingDeposit(pendingDeposit);
-          onGoToFinalizeStep();
+          onGoToNextStep();
         }
       }
     );
@@ -90,4 +90,4 @@ function TxPendingFinalizeDeposit({ wallet, depositData,pendingDeposit, setPendi
   );
 }
 
-export default TxPendingFinalizeDeposit;
+export default TxPendingOracleConfirmation;

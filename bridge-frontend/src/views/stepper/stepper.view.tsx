@@ -4,18 +4,20 @@ import useWallet from '../../hooks/use-wallet'
 import useStep, { Step } from '../../hooks/use-stepper-data'
 import Login from '../login/login.view'
 import DepositForm from '../deposit-form/deposit-form.view'
+import FinalizeDepositForm from '../finalize-deposit-form/finalize-deposit-form.view'
+import FinalizeWithdrawForm from '../finalize-withdraw-form/finalize-withdraw-form.view'
 import WithdrawForm from '../withdraw-form/withdraw-form.view'
 import TxConfirm from '../tx-confirm/tx-confirm.view'
+import TxConfirmChain from '../tx-confirm-chain/tx-confirm-chain.view'
 import useDeposit from '../../hooks/use-deposit'
 import useWithdraw from '../../hooks/use-withdraw'
 import * as React from 'react';
 import useFinalizeDeposit from '../../hooks/use-finalize-deposit'
 import useFinalizeWithdraw from '../../hooks/use-finalize-withdraw'
-import TxPending from '../tx-pending/tx-pending.view'
+import TxPendingOracleConfirmation from '../tx-pending-oracle-confirmation/tx-pending-oracle-confirmation.view'
 import TxPendingDeposit from '../tx-pending-deposit/tx-pending-deposit.view'
 import TxPendingWithdraw from '../tx-pending-withdraw/tx-pending-withdraw.view'
-import TxPendingFinalizeDeposit from '../tx-pending-finalize-deposit/tx-pending-finalize-deposit.view'
-import TxPendingFinalizeWithdraw from '../tx-pending-finalize-withdraw/tx-pending-finalize-withdraw.view'
+import TxConfirmAssertion from '../tx-confirm-assertion/tx-confirm-assertion.view'
 import TxFinalizeDeposit from '../tx-finalize-deposit/tx-finalize-deposit.view'
 import TxFinalizeWithdraw from '../tx-finalize-withdraw/tx-finalize-withdraw.view'
 import TxOverview from '../tx-overview/tx-overview.view'
@@ -46,6 +48,7 @@ function Stepper () {
     proofL1BlockNumber: undefined,
     depositHash: "",
     depositTx: {
+      version: 0,
       nonce:ethers.BigNumber.from("0"),
       sender:"",
       target: "",
@@ -72,6 +75,7 @@ function Stepper () {
     assertionID: undefined,
     withdrawalHash: "",
     withdrawalTx: {
+      version: 0,
       nonce:ethers.BigNumber.from("0"),
       sender:"",
       target: "",
@@ -159,8 +163,8 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   onAmountChange={resetDepositData}
                   l1Provider={l1Provider}
                   l2Provider={l2Provider}
-                  onSubmit={(fromAmount) => {
-                    deposit(wallet, fromAmount)
+                  onSubmit={(fromAmount, selectedTokenKey) => {
+                    deposit(wallet, fromAmount,selectedTokenKey)
                     setAmount(fromAmount)
                     switchStep(Step.ConfirmDeposit)
                   }}
@@ -168,25 +172,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                 />
               )
             }
-            case Step.Withdraw: {
-              console.log("Withdraw tab")
-              switchChain(SPECULAR_NETWORK_ID.toString())
-              console.log("Chain Id is: "+wallet.chainId)
-              return (
-                <WithdrawForm
-                  wallet={wallet}
-                  withdrawData={withdrawData}
-                  onAmountChange={resetWithdrawData}
-                  l1Provider={l1Provider}
-                  l2Provider={l2Provider}
-                  onSubmit={(fromAmount) => {
-                    withdraw(wallet, fromAmount)
-                    switchStep(Step.ConfirmWithdraw)
-                  }}
-                  onDisconnectWallet={disconnectWallet}
-                />
-              )
-            }
+
             case Step.ConfirmDeposit: {
               console.log("ConfirmDeposit tab")
               return (
@@ -194,18 +180,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   wallet={wallet}
                   transactionData={depositData}
                   onGoBack={() => switchStep(Step.Deposit)}
-                  onGoToPendingStep={() => switchStep(Step.PendingDeposit)}
-                />
-              )
-            }
-            case Step.ConfirmWithdraw: {
-              console.log("ConfirmWithdraw tab")
-              return (
-                <TxConfirm
-                  wallet={wallet}
-                  transactionData={withdrawData}
-                  onGoBack={() => switchStep(Step.Withdraw)}
-                  onGoToPendingStep={() => switchStep(Step.PendingWithdraw)}
+                  onGoToNextStep={() => switchStep(Step.PendingDeposit)}
                 />
               )
             }
@@ -220,84 +195,47 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   setPendingDeposit={setPendingDeposit}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToFinalizeStep={() => {
-                    switchStep(Step.PendingFinalizeDeposit)
+                    switchStep(Step.ConfirmOracle)
                   }}
                 />
               )
             }
-            case Step.PendingWithdraw: {
-              console.log("PendingWithdraw")
+            case Step.ConfirmOracle: {
+              console.log("ConfirmDeposit tab")
               return (
-                <TxPendingWithdraw
-                  wallet={wallet}
-                  withdrawData={withdrawData}
-                  l2Provider={l2Provider}
-                  pendingWithdraw={pendingWithdraw}
-                  setPendingWithdraw={setPendingWithdraw}
-                  onGoBack={() => switchStep(Step.Deposit)}
-                  onGoToFinalizeStep={() => {
-                    switchStep(Step.PendingFinalizeWithdraw)
-                  }}
-                />
-              )
-            }
-            case Step.PendingFinalizeDeposit: {
-              switchChain(SPECULAR_NETWORK_ID.toString())
-              console.log("PendingFinalizeDeposit")
-              return (
-                <TxPendingFinalizeDeposit
+                <TxPendingOracleConfirmation
                   wallet={wallet}
                   depositData={depositData}
                   pendingDeposit={pendingDeposit}
                   setPendingDeposit={setPendingDeposit}
                   switchChain={switchChain}
-                  onGoToFinalizeStep={() => {
-                    switchStep(Step.FinalizingDeposit)
-                  }}
+                  onGoToNextStep={() => switchStep(Step.FinalizeDepositForm)}
                 />
               )
             }
-            case Step.FinalizingDeposit: {
-              console.log("PendingDeposit")
+
+            case Step.FinalizeDepositForm: {
+              console.log("FinalizeDeposit tab")
               return (
-                <TxPending
+                <FinalizeDepositForm
                   wallet={wallet}
-                  transactionData={depositData}
+                  onSubmit={() => {
+                    switchChain(SPECULAR_NETWORK_ID.toString())
+                    switchStep(Step.ConfirmDepositChain)
+                  }}
+                  onDisconnectWallet={disconnectWallet}
+                />
+              )
+            }
+            case Step.ConfirmDepositChain: {
+              console.log("ConfirmChain tab")
+              return (
+                <TxConfirmChain
+                  wallet={wallet}
+                  networkId={SPECULAR_NETWORK_ID.toString()}
                   onGoBack={() => switchStep(Step.Deposit)}
-                  onGoToFinalizeStep={() => {
-                    setIsDeposit(true)
+                  onGoToNextStep={() => {
                     finalizeDeposit(wallet,amount,pendingDeposit,setPendingDeposit)
-                    switchStep(Step.FinalizeDeposit)
-                  }}
-                />
-              )
-            }
-            case Step.PendingFinalizeWithdraw: {
-              console.log("PendingWithdraw")
-              return (
-                <TxPendingFinalizeWithdraw
-                  wallet={wallet}
-                  withdrawData={withdrawData}
-                  pendingWithdraw={pendingWithdraw}
-                  setPendingWithdraw={setPendingWithdraw}
-                  switchChain={switchChain}
-                  onGoBack={() => switchStep(Step.Withdraw)}
-                  onGoToFinalizeStep={() => {
-                    switchStep(Step.FinalizingWithdraw)
-                  }}
-                />
-              )
-            }
-            case Step.FinalizingWithdraw: {
-              console.log("PendingDeposit")
-              return (
-                <TxPending
-                  wallet={wallet}
-                  transactionData={withdrawData}
-                  onGoBack={() => switchStep(Step.Withdraw)}
-                  onGoToFinalizeStep={() => {
-                    setIsDeposit(false)
-                    finalizeWithdraw(wallet,amount,pendingWithdraw.data)
                     switchStep(Step.FinalizeDeposit)
                   }}
                 />
@@ -312,6 +250,98 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   finalizeDepositData={finalizeDepositData}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToOverviewStep={() => switchStep(Step.Overview)}
+                />
+              )
+            }
+
+            case Step.Withdraw: {
+              console.log("Withdraw tab")
+              switchChain(SPECULAR_NETWORK_ID.toString())
+              console.log("Chain Id is: "+wallet.chainId)
+              return (
+                <WithdrawForm
+                  wallet={wallet}
+                  withdrawData={withdrawData}
+                  onAmountChange={resetWithdrawData}
+                  l1Provider={l1Provider}
+                  l2Provider={l2Provider}
+                  onSubmit={(fromAmount, selectedTokenKey) => {
+                    withdraw(wallet, fromAmount, selectedTokenKey)
+                    switchStep(Step.ConfirmWithdraw)
+                  }}
+                  onDisconnectWallet={disconnectWallet}
+                />
+              )
+            }
+
+            case Step.ConfirmWithdraw: {
+              console.log("ConfirmWithdraw tab")
+              return (
+                <TxConfirm
+                  wallet={wallet}
+                  transactionData={withdrawData}
+                  onGoBack={() => switchStep(Step.Withdraw)}
+                  onGoToNextStep={() => switchStep(Step.PendingWithdraw)}
+                />
+              )
+            }
+            case Step.PendingWithdraw: {
+              console.log("PendingWithdraw")
+              return (
+                <TxPendingWithdraw
+                  wallet={wallet}
+                  withdrawData={withdrawData}
+                  l2Provider={l2Provider}
+                  pendingWithdraw={pendingWithdraw}
+                  setPendingWithdraw={setPendingWithdraw}
+                  onGoBack={() => switchStep(Step.Deposit)}
+                  onGoToFinalizeStep={() => {
+                    switchStep(Step.ConfirmAssertion)
+                  }}
+                />
+              )
+            }
+            case Step.ConfirmAssertion: {
+              console.log("PendingWithdraw")
+              return (
+                <TxConfirmAssertion
+                  wallet={wallet}
+                  withdrawData={withdrawData}
+                  pendingWithdraw={pendingWithdraw}
+                  setPendingWithdraw={setPendingWithdraw}
+                  switchChain={switchChain}
+                  onGoBack={() => switchStep(Step.Withdraw)}
+                  onGoToFinalizeStep={() => {
+                    switchStep(Step.FinalizeWithdrawForm)
+                  }}
+                />
+              )
+            }
+            case Step.FinalizeWithdrawForm: {
+              console.log("FinalizeDeposit tab")
+              return (
+                <FinalizeWithdrawForm
+                  wallet={wallet}
+                  onSubmit={() => {
+                    switchChain(SPECULAR_NETWORK_ID.toString())
+                    switchStep(Step.ConfirmWithdrawChain)
+                  }}
+                  onDisconnectWallet={disconnectWallet}
+                />
+              )
+            }
+            case Step.ConfirmWithdrawChain: {
+              console.log("ConfirmChain tab")
+              return (
+                <TxConfirmChain
+                  wallet={wallet}
+                  networkId={CHIADO_NETWORK_ID.toString()}
+                  onGoBack={() => switchStep(Step.Deposit)}
+                  onGoToNextStep={() => {
+                    setIsDeposit(false)
+                    finalizeWithdraw(wallet,amount,pendingWithdraw.data)
+                    switchStep(Step.FinalizeWithdrawl)
+                  }}
                 />
               )
             }

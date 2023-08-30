@@ -1,6 +1,17 @@
-import type { BigNumber } from "ethers";
+import type { ethers,BigNumber } from "ethers";
+
+export type Data = {
+  status: string;
+  error?: string;
+  dataFrom?: ethers.providers.TransactionResponse;
+  dataToHash?: string;
+  l1BlockNumber?: number;
+  proofL1BlockNumber?:number;
+  crossDomainMessage?:CrossDomainMessage;
+}
 
 export type CrossDomainMessage = {
+  version: number;
   nonce: BigNumber;
   sender: string;
   target: string;
@@ -29,3 +40,9 @@ export type MessageProof = {
   accountProof: string[];
   storageProof: string[];
 };
+
+export type wallet = {
+  address: string;
+  chainId: number;
+  provider: any;
+}

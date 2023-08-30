@@ -1,15 +1,15 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BigNumber } from 'ethers'
 import { formatUnits } from 'ethers/lib/utils'
-import * as React from 'react';
+import {Select, MenuItem} from "@mui/material";
 import useWithdrawFormStyles from './withdraw-form.styles'
 import useWithdrawFormData from '../../hooks/use-withdraw-form-data'
 import Header from '../shared/header/header.view'
 import InfoIcon from '@mui/icons-material/Info';
 import DownArrow from '@mui/icons-material/ArrowDownward';
-
 import { NETWORKS } from '../../chains';
 import {SPECULAR_NETWORK_ID, CHIADO_NETWORK_ID} from '../../constants';
+import { TOKEN } from '../../tokens';
 
 interface WithdrawFormProps {
   wallet: {
@@ -21,7 +21,7 @@ interface WithdrawFormProps {
   onAmountChange: () => void,
   l1Provider: any,
   l2Provider: any,
-  onSubmit: (amount: BigNumber) => void,
+  onSubmit: (amount: BigNumber, selectedTokenKey: number) => void,
   onDisconnectWallet: () => void
 }
 
@@ -34,7 +34,12 @@ function WithdrawForm ({
   onSubmit,
   onDisconnectWallet
 }: WithdrawFormProps) {
-  const { values, amounts, l1balance, l2balance, error, changeWithdrawValue } = useWithdrawFormData(wallet, l1Provider, l2Provider)
+  const [selectedTokenKey, setSelectedTokenKey] = useState(1);
+  const handleChange = (event:any) => {
+    setSelectedTokenKey(event.target.value);
+  };
+  const selectedToken = TOKEN[selectedTokenKey];
+  const { values, amounts, l1balance, l2balance, error, changeWithdrawValue } = useWithdrawFormData(wallet, selectedTokenKey, l1Provider, l2Provider)
   const classes = useWithdrawFormStyles({ error: !!error })
 
   const inputEl = useRef<HTMLInputElement>(null)
@@ -55,20 +60,29 @@ function WithdrawForm ({
     <div className={classes.withdrawForm}>
       <Header
         address={wallet.address}
-        title={`xDAI → ETH`}
+        title={`Specular Bridge`}
         onDisconnectWallet={onDisconnectWallet}
       />
       <form
         className={classes.form}
         onSubmit={(event) => {
           event.preventDefault()
-          onSubmit(amounts.from)
+          onSubmit(amounts.from, selectedTokenKey)
         }}
       >
         <div className={classes.card}>
-          <p className={classes.cardTitleText}>
-          {NETWORKS[SPECULAR_NETWORK_ID].name+" "+NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
-          </p>
+          <Select
+          className={classes.cardTitleText}
+          value={selectedTokenKey || ''}
+          onChange={handleChange}
+          sx={{ boxShadow: 'none', '.MuiOutlinedInput-notchedOutline': { border: 0 } }}
+        >
+          {Object.keys(TOKEN).map((key) => (
+            <MenuItem key={key} value={key}>
+              {TOKEN[key].l2TokenName}
+            </MenuItem>
+          ))}
+        </Select>
           <input
             ref={inputEl}
             className={classes.fromInput}
@@ -77,19 +91,19 @@ function WithdrawForm ({
             onChange={event => changeWithdrawValue(event.target.value)}
           />
           <p className={classes.toValue}>
-            Balance: {formatUnits(l2balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.symbol}
+            Balance: {formatUnits(l2balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals)} {selectedToken.l2TokenSymbol}
           </p>
         </div>
         <DownArrow className={classes.cardIcon} />
         <div className={classes.card}>
           <p className={classes.cardTitleText}>
-          {NETWORKS[CHIADO_NETWORK_ID].name+" "+NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
+          {selectedToken.l1TokenName}
           </p>
           <p>
             {formatUnits(amounts.to, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
           </p>
           <p className={classes.toValue}>
-            Balance: {formatUnits(l1balance, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
+            Balance: {formatUnits(l1balance, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {selectedToken.l1TokenSymbol}
           </p>
         </div>
         {(error || withdrawData.status === 'failed') && (

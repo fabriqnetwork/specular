@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { ethers } from 'ethers';
-import { getStorageKey, requestFundWithdraw } from '../utils';
+import { getStorageKey } from '../utils';
 import type { PendingWithdrawal, MessageProof } from "../types";
 import {
-  IL2Portal__factory,
+  IL1Portal__factory,
   L1Oracle__factory,
 } from "../typechain-types";
 
@@ -36,31 +36,21 @@ interface wallet {
 
 const INITIAL_DATA: Data = { status: 'pending' };
 
-async function generateDepositProof(
-  deposit: PendingWithdrawal
+async function generateWithdrawProof(
+  withdrawal: PendingWithdrawal
 ): Promise<MessageProof> {
-  if (deposit.proofL2BlockNumber === undefined) {
-    throw new Error("proofL2BlockNumber is undefined");
-  }
-  let rawProof = undefined;
-  while (rawProof === undefined) {
-    try {
-      rawProof = await (new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL)).send(
-        "eth_getProof",
-        [
-          L1PORTAL_ADDRESS,
-          [getStorageKey(deposit.withdrawalHash)],
-          ethers.utils.hexValue(deposit.proofL2BlockNumber),
-        ]
-      );
-    } catch (e) {
-      console.error(e);
-    }
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  }
+  const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
+  const rawProof = await l2Provider.send(
+    "eth_getProof",
+    [
+      L2PORTAL_ADDRESS,
+      [getStorageKey(withdrawal.withdrawalHash)],
+      withdrawal.l2BlockNumber,
+    ]
+  );
   return {
-    accountProof: (rawProof as any).accountProof,
-    storageProof: (rawProof as any).storageProof[0].proof,
+    accountProof: rawProof.accountProof,
+    storageProof: rawProof.storageProof[0].proof,
   };
 }
 type SwitchChainFunction = (arg: string) => void;
@@ -74,45 +64,48 @@ function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
       setData({ status: 'failed', error: "Wallet doesn't exist" });
       return;
     }
-    const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL)
-    const l2Balance  = await l2Provider.getBalance(wallet.address);
 
     setData({ status: 'loading' });
-    const targetBalance = ethers.utils.parseEther(ethers.utils.formatUnits(l2Balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals));
-    if (DEPOSIT_BALANCE_THRESHOLD.gt(targetBalance)) {
-      // if (true) {
-      // request sequencer to help finalization
-      try {
-        const txHash = await requestFundWithdraw(pendingWithdraw);
-        setData({ status: 'successful', data: txHash });
-      } catch (e) {
-        console.error(e);
-      }
-      return;
-    }
-    switchChain(SPECULAR_NETWORK_ID.toString());
+
+    switchChain(CHIADO_NETWORK_ID.toString());
     const provider = await wallet.provider
     const signer = await (provider as any).getSigner();
-    const l2Portal = IL2Portal__factory.connect(
+
+    const l1Portal = IL1Portal__factory.connect(
       L2PORTAL_ADDRESS,
       signer,
     );
-    const l1Oracle = L1Oracle__factory.connect(
-      L1ORACLE_ADDRESS,
-      provider,
-    );
     try {
-      const latestBlockNumber = await l1Oracle.blockNumber();
-      pendingWithdraw.proofL2BlockNumber = latestBlockNumber.toNumber();
-      const proof = await generateDepositProof(pendingWithdraw);
-      const tx = await l2Portal.finalizeDepositTransaction(
-        pendingWithdraw.withdrawalTx,
-        proof.accountProof,
-        proof.storageProof
-      );
-      setData({ status: 'pending', data: tx.hash });
-      await tx.wait();
-      setData({ status: 'successful', data: tx.hash });
+      const proof = await generateWithdrawProof(pendingWithdraw);
+      console.log(proof)
+      console.log(pendingWithdraw)
+
+      if(pendingWithdraw.assertionID) {
+
+        let gas = await l1Portal.estimateGas.finalizeWithdrawalTransaction(
+          pendingWithdraw.withdrawalTx,
+          pendingWithdraw.assertionID,
+          proof.accountProof,
+          proof.storageProof,
+          { gasLimit: 1000000 }, // avoid gas estimation error
+        );
+        console.log("gas", gas);
+        gas = gas.add(150000); // extra gas to pass gas limit check in finalization
+        const tx = await l1Portal.finalizeWithdrawalTransaction(
+          pendingWithdraw.withdrawalTx,
+          pendingWithdraw.assertionID,
+          proof.accountProof,
+          proof.storageProof,
+          { gasLimit: gas },
+        );
+        setData({ status: 'pending', data: tx.hash });
+        await tx.wait();
+        setData({ status: 'successful', data: tx.hash });
+      }
+      else {
+        throw console.error("assertionID not found");
+
+      }
     } catch (e) {
       console.error(e);
     }

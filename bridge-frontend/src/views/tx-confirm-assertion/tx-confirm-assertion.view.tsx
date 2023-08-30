@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Header from '../shared/header/header.view';
-import useTxPendingStyles from './tx-pending-finalize-withdraw.styles';
+import useTxPendingStyles from './tx-confirm-assertion.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
@@ -42,18 +42,18 @@ interface TxPendingProps {
 
 }
 
-function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain,onGoBack, onGoToFinalizeStep }: TxPendingProps) {
+function TxConfirmAssertion({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain,onGoBack, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
   const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
   const sequencerInboxInterface = ISequencerInbox__factory.createInterface();
   const inboxSizeToBlockNumberMap = new Map<string, number>();
+  const inbox = ISequencerInbox__factory.connect(
+    INBOX_ADDRESS,
+    l1Provider
+  );
+  const rollup = IRollup__factory.connect(ROLLUP_ADDRESS, l1Provider);
 
   useEffect(() => {
-    const inbox = ISequencerInbox__factory.connect(
-      INBOX_ADDRESS,
-      l1Provider
-    );
-    const rollup = IRollup__factory.connect(ROLLUP_ADDRESS, l1Provider);
 
     inbox.on(
       inbox.filters.TxBatchAppended(),
@@ -146,7 +146,7 @@ function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPen
       }
     }
   });
-  },[pendingWithdraw]
+  },[pendingWithdraw,rollup.filters, inbox.filters]
   )
   return (
     <div className={classes.txOverview}>
@@ -165,9 +165,9 @@ function TxPendingFinalizeWithdraw({ wallet, withdrawData,pendingWithdraw,setPen
           <LinkIcon className={classes.buttonIcon} />
         </a>
       </div>
-      Waiting for confirmation
+      Waiting for Assertion Confirmation
     </div>
   );
 }
 
-export default TxPendingFinalizeWithdraw;
+export default TxConfirmAssertion;

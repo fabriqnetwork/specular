@@ -13,6 +13,7 @@ import type {PendingWithdrawal } from "../../types";
 import {
   IL2Portal__factory,
 } from "../../typechain-types";
+import { ethers } from 'ethers';
 
 interface PendingWithdrawlData {
   status: string;
@@ -56,6 +57,7 @@ function TxPendingWithdraw({ wallet, withdrawData, l2Provider, pendingWithdraw, 
       L2PORTAL_ADDRESS,
       l2Provider
     );
+    const version = 0;
     l2Portal.on(
       l2Portal.filters.WithdrawalInitiated(),
       (nonce, sender, target, value, gasLimit, data, withdrawalHash, event) => {
@@ -67,6 +69,7 @@ function TxPendingWithdraw({ wallet, withdrawData, l2Provider, pendingWithdraw, 
             assertionID: undefined,
             withdrawalHash: withdrawalHash,
             withdrawalTx: {
+              version,
               nonce,
               sender,
               target,

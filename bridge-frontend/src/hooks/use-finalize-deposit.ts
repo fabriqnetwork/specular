@@ -3,8 +3,8 @@ import { ethers } from 'ethers';
 import { getStorageKey, requestFundDeposit } from '../utils';
 import type { PendingDeposit, MessageProof } from "../types";
 import {
-  IL2Portal__factory,
-  L1Oracle__factory,
+  L2Portal__factory,
+  L1Oracle__factory
 } from "../typechain-types";
 import type { JsonRpcProvider } from "@ethersproject/providers";
 import {
@@ -49,12 +49,14 @@ async function generateDepositProof(
     console.log("try");
     try {
       const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
+      console.log("generateDepositProof proofL1BlockNumber is",deposit.proofL1BlockNumber)
+      console.log("generateDepositProof depositHash is",deposit.depositHash)
       rawProof = await (l1Provider as JsonRpcProvider).send(
         "eth_getProof",
         [
           L1PORTAL_ADDRESS,
           [getStorageKey(deposit.depositHash)],
-          ethers.utils.hexValue(deposit.proofL1BlockNumber),
+          deposit.proofL1BlockNumber,
         ]
       );
     } catch (e) {
@@ -89,10 +91,10 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
     const l2Balance  = await l2Provider.getBalance(wallet.address);
 
     setData({ status: 'loading' });
-    console.log("FInalizing Bro with l2 banance"+l2Balance);
+    console.log("Finalizing with l2 banance"+l2Balance);
     const targetBalance = ethers.utils.parseEther(ethers.utils.formatUnits(l2Balance, NETWORKS[SPECULAR_NETWORK_ID].nativeCurrency.decimals));
     if (DEPOSIT_BALANCE_THRESHOLD.gt(targetBalance)) {
-      console.log("Sending Request Bro");
+      console.log("Sending Request");
       try {
         const txHash = await requestFundDeposit(pendingDeposit.data);
         console.log("Success Transaction :"+txHash);
@@ -102,8 +104,6 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
       }
       return;
     }
-
-    console.log("NotSending Request Bro");
 
     const l1Oracle = L1Oracle__factory.connect(
       L1ORACLE_ADDRESS,
@@ -116,15 +116,27 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
       pendingDeposit.data.proofL1BlockNumber = latestBlockNumber.toNumber();
       console.log("pendingDeposit.data is "+pendingDeposit.data+" & proofL1BlockNumber is "+pendingDeposit.data.proofL1BlockNumber+" & Deposit hash is "+pendingDeposit.data.depositHash);
       const proof = await generateDepositProof(pendingDeposit.data);
-      console.log("proof is "+proof);
+      console.log("accountProof is "+proof.accountProof);
+      console.log("storageProof is "+proof.storageProof);
       console.log("Chain Id is: "+wallet.chainId)
       const provider = await wallet.provider;
       const signer = await provider.getSigner();
-      const l2Portal = IL2Portal__factory.connect(
+      const l2Portal = L2Portal__factory.connect(
         L2PORTAL_ADDRESS,
         signer
       );
       console.log("L2 Portal Connected")
+
+      console.log("version is", pendingDeposit.data.depositTx.version)
+      console.log("nonce is", pendingDeposit.data.depositTx.nonce)
+      console.log("sender is", pendingDeposit.data.depositTx.sender)
+      console.log("target is", pendingDeposit.data.depositTx.target)
+      console.log("value is", pendingDeposit.data.depositTx.value)
+      console.log("gasLimit is", pendingDeposit.data.depositTx.gasLimit)
+      console.log("data is", pendingDeposit.data.depositTx.data)
+
+      console.log("depositTx is", pendingDeposit.data.depositTx)
+
       const tx = await l2Portal.finalizeDepositTransaction(
         pendingDeposit.data.depositTx,
         proof.accountProof,
@@ -136,6 +148,7 @@ function useFinalizeDeposit(switchChain: SwitchChainFunction) {
       await tx.wait();
       setData({ status: 'successful', data: tx.hash });
       console.log("successful tx is "+tx+" And tx.hash is "+tx.hash);
+
     } catch (errorCatched) {
       console.log("Error Cached at finalizeDepositData "+errorCatched)
       const err: any = errorCatched;

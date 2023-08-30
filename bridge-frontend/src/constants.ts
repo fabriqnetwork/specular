@@ -14,3 +14,6 @@ export const ROLLUP_ADDRESS = "0x5Fdf6B833270A9562c735d2D0Cf784aC5b0fE8Cb";
 export const BRIDGE_GAS_LIMIT = 300000
 export const DEPOSIT_BALANCE_THRESHOLD = ethers.utils.parseEther("0.009");
 export const RELAYER_ENDPOINT = "https://api.specular.network/devnet";
+
+export const L1_BRIDGE_ADDR = "0xE7C2a73131dd48D8AC46dCD7Ab80C8cbeE5b410A";
+export const L2_BRIDGE_ADDR = "0xF6168876932289D073567f347121A267095f3DD6";

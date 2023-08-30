@@ -46,13 +46,15 @@ const useDepositFormStyles = createUseStyles((theme:Theme) => ({
     alignItems: 'center',
     marginTop: theme.spacing(3),
     paddingTop: theme.spacing(5),
+    paddingBottom: theme.spacing(2.5),
+    paddingBlock: '5px 5px',
     border: `2px solid ${error ? theme.palette.red : theme.palette.grey.light2}`,
     borderRadius: `${theme.spacing(2.5)}px`,
   }),
   cardTitleText: {
     paddingBottom:  theme.spacing(1),
     fontSize: theme.spacing(4),
-    fontWeight: theme.fontWeights.bold,
+    fontWeight: theme.fontWeights.normal,
   },
   fromInput: {
     fontSize: theme.spacing(5),

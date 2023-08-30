@@ -41,6 +41,7 @@ interface TxPendingProps {
 
 function TxPendingDeposit({ wallet, depositData, l1Provider, pendingDeposit, setPendingDeposit, onGoBack, onGoToFinalizeStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
+  const version = 0;
 
 
   useEffect(() => {
@@ -60,23 +61,34 @@ function TxPendingDeposit({ wallet, depositData, l1Provider, pendingDeposit, set
     l1Portal.on(
       l1Portal.filters.DepositInitiated(),
       (nonce:ethers.BigNumber, sender:string, target:string, value:ethers.BigNumber, gasLimit:ethers.BigNumber, data:string, depositHash:string, event:any) => {
-        console.log("Main L1 Portal transactionHash is "+event.transactionHash+"Deposit data hash is "+ depositData.status+" Deposit Data is "+depositData.data+" Deposit Data hash is "+depositData.data?.hash)
-        if (event.transactionHash === depositData.data?.hash) {
+        console.log("Main L1 Portal transactionHash is "+event.transactionHash+" Deposit data hash is "+ depositHash+" & l1BlockNumber "+event.blockNumber)
+        if (true) {
           const newPendingDeposit: PendingDeposit = {
             l1BlockNumber: event.blockNumber,
             proofL1BlockNumber: undefined,
             depositHash: depositHash,
             depositTx: {
+              version,
               nonce,
               sender,
               target,
               value,
               gasLimit,
               data,
-            },
+            }
           }
-          console.log("Main Correct L1 Portal transactionHash is "+event.transactionHash)
+          console.log("Main Correct L1 Portal transactionHash is "+event.transactionHash+" & Deposit Hash "+depositHash)
+          console.log("newPendingDeposit hash is "+newPendingDeposit.depositHash+" deposittx is "+newPendingDeposit.depositTx)
+          console.log("newPendingDeposit version"+newPendingDeposit.depositTx.version)
+          console.log("newPendingDeposit nonce"+newPendingDeposit.depositTx.nonce)
+          console.log("newPendingDeposit sender"+newPendingDeposit.depositTx.sender)
+          console.log("newPendingDeposit target"+newPendingDeposit.depositTx.target)
+          console.log("newPendingDeposit value"+newPendingDeposit.depositTx.value)
+          console.log("newPendingDeposit gasLimit"+newPendingDeposit.depositTx.gasLimit)
+          console.log("newPendingDeposit data"+newPendingDeposit.depositTx.data)
+
           setPendingDeposit({ status: 'initiated', data: newPendingDeposit});
+          onGoToFinalizeStep();
         }
       }
     );

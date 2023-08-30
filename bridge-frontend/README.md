@@ -20,7 +20,7 @@ npm install
 ```
 
 ```sh
-ln -s ../../contracts/typechain-types ./typechain-types
+./copy_typechain_types.sh
 ```
 
 Create the required `.env` file from the example provided in the repo:

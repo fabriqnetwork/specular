@@ -1,37 +1,35 @@
-import useTxConfirmStyles from './tx-confirm.styles';
+import useTxConfirmChainStyles from './tx-confirm-chain.styles';
 import Header from '../shared/header/header.view';
 import * as React from 'react';
 import Spinner from '../shared/spinner/spinner.view';
 import { useEffect } from 'react';
 
-interface TxConfirmProps {
+interface TxConfirmChainProps {
   wallet: {
     address: string;
     chainId: number;
     provider: any;
   };
-  transactionData: {
-    status: string;
-  };
+  networkId:string;
   onGoBack: () => void;
   onGoToNextStep: () => void;
 }
 
-function TxConfirm({ wallet, transactionData, onGoBack, onGoToNextStep }: TxConfirmProps) {
-  const classes = useTxConfirmStyles();
+function TxConfirmChain({ wallet, networkId, onGoBack, onGoToNextStep }: TxConfirmChainProps) {
+  console.log("Network Id is",networkId);
+  const classes = useTxConfirmChainStyles();
 
   useEffect(() => {
 
-    if (transactionData.status === 'failed') {
-      onGoBack();
-    }
-    if (transactionData.status === 'pending') {
+    console.log("Chain Id is",wallet.chainId.toString());
+
+    if (wallet.chainId.toString() === networkId) {
       onGoToNextStep();
     }
-  }, [transactionData, onGoBack, onGoToNextStep]);
+  }, [wallet.chainId, networkId, onGoBack, onGoToNextStep]);
 
   return (
-    <div className={classes.txConfirm}>
+    <div className={classes.txConfirmChain}>
       <Header address={wallet.address} title={`xDAI → ETH`} />
       <div className={classes.spinnerWrapper}>
         <Spinner />
@@ -41,4 +39,4 @@ function TxConfirm({ wallet, transactionData, onGoBack, onGoToNextStep }: TxConf
   );
 }
 
-export default TxConfirm;
+export default TxConfirmChain;

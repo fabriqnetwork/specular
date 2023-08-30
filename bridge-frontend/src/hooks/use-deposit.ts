@@ -2,11 +2,15 @@ import { useState } from 'react';
 import { ethers, BigNumberish } from 'ethers';
 
 import {
-  L1PORTAL_ADDRESS,
+  L1_BRIDGE_ADDR,
+  L1PORTAL_ADDRESS
 } from "../constants";
 import {
   NETWORKS
 } from "../chains";
+import { TOKEN, erc20Abi } from '../tokens';
+
+import {L1StandardBridge__factory } from "../typechain-types"
 
 interface Data {
   status: string;
@@ -24,23 +28,10 @@ interface wallet {
 
 const INITIAL_DATA: Data = { status: 'waiting' };
 
-function weiToEther(wei: BigNumberish): string {
-  const weiPerEther: ethers.BigNumber = ethers.BigNumber.from("1000000000000000000"); // 1 ether = 10^18 wei
-  const weiValue: ethers.BigNumber = ethers.BigNumber.from(wei);
-
-  const etherValue: ethers.BigNumber = weiValue.div(weiPerEther);
-  const remainder: ethers.BigNumber = weiValue.mod(weiPerEther);
-
-  const formattedEther: string = etherValue.toString();
-  const formattedRemainder: string = remainder.toString().padStart(18, "0"); // Pad with leading zeros if necessary
-
-  return `${formattedEther}.${formattedRemainder}`;
-}
-
 function useDeposit() {
   const [data, setData] = useState<Data>(INITIAL_DATA);
 
-  const deposit = async (wallet: wallet, amount: ethers.BigNumberish): Promise<void> => {
+  const deposit = async (wallet: wallet, amount: ethers.BigNumberish, selectedTokenKey: number): Promise<void> => {
     console.log("From wallet " + wallet.address + " Amount " + amount);
 
     if (!wallet) {
@@ -48,15 +39,38 @@ function useDeposit() {
       return;
     }
 
-
     try {
-      console.log("In Try Block with amount " + weiToEther(amount));
-
+      const selectedToken = TOKEN[selectedTokenKey];
       const signer = await (wallet.provider as any).getSigner();
-      const tx = await signer.sendTransaction({
-        to: L1PORTAL_ADDRESS,
-        value: ethers.utils.parseUnits(weiToEther(amount),  NETWORKS[wallet.chainId].nativeCurrency.decimals),
-      });
+      const l1StandardBridge = L1StandardBridge__factory.connect(L1_BRIDGE_ADDR ,signer)
+
+      let tx;
+      if(selectedToken.l1TokenContract===""){
+
+        tx = await l1StandardBridge.bridgeETH(200_000, [], {
+          value: amount,
+        });
+      } else{
+        console.log("erc20");
+        const l1Token = new ethers.Contract(
+          selectedToken.l1TokenContract,
+          erc20Abi,
+          signer
+        );
+        const approveTx = await l1Token.approve(
+          L1_BRIDGE_ADDR,
+          amount
+        );
+        await approveTx.wait();
+
+        tx = await l1StandardBridge.bridgeERC20(
+          selectedToken.l1TokenContract,
+          selectedToken.l2TokenContract,
+          amount,
+          200_000,
+          []
+        );
+    }
 
       console.log(tx)
       setData({ status: 'pending', data: tx });

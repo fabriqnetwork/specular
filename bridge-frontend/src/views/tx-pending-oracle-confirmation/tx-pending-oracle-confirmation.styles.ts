@@ -12,7 +12,7 @@ interface Theme {
     medium: number;
     extraBold: number;
   };
-  
+
   palette: {
     grey: {
       light1: string;
@@ -29,7 +29,7 @@ interface Theme {
   buttonTransition: string;
 }
 
-const useTxOverviewStyles = createUseStyles((theme: Theme) => ({
+const useTxOracleConfirmationStyles = createUseStyles((theme: Theme) => ({
   txOverview: {
     flex: 1,
     display: 'flex',
@@ -79,4 +79,4 @@ const useTxOverviewStyles = createUseStyles((theme: Theme) => ({
   },
 }))
 
-export default useTxOverviewStyles
+export default useTxOracleConfirmationStyles

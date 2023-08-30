@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { BigNumber, ethers } from 'ethers';
 import { NETWORKS } from '../chains';
 import {SPECULAR_NETWORK_ID} from '../constants';
+import { TOKEN, erc20Abi } from '../tokens';
+import {wallet} from '../types'
+
 
 
 const INITIAL_VALUES = { from: '', to: '' };
@@ -17,7 +20,8 @@ interface DepositFormData {
   changeDepositValue: (newFromValue: string) => void;
 }
 
-function useDepositFormData(wallet: any, l1Provider:any, l2Provider:any): DepositFormData {
+function useDepositFormData(wallet: wallet, selectedTokenKey:number, l1Provider:any, l2Provider:any): DepositFormData {
+  const selectedToken = TOKEN[selectedTokenKey];
   const [values, setValues] = useState<{ from: string; to: string }>(INITIAL_VALUES);
   const [error, setError] = useState<string>();
   const [amounts, setAmounts] = useState<{ from: BigNumber; to: BigNumber }>(INITIAL_AMOUNTS);
@@ -29,9 +33,20 @@ function useDepositFormData(wallet: any, l1Provider:any, l2Provider:any): Deposi
     setAmounts(INITIAL_AMOUNTS);
     setError(undefined);
 
-    const GetL1Balance = async (wallet: any) => {
+    const GetL1Balance = async (wallet: wallet) => {
       if (wallet) {
-        const balance = await l1Provider.getBalance(wallet.address);
+        let balance;
+        if(selectedToken.l1TokenContract===""){
+          balance = await l1Provider.getBalance(wallet.address);
+        } else{
+          const l1Token = new ethers.Contract(
+            selectedToken.l1TokenContract,
+            erc20Abi,
+            l1Provider
+          );
+          balance = await l1Token.balanceOf(wallet.address);
+
+        }
 
         return balance;
       }
@@ -39,10 +54,21 @@ function useDepositFormData(wallet: any, l1Provider:any, l2Provider:any): Deposi
     };
 
     const GetL2Balance = async (wallet: any) => {
-        if (wallet) {
-        const balance  = await l2Provider.getBalance(wallet.address);
-        return balance;
-    }
+      let balance;
+      if (wallet) {
+        if(selectedToken.l2TokenContract===""){
+          balance  = await l2Provider.getBalance(wallet.address);
+        }  else{
+          const l2Token = new ethers.Contract(
+            selectedToken.l2TokenContract,
+            erc20Abi,
+            l2Provider
+          );
+          balance = await l2Token.balanceOf(wallet.address);
+
+        }
+      return balance;
+      }
     return BigNumber.from(0);
     };
 
@@ -58,7 +84,7 @@ function useDepositFormData(wallet: any, l1Provider:any, l2Provider:any): Deposi
 
     fetchL1Balance();
     fetchL2Balance();
-  }, [wallet,l1Provider,l2Provider]);
+  }, [wallet,l1Provider,l2Provider,selectedTokenKey]);
 
   const changeDepositValue = (newFromValue: string): void => {
     const INPUT_REGEX = new RegExp(`^\\d*(?:\\.\\d{0,${ NETWORKS[wallet.chainId].nativeCurrency.decimals}})?$`);
