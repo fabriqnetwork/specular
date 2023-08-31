@@ -1,24 +1,11 @@
 import { ethers } from "hardhat";
-import { getSignersAndContracts, getStorageKey } from "./utils";
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function getLastBlockNumber(data) {
-  const iface = new ethers.utils.Interface([
-    "function appendTxBatch(uint256[],uint256[],uint256,bytes)",
-  ]);
-  const decoded = iface.decodeFunctionData(
-    "appendTxBatch(uint256[],uint256[],uint256,bytes)",
-    data
-  );
-  const contexts: BigNumber[] = decoded[0];
-  const firstL2BlockNumber = decoded[2];
-  const lastL2BlockNumber =
-    contexts.length / 2 + firstL2BlockNumber.toNumber() - 1;
-  return lastL2BlockNumber;
-}
+import {
+  getSignersAndContracts,
+  getStorageKey,
+  getWithdrawalProof,
+  delay,
+  getLastBlockNumber,
+} from "./utils";
 
 async function main() {
   const {
@@ -94,13 +81,11 @@ async function main() {
     await delay(500);
   }
 
-  const proof = await l2Provider.send("eth_getProof", [
+  const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
-    [getStorageKey(initEvent.args.withdrawalHash)],
-    ethers.utils.hexValue(lastConfirmedBlockNumber),
-  ]);
-  const accountProof = proof.accountProof;
-  const storageProof = proof.storageProof[0].proof;
+    lastConfirmedBlockNumber,
+    initEvent.args.withdrawalHash
+  );
 
   const finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
     crossDomainMessage,

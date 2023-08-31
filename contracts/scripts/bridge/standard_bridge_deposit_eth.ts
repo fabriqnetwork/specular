@@ -1,5 +1,9 @@
 import { ethers } from "hardhat";
-import { getSignersAndContracts, getStorageKey } from "./utils";
+import {
+  getSignersAndContracts,
+  getStorageKey,
+  getDepositProof,
+} from "./utils";
 
 function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -43,13 +47,11 @@ async function main() {
   console.log({ blockNumber, stateRoot });
   await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
-  const proof = await l1Provider.send("eth_getProof", [
+  const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
-    [getStorageKey(initEvent.args.depositHash)],
     blockNumber,
-  ]);
-  const accountProof = proof.accountProof;
-  const storageProof = proof.storageProof[0].proof;
+    initEvent.args.depositHash
+  );
 
   await delay(5000);
 
