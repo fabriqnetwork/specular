@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -13,7 +9,7 @@ import {L2Portal} from "./L2Portal.sol";
 import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
-contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
+contract L2StandardBridge is StandardBridge {
     using SafeERC20 for IERC20;
 
     L2Portal public L2_PORTAL;
@@ -38,18 +34,7 @@ contract L2StandardBridge is StandardBridge, Initializable, UUPSUpgradeable, Own
     function initialize(address payable _l2Portal, address payable _otherBridge) public initializer {
         L2_PORTAL = L2Portal(_l2Portal);
 
-        __Ownable_init();
-        __Pausable_init();
-        __UUPSUpgradeable_init();
         __StandardBridge_init(_l2Portal, _otherBridge);
-    }
-
-    function pause() public override onlyOwner {
-      _pause();
-    }
-
-    function unpause() public override onlyOwner {
-      _unpause();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}

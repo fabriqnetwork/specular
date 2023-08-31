@@ -4,7 +4,7 @@ pragma solidity ^0.8.4;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import {SafeCall} from "../libraries/SafeCall.sol";
 import {Types} from "../libraries/Types.sol";
@@ -100,11 +100,11 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
         l2PortalAddress = _l2PortalAddress;
     }
 
-    function pause() public override onlyOwner {
+    function pause() public onlyOwner {
       _pause();
     }
 
-    function unpause() public override onlyOwner {
+    function unpause() public onlyOwner {
       _unpause();
     }
 

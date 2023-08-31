@@ -22,6 +22,7 @@ import "forge-std/Test.sol";
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
@@ -336,6 +337,7 @@ contract RollupTest is RollupBaseSetup {
 
         assertGt(aliceBalance, minimumAmount, "Alice's Balance should be greater than stake amount for this test");
 
+        vm.prank(deployer);
         rollup.pause();
 
         _stake(alice, aliceBalance);
@@ -537,9 +539,11 @@ contract RollupTest is RollupBaseSetup {
         _stake(alice, aliceAmountToStake);
 
         uint256 aliceBalanceBeforeRemoveStake = alice.balance;
-
-        vm.prank(alice);
+        
+        vm.prank(deployer);
         rollup.pause();
+        
+        vm.prank(alice);
         rollup.removeStake(address(alice));
 
         (bool isStakedAfterRemoveStake,,,) = rollup.stakers(address(alice));
@@ -693,8 +697,10 @@ contract RollupTest is RollupBaseSetup {
 
         amountToWithdraw = _generateRandomUintInRange(1, (aliceAmountToStake - minimumAmount), amountToWithdraw);
 
-        vm.prank(alice);
+        vm.prank(deployer);
         rollup.pause();
+
+        vm.prank(alice);
         rollup.unstake(amountToWithdraw);
 
         uint256 aliceBalanceFinal = alice.balance;
@@ -933,15 +939,21 @@ contract RollupTest is RollupBaseSetup {
         assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
 
         // run paused then unpause and proceed with test.
-        vm.expectRevert(Rollup.EnforcedPause.selector);
+        vm.prank(deployer);
+        rollup.pause();
+       
+        // try as alice
+        vm.expectRevert("Pausable: paused");
         vm.prank(alice);
-        rollup.pause()
         rollup.createAssertion(mockVmHash, mockInboxSize);
 
+        // unpause and continue setup
+        vm.prank(deployer);
+        rollup.unpause();
+        
+        // try again now that pause is over
         vm.prank(alice);
-        rollup.unpause()
         rollup.createAssertion(mockVmHash, mockInboxSize);
-
 
         // A successful assertion should bump the lastCreatedAssertionID to 1.
         assertEq(rollup.lastCreatedAssertionID(), 1, "LastCreatedAssertionID not updated correctly");
@@ -956,16 +968,17 @@ contract RollupTest is RollupBaseSetup {
         (,, uint256 bobAssertionIdInitial,) = rollup.stakers(address(bob));
         assertEq(bobAssertionIdInitial, 0);
 
+        vm.prank(deployer);
         rollup.pause();
 
         // Advance stake of the staker
         // Since Alice's stake was already advanced when she called createAssertion, her call to `rollup.advanceStake` should fail
-        vm.expectRevert(Rollup.EnforcedPause.selector);
+        vm.expectRevert("Pausable: paused");
         vm.prank(alice);
         rollup.advanceStake(1);
 
         // Bob's call to `rollup.advanceStake` should succeed as he is still staked on the previous assertion
-        vm.expectRevert(Rollup.EnforcedPause.selector);
+        vm.expectRevert("Pausable: paused");
         vm.prank(bob);
         rollup.advanceStake(1);
 
