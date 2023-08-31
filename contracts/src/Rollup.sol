@@ -136,22 +136,19 @@ contract Rollup is RollupBase {
     }
 
     function pause() public onlyOwner {
-      _pause();
+        _pause();
     }
 
     function unpause() public onlyOwner {
-      _unpause();
+        _unpause();
     }
     
     modifier hasConsensus() {
-      require(lastConfirmedAssertionID == lastCreatedAssertionID, "Rollup: no consensus");
-
-      _;
-
+        require(lastConfirmedAssertionID == lastCreatedAssertionID, "Rollup: no consensus");
+        _;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused hasConsensus {}
-
 
     /// @inheritdoc IRollup
     function currentRequiredStake() public view override returns (uint256) {
