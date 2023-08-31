@@ -43,11 +43,11 @@ abstract contract StandardBridge is IStandardBridge, UUPSUpgradeable, OwnableUpg
     }
     
     function pause() public onlyOwner {
-      _pause();
+        _pause();
     }
 
     function unpause() public onlyOwner {
-      _unpause();
+        _unpause();
     }
 
     /// @notice Allows EOAs to bridge ETH by sending directly to the bridge.

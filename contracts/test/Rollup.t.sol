@@ -539,10 +539,12 @@ contract RollupTest is RollupBaseSetup {
         _stake(alice, aliceAmountToStake);
 
         uint256 aliceBalanceBeforeRemoveStake = alice.balance;
-        
+       
+        // as owner pause
         vm.prank(deployer);
         rollup.pause();
         
+        // as alice, attempt to remove stake
         vm.prank(alice);
         rollup.removeStake(address(alice));
 
@@ -697,9 +699,11 @@ contract RollupTest is RollupBaseSetup {
 
         amountToWithdraw = _generateRandomUintInRange(1, (aliceAmountToStake - minimumAmount), amountToWithdraw);
 
+        // as the owner, pause
         vm.prank(deployer);
         rollup.pause();
 
+        // as alice, attempt to unstake
         vm.prank(alice);
         rollup.unstake(amountToWithdraw);
 

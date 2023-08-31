@@ -48,11 +48,11 @@ contract L1Oracle is UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     }
     
     function pause() public onlyOwner {
-      _pause();
+        _pause();
     }
 
     function unpause() public onlyOwner {
-      _unpause();
+        _unpause();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
@@ -64,7 +64,11 @@ contract L1Oracle is UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
      * @param _stateRoot L1 stateRoot.
      * @param _baseFee L1 baseFee.
      */
-    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) external onlySequencer whenNotPaused {
+    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) 
+        external 
+        onlySequencer 
+        whenNotPaused 
+    {
         blockNumber = _blockNumber;
         stateRoot = _stateRoot;
         baseFee = _baseFee;

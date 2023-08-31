@@ -32,7 +32,14 @@ abstract contract L1PortalDeterministicStorage {
  *         and L2. Messages sent directly to the L1Portal have no form of replayability.
  *         Users are encouraged to use the L1CrossDomainMessenger for a higher-level interface.
  */
-contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
+contract L1Portal is 
+    L1PortalDeterministicStorage, 
+    IL1Portal, 
+    Initializable, 
+    UUPSUpgradeable, 
+    OwnableUpgradeable, 
+    PausableUpgradeable 
+{
     /**
      * @notice Value used to reset the l2Sender, this is more efficient than setting it to zero.
      */
@@ -101,11 +108,11 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
     }
 
     function pause() public onlyOwner {
-      _pause();
+        _pause();
     }
 
     function unpause() public onlyOwner {
-      _unpause();
+        _unpause();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}

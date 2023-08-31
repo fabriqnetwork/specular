@@ -55,11 +55,11 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     }
 
     function pause() public onlyOwner {
-      _pause();
+        _pause();
     }
 
     function unpause() public onlyOwner {
-      _unpause();
+        _unpause();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}

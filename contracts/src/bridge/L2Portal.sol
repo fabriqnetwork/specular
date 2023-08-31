@@ -24,7 +24,13 @@ abstract contract L2PortalDeterministicStorage {
     mapping(bytes32 => bool) public initiatedWithdrawals;
 }
 
-contract L2Portal is L2PortalDeterministicStorage, IL2Portal, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
+contract L2Portal is
+    L2PortalDeterministicStorage, 
+    IL2Portal, 
+    UUPSUpgradeable, 
+    OwnableUpgradeable, 
+    PausableUpgradeable 
+{
     /**
      * @notice Value used to reset the l1Sender, this is more efficient than setting it to zero.
      */
@@ -89,11 +95,11 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, UUPSUpgradeable, O
     }
 
     function pause() public onlyOwner {
-      _pause();
+        _pause();
     }
 
     function unpause() public onlyOwner {
-      _unpause();
+        _unpause();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
@@ -119,7 +125,12 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, UUPSUpgradeable, O
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable onlyProxy whenNotPaused {
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) 
+        public 
+        payable 
+        onlyProxy 
+        whenNotPaused 
+    {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
                 version: 0,
