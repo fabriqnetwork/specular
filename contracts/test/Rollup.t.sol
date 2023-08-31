@@ -904,7 +904,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(bobAssertionIdFinal, 1);
     }
     
-    function testFuzz_advanceStakePaused_reverts(uint256 confirmationPeriod, uint256 challengePeriod) external {
+    function testFuzz_advanceStake_paused_reverts(uint256 confirmationPeriod, uint256 challengePeriod) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
