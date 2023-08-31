@@ -23,7 +23,7 @@ const (
 	// IChallenge.sol
 	bisectExecutionFn = "bisectExecution"
 
-	MethodNumBytes = 4
+	MethodNumBytes = 5
 )
 
 // Using singleton for convenience.
