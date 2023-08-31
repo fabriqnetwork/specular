@@ -25,7 +25,7 @@ pragma solidity ^0.8.0;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import "./challenge/IChallenge.sol";
 import "./challenge/SymChallenge.sol";
@@ -135,16 +135,16 @@ contract Rollup is RollupBase {
         _disableInitializers();
     }
 
-    function pause() public override onlyOwner {
+    function pause() public onlyOwner {
       _pause();
     }
 
-    function unpause() public override onlyOwner {
+    function unpause() public onlyOwner {
       _unpause();
     }
     
     modifier hasConsensus() {
-      require(lastConfirmedAssertionID == lastCreatedAssertionID), "Rollup: no consensus");
+      require(lastConfirmedAssertionID == lastCreatedAssertionID, "Rollup: no consensus");
 
       _;
 

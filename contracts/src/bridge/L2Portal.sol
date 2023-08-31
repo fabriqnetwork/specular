@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.4;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/PausableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import {SafeCall} from "../libraries/SafeCall.sol";
 import {Types} from "../libraries/Types.sol";
@@ -25,7 +24,7 @@ abstract contract L2PortalDeterministicStorage {
     mapping(bytes32 => bool) public initiatedWithdrawals;
 }
 
-contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract L2Portal is L2PortalDeterministicStorage, IL2Portal, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     /**
      * @notice Value used to reset the l1Sender, this is more efficient than setting it to zero.
      */
@@ -89,11 +88,11 @@ contract L2Portal is L2PortalDeterministicStorage, IL2Portal, Initializable, UUP
         __UUPSUpgradeable_init();
     }
 
-    function pause() public override onlyOwner {
+    function pause() public onlyOwner {
       _pause();
     }
 
-    function unpause() public override onlyOwner {
+    function unpause() public onlyOwner {
       _unpause();
     }
 

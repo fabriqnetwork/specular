@@ -23,6 +23,7 @@ import "forge-std/Test.sol";
 import "../src/ISequencerInbox.sol";
 import "../src/libraries/Errors.sol";
 import "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {Utils} from "./utils/Utils.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
@@ -246,7 +247,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
         txnBlocks = bound(txnBlocks, 1, 10);
 
-        sqIn.pause();
+        vm.prank(sequencerOwner);
+        seqIn.pause();
 
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
@@ -282,7 +284,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        vm.expectRevert(ISequencerInbox.EnforcedPause.selector);
+        vm.expectRevert("Pausable: paused");
         seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
 
     }

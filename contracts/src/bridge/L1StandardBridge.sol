@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.11;
 
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import {StandardBridge} from "./StandardBridge.sol";
 import {L1Portal} from "./L1Portal.sol";
 import {IMintableERC20} from "./mintable/IMintableERC20.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
-contract L1StandardBridge is StandardBridge, Initializable {
+contract L1StandardBridge is StandardBridge {
     using SafeERC20 for IERC20;
 
     L1Portal public L1_PORTAL;
