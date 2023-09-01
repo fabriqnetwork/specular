@@ -26,7 +26,13 @@ $SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT
 # Run testing script
 cd $CONTRACTS_DIR
 npx ts-node scripts/testing.ts
-RESULT=$?
+exit_0 = $?
+npx hardhat run scripts/bridge/standard_bridge_deposit_eth.ts
+exit_1 = $?
+npx hardhat run scripts/bridge/standard_bridge_withdraw_eth.ts
+exit_2 = $?
+npx hardhat run scripts/bridge/standard_bridge_erc20.ts
+exit_3 = $?
 
 # Kill nodes
 disown $L2GETH_PID
@@ -37,5 +43,5 @@ kill $ANVIL_PID
 # Clean up
 $SBIN_DIR/clean.sh
 
-# Exit with result
-exit $RESULT
+# Exit with 0 iff all test return status 0
+! (( $exit_0 || $exit_1 || $exit_2 || $exit_3 ))

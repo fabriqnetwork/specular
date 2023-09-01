@@ -3,11 +3,8 @@ import {
   getSignersAndContracts,
   getStorageKey,
   getDepositProof,
+  delay,
 } from "./utils";
-
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 async function main() {
   const {
