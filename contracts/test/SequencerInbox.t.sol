@@ -286,7 +286,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerAddress);
         vm.expectRevert("Pausable: paused");
         seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
-
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////

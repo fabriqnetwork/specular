@@ -357,7 +357,6 @@ contract RollupTest is RollupBaseSetup {
         assertEq(amountStaked, aliceBalance, "amountStaked not updated properly");
         assertEq(assertionID, rollup.lastConfirmedAssertionID(), "assertionID not updated properly");
         assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
-
     }
 
     function testFuzz_stake_increaseStake_succeeds(
