@@ -54,7 +54,7 @@ let footerLogo;
 if (size.width !== undefined && size.width > 675) {
     footerLogo = (
       <Grid item onClick={scrollToTop}>
-        <img src={Logo} alt="xDAI to ETH" className={classes.logo} />
+        <img src={Logo} alt="Specular Bridge" className={classes.logo} />
       </Grid>
     );
 } else {

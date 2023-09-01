@@ -44,7 +44,7 @@ function TxFinalizeDeposit({ wallet, depositData, finalizeDepositData, onGoBack,
 
   return (
     <div className={classes.txOverview}>
-      <Header address={wallet.address} title={`xDAI → ETH`} />
+      <Header address={wallet.address} title={`Specular Bridge`} />
       <div className={classes.buttonGroup}>
         <a
           className={classes.button}

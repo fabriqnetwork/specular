@@ -1,4 +1,4 @@
-# xDAI to ETH
+# Specular Bridge
 
 Simple tool to bridge xDAI tokens to ETH on SPecular Network
 
@@ -10,7 +10,12 @@ Clone the repo:
 Move into the project directory:
 
 ```sh
-cd specularBridge
+cd bridge-frontend
+```
+
+Or
+```sh
+git@github.com:SpecularL2/specular.git
 ```
 
 Install project dependencies:

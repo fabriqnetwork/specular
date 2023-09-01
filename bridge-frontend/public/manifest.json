@@ -1,6 +1,6 @@
 {
-  "short_name": "xDAI to ETH",
-  "name": "xDAI to ETH",
+  "short_name": "Specular Bridge",
+  "name": "Specular Bridge",
   "description": "The app to convert xDAI tokens to ETH",
   "iconPath": "logo.svg",
   "icons": [

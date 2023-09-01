@@ -112,6 +112,7 @@ const FAQ: React.FC<FAQProps> = ({ setOpenGetMoreFaq }) => {
                     </Typography>
                 </AccordionDetails>
             </Accordion>
+            
 
             <Accordion
                 expanded={expanded === "three"}

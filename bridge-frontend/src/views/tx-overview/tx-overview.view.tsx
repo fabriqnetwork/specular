@@ -50,7 +50,7 @@ function TxOverview({
     <div className={classes.txOverview}>
       <Header
         address={wallet.address}
-        title={`xDAI → ETH`}
+        title={`Specular Bridge`}
         onDisconnectWallet={onDisconnectWallet}
       />
       <CheckIcon className={classes.checkIcon} />

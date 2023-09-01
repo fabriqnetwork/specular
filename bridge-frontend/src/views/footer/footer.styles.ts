@@ -37,7 +37,7 @@ const useFooterStyles = createUseStyles((theme: Theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: theme.spacing(4),
-    padding: '15px 0 15px',
+    padding: '40px 0 40px',
     backgroundColor: "#313846"
   },
   logo:{

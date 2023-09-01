@@ -30,7 +30,7 @@ function TxConfirmChain({ wallet, networkId, onGoBack, onGoToNextStep }: TxConfi
 
   return (
     <div className={classes.txConfirmChain}>
-      <Header address={wallet.address} title={`xDAI → ETH`} />
+      <Header address={wallet.address} title={`Specular Bridge`} />
       <div className={classes.spinnerWrapper}>
         <Spinner />
       </div>

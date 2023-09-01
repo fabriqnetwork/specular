@@ -32,7 +32,7 @@ function TxConfirm({ wallet, transactionData, onGoBack, onGoToNextStep }: TxConf
 
   return (
     <div className={classes.txConfirm}>
-      <Header address={wallet.address} title={`xDAI → ETH`} />
+      <Header address={wallet.address} title={`Specular Bridge`} />
       <div className={classes.spinnerWrapper}>
         <Spinner />
       </div>

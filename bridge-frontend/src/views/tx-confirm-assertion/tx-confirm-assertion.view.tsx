@@ -79,7 +79,7 @@ function TxConfirmAssertion({ wallet, withdrawData,pendingWithdraw,setPendingWit
   )
   return (
     <div className={classes.txOverview}>
-      <Header address={wallet.address} title={`xDAI → ETH`} />
+      <Header address={wallet.address} title={`Specular Bridge`} />
       <div className={classes.spinnerWrapper}>
         <Spinner/>
       </div>

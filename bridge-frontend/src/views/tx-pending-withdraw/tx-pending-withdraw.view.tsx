@@ -89,7 +89,7 @@ function TxPendingWithdraw({ wallet, withdrawData, l2Provider, pendingWithdraw, 
 
   return (
     <div className={classes.txOverview}>
-      <Header address={wallet.address} title={`xDAI → ETH`} />
+      <Header address={wallet.address} title={`Specular Bridge`} />
       <div className={classes.spinnerWrapper}>
         <Spinner/>
       </div>

@@ -8,7 +8,7 @@ function Header () {
                 <div>
                     <div>
                         <div className={classes.title}>
-                        <img src={Logo} alt="xDAI to ETH" className={classes.logo}/> Specular Bridge
+                        <img src={Logo} alt="Specular Bridge" className={classes.logo}/>
                         </div>
                     </div>
                 </div>
