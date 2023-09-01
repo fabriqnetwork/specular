@@ -142,7 +142,7 @@ contract Rollup is RollupBase {
     function unpause() public onlyOwner {
         _unpause();
     }
-    
+
     modifier hasConsensus() {
         require(lastConfirmedAssertionID == lastCreatedAssertionID, "Rollup: no consensus");
         _;

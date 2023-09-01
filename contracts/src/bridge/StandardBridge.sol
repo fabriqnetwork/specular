@@ -41,7 +41,7 @@ abstract contract StandardBridge is IStandardBridge, UUPSUpgradeable, OwnableUpg
         __Pausable_init();
         __UUPSUpgradeable_init();
     }
-    
+
     function pause() public onlyOwner {
         _pause();
     }

@@ -250,7 +250,7 @@ contract RollupTest is RollupBaseSetup {
         (bool isAliceStaked,,,) = rollup.stakers(alice);
         assertTrue(!isAliceStaked);
     }
-    
+
     function testFuzz_stake_insufficentStake_reverts(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
@@ -319,7 +319,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(assertionID, rollup.lastConfirmedAssertionID(), "assertionID not updated properly");
         assertEq(challengeAddress, address(0), "challengeAddress not updated properly");
     }
-    
+
     function test_stake_stakeWhenPaused_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
@@ -518,7 +518,7 @@ contract RollupTest is RollupBaseSetup {
 
         assertTrue(!isStakedAfterRemoveStake);
     }
-    
+
     function testFuzz_removeStakePaused_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
@@ -539,11 +539,11 @@ contract RollupTest is RollupBaseSetup {
         _stake(alice, aliceAmountToStake);
 
         uint256 aliceBalanceBeforeRemoveStake = alice.balance;
-       
+
         // as owner pause
         vm.prank(deployer);
         rollup.pause();
-        
+
         // as alice, attempt to remove stake
         vm.prank(alice);
         rollup.removeStake(address(alice));
@@ -673,7 +673,7 @@ contract RollupTest is RollupBaseSetup {
 
         assertEq((aliceBalanceFinal - aliceBalanceInitial), amountToWithdraw, "Desired amount could not be withdrawn.");
     }
-    
+
     function testFuzz_unstakePaused_succeeds(
         uint256 confirmationPeriod,
         uint256 challengePeriod,
@@ -907,7 +907,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(bobAmountToStake, bobAmountStakedFinal);
         assertEq(bobAssertionIdFinal, 1);
     }
-    
+
     function testFuzz_advanceStake_paused_reverts(uint256 confirmationPeriod, uint256 challengePeriod) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
@@ -945,7 +945,7 @@ contract RollupTest is RollupBaseSetup {
         // run paused then unpause and proceed with test.
         vm.prank(deployer);
         rollup.pause();
-       
+
         // try as alice
         vm.expectRevert("Pausable: paused");
         vm.prank(alice);
@@ -954,7 +954,7 @@ contract RollupTest is RollupBaseSetup {
         // unpause and continue setup
         vm.prank(deployer);
         rollup.unpause();
-        
+
         // try again now that pause is over
         vm.prank(alice);
         rollup.createAssertion(mockVmHash, mockInboxSize);
@@ -1116,7 +1116,7 @@ contract RollupTest is RollupBaseSetup {
         vm.expectRevert(IRollup.AssertionAlreadyResolved.selector);
         rollup.challengeAssertion(players, assertionIDs);
     }
-    
+
     /////////////////////////
     // Auxillary Functions
     /////////////////////////

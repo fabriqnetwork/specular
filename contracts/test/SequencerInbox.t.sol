@@ -241,7 +241,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
     }
-    
+
     function test_appendTxBatch_paused_reverts(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
         // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);

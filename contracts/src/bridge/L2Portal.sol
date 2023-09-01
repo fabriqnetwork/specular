@@ -25,11 +25,11 @@ abstract contract L2PortalDeterministicStorage {
 }
 
 contract L2Portal is
-    L2PortalDeterministicStorage, 
-    IL2Portal, 
-    UUPSUpgradeable, 
-    OwnableUpgradeable, 
-    PausableUpgradeable 
+    L2PortalDeterministicStorage,
+    IL2Portal,
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    PausableUpgradeable
 {
     /**
      * @notice Value used to reset the l1Sender, this is more efficient than setting it to zero.
@@ -125,11 +125,11 @@ contract L2Portal is
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) 
-        public 
-        payable 
-        onlyProxy 
-        whenNotPaused 
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data)
+        public
+        payable
+        onlyProxy
+        whenNotPaused
     {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
