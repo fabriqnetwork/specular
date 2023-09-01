@@ -30,9 +30,9 @@ npm install
 
 Create the required `.env` file from the example provided in the repo:
 
-- [Chiado Testnet](./.env.chiado)
+
 ```sh
-cp .env.chiado .env
+cp .env.example .env
 ```
 
 Run the Dapp in development mode. Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
