@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import Header from '../shared/header/header.view';
-import useTxPendingStyles from './tx-confirm-assertion.styles';
+import useTxPendingStyles from './tx-create-assertion.styles';
 import LinkIcon from '@mui/icons-material/OpenInNew';
 import Spinner from '../shared/spinner/spinner.view';
 import { NETWORKS } from '../../chains';
@@ -42,40 +42,42 @@ interface TxPendingProps {
 
 }
 
-function TxConfirmAssertion({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain,onGoBack, onGoToNextStep }: TxPendingProps) {
+function TxCreateAssertion({ wallet, withdrawData,pendingWithdraw,setPendingWithdraw,switchChain,onGoBack, onGoToNextStep }: TxPendingProps) {
   const classes = useTxPendingStyles();
   const l1Provider = new ethers.providers.StaticJsonRpcProvider(CHIADO_RPC_URL);
+  const inboxSizeToBlockNumberMap = new Map<string, number>();
   const rollup = IRollup__factory.connect(ROLLUP_ADDRESS, l1Provider);
 
   useEffect(() => {
-  rollup.on(rollup.filters.AssertionConfirmed(), async (assertionID, event) => {
-    console.log("AssertionConfirmed", assertionID.toString());
-    if (pendingWithdraw) {
-      if (pendingWithdraw.data.assertionID === undefined) {
-        return;
-      }
-      console.log("pendingWithdrawal assertionID ", pendingWithdraw.data.assertionID.toString());
-      if (assertionID.gte(pendingWithdraw.data.assertionID)) {
-        // The assertion should be already finalized
-        const assertion = await rollup.getAssertion(
-          pendingWithdraw.data.assertionID
-        );
-        if (assertion.inboxSize.eq(0)) {
-          console.error("The assertion containing the withdrawal is rejected");
-          console.error("Assertion ID: ", pendingWithdraw.data.assertionID.toString()
-          );
-          pendingWithdraw.data.inboxSize = undefined;
-          pendingWithdraw.data.assertionID = undefined;
-          pendingWithdraw.data.proofL2BlockNumber = undefined;
-          onGoBack();
+
+  rollup.on(
+    rollup.filters.AssertionCreated(),
+    async (assertionID, asserter, vmHash, event) => {
+      console.log("AssertionCreated", assertionID.toString());
+      if (pendingWithdraw ) {
+        if (pendingWithdraw.data?.inboxSize === undefined) {
+          // We haven't seen the withdrawal sequenced on L1 yet
           return;
         }
-        setPendingWithdraw(pendingWithdraw);
-        onGoToNextStep();
+        if (pendingWithdraw.data?.assertionID !== undefined) {
+          // We already know which assertion this withdrawal is included in
+          return;
+        }
+        const assertion = await rollup.getAssertion(assertionID);
+        console.log("Assertion ID", assertionID.toString(), "<-> InboxSize", assertion.inboxSize.toString());
+        if (assertion.inboxSize.gte(pendingWithdraw.data.inboxSize)) {
+            // We already know the l2 block number of the assertion
+            pendingWithdraw.data.assertionID = assertionID;
+            setPendingWithdraw(pendingWithdraw);
+            console.log(assertion.stateHash);
+            onGoToNextStep();
+            // No need to keep the map
+            inboxSizeToBlockNumberMap.clear();
+        }
       }
     }
-  });
-  },[pendingWithdraw,rollup]
+  );
+  },[pendingWithdraw,rollup, withdrawData,rollup.filters.AssertionCreated()]
   )
   return (
     <div className={classes.txOverview}>
@@ -94,9 +96,9 @@ function TxConfirmAssertion({ wallet, withdrawData,pendingWithdraw,setPendingWit
           <LinkIcon className={classes.buttonIcon} />
         </a>
       </div>
-      Waiting for Assertion Confirmation
+      Waiting for Assertion Creation
     </div>
   );
 }
 
-export default TxConfirmAssertion;
+export default TxCreateAssertion;

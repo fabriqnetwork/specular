@@ -24,7 +24,7 @@ interface Network {
 }
 
 const NETWORKS: Record<string, Network> = {
-  '10200': {
+  '31337': {
     forkVersion: "0000006f",
     name: 'Chiado',
     symbol: 'XDAI',
@@ -36,9 +36,9 @@ const NETWORKS: Record<string, Network> = {
       symbol: "xDAI",
       decimals: 18,
     },
-    chainId: '10200', // Add the chainId value here
+    chainId: '31337', // Add the chainId value here
   },
-  '93481': {
+  '13527': {
     forkVersion: "00000064",
     name: 'Specular Devnet',
     symbol: 'ETH',

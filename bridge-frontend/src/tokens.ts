@@ -9,7 +9,7 @@ interface Token {
 }
 
 const TOKEN: Record<string, Token> = {
-  '2': {
+  '1': {
     l1TokenName: "Chiado xDai",
     l1TokenSymbol: "xDai",
     l1TokenContract: "",
@@ -17,13 +17,13 @@ const TOKEN: Record<string, Token> = {
     l2TokenSymbol: "ETH",
     l2TokenContract: "",
   },
-  '1': {
-    l1TokenName: "Chiado TT",
+  '2': {
+    l1TokenName: "Chiado TestToken",
     l1TokenSymbol: "TT",
-    l1TokenContract: "0xEaa45C3fF72eE58FdB13401586fAB905c507F1BE",
-    l2TokenName: "Specular TT",
+    l1TokenContract: "0x6d014319E0F36651997697C98Da594c7Cf235fa4",
+    l2TokenName: "Specular TestToken",
     l2TokenSymbol: "TT",
-    l2TokenContract: "0x6B2031b6519268e623CA05F3683708Ed6C6F89df",
+    l2TokenContract: "0x6A358FD7B7700887b0cd974202CdF93208F793E2",
   }
 };
 

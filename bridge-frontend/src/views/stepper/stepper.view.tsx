@@ -18,6 +18,8 @@ import TxPendingOracleConfirmation from '../tx-pending-oracle-confirmation/tx-pe
 import TxPendingDeposit from '../tx-pending-deposit/tx-pending-deposit.view'
 import TxPendingWithdraw from '../tx-pending-withdraw/tx-pending-withdraw.view'
 import TxConfirmAssertion from '../tx-confirm-assertion/tx-confirm-assertion.view'
+import TxCreateAssertion from '../tx-create-assertion/tx-create-assertion.view'
+import TxBatchAppend from '../tx-batch-append/tx-batch-append.view'
 import TxFinalizeDeposit from '../tx-finalize-deposit/tx-finalize-deposit.view'
 import TxFinalizeWithdraw from '../tx-finalize-withdraw/tx-finalize-withdraw.view'
 import TxOverview from '../tx-overview/tx-overview.view'
@@ -296,13 +298,45 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   setPendingWithdraw={setPendingWithdraw}
                   onGoBack={() => switchStep(Step.Deposit)}
                   onGoToFinalizeStep={() => {
+                    switchStep(Step.BatchAppend)
+                  }}
+                />
+              )
+            }
+            case Step.BatchAppend: {
+              console.log("BatchAppend")
+              return (
+                <TxBatchAppend
+                  wallet={wallet}
+                  withdrawData={withdrawData}
+                  pendingWithdraw={pendingWithdraw}
+                  setPendingWithdraw={setPendingWithdraw}
+                  switchChain={switchChain}
+                  onGoBack={() => switchStep(Step.Withdraw)}
+                  onGoToNextStep={() => {
+                    switchStep(Step.CreateAssertion)
+                  }}
+                />
+              )
+            }
+            case Step.CreateAssertion: {
+              console.log("CreateAssertion")
+              return (
+                <TxCreateAssertion
+                  wallet={wallet}
+                  withdrawData={withdrawData}
+                  pendingWithdraw={pendingWithdraw}
+                  setPendingWithdraw={setPendingWithdraw}
+                  switchChain={switchChain}
+                  onGoBack={() => switchStep(Step.Withdraw)}
+                  onGoToNextStep={() => {
                     switchStep(Step.ConfirmAssertion)
                   }}
                 />
               )
             }
             case Step.ConfirmAssertion: {
-              console.log("PendingWithdraw")
+              console.log("ConfirmAssertion")
               return (
                 <TxConfirmAssertion
                   wallet={wallet}
@@ -311,7 +345,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                   setPendingWithdraw={setPendingWithdraw}
                   switchChain={switchChain}
                   onGoBack={() => switchStep(Step.Withdraw)}
-                  onGoToFinalizeStep={() => {
+                  onGoToNextStep={() => {
                     switchStep(Step.FinalizeWithdrawForm)
                   }}
                 />
@@ -323,7 +357,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
                 <FinalizeWithdrawForm
                   wallet={wallet}
                   onSubmit={() => {
-                    switchChain(SPECULAR_NETWORK_ID.toString())
+                    switchChain(CHIADO_NETWORK_ID.toString())
                     switchStep(Step.ConfirmWithdrawChain)
                   }}
                   onDisconnectWallet={disconnectWallet}

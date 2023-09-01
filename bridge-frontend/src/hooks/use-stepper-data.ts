@@ -17,6 +17,8 @@ export enum Step {
   PendingDeposit = 'pendingDeposit',
   PendingWithdraw = 'pendingWithdraw',
   ConfirmAssertion = 'confirmAssertion',
+  BatchAppend = 'batchAppend',
+  CreateAssertion = 'createAssertion',
   FinalizeWithdrawForm= 'finalizeWithdrawForm',
   PendingFinalizeDeposit = 'pendingFinalizeDeposit',
   FinalizingWithdraw = 'finalizingWithdraw',

@@ -47,7 +47,7 @@ function TxPendingWithdraw({ wallet, withdrawData, l2Provider, pendingWithdraw, 
     if (withdrawData.status === 'failed') {
       onGoBack();
     }
-    if (withdrawData.status === 'successful' && pendingWithdraw.status==='initiated') {
+    if (pendingWithdraw.status==='initiated') {
       onGoToFinalizeStep();
     }
   }, [withdrawData, pendingWithdraw, onGoBack, onGoToFinalizeStep]);

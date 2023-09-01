@@ -100,7 +100,7 @@ function WithdrawForm ({
           {selectedToken.l1TokenName}
           </p>
           <p>
-            {formatUnits(amounts.to, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.symbol}
+            {formatUnits(amounts.to, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {selectedToken.l1TokenSymbol}
           </p>
           <p className={classes.toValue}>
             Balance: {formatUnits(l1balance, NETWORKS[CHIADO_NETWORK_ID].nativeCurrency.decimals)} {selectedToken.l1TokenSymbol}

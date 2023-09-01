@@ -39,13 +39,14 @@ const INITIAL_DATA: Data = { status: 'pending' };
 async function generateWithdrawProof(
   withdrawal: PendingWithdrawal
 ): Promise<MessageProof> {
+  console.log("generating proof");
   const l2Provider = new ethers.providers.StaticJsonRpcProvider(SPECULAR_RPC_URL);
   const rawProof = await l2Provider.send(
     "eth_getProof",
     [
       L2PORTAL_ADDRESS,
       [getStorageKey(withdrawal.withdrawalHash)],
-      withdrawal.l2BlockNumber,
+      ethers.utils.hexlify(withdrawal.l2BlockNumber),
     ]
   );
   return {
@@ -53,6 +54,8 @@ async function generateWithdrawProof(
     storageProof: rawProof.storageProof[0].proof,
   };
 }
+
+
 type SwitchChainFunction = (arg: string) => void;
 
 function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
@@ -67,12 +70,11 @@ function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
 
     setData({ status: 'loading' });
 
-    switchChain(CHIADO_NETWORK_ID.toString());
     const provider = await wallet.provider
-    const signer = await (provider as any).getSigner();
+    const signer = await provider.getSigner();
 
     const l1Portal = IL1Portal__factory.connect(
-      L2PORTAL_ADDRESS,
+      L1PORTAL_ADDRESS,
       signer,
     );
     try {
@@ -81,22 +83,11 @@ function useFinalizeWithdraw(switchChain: SwitchChainFunction) {
       console.log(pendingWithdraw)
 
       if(pendingWithdraw.assertionID) {
-
-        let gas = await l1Portal.estimateGas.finalizeWithdrawalTransaction(
-          pendingWithdraw.withdrawalTx,
-          pendingWithdraw.assertionID,
-          proof.accountProof,
-          proof.storageProof,
-          { gasLimit: 1000000 }, // avoid gas estimation error
-        );
-        console.log("gas", gas);
-        gas = gas.add(150000); // extra gas to pass gas limit check in finalization
         const tx = await l1Portal.finalizeWithdrawalTransaction(
           pendingWithdraw.withdrawalTx,
           pendingWithdraw.assertionID,
           proof.accountProof,
-          proof.storageProof,
-          { gasLimit: gas },
+          proof.storageProof
         );
         setData({ status: 'pending', data: tx.hash });
         await tx.wait();

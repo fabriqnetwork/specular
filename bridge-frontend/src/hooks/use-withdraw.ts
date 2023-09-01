@@ -47,14 +47,10 @@ function useWithdraw() {
 
       let tx;
       if(selectedToken.l1TokenContract===""){
-        // tx = await l2StandardBridge.bridgeETH(200_000, [], {
-        //   value: amount,
-        // });
-
-        tx = await signer.sendTransaction({
-          to: L2PORTAL_ADDRESS,
+        tx = await l2StandardBridge.bridgeETH(200_000, [], {
           value: amount,
         });
+
       } else{
         console.log("erc20");
         const l2Token = new ethers.Contract(
