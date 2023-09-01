@@ -127,7 +127,7 @@ if (wallet && !(wallet.chainId == CHIADO_NETWORK_ID || wallet.chainId == SPECULA
               key={tab.name}
               className={activeTab === tab.name ? classes.tabActive : classes.tab}
               onClick={() => selectTab(tab)}
-              disabled={![Step.Withdraw, Step.Deposit].includes(step)}
+              disabled={![Step.Withdraw, Step.Deposit, Step.Overview].includes(step)}
             >
               <span className={classes.tabName}>{tab.name}</span>
             </button>
