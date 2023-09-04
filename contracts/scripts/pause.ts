@@ -35,7 +35,8 @@ async function pauseContract(
   const owner = new ethers.Wallet(privateKey, provider);
   const factory = await ethers.getContractFactory(contract, address);
   const c = factory.attach(address);
-  c.pause();
+  const tx = c.pause();
+  await tx.wait();
 }
 
 async function unpauseContract(
@@ -47,7 +48,8 @@ async function unpauseContract(
   const owner = new ethers.Wallet(privateKey, provider);
   const factory = await ethers.getContractFactory(contract, address);
   const c = factory.attach(address);
-  c.unpause();
+  const tx = c.unpause();
+  await tx.wait();
 }
 
 async function pauseContracts() {
