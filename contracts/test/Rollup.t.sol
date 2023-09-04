@@ -1340,7 +1340,7 @@ contract RollupTest is RollupBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, 0, txBatch);
 
         uint256 seqInboxSizeFinal = seqIn.getInboxSize();
         assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 6, "Sequencer inbox size did not increase by 6");
