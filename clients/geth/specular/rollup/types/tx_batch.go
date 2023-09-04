@@ -145,7 +145,7 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 	contexts := decoded[0].([]*big.Int)
 	txLengths := decoded[1].([]*big.Int)
 	firstL2BlockNumber := decoded[2].(*big.Int)
-  // txBatchVersion := decoded[4].(*big.Int)
+  txBatchVersion := decoded[3].(*big.Int)
 	txBatch := decoded[4].([]byte)
 
 	if len(contexts)%2 != 0 {
@@ -176,6 +176,7 @@ func TxBatchFromDecoded(decoded []interface{}) (*TxBatch, error) {
 		}
 	}
 	batch := &TxBatch{
+    TxBatchVersion : txBatchVersion,
 		FirstL2BlockNumber: firstL2BlockNumber,
 		Contexts:           ctxs,
 		Txs:                txs,
