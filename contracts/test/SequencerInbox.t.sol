@@ -297,7 +297,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
 
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, 0, 0, 0, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, 0, 0, txBatch);
         assertEq(seqIn.getInboxSize(), numTx);
 
         // randomly choose a transaction to verify and prepare the proof
