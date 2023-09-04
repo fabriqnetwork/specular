@@ -94,11 +94,11 @@ export async function getSignersAndContracts() {
   };
 }
 
-export async function getDepositProof(portalAddress, blockNumber, depositHash) {
+export async function getDepositProof(portalAddress, depositHash) {
   const proof = await l1Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(depositHash)],
-    blockNumber,
+    "latest",
   ]);
 
   return {
@@ -107,15 +107,11 @@ export async function getDepositProof(portalAddress, blockNumber, depositHash) {
   };
 }
 
-export async function getWithdrawalProof(
-  portalAddress,
-  blockNumber,
-  withdrawalHash
-) {
+export async function getWithdrawalProof(portalAddress, withdrawalHash) {
   const proof = await l2Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(withdrawalHash)],
-    ethers.utils.hexlify(blockNumber),
+    "latest",
   ]);
 
   return {

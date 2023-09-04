@@ -42,15 +42,12 @@ async function main() {
   ]);
   let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
   console.log({ blockNumber, stateRoot });
-  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
-    blockNumber,
     initEvent.args.depositHash
   );
-
-  await delay(5000);
+  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
   blockNumber = await l1Provider.getBlockNumber();
   rawBlock = await l1Provider.send("eth_getBlockByNumber", [

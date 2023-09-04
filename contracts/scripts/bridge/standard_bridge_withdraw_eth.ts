@@ -83,7 +83,6 @@ async function main() {
 
   const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
-    lastConfirmedBlockNumber,
     initEvent.args.withdrawalHash
   );
 

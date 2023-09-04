@@ -65,13 +65,12 @@ async function main() {
     false, // We only want the block header
   ]);
   const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
-  await l1Oracle.setL1OracleValues(depositBlockNumber, stateRoot, 0);
 
   const depositProof = await getDepositProof(
     l1Portal.address,
-    depositBlockNumber,
     depositEvent.args.depositHash
   );
+  await l1Oracle.setL1OracleValues(depositBlockNumber, stateRoot, 0);
 
   const tx = await l2Portal.finalizeDepositTransaction(
     depositMessage,
@@ -145,7 +144,6 @@ async function main() {
 
   const withdrawalProof = await getWithdrawalProof(
     l2Portal.address,
-    lastConfirmedBlockNumber,
     withdrawalEvent.args.withdrawalHash
   );
 
