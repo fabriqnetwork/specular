@@ -93,7 +93,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
-        seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
+        seqIn.appendTxBatch(contexts, txLengths, 1, 0, "0x");
     }
 
     function test_appendTxBatch_emptyBatch_reverts() public {
@@ -101,7 +101,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerAddress);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
-        seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
+        seqIn.appendTxBatch(contexts, txLengths, 1, 0, "0x");
     }
 
     //////////////////////////////
@@ -146,7 +146,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, 0, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
         assertGt(inboxSizeFinal, inboxSizeInitial);
@@ -187,7 +187,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, 0, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -239,7 +239,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
         vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, 0, txBatch);
     }
 
     function test_appendTxBatch_paused_reverts(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
@@ -316,7 +316,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, 0, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -342,7 +342,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
 
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, 0, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, 0, 0, 0, txBatch);
         assertEq(seqIn.getInboxSize(), numTx);
 
         // randomly choose a transaction to verify and prepare the proof
