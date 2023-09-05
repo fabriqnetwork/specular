@@ -202,11 +202,11 @@ contract L1Portal is
         // call to run out of gas via a returndata bomb.
         bool success = SafeCall.call(withdrawalTx.target, withdrawalTx.gasLimit, withdrawalTx.value, withdrawalTx.data);
 
+        require(success, "L2Portal: call to target contract reverted");
+
         // Reset the l2Sender back to the default value.
         l2Sender = DEFAULT_L2_SENDER;
 
-        // All withdrawals are immediately finalized. Replayability can
-        // be achieved through contracts built on top of this contract
         emit WithdrawalFinalized(withdrawalHash, success);
     }
 
