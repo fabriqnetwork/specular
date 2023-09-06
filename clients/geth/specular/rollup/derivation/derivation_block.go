@@ -43,7 +43,7 @@ func (b *DerivationBlock) Txs() [][]byte       { return b.txs }
 type DecodeTxBatchError struct{ msg string }
 
 func (e *DecodeTxBatchError) Error() string {
-	return fmt.Sprintf("Failed to create TxBatch from decoded tx data - %s", e.msg)
+	return fmt.Sprintf("failed to create TxBatch from decoded tx data - %s", e.msg)
 }
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call

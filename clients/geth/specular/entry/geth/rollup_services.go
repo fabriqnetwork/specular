@@ -33,7 +33,7 @@ func RegisterGethRollupServices(
 	log.Info("Parsing system config...")
 	cfg, err := services.ParseSystemConfig(cliCtx)
 	if err != nil {
-		return fmt.Errorf("Failed to parse system config: %w", err)
+		return fmt.Errorf("failed to parse system config: %w", err)
 	}
 	vmConfig := eth.BlockChain().GetVMConfig()
 	type hookCfg struct {
@@ -44,7 +44,7 @@ func RegisterGethRollupServices(
 
 	services, err := rollup.CreateRollupServices(stack.AccountManager(), eth, proofBackend, cfg)
 	if err != nil {
-		return fmt.Errorf("Failed to create rollup services: %w", err)
+		return fmt.Errorf("failed to create rollup services: %w", err)
 	}
 	eg, ctx := errgroup.WithContext(context.Background())
 	log.Info("Registering services...")

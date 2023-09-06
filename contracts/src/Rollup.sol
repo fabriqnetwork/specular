@@ -50,6 +50,19 @@ abstract contract RollupBase is
     IDAProvider public daProvider;
     IVerifier public verifier;
 
+    // Assertion state
+    uint256 public lastResolvedAssertionID;
+    uint256 public lastConfirmedAssertionID;
+    uint256 public lastCreatedAssertionID;
+    mapping(uint256 => Assertion) public assertions; // mapping from assertionID to assertion
+    mapping(uint256 => AssertionState) private assertionState; // mapping from assertionID to assertion state
+
+    // Staking state
+    uint256 public numStakers; // current total number of stakers
+    mapping(address => Staker) public stakers; // mapping from staker addresses to corresponding stakers
+    mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
+    Zombie[] public zombies; // stores stakers that lost a challenge
+
     struct AssertionState {
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
         mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
@@ -64,6 +77,113 @@ abstract contract RollupBase is
         __Ownable_init();
         __UUPSUpgradeable_init();
     }
+
+    /**
+     * @notice Requires that the first unresolved assertion is confirmable. Otherwise, reverts.
+     * This is exposed as a utility function to validators.
+     */
+    function requireFirstUnresolvedAssertionIsConfirmable() public view {
+        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
+            revert NoUnresolvedAssertion();
+        }
+
+        // (1) there is at least one staker present
+        if (numStakers <= 0) revert NoStaker();
+
+        uint256 firstUnresolvedID = lastResolvedAssertionID + 1;
+        Assertion storage firstUnresolved = assertions[firstUnresolvedID];
+        // (2) confirmation period has passed
+        if (block.number < firstUnresolved.deadline) {
+            revert ConfirmationPeriodPending();
+        }
+        // (3) predecessor has been confirmed
+        if (firstUnresolved.parent != lastConfirmedAssertionID) {
+            revert InvalidParent();
+        }
+
+        // (4) all stakers are staked on the block.
+        if (firstUnresolved.numStakers != countStakedZombies(firstUnresolvedID) + numStakers) {
+            revert NotAllStaked();
+        }
+    }
+
+    /**
+     * @notice Validates that the first unresolved assertion is rejectable. Otherwise, reverts.
+     * This is exposed as a utility function to validators.
+     */
+    function requireFirstUnresolvedAssertionIsRejectable(address stakerAddress) public view {
+        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
+            revert NoUnresolvedAssertion();
+        }
+
+        uint256 firstUnresolvedAssertionID = lastResolvedAssertionID + 1;
+        Assertion storage firstUnresolvedAssertion = assertions[firstUnresolvedAssertionID];
+
+        // First case - parent of first unresolved is last confirmed (`if` condition below). e.g.
+        // [1] <- [3]           | valid chain ([1] is last confirmed, [3] is stakerAddress's unresolved assertion)
+        //  ^---- [2]           | invalid chain ([2] is firstUnresolved)
+        // Second case (trivial) - parent of first unresolved is not last confirmed. i.e.:
+        //   parent is previous rejected, e.g.
+        //   [1] <- [4]           | valid chain ([1] is last confirmed, [4] is stakerAddress's unresolved assertion)
+        //   [2] <- [3]           | invalid chain ([3] is firstUnresolved)
+        //   OR
+        //   parent is previous confirmed, e.g.
+        //   [1] <- [2] <- [4]    | valid chain ([2] is last confirmed, [4] is stakerAddress's unresolved assertion)
+        //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
+        if (firstUnresolvedAssertion.parent == lastConfirmedAssertionID) {
+            // 1a. confirmation period has passed.
+            if (block.number < firstUnresolvedAssertion.deadline) {
+                revert ConfirmationPeriodPending();
+            }
+
+            // 1b. at least one staker exists (on a sibling)
+            // - stakerAddress is indeed a staker
+            if (!stakers[stakerAddress].isStaked) {
+                revert NotStaked();
+            }
+            // - staker's assertion can't be a ancestor of firstUnresolved (because staker's assertion is also unresolved)
+            if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
+                revert AssertionAlreadyResolved();
+            }
+            AssertionState storage firstUnresolvedAssertionState = assertionState[firstUnresolvedAssertionID];
+
+            // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
+            if (firstUnresolvedAssertionState.stakers[stakerAddress]) {
+                revert StakerStakedOnTarget();
+            }
+            // If a staker is staked on an assertion that is neither an ancestor nor a descendant of firstUnresolved, it must be a sibling, QED
+            // 1c. no staker is staked on this assertion
+            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID)) {
+                revert StakersPresent();
+            }
+        }
+    }
+
+    /**
+     * @param assertionID The ID of the assertion to get the state of.
+     */
+    function getAssertionState(uint256 assertionID) internal view returns (AssertionState storage) {
+        return assertionState[assertionID];
+    }
+
+    /**
+     * @notice Counts the number of zombies staked on an assertion.
+     * @dev O(n), where n is # of zombies (but is expected to be small).
+     * This function could be uncallable if there are too many zombies. However,
+     * removeOldZombies() can be used to remove any zombies that exist so that this
+     * will then be callable.
+     * @param assertionID The assertion on which to count staked zombies
+     * @return The number of zombies staked on the assertion
+     */
+    function countStakedZombies(uint256 assertionID) private view returns (uint256) {
+        uint256 numStakedZombies = 0;
+        for (uint256 i = 0; i < zombies.length; i++) {
+            if (assertionState[assertionID].stakers[zombies[i].stakerAddress]) {
+                numStakedZombies++;
+            }
+        }
+        return numStakedZombies;
+    }
 }
 
 contract Rollup is RollupBase {
@@ -73,19 +193,6 @@ contract Rollup is RollupBase {
         }
         _;
     }
-
-    // Assertion state
-    uint256 public lastResolvedAssertionID;
-    uint256 public lastConfirmedAssertionID;
-    uint256 public lastCreatedAssertionID;
-    mapping(uint256 => Assertion) public assertions; // mapping from assertionID to assertion
-    mapping(uint256 => AssertionState) private assertionState; // mapping from assertionID to assertion state
-
-    // Staking state
-    uint256 public numStakers; // current total number of stakers
-    mapping(address => Staker) public stakers; // mapping from staker addresses to corresponding stakers
-    mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
-    Zombie[] public zombies; // stores stakers that lost a challenge
 
     function initialize(
         address _vault,
@@ -161,7 +268,7 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function isStakedOnAssertion(uint256 assertionID, address stakerAddress) external view override returns (bool) {
-        return assertionState[assertionID].stakers[stakerAddress];
+        return getAssertionState(assertionID).stakers[stakerAddress];
     }
 
     /// @inheritdoc IRollup
@@ -291,11 +398,6 @@ contract Rollup is RollupBase {
         if (inboxSize <= parent.inboxSize) {
             revert EmptyAssertion();
         }
-        // TODO: Enforce stricter bounds on assertion size.
-        // Require that the assertion doesn't read past the end of the current inbox.
-        if (inboxSize > daProvider.getInboxSize()) {
-            revert InboxReadLimitExceeded();
-        }
 
         // Initialize assertion.
         lastCreatedAssertionID++;
@@ -363,32 +465,7 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function confirmFirstUnresolvedAssertion() external override {
-        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
-            revert NoUnresolvedAssertion();
-        }
-
-        // (1) there is at least one staker present
-        if (numStakers <= 0) revert NoStaker();
-
-        uint256 lastUnresolvedID = lastResolvedAssertionID + 1;
-        Assertion storage lastUnresolved = assertions[lastUnresolvedID];
-        // (2) confirmation period has passed
-        if (block.number < lastUnresolved.deadline) {
-            revert ConfirmationPeriodPending();
-        }
-        // (3) predecessor has been confirmed
-        if (lastUnresolved.parent != lastConfirmedAssertionID) {
-            revert InvalidParent();
-        }
-
-        // Remove old zombies
-        // removeOldZombies();
-
-        // (4) all stakers are staked on the block.
-        if (lastUnresolved.numStakers != countStakedZombies(lastUnresolvedID) + numStakers) {
-            revert NotAllStaked();
-        }
-
+        requireFirstUnresolvedAssertionIsConfirmable();
         // Confirm assertion.
         // delete assertions[lastConfirmedAssertionID];
         lastResolvedAssertionID++;
@@ -398,51 +475,7 @@ contract Rollup is RollupBase {
 
     /// @inheritdoc IRollup
     function rejectFirstUnresolvedAssertion(address stakerAddress) external override {
-        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
-            revert NoUnresolvedAssertion();
-        }
-
-        uint256 firstUnresolvedAssertionID = lastResolvedAssertionID + 1;
-        Assertion storage firstUnresolvedAssertion = assertions[firstUnresolvedAssertionID];
-
-        // First case - parent of first unresolved is last confirmed (`if` condition below). e.g.
-        // [1] <- [3]           | valid chain ([1] is last confirmed, [3] is stakerAddress's unresolved assertion)
-        //  ^---- [2]           | invalid chain ([2] is firstUnresolved)
-        // Second case (trivial) - parent of first unresolved is not last confirmed. i.e.:
-        //   parent is previous rejected, e.g.
-        //   [1] <- [4]           | valid chain ([1] is last confirmed, [4] is stakerAddress's unresolved assertion)
-        //   [2] <- [3]           | invalid chain ([3] is firstUnresolved)
-        //   OR
-        //   parent is previous confirmed, e.g.
-        //   [1] <- [2] <- [4]    | valid chain ([2] is last confirmed, [4] is stakerAddress's unresolved assertion)
-        //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
-        if (firstUnresolvedAssertion.parent == lastConfirmedAssertionID) {
-            // 1a. confirmation period has passed.
-            if (block.number < firstUnresolvedAssertion.deadline) {
-                revert ConfirmationPeriodPending();
-            }
-
-            // 1b. at least one staker exists (on a sibling)
-            // - stakerAddress is indeed a staker
-            requireStaked(stakerAddress);
-            // - staker's assertion can't be a ancestor of firstUnresolved (because staker's assertion is also unresolved)
-            if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
-                revert AssertionAlreadyResolved();
-            }
-            AssertionState storage firstUnresolvedAssertionState = assertionState[firstUnresolvedAssertionID];
-            // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
-            if (firstUnresolvedAssertionState.stakers[stakerAddress]) {
-                revert StakerStakedOnTarget();
-            }
-            // If a staker is staked on an assertion that is neither an ancestor nor a descendant of firstUnresolved, it must be a sibling, QED
-
-            // 1c. no staker is staked on this assertion
-            // removeOldZombies();
-            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID)) {
-                revert StakersPresent();
-            }
-        }
-
+        requireFirstUnresolvedAssertionIsRejectable(stakerAddress);
         // Reject assertion.
         lastResolvedAssertionID++;
         emit AssertionRejected(lastResolvedAssertionID);
@@ -490,7 +523,7 @@ contract Rollup is RollupBase {
     function stakeOnAssertion(address stakerAddress, uint256 assertionID) private {
         stakers[stakerAddress].assertionID = assertionID;
         assertions[assertionID].numStakers++;
-        assertionState[assertionID].stakers[stakerAddress] = true;
+        getAssertionState(assertionID).stakers[stakerAddress] = true;
         emit StakerStaked(stakerAddress, assertionID);
     }
 
@@ -505,7 +538,7 @@ contract Rollup is RollupBase {
         uint256 deadline
     ) private {
         Assertion storage parentAssertion = assertions[parentID];
-        AssertionState storage parentAssertionState = assertionState[parentID];
+        AssertionState storage parentAssertionState = getAssertionState(parentID);
         // Child assertions must have same inbox size
         uint256 parentChildInboxSize = parentAssertion.childInboxSize;
         if (parentChildInboxSize == 0) {
@@ -560,35 +593,12 @@ contract Rollup is RollupBase {
         return block.number + confirmationPeriod;
     }
 
-    // *****************
-    // zombie processing
-    // *****************
-
     /**
      * @notice Removes any zombies whose latest stake is earlier than the first unresolved assertion.
      * @dev Uses pop() instead of delete to prevent gaps, although order is not preserved
      */
     // function removeOldZombies() private {
     // }
-
-    /**
-     * @notice Counts the number of zombies staked on an assertion.
-     * @dev O(n), where n is # of zombies (but is expected to be small).
-     * This function could be uncallable if there are too many zombies. However,
-     * removeOldZombies() can be used to remove any zombies that exist so that this
-     * will then be callable.
-     * @param assertionID The assertion on which to count staked zombies
-     * @return The number of zombies staked on the assertion
-     */
-    function countStakedZombies(uint256 assertionID) private view returns (uint256) {
-        uint256 numStakedZombies = 0;
-        for (uint256 i = 0; i < zombies.length; i++) {
-            if (assertionState[assertionID].stakers[zombies[i].stakerAddress]) {
-                numStakedZombies++;
-            }
-        }
-        return numStakedZombies;
-    }
 
     // ************
     // requirements

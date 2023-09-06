@@ -31,29 +31,21 @@ func New(eth api.ExecutionBackend, proofBackend proof.Backend, l1Client client.L
 	return &Sequencer{BaseService: base}, nil
 }
 
-// Get tx index in batch
-func getTxIndexInBatch(slice []*types.Transaction, elem *types.Transaction) int {
-	for i := len(slice) - 1; i >= 0; i-- {
-		if slice[i].Hash() == elem.Hash() {
-			return i
-		}
-	}
-	return -1
-}
-
 // Appends tx to batch if not already exists in batch or on chain
 func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Transaction, tx *types.Transaction) ([]*types.Transaction, error) {
 	// Check if tx in batch
-	txIndex := getTxIndexInBatch(batchTxs, tx)
-	if txIndex < 0 {
-		// Check if tx exists on chain
-		prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash())
-		if err != nil {
-			return nil, fmt.Errorf("Checking GetTransaction, err: %w", err)
+	for i := len(batchTxs) - 1; i >= 0; i-- {
+		if batchTxs[i].Hash() == tx.Hash() {
+			return batchTxs, nil
 		}
-		if prevTx == nil {
-			batchTxs = append(batchTxs, tx)
-		}
+	}
+	// Check if tx exists on chain
+	prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash())
+	if err != nil {
+		return nil, fmt.Errorf("Checking GetTransaction, err: %w", err)
+	}
+	if prevTx == nil {
+		batchTxs = append(batchTxs, tx)
 	}
 	return batchTxs, nil
 }
@@ -174,9 +166,6 @@ func (s *Sequencer) Start(ctx context.Context, eg api.ErrGroup) error {
 	log.Info("Starting sequencer...")
 	err := s.BaseService.Start(ctx, eg)
 	if err != nil {
-		return fmt.Errorf("Failed to start sequencer: %w", err)
-	}
-	if err := s.Stake(ctx); err != nil {
 		return fmt.Errorf("Failed to start sequencer: %w", err)
 	}
 	_, err = s.SyncL2ChainToL1Head(ctx, s.Config.GetRollupGenesisBlock())

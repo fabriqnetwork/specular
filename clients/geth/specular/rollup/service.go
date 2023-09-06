@@ -25,12 +25,20 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/disseminator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 // TODO: this is the last Geth-specific interface here; remove.
 type accountManager interface {
 	Backends(reflect.Type) []accounts.Backend
+}
+
+type serviceCfg interface {
+	GetAccountAddr() common.Address
+	GetClefEndpoint() string
+	GetPassphrase() string
+	GetTxMgrCfg() txmgr.Config
 }
 
 // Creates services configured by cfg:
@@ -49,12 +57,19 @@ func CreateRollupServices(
 		return nil, err
 	}
 	services = append(services, legacyService)
-	if (cfg.Sequencer().GetAccountAddr() != common.Address{}) {
+	if cfg.Sequencer().GetAccountAddr() != (common.Address{}) {
 		disseminator, err := createDisseminator(context.Background(), cfg, accMgr)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to initialize sequencer: %w", err)
+			return nil, fmt.Errorf("failed to initialize sequencer: %w", err)
 		}
 		services = append(services, disseminator)
+	}
+	if cfg.Validator().GetAccountAddr() != (common.Address{}) {
+		validator, err := createValidator(context.Background(), cfg, accMgr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize validator: %w", err)
+		}
+		services = append(services, validator)
 	}
 	return services, nil
 }
@@ -66,30 +81,27 @@ func createLegacyService(
 	proofBackend proof.Backend,
 	cfg *services.SystemConfig,
 ) (api.Service, error) {
-	transactor, err := createTransactor(
-		accMgr, cfg.GetSequencerInboxAddr(), cfg.GetClefEndpoint(), cfg.GetPassphrase(), cfg.L1().GetChainID(),
-	)
-	if err != nil {
-		return nil, err
-	}
 	l1Client, err := client.NewEthBridgeClient(
 		context.Background(),
 		cfg.L1().Endpoint,
-		cfg.L1().RollupGenesisBlock,
 		cfg.SequencerInboxAddr,
-		cfg.RollupAddr,
-		transactor,
 		eth.DefaultRetryOpts,
 	)
 	if err != nil {
 		return nil, err
 	}
 	// Register service
-	var service api.Service
+	var (
+		service    api.Service
+		serviceCfg = struct {
+			services.SequencerConfig
+			services.L1Config
+		}{cfg.Sequencer(), cfg.L1()}
+	)
 	if cfg.Sequencer().GetAccountAddr() != (common.Address{}) {
-		service, err = sequencer.New(execBackend, proofBackend, l1Client, cfg)
+		service, err = sequencer.New(execBackend, proofBackend, l1Client, serviceCfg)
 	} else {
-		service, err = indexer.New(execBackend, proofBackend, l1Client, cfg)
+		service, err = indexer.New(execBackend, proofBackend, l1Client, serviceCfg)
 	}
 	return service, err
 }
@@ -99,12 +111,7 @@ func createDisseminator(
 	cfg *services.SystemConfig,
 	accountMgr accountManager,
 ) (*disseminator.BatchDisseminator, error) {
-	var (
-		seqCfg       = cfg.Sequencer()
-		l1TxMgr, err = createTxManager(
-			ctx, cfg, accountMgr, seqCfg.GetAccountAddr(), seqCfg.GetClefEndpoint(), seqCfg.GetPassphrase(),
-		)
-	)
+	l1TxMgr, err := createTxManager(ctx, cfg.L1(), cfg.Sequencer(), accountMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -116,27 +123,50 @@ func createDisseminator(
 	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
 }
 
-func createTxManager(
+func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 	accountMgr accountManager,
-	accountAddr common.Address,
-	clefEndpoint string,
-	passphrase string,
+) (*validator.Validator, error) {
+	l1TxMgr, err := createTxManager(ctx, cfg.L1(), cfg.Validator(), accountMgr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
+	}
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
+	}
+	l1BridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.L1())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
+	}
+	l1State := eth.NewEthState()
+	l1Syncer := eth.NewEthSyncer(l1State)
+	l1Syncer.Start(ctx, l1Client)
+	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
+	return validator.NewValidator(cfg.Validator(), l1TxMgr, l1BridgeClient, l1State, l2Client), nil
+}
+
+func createTxManager(
+	ctx context.Context,
+	l1Cfg services.L1Config,
+	serCfg serviceCfg,
+	accountMgr accountManager,
 ) (*bridge.TxManager, error) {
-	transactor, err := createTransactor(accountMgr, accountAddr, clefEndpoint, passphrase, cfg.L1().GetChainID())
+	transactor, err := createTransactor(
+		accountMgr, serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetPassphrase(), l1Cfg.GetChainID(),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
 	}
-	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint())
+	l1Client, err := eth.DialWithRetry(ctx, l1Cfg.GetEndpoint())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
 	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
-	// TODO: config
-	return bridge.NewTxManager(txmgr.NewTxManager(cfg.Sequencer().GetTxMgrCfg(), l1Client, signer), cfg.L1())
+	return bridge.NewTxManager(txmgr.NewTxManager(serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
 }
 
 // Creates a transactor for the given account address, either using the clef endpoint or passphrase.

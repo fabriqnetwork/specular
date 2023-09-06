@@ -14,11 +14,13 @@ type SystemConfig struct {
 	L1Config        `toml:"l1,omitempty"`
 	L2Config        `toml:"l2,omitempty"`
 	SequencerConfig `toml:"sequencer,omitempty"`
+	ValidatorConfig `toml:"validator,omitempty"`
 }
 
 func (c *SystemConfig) L1() L1Config               { return c.L1Config }
 func (c *SystemConfig) L2() L2Config               { return c.L2Config }
 func (c *SystemConfig) Sequencer() SequencerConfig { return c.SequencerConfig }
+func (c *SystemConfig) Validator() ValidatorConfig { return c.ValidatorConfig }
 
 // Parses all CLI flags and returns a full system config.
 func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
@@ -35,17 +37,33 @@ func parseFlags(cliCtx *cli.Context) *SystemConfig {
 	)
 	if cliCtx.String(sequencerAddrFlag.Name) != "" {
 		sequencerAddr = common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name))
+		if len(pwList) == 0 {
+			utils.Fatalf("must provide passphrase for sequencer account")
+		}
 		sequencerPassphrase = pwList[0]
+		pwList = pwList[1:]
 	}
-
+	var (
+		validatorAddr       common.Address
+		validatorPassphrase string
+	)
+	if cliCtx.String(validatorAddrFlag.Name) != "" {
+		validatorAddr = common.HexToAddress(cliCtx.String(validatorAddrFlag.Name))
+		if len(pwList) == 0 {
+			utils.Fatalf("must provide passphrase for validator account")
+		}
+		validatorPassphrase = pwList[0]
+	}
 	var (
 		l1ChainID         = big.NewInt(0).SetUint64(cliCtx.Uint64(l1ChainIDFlag.Name))
 		sequencerTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, sequencerTxMgrNamespace, l1ChainID, sequencerAddr)
+		validatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
 	)
 	return &SystemConfig{
 		L1Config:        newL1ConfigFromCLI(cliCtx),
 		L2Config:        newL2ConfigFromCLI(cliCtx),
 		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerPassphrase, sequencerTxMgrCfg),
+		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorPassphrase, validatorTxMgrCfg),
 	}
 }
 
@@ -56,7 +74,6 @@ type L1Config struct {
 	RollupGenesisBlock uint64         `toml:"rollup_genesis,omitempty"`       // L1 Rollup genesis block
 	SequencerInboxAddr common.Address `toml:"sequencer_inbox_addr,omitempty"` // L1 SequencerInbox contract address
 	RollupAddr         common.Address `toml:"rollup_addr,omitempty"`          // L1 Rollup contract address
-	StakeAmount        uint64         `toml:"stake_amount,omitempty"`         // Amount of stake
 }
 
 func newL1ConfigFromCLI(cliCtx *cli.Context) L1Config {
@@ -66,7 +83,6 @@ func newL1ConfigFromCLI(cliCtx *cli.Context) L1Config {
 		RollupGenesisBlock: cliCtx.Uint64(l1RollupGenesisBlockFlag.Name),
 		SequencerInboxAddr: common.HexToAddress(cliCtx.String(l1SequencerInboxAddrFlag.Name)),
 		RollupAddr:         common.HexToAddress(cliCtx.String(l1RollupAddrFlag.Name)),
-		StakeAmount:        cliCtx.Uint64(l1RollupStakeAmountFlag.Name),
 	}
 }
 
@@ -75,7 +91,6 @@ func (c L1Config) GetChainID() uint64                    { return c.ChainID }
 func (c L1Config) GetRollupGenesisBlock() uint64         { return c.RollupGenesisBlock }
 func (c L1Config) GetSequencerInboxAddr() common.Address { return c.SequencerInboxAddr }
 func (c L1Config) GetRollupAddr() common.Address         { return c.RollupAddr }
-func (c L1Config) GetRollupStakeAmount() uint64          { return c.StakeAmount }
 
 // L2 configuration
 type L2Config struct {
@@ -112,7 +127,7 @@ type SequencerConfig struct {
 	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
 	// The passphrase of the sequencer account
 	Passphrase string `toml:"passphrase,omitempty"`
-	// Time between batch dissemination (DA) attempts
+	// Time between batch dissemination (DA) steps
 	DisseminationInterval time.Duration `toml:"dissemination_interval,omitempty"`
 	// Transaction manager configuration
 	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
@@ -135,5 +150,37 @@ func newSequencerConfigFromCLI(
 		Passphrase:            passphrase,
 		DisseminationInterval: time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:              txMgrCfg,
+	}
+}
+
+type ValidatorConfig struct {
+	AccountAddr common.Address `toml:"account_addr,omitempty"`
+	// The Clef Endpoint used for signing txs
+	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
+	// The passphrase of the validator account
+	Passphrase string `toml:"passphrase,omitempty"`
+	// Time between validation steps
+	ValidationInterval time.Duration `toml:"validation_interval,omitempty"`
+	// Transaction manager configuration
+	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
+}
+
+func (c ValidatorConfig) GetAccountAddr() common.Address       { return c.AccountAddr }
+func (c ValidatorConfig) GetClefEndpoint() string              { return c.ClefEndpoint }
+func (c ValidatorConfig) GetPassphrase() string                { return c.Passphrase }
+func (c ValidatorConfig) GetValidationInterval() time.Duration { return c.ValidationInterval }
+func (c ValidatorConfig) GetTxMgrCfg() txmgr.Config            { return c.TxMgrCfg }
+
+func newValidatorConfigFromCLI(
+	cliCtx *cli.Context,
+	passphrase string,
+	txMgrCfg txmgr.Config,
+) ValidatorConfig {
+	return ValidatorConfig{
+		AccountAddr:        common.HexToAddress(cliCtx.String(validatorAddrFlag.Name)),
+		ClefEndpoint:       cliCtx.String(validatorClefEndpointFlag.Name),
+		Passphrase:         passphrase,
+		ValidationInterval: time.Duration(cliCtx.Uint(validatorValidationIntervalFlag.Name)) * time.Second,
+		TxMgrCfg:           txMgrCfg,
 	}
 }

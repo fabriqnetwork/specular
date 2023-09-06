@@ -16,15 +16,12 @@ args=(
     --networkid $NETWORK_ID
     --port 30305
     --authrpc.port 8562
-    --rollup.node 'indexer'
-    --rollup.coinbase $SEQUENCER_ADDR
     --rollup.l1endpoint $L1_ENDPOINT
     --rollup.l1chainid $L1_CHAIN_ID
-    --rollup.sequencer-addr $SEQUENCER_ADDR
-    --rollup.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
-    --rollup.rollup-addr $ROLLUP_ADDR
-    --rollup.rollup-stake-amount $ROLLUP_STAKE_AMOUNT
-    --rollup.l1-rollup-genesis-block 0
+    --rollup.l1.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
+    --rollup.l1.rollup-addr $ROLLUP_ADDR
+    --rollup.l1.rollup-genesis-block $GENESIS_L1_BLOCK_NUM
+    --rollup.l2.chainid $NETWORK_ID
 )
 
 if $USE_CLEF == 'true'; then

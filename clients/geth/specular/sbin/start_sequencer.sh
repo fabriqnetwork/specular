@@ -17,9 +17,9 @@ args=(
     --rollup.l1.sequencer-inbox-addr $SEQUENCER_INBOX_ADDR
     --rollup.l1.rollup-addr $ROLLUP_ADDR
     --rollup.l1.rollup-genesis-block $GENESIS_L1_BLOCK_NUM
-    --rollup.l1.stake-amount $ROLLUP_STAKE_AMOUNT
     --rollup.l2.chainid $NETWORK_ID
     --rollup.sequencer.addr $SEQUENCER_ADDR
+    --rollup.validator.addr $VALIDATOR_ADDR
 )
 
 if [[ $USE_CLEF == 'true' ]]; then

@@ -12,6 +12,8 @@ func CLIFlags() []cli.Flag {
 	flags = append(flags, l2Flags...)
 	flags = append(flags, sequencerCLIFlags...)
 	flags = append(flags, txmgr.CLIFlags(sequencerTxMgrNamespace)...)
+	flags = append(flags, validatorCLIFlags...)
+	flags = append(flags, txmgr.CLIFlags(validatorTxMgrNamespace)...)
 	return flags
 }
 
@@ -19,6 +21,7 @@ const (
 	CmdlineFlagName = "rollup.l1.endpoint"
 	// txmgr flag namespaces
 	sequencerTxMgrNamespace = "rollup.sequencer.txmgr"
+	validatorTxMgrNamespace = "rollup.validator.txmgr"
 )
 
 // These are all the command line flags we support.
@@ -46,11 +49,6 @@ var (
 	l1RollupAddrFlag = &cli.StringFlag{
 		Name:  "rollup.l1.rollup-addr",
 		Usage: "The contract address of L1 rollup",
-	}
-	l1RollupStakeAmountFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1.stake-amount",
-		Usage: "Required staking amount",
-		Value: 1000000000000000000,
 	}
 	// L2 config flags
 	l2EndpointFlag = &cli.StringFlag{
@@ -96,6 +94,20 @@ var (
 		Usage: "Time between batch sequencing steps (seconds)",
 		Value: 8,
 	}
+	// Validator config flags
+	validatorAddrFlag = &cli.StringFlag{
+		Name:  "rollup.validator.addr",
+		Usage: "The validator address to be unlocked (pass passphrash via --password)",
+	}
+	validatorClefEndpointFlag = &cli.StringFlag{
+		Name:  "rollup.validator.clef-endpoint",
+		Usage: "The endpoint of the Clef instance that should be used as a validator signer",
+	}
+	validatorValidationIntervalFlag = &cli.UintFlag{
+		Name:  "rollup.validator.validation-interval",
+		Usage: "Time between batch validation steps (seconds)",
+		Value: 10,
+	}
 )
 
 var (
@@ -105,7 +117,6 @@ var (
 		l1RollupGenesisBlockFlag,
 		l1SequencerInboxAddrFlag,
 		l1RollupAddrFlag,
-		l1RollupStakeAmountFlag,
 	}
 	l2Flags = []cli.Flag{
 		l2EndpointFlag,
@@ -119,5 +130,10 @@ var (
 		sequencerAddrFlag,
 		sequencerClefEndpointFlag,
 		sequencerSequencingIntervalFlag,
+	}
+	validatorCLIFlags = []cli.Flag{
+		validatorAddrFlag,
+		validatorClefEndpointFlag,
+		validatorValidationIntervalFlag,
 	}
 )

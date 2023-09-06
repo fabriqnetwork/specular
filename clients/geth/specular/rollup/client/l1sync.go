@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/utils"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
@@ -27,7 +28,7 @@ func NewL1Syncer(ctx context.Context, l1Client L1BridgeClient) *L1Syncer {
 		FinalizedHeaderBroker: utils.NewBroker[*types.Header](),
 	}
 	syncer.wg.Add(2)
-	latestSub := l1Client.SubscribeNewHeadByPolling(ctx, syncer.LatestHeaderBroker.PubCh, Latest, 10*time.Second, 10*time.Second)
+	latestSub := eth.SubscribeNewHeadByPolling(ctx, l1Client, syncer.LatestHeaderBroker.PubCh, eth.Latest, 10*time.Second, 10*time.Second)
 	go func() {
 		defer syncer.wg.Done()
 		err := syncer.LatestHeaderBroker.Start(ctx, latestSub)
@@ -35,7 +36,7 @@ func NewL1Syncer(ctx context.Context, l1Client L1BridgeClient) *L1Syncer {
 			log.Error("Failed running latest head broker", "err", err)
 		}
 	}()
-	finalizedSub := l1Client.SubscribeNewHeadByPolling(ctx, syncer.FinalizedHeaderBroker.PubCh, Finalized, 10*time.Second, 10*time.Second)
+	finalizedSub := eth.SubscribeNewHeadByPolling(ctx, l1Client, syncer.FinalizedHeaderBroker.PubCh, eth.Finalized, 10*time.Second, 10*time.Second)
 	go func() {
 		defer syncer.wg.Done()
 		err := syncer.FinalizedHeaderBroker.Start(ctx, finalizedSub)

@@ -6,18 +6,36 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
 )
 
-type Config interface{ GetAssertInterval() time.Duration }
+type Config interface {
+	GetAccountAddr() common.Address
+	GetValidationInterval() time.Duration
+}
 
 type TxManager interface {
-	Stake(ctx context.Context, stakeAmount *big.Int) (*types.Receipt, error)
-	AdvanceStake(ctx context.Context, assertionID *big.Int) (*types.Receipt, error)
-	CreateAssertion(ctx context.Context, vmHash common.Hash, inboxSize *big.Int) (*types.Receipt, error)
-	ConfirmFirstUnresolvedAssertion(ctx context.Context) (*types.Receipt, error)
+	Stake(ctx context.Context, stakeAmount *big.Int) (*ethTypes.Receipt, error)
+	AdvanceStake(ctx context.Context, assertionID *big.Int) (*ethTypes.Receipt, error)
+	CreateAssertion(ctx context.Context, vmHash common.Hash, inboxSize *big.Int) (*ethTypes.Receipt, error)
+	ConfirmFirstUnresolvedAssertion(ctx context.Context) (*ethTypes.Receipt, error)
+}
+
+type BridgeClient interface {
+	GetRequiredStakeAmount(ctx context.Context) (*big.Int, error)
+	GetStaker(ctx context.Context, addr common.Address) (bindings.IRollupStaker, error)
+	GetAssertion(ctx context.Context, assertionID *big.Int) (bindings.IRollupAssertion, error)
+	GetLastConfirmedAssertionID(ctx context.Context) (*big.Int, error)
+	RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) error
+}
+
+type EthState interface {
+	Head() types.BlockID
+	Safe() types.BlockID
+	Finalized() types.BlockID
 }
 
 type L2Client interface {
