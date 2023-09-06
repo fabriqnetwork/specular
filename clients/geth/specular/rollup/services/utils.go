@@ -36,6 +36,18 @@ type challengeClient interface {
 	) (*types.Transaction, error)
 }
 
+type challengeClient interface {
+	VerifyOneStepProof(
+		proof []byte,
+		txInclusionProof []byte,
+		verificationRawCtx bindings.VerificationContextLibRawContext,
+		challengedStepIndex *big.Int,
+		prevBisection [][32]byte,
+		prevChallengedSegmentStart *big.Int,
+		prevChallengedSegmentLength *big.Int,
+	) (*types.Transaction, error)
+}
+
 func SubmitOneStepProof(
 	ctx context.Context,
 	proofBackend proof.Backend,
