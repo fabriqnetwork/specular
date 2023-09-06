@@ -1,5 +1,10 @@
 import { ethers } from "hardhat";
-import { getSignersAndContracts, getStorageKey } from "./utils";
+import {
+  getSignersAndContracts,
+  getStorageKey,
+  getDepositProof,
+  delay,
+} from "./utils";
 
 async function main() {
   const {
@@ -30,21 +35,28 @@ async function main() {
     data: initEvent.args.data,
   };
 
-  const blockNumber = await l1Provider.getBlockNumber();
-  const rawBlock = await l1Provider.send("eth_getBlockByNumber", [
+  let blockNumber = await l1Provider.getBlockNumber();
+  let rawBlock = await l1Provider.send("eth_getBlockByNumber", [
     ethers.utils.hexValue(blockNumber),
     false, // We only want the block header
   ]);
-  const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
+  let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
+  console.log({ blockNumber, stateRoot });
+
+  const { accountProof, storageProof } = await getDepositProof(
+    l1Portal.address,
+    initEvent.args.depositHash
+  );
   await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
-  const proof = await l1Provider.send("eth_getProof", [
-    l1Portal.address,
-    [getStorageKey(initEvent.args.depositHash)],
-    "latest",
+  blockNumber = await l1Provider.getBlockNumber();
+  rawBlock = await l1Provider.send("eth_getBlockByNumber", [
+    ethers.utils.hexValue(blockNumber),
+    false, // We only want the block header
   ]);
-  const accountProof = proof.accountProof;
-  const storageProof = proof.storageProof[0].proof;
+  stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
+  console.log({ blockNumber, stateRoot });
+  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(
     crossDomainMessage,
