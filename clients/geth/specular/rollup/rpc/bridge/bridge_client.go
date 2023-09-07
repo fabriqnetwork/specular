@@ -13,7 +13,7 @@ import (
 
 type BridgeClient struct {
 	*bindings.ISequencerInbox
-	*bindings.RollupBase
+	*bindings.IRollup
 }
 
 type L1Config interface {
@@ -27,11 +27,11 @@ func NewBridgeClient(backend bind.ContractBackend, cfg L1Config) (*BridgeClient,
 	if err != nil {
 		return nil, err
 	}
-	rollup, err := bindings.NewRollupBase(cfg.GetRollupAddr(), backend)
+	rollup, err := bindings.NewIRollup(cfg.GetRollupAddr(), backend)
 	if err != nil {
 		return nil, err
 	}
-	return &BridgeClient{ISequencerInbox: inbox, RollupBase: rollup}, nil
+	return &BridgeClient{ISequencerInbox: inbox, IRollup: rollup}, nil
 }
 
 func DialWithRetry(ctx context.Context, cfg L1Config) (*BridgeClient, error) {
@@ -43,23 +43,23 @@ func DialWithRetry(ctx context.Context, cfg L1Config) (*BridgeClient, error) {
 }
 
 func (c *BridgeClient) RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) error {
-	return c.RollupBase.RequireFirstUnresolvedAssertionIsConfirmable(&bind.CallOpts{Pending: false, Context: ctx})
+	return c.IRollup.RequireFirstUnresolvedAssertionIsConfirmable(&bind.CallOpts{Pending: false, Context: ctx})
 }
 
 func (c *BridgeClient) GetStaker(ctx context.Context, addr common.Address) (bindings.IRollupStaker, error) {
-	return c.RollupBase.GetStaker(&bind.CallOpts{Pending: false, Context: ctx}, addr)
+	return c.IRollup.GetStaker(&bind.CallOpts{Pending: false, Context: ctx}, addr)
 }
 
 func (c *BridgeClient) GetAssertion(ctx context.Context, assertionID *big.Int) (bindings.IRollupAssertion, error) {
-	return c.RollupBase.GetAssertion(&bind.CallOpts{Pending: false, Context: ctx}, assertionID)
+	return c.IRollup.GetAssertion(&bind.CallOpts{Pending: false, Context: ctx}, assertionID)
 }
 
 func (c *BridgeClient) GetLastConfirmedAssertionID(ctx context.Context) (*big.Int, error) {
-	return c.RollupBase.GetLastConfirmedAssertionID(&bind.CallOpts{Pending: false, Context: ctx})
+	return c.IRollup.GetLastConfirmedAssertionID(&bind.CallOpts{Pending: false, Context: ctx})
 }
 
 func (c *BridgeClient) GetRequiredStakeAmount(ctx context.Context) (*big.Int, error) {
-	return c.RollupBase.CurrentRequiredStake(&bind.CallOpts{Pending: false, Context: ctx})
+	return c.IRollup.CurrentRequiredStake(&bind.CallOpts{Pending: false, Context: ctx})
 }
 
 // Returns the last assertion ID that was validated *by us*.
