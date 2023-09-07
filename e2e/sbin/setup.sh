@@ -18,6 +18,7 @@ cp $DATA_DIR/password.txt $PROJECT_DATA_DIR/password.txt
 
 # Build and add genesis.json
 cd $CONTRACTS_DIR
+npm install ganache --global
 npx hardhat compile
 cd $CONFIG_DIR
 npx ts-node src/create_genesis.ts --in data/base_genesis.json --out $GETH_SPECULAR_DIR/data/genesis.json

@@ -18,10 +18,12 @@ jobs:
           concurrent_skipping: same_content_newer
 
   test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        test-name: ['general', 'deposit', 'withdraw', 'erc20']
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
-
-    runs-on: ubuntu-latest
 
     steps:
 
@@ -34,7 +36,7 @@ jobs:
         uses: ./.github/actions/node
 
       - name: Cache Foundry toolchain
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.foundry
           key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}
@@ -50,4 +52,4 @@ jobs:
         run: ./e2e/sbin/setup.sh
 
       - name: Run Test
-        run: ./e2e/sbin/test.sh
+        run: ./e2e/sbin/test.sh ${{ matrix.test-name }}

@@ -4,8 +4,9 @@ pragma solidity ^0.8.4;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
-contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     /**
      * @notice Emitted when the L1 stateRoot is updated.
      */
@@ -43,10 +44,19 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
     function initialize(address _sequencer) public initializer {
         sequencer = _sequencer;
         __Ownable_init();
+        __Pausable_init();
         __UUPSUpgradeable_init();
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /**
      * @notice Updates the L1 block values.
@@ -55,7 +65,11 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable {
      * @param _stateRoot L1 stateRoot.
      * @param _baseFee L1 baseFee.
      */
-    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee) external onlySequencer {
+    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee)
+        external
+        onlySequencer
+        whenNotPaused
+    {
         blockNumber = _blockNumber;
         stateRoot = _stateRoot;
         baseFee = _baseFee;

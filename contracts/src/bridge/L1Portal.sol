@@ -4,6 +4,7 @@ pragma solidity ^0.8.4;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
+import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
 import {SafeCall} from "../libraries/SafeCall.sol";
 import {Types} from "../libraries/Types.sol";
@@ -31,7 +32,14 @@ abstract contract L1PortalDeterministicStorage {
  *         and L2. Messages sent directly to the L1Portal have no form of replayability.
  *         Users are encouraged to use the L1CrossDomainMessenger for a higher-level interface.
  */
-contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUPSUpgradeable, OwnableUpgradeable {
+contract L1Portal is
+    L1PortalDeterministicStorage,
+    IL1Portal,
+    Initializable,
+    UUPSUpgradeable,
+    OwnableUpgradeable,
+    PausableUpgradeable
+{
     /**
      * @notice Value used to reset the l2Sender, this is more efficient than setting it to zero.
      */
@@ -91,6 +99,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
         l2Sender = DEFAULT_L2_SENDER;
 
         __Ownable_init();
+        __Pausable_init();
         __UUPSUpgradeable_init();
     }
 
@@ -98,7 +107,15 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
         l2PortalAddress = _l2PortalAddress;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner {}
+    function pause() public onlyOwner {
+        _pause();
+    }
+
+    function unpause() public onlyOwner {
+        _unpause();
+    }
+
+    function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /**
      * @notice Accepts value so that users can send ETH directly to this contract and have the
@@ -106,7 +123,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
      *         function for EOAs. Contracts should call the initiateDeposit() function directly
      *         otherwise any deposited funds will be lost due to address aliasing.
      */
-    receive() external payable {
+    receive() external payable whenNotPaused {
         initiateDeposit(msg.sender, RECEIVE_DEFAULT_GAS_LIMIT, bytes(""));
     }
 
@@ -124,7 +141,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
         // bytes calldata encodedBlockHeader,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
-    ) external override L2Deployed onlyProxy {
+    ) external override L2Deployed onlyProxy whenNotPaused {
         // Prevent nested withdrawals within withdrawals.
         require(l2Sender == DEFAULT_L2_SENDER, "L1Portal: can only trigger one withdrawal per transaction");
 
@@ -206,6 +223,7 @@ contract L1Portal is L1PortalDeterministicStorage, IL1Portal, Initializable, UUP
         override
         L2Deployed
         onlyProxy
+        whenNotPaused
     {
         // Transform the from-address to its alias if the caller is a contract.
         address from = msg.sender;
