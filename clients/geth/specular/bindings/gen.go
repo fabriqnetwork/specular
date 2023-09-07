@@ -15,5 +15,5 @@
 package bindings
 
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --abi ../../../../contracts/abi/src/challenge/IChallenge.sol/ISymChallenge.json --type ISymChallenge --pkg bindings --out ISymChallenge.go
-//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --abi ../../../../contracts/abi/src/Rollup.sol/Rollup.json --pkg bindings --type RollupBase --out RollupBase.go
+//go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --abi ../../../../contracts/abi/src/IRollup.sol/IRollup.json --pkg bindings --type IRollup --out IRollup.go
 //go:generate go run github.com/ethereum/go-ethereum/cmd/abigen --abi ../../../../contracts/abi/src/ISequencerInbox.sol/ISequencerInbox.json --pkg bindings --type ISequencerInbox --out ISequencerInbox.go

@@ -98,7 +98,7 @@ func ensureUtilInit() error {
 		if err != nil {
 			return fmt.Errorf("failed to get ISequencerInbox ABI: %w", err)
 		}
-		rollupAbi, err := bindings.RollupBaseMetaData.GetAbi()
+		rollupAbi, err := bindings.IRollupMetaData.GetAbi()
 		if err != nil {
 			return fmt.Errorf("failed to get IRollup ABI: %w", err)
 		}

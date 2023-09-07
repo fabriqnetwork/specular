@@ -13,7 +13,7 @@ import (
 
 func NewAssertionFrom(
 	assertion *bindings.IRollupAssertion,
-	event *bindings.RollupBaseAssertionCreated,
+	event *bindings.IRollupAssertionCreated,
 ) *rollupTypes.Assertion {
 	// TODO: set StartBlock, EndBlock if necessary (or remove from this struct).
 	return &rollupTypes.Assertion{
