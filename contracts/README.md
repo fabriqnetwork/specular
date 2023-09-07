@@ -31,7 +31,7 @@ cd contracts
 ```
 
 Setup the environment variables needed for deployment.
-An example config for running locally can be found in `./contracts/.env.examle`.
+An example config for running locally can be found in `./contracts/.env.example`.
 
 ## Run Tests
 
