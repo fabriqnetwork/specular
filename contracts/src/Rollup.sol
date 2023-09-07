@@ -180,81 +180,6 @@ contract Rollup is RollupBase {
         return assertionState[assertionID].stakers[stakerAddress];
     }
 
-        /// @inheritdoc IRollup
-    function requireFirstUnresolvedAssertionIsConfirmable() public view override {
-        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
-            revert NoUnresolvedAssertion();
-        }
-
-        // (1) there is at least one staker present
-        if (numStakers <= 0) revert NoStaker();
-
-        uint256 firstUnresolvedID = lastResolvedAssertionID + 1;
-        Assertion storage firstUnresolved = assertions[firstUnresolvedID];
-        // (2) confirmation period has passed
-        if (block.number < firstUnresolved.deadline) {
-            revert ConfirmationPeriodPending();
-        }
-        // (3) predecessor has been confirmed
-        if (firstUnresolved.parent != lastConfirmedAssertionID) {
-            revert InvalidParent();
-        }
-
-        // (4) all stakers are staked on the block.
-        if (firstUnresolved.numStakers != countStakedZombies(firstUnresolvedID) + numStakers) {
-            revert NotAllStaked();
-        }
-    }
-
-    /// @inheritdoc IRollup
-    function requireFirstUnresolvedAssertionIsRejectable(address stakerAddress) public view override {
-        if (lastResolvedAssertionID >= lastCreatedAssertionID) {
-            revert NoUnresolvedAssertion();
-        }
-
-        uint256 firstUnresolvedAssertionID = lastResolvedAssertionID + 1;
-        Assertion storage firstUnresolvedAssertion = assertions[firstUnresolvedAssertionID];
-
-        // First case - parent of first unresolved is last confirmed (`if` condition below). e.g.
-        // [1] <- [3]           | valid chain ([1] is last confirmed, [3] is stakerAddress's unresolved assertion)
-        //  ^---- [2]           | invalid chain ([2] is firstUnresolved)
-        // Second case (trivial) - parent of first unresolved is not last confirmed. i.e.:
-        //   parent is previous rejected, e.g.
-        //   [1] <- [4]           | valid chain ([1] is last confirmed, [4] is stakerAddress's unresolved assertion)
-        //   [2] <- [3]           | invalid chain ([3] is firstUnresolved)
-        //   OR
-        //   parent is previous confirmed, e.g.
-        //   [1] <- [2] <- [4]    | valid chain ([2] is last confirmed, [4] is stakerAddress's unresolved assertion)
-        //    ^---- [3]           | invalid chain ([3] is firstUnresolved)
-        if (firstUnresolvedAssertion.parent == lastConfirmedAssertionID) {
-            // 1a. confirmation period has passed.
-            if (block.number < firstUnresolvedAssertion.deadline) {
-                revert ConfirmationPeriodPending();
-            }
-
-            // 1b. at least one staker exists (on a sibling)
-            // - stakerAddress is indeed a staker
-            if (!stakers[stakerAddress].isStaked) {
-                revert NotStaked();
-            }
-            // - staker's assertion can't be a ancestor of firstUnresolved (because staker's assertion is also unresolved)
-            if (stakers[stakerAddress].assertionID < firstUnresolvedAssertionID) {
-                revert AssertionAlreadyResolved();
-            }
-            AssertionState storage firstUnresolvedAssertionState = assertionState[firstUnresolvedAssertionID];
-
-            // - staker's assertion can't be a descendant of firstUnresolved (because staker has never staked on firstUnresolved)
-            if (firstUnresolvedAssertionState.stakers[stakerAddress]) {
-                revert StakerStakedOnTarget();
-            }
-            // If a staker is staked on an assertion that is neither an ancestor nor a descendant of firstUnresolved, it must be a sibling, QED
-            // 1c. no staker is staked on this assertion
-            if (firstUnresolvedAssertion.numStakers != countStakedZombies(firstUnresolvedAssertionID)) {
-                revert StakersPresent();
-            }
-        }
-    }
-
     /// @inheritdoc IRollup
     function requireFirstUnresolvedAssertionIsConfirmable() public view override {
         if (lastResolvedAssertionID >= lastCreatedAssertionID) {
@@ -456,6 +381,11 @@ contract Rollup is RollupBase {
         // Require that the assertion at least includes one transaction
         if (inboxSize <= parent.inboxSize) {
             revert EmptyAssertion();
+        }
+        // TODO: Enforce stricter bounds on assertion size.
+        // Require that the assertion doesn't read past the end of the current inbox.
+        if (inboxSize > daProvider.getInboxSize()) {
+            revert InboxReadLimitExceeded();
         }
 
         // Initialize assertion.
