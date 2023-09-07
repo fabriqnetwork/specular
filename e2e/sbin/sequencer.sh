@@ -8,7 +8,8 @@ source $SBIN_DIR/configure.sh
 set +o allexport
 
 # Import account
-$L2GETH_BIN --datadir . --password ./password.txt account import ./key.prv
+$L2GETH_BIN --datadir . --password ./password.txt account import ./s_key.prv
+$L2GETH_BIN --datadir . --password ./password.txt account import ./v_key.prv
 
 # Initialize geth
 $L2GETH_BIN --datadir . --networkid $NETWORK_ID init ./genesis.json
