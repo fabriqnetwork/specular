@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        test-name: ['general', 'deposit']
+        test-name: ['general', 'deposit', 'withdrawal', 'erc20']
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
@@ -35,14 +35,6 @@ jobs:
 
       - name: Setup Node
         uses: ./.github/actions/node
-
-      - name: Cache Foundry toolchain
-        uses: actions/cache@v3
-        with:
-          path: ~/.foundry
-          key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
