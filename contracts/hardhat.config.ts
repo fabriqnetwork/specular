@@ -95,7 +95,7 @@ function getNetworkURL(network: string) {
   } else if (network === "specularDev") {
     return "https://devnet.specular.network";
   }
-  return "http://localhost:8545";
+  return "http://0.0.0.0:8545";
 }
 
 const config: HardhatUserConfig = {
