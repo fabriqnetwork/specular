@@ -173,6 +173,18 @@ interface IRollup {
      */
     function confirmedInboxSize() external view returns (uint256);
 
+    /**
+     * @notice Requires that the first unresolved assertion is confirmable. Otherwise, reverts.
+     * This is exposed as a utility function to validators.
+     */
+    function requireFirstUnresolvedAssertionIsConfirmable() external view;
+
+    /**
+     * @notice Validates that the first unresolved assertion is rejectable. Otherwise, reverts.
+     * This is exposed as a utility function to validators.
+     */
+    function requireFirstUnresolvedAssertionIsRejectable(address stakerAddress) external view;
+
     // *** Configuration ***
 
     /**
