@@ -45,7 +45,7 @@ export async function getSignersAndContracts() {
   const l1PortalAddress = await l1StandardBridge.PORTAL_ADDRESS();
   const L1PortalFactory = await ethers.getContractFactory(
     "L1Portal",
-    l1Bridger
+    l1Relayer
   );
   const l1Portal = L1PortalFactory.attach(l1PortalAddress);
 
@@ -65,10 +65,17 @@ export async function getSignersAndContracts() {
   const RollupFactory = await ethers.getContractFactory("Rollup", l1Relayer);
   const rollup = await RollupFactory.attach(rollupAddress);
 
-  l1Portal.on("*", (...args) => console.log({ ...args }));
-  l2Portal.on("*", (...args) => console.log({ ...args }));
-  l1StandardBridge.on("*", (...args) => console.log({ ...args }));
-  l2StandardBridge.on("*", (...args) => console.log({ ...args }));
+  const InboxFactory = await ethers.getContractFactory(
+    "SequencerInbox",
+    l1Relayer
+  );
+  const daProvider = await rollup.daProvider();
+  const inbox = await InboxFactory.attach(daProvider);
+
+  // l1Portal.on("*", (...args) => console.log({ ...args }));
+  // l2Portal.on("*", (...args) => console.log({ ...args }));
+  // l1StandardBridge.on("*", (...args) => console.log({ ...args }));
+  // l2StandardBridge.on("*", (...args) => console.log({ ...args }));
 
   return {
     l1Provider,
@@ -83,7 +90,90 @@ export async function getSignersAndContracts() {
     l2StandardBridge,
     l1Oracle,
     rollup,
+    inbox,
   };
+}
+
+export async function getDepositProof(portalAddress, depositHash) {
+  const proof = await l1Provider.send("eth_getProof", [
+    portalAddress,
+    [getStorageKey(depositHash)],
+    "latest",
+  ]);
+
+  return {
+    accountProof: proof.accountProof,
+    storageProof: proof.storageProof[0].proof,
+  };
+}
+
+export async function getWithdrawalProof(portalAddress, withdrawalHash) {
+  const proof = await l2Provider.send("eth_getProof", [
+    portalAddress,
+    [getStorageKey(withdrawalHash)],
+    "latest",
+  ]);
+
+  return {
+    accountProof: proof.accountProof,
+    storageProof: proof.storageProof[0].proof,
+  };
+}
+
+export async function deployTokenPair(l1Bridger, l2Relayer) {
+  const TestTokenFactory = await ethers.getContractFactory(
+    "TestToken",
+    l1Bridger
+  );
+  const l1Token = await TestTokenFactory.deploy();
+
+  const MintableERC20FactoryFactory = await ethers.getContractFactory(
+    "MintableERC20Factory",
+    l2Relayer
+  );
+  const mintableERC20Factory = await MintableERC20FactoryFactory.deploy(
+    l2BridgeAddr
+  );
+  const deployTx = await mintableERC20Factory.createMintableERC20(
+    l1Token.address,
+    "TestToken",
+    "TT"
+  );
+  const deployTxWithLogs = await deployTx.wait();
+  const deployEvent = await mintableERC20Factory.interface.parseLog(
+    deployTxWithLogs.logs[0]
+  );
+  const l2TokenAddr = deployEvent.args.localToken;
+
+  const MintableERC20Factory = await ethers.getContractFactory(
+    "MintableERC20",
+    l2Relayer
+  );
+  const l2Token = MintableERC20Factory.attach(l2TokenAddr);
+
+  return {
+    l1Token,
+    l2Token,
+  };
+}
+
+export function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function getLastBlockNumber(data) {
+  const iface = new ethers.utils.Interface([
+    "function appendTxBatch(uint256[],uint256[],uint256,bytes)",
+  ]);
+  const decoded = iface.decodeFunctionData(
+    "appendTxBatch(uint256[],uint256[],uint256,bytes)",
+    data
+  );
+  const contexts: BigNumber[] = decoded[0];
+  const firstL2BlockNumber = decoded[2];
+  const lastL2BlockNumber =
+    contexts.length / 2 + firstL2BlockNumber.toNumber() - 1;
+  return lastL2BlockNumber;
 }
 
 export function getStorageKey(messageHash: string) {
