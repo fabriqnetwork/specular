@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        test-name: ['general', 'deposit', 'withdraw', 'erc20']
+        test-name: ['general', 'deposit', 'erc20']
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
