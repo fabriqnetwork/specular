@@ -76,8 +76,8 @@ async function main() {
     }
   );
 
-  console.log("\twaiting for assertion to be confirmed...");
   while (lastConfirmedBlockNumber < blockNumber || !assertionId) {
+    console.log("\twaiting for assertion to be confirmed...");
     await delay(500);
   }
 
