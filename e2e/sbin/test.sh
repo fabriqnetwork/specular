@@ -9,13 +9,13 @@ set +o allexport
 
 # Spin up L1 node
 cd $CONTRACTS_DIR
-ganache --chain.chainId 31337 -b 5 -m "test test test test test test test test test test test junk" 2>&1 &
+ganache --chain.chainId 31337 -b 5 -m "test test test test test test test test test test test junk" > $PROJECT_LOG_DIR/l2.log 2>&1 &
 GANACHE_PID=$!
 npx hardhat deploy --network localhost
 
 # Spin up L2 node
 cd $PROJECT_DATA_DIR
-$SBIN_DIR/sequencer.sh > $PROJECT_LOG_DIR/l2.log 2>&1 &
+$SBIN_DIR/sequencer.sh 2>&1 &
 L2GETH_PID=$!
 
 # Wait for nodes

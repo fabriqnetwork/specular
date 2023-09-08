@@ -188,8 +188,10 @@ func (m *TxManager) craftTx(ctx context.Context, candidate TxCandidate) (*types.
 			Value:     rawTx.Value,
 		})
 		if err != nil {
+			log.Warn("estimate gas failed", "err", err)
 			return nil, fmt.Errorf("failed to estimate gas: %w", err)
 		}
+		log.Info("estimate gas", "gas", gas)
 		rawTx.Gas = gas
 	}
 
