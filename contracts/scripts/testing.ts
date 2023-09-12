@@ -11,9 +11,9 @@ function delay(seconds: number): Promise<void> {
 }
 
 const sequencerPrivateKeyPath =
-  ROOT_DIR + "clients/geth/specular/data/keys/sequencer.prv";
+  ROOT_DIR + "services/el_clients/geth/specular/data/keys/sequencer.prv";
 const validatorPrivateKeyPath =
-  ROOT_DIR + "clients/geth/specular/data/keys/validator.prv";
+  ROOT_DIR + "services/el_clients/geth/specular/data/keys/validator.prv";
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:4011"
