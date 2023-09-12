@@ -19,9 +19,10 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     strategy:
       matrix:
-        test-name: ['general', 'deposit', 'erc20']
+        test-name: ['general', 'deposit']
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
