@@ -120,6 +120,12 @@ interface IRollup {
     /// @dev Thrown when there are zero stakers
     error NoStaker();
 
+    /// @dev Thrown when an attempt is made to grant a role to an account that already possesses the role.
+    error RoleAlreadyGranted();
+
+    /// @dev Thrown when an attempt is made to grant a role to an account that already possesses the role.
+    error NoRoleToRevoke();
+
     struct Staker {
         bool isStaked;
         uint256 amountStaked;
@@ -235,7 +241,34 @@ interface IRollup {
     // *** State mutation ***
 
     /**
+     * @notice Grant the validator role for the specified address.
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param validator Address to grant validator role.
+     */
+    function addValidator(address validator) external;
+
+    /**
+     * @notice Revoke the validator role for the specific address.
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param validator Address to revoke validator role.
+     */
+    function removeValidator(address validator) external;
+
+    /**
+     * @notice Revoke the senders validator role.
+     * @dev This function's purpose is to provide a mechanism for accounts to revoke their privileges if they are compromised.
+     *
+     * Emits: `ConfigChanged` event.
+     */
+    function removeOwnValidatorRole() external;
+
+    /**
      * @notice Deposits stake on staker's current assertion (or the last confirmed assertion if not currently staked).
+     * @notice Only callable by whitelisted validators.
      * @dev Currently uses Ether to stake; Must be > than defined threshold if this is a new stake.
      */
     function stake() external payable;
@@ -248,13 +281,15 @@ interface IRollup {
 
     /**
      * @notice Removes stakerAddress from the set of stakers and withdraws the full stake amount to stakerAddress.
-     * This can be called by anyone since it is currently necessary to keep the chain progressing.
+     * @notice Only callable by whitelisted validators.
+     * @dev This can be called by any whitelisted validator since it is currently necessary to keep the chain progressing.
      * @param stakerAddress Address of staker for which to unstake.
      */
     function removeStake(address stakerAddress) external;
 
     /**
      * @notice Advances msg.sender's existing stake to assertionID.
+     * @notice Only callable by whitelisted validators.
      * @param assertionID ID of assertion to advance stake to. Currently this must be a child of the current assertion.
      * TODO: generalize to arbitrary descendants.
      */
@@ -269,6 +304,7 @@ interface IRollup {
      * @notice Creates a new DA representing the rollup state after executing a block of transactions (sequenced in SequencerInbox).
      * Block is represented by all transactions in range [prevInboxSize, inboxSize]. The latest staked DA of the sender
      * is considered to be the predecessor. Moves sender stake onto the new DA.
+     * @notice Only callable by whitelisted validators.
      *
      * Emits: `AssertionCreated` and `StakerStaked` events.
      *
@@ -279,6 +315,7 @@ interface IRollup {
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.
+     * @notice Only callable by whitelisted validators.
      * @param players Defender (first) and challenger (second) addresses. Must be staked on DAs on different branches.
      * @param assertionIDs Assertion IDs of the players engaged in the challenge. The first ID should be the earlier-created and is the one being challenged.
      * @return Newly created challenge contract address.
@@ -289,6 +326,7 @@ interface IRollup {
 
     /**
      * @notice Confirms first unresolved assertion. Assertion is confirmed if and only if:
+     * @notice Only callable by whitelisted validators.
      * (1) there is at least one staker, and
      * (2) challenge period has passed, and
      * (3) predecessor has been confirmed, and
@@ -304,6 +342,7 @@ interface IRollup {
      * (c) no staker remains staked on the assertion (all have been destroyed).
      * OR
      * (2) predecessor has been rejected
+     * @notice Only callable by whitelisted validators.
      * @param stakerAddress Address of a staker staked on a different branch to the first unresolved assertion.
      * If the first unresolved assertion's parent is confirmed, this parameter is used to establish that a staker exists
      * on a different branch of the assertion chain. This parameter is ignored when the parent of the first unresolved

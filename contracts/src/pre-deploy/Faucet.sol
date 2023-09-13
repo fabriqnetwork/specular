@@ -42,6 +42,7 @@ contract Faucet is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableU
 
     // amountAllowed is initialized in the genesis.json
     // amountAllowed is set to 0.01 ETH
+    //slither-disable-next-line uninitialized-state
     uint256 public amountAllowed;
 
     mapping(address => uint256) public lockTime;

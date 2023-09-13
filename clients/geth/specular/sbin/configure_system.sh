@@ -3,7 +3,7 @@ SBIN="`cd "$SBIN"; pwd`"
 
 export NETWORK_ID=13527
 export L1_ENDPOINT=ws://localhost:8545
-export L1_CHAIN_ID=31337
+export L1_CHAIN_ID=1337
 export GENESIS_L1_BLOCK_NUM=0
 export ROLLUP_STAKE_AMOUNT=100
 export CLEF_ENDPOINT=http://127.0.0.1:8550
