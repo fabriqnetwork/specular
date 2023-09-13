@@ -98,7 +98,7 @@ func createLegacyService(
 			services.L1Config
 		}{cfg.Sequencer(), cfg.L1()}
 	)
-	if cfg.Sequencer().GetAccountAddr() != (common.Address{}) {
+	if cfg.Sequencer().GetIsEnabled() {
 		service, err = sequencer.New(execBackend, proofBackend, l1Client, serviceCfg)
 	} else {
 		service, err = indexer.New(execBackend, proofBackend, l1Client, serviceCfg)

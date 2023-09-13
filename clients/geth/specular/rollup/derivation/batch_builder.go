@@ -51,6 +51,7 @@ func (b *batchBuilder) LastAppended() types.BlockID { return b.lastAppended }
 // Appends a block, to be processed and batched.
 // Returns a `InvalidBlockError` if the block is not a child of the last appended block.
 func (b *batchBuilder) Append(block DerivationBlock, header HeaderRef) error {
+	// Ensure block is a child of the last appended block. Not enforced when no prior blocks.
 	if (header.GetParentHash() != b.lastAppended.GetHash()) && (b.lastAppended.GetHash() != common.Hash{}) {
 		return InvalidBlockError{Msg: "Appended block is not a child of the last appended block"}
 	}
