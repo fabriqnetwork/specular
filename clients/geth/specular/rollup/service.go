@@ -193,7 +193,7 @@ func createTransactor(
 	}
 	json, err := ks.Export(accounts.Account{Address: accountAddress}, passphrase, "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to export account: %w", err)
+		return nil, fmt.Errorf("failed to export account for %s: %w", accountAddress, err)
 	}
 	transactor, err := bind.NewTransactorWithChainID(bytes.NewReader(json), passphrase, new(big.Int).SetUint64(chainID))
 	if err != nil {

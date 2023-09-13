@@ -13,8 +13,9 @@ mkdir -p $PROJECT_LOG_DIR
 mkdir -p $PROJECT_DATA_DIR
 
 # Add keys
-cp $DATA_DIR/key.prv $PROJECT_DATA_DIR/key.prv
 cp $DATA_DIR/password.txt $PROJECT_DATA_DIR/password.txt
+cp $DATA_DIR/sequencer_key.prv $PROJECT_DATA_DIR/sequencer_key.prv
+cp $DATA_DIR/validator_key.prv $PROJECT_DATA_DIR/validator_key.prv
 
 # Build and add genesis.json
 cd $CONTRACTS_DIR
