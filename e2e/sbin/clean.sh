@@ -7,6 +7,8 @@ set -o allexport
 source $SBIN_DIR/configure.sh
 set +o allexport
 
+docker remove --force geth_container
+
 # Clean up
 rm -rf $PROJECT_DATA_DIR/geth
 rm -rf $PROJECT_DATA_DIR/keystore
