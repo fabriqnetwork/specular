@@ -60,6 +60,7 @@ type gethRollupService struct {
 	service  api.Service     // The rollup service to start.
 }
 
+// Ensures that gethRollupService implements the node.Lifecycle interface.
 var _ node.Lifecycle = (*gethRollupService)(nil)
 
 // Starts the rollup service.

@@ -59,7 +59,6 @@ func (d *BatchDisseminator) start(ctx context.Context) error {
 	d.rollback()
 	var ticker = time.NewTicker(d.cfg.GetDisseminationInterval())
 	defer ticker.Stop()
-	d.step(ctx)
 	for {
 		select {
 		case <-ticker.C:

@@ -15,6 +15,8 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
+var transactTimeout = 10 * time.Minute
+
 type unexpectedSystemStateError struct{ msg string }
 
 func (e unexpectedSystemStateError) Error() string {
@@ -70,7 +72,6 @@ func (v *Validator) start(ctx context.Context) error {
 	if err := v.rollback(ctx); err != nil {
 		return fmt.Errorf("failed to initialize state: %w", err)
 	}
-	v.step(ctx)
 	for {
 		select {
 		case <-ticker.C:
@@ -114,7 +115,7 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 		log.Info("No new blocks to create assertion for yet.")
 		return nil
 	}
-	cCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
 	// TOOD: GasLimit: 0 ...?
 	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2VMHash, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
@@ -147,7 +148,7 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 		}
 		return nil
 	}
-	cCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
 	_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(cCtx)
 	if err != nil {

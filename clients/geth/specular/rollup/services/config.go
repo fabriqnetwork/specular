@@ -30,29 +30,13 @@ func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
 func parseFlags(cliCtx *cli.Context) *SystemConfig {
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.DeveloperFlag)
-	var (
-		sequencerAddr       common.Address
-		sequencerPassphrase string
-		pwList              = utils.MakePasswordList(cliCtx)
-	)
+	var sequencerAddr common.Address
 	if cliCtx.String(sequencerAddrFlag.Name) != "" {
 		sequencerAddr = common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name))
-		if len(pwList) == 0 {
-			utils.Fatalf("must provide passphrase for sequencer account")
-		}
-		sequencerPassphrase = pwList[0]
-		pwList = pwList[1:]
 	}
-	var (
-		validatorAddr       common.Address
-		validatorPassphrase string
-	)
+	var validatorAddr common.Address
 	if cliCtx.String(validatorAddrFlag.Name) != "" {
 		validatorAddr = common.HexToAddress(cliCtx.String(validatorAddrFlag.Name))
-		if len(pwList) == 0 {
-			utils.Fatalf("must provide passphrase for validator account")
-		}
-		validatorPassphrase = pwList[0]
 	}
 	var (
 		l1ChainID         = big.NewInt(0).SetUint64(cliCtx.Uint64(l1ChainIDFlag.Name))
@@ -62,8 +46,8 @@ func parseFlags(cliCtx *cli.Context) *SystemConfig {
 	return &SystemConfig{
 		L1Config:        newL1ConfigFromCLI(cliCtx),
 		L2Config:        newL2ConfigFromCLI(cliCtx),
-		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerPassphrase, sequencerTxMgrCfg),
-		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorPassphrase, validatorTxMgrCfg),
+		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerTxMgrCfg),
+		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
 	}
 }
 
@@ -141,13 +125,12 @@ func (c SequencerConfig) GetTxMgrCfg() txmgr.Config               { return c.TxM
 
 func newSequencerConfigFromCLI(
 	cliCtx *cli.Context,
-	passphrase string,
 	txMgrCfg txmgr.Config,
 ) SequencerConfig {
 	return SequencerConfig{
 		AccountAddr:           common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
 		ClefEndpoint:          cliCtx.String(sequencerClefEndpointFlag.Name),
-		Passphrase:            passphrase,
+		Passphrase:            cliCtx.String(sequencerPassphraseFlag.Name),
 		DisseminationInterval: time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:              txMgrCfg,
 	}
@@ -173,13 +156,12 @@ func (c ValidatorConfig) GetTxMgrCfg() txmgr.Config            { return c.TxMgrC
 
 func newValidatorConfigFromCLI(
 	cliCtx *cli.Context,
-	passphrase string,
 	txMgrCfg txmgr.Config,
 ) ValidatorConfig {
 	return ValidatorConfig{
 		AccountAddr:        common.HexToAddress(cliCtx.String(validatorAddrFlag.Name)),
 		ClefEndpoint:       cliCtx.String(validatorClefEndpointFlag.Name),
-		Passphrase:         passphrase,
+		Passphrase:         cliCtx.String(validatorPassphraseFlag.Name),
 		ValidationInterval: time.Duration(cliCtx.Uint(validatorValidationIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:           txMgrCfg,
 	}

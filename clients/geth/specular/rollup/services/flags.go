@@ -5,15 +5,24 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-// All supported flags.
+// Returns all supported flags.
 func CLIFlags() []cli.Flag {
-	var flags = []cli.Flag{}
-	flags = append(flags, l1Flags...)
-	flags = append(flags, l2Flags...)
-	flags = append(flags, sequencerCLIFlags...)
-	flags = append(flags, txmgr.CLIFlags(sequencerTxMgrNamespace)...)
-	flags = append(flags, validatorCLIFlags...)
-	flags = append(flags, txmgr.CLIFlags(validatorTxMgrNamespace)...)
+	return mergeFlagGroups(
+		l1Flags,
+		l2Flags,
+		sequencerCLIFlags,
+		txmgr.CLIFlags(sequencerTxMgrNamespace),
+		validatorCLIFlags,
+		txmgr.CLIFlags(validatorTxMgrNamespace),
+	)
+}
+
+// Merges flag groups into a single slice.
+func mergeFlagGroups(groups ...[]cli.Flag) []cli.Flag {
+	var flags []cli.Flag
+	for _, group := range groups {
+		flags = append(flags, group...)
+	}
 	return flags
 }
 
@@ -83,11 +92,15 @@ var (
 	// Sequencer config flags
 	sequencerAddrFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer.addr",
-		Usage: "The sequencer address to be unlocked (pass passphrash via --password)",
+		Usage: "The sequencer address",
 	}
 	sequencerClefEndpointFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a sequencer signer",
+	}
+	sequencerPassphraseFlag = &cli.StringFlag{
+		Name:  "rollup.sequencer.passphrase",
+		Usage: "The passphrase of the sequencer account",
 	}
 	sequencerSequencingIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.sequencer.sequencing-interval",
@@ -97,11 +110,15 @@ var (
 	// Validator config flags
 	validatorAddrFlag = &cli.StringFlag{
 		Name:  "rollup.validator.addr",
-		Usage: "The validator address to be unlocked (pass passphrash via --password)",
+		Usage: "The validator address",
 	}
 	validatorClefEndpointFlag = &cli.StringFlag{
 		Name:  "rollup.validator.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a validator signer",
+	}
+	validatorPassphraseFlag = &cli.StringFlag{
+		Name:  "rollup.validator.passphrase",
+		Usage: "The passphrase of the validator account",
 	}
 	validatorValidationIntervalFlag = &cli.UintFlag{
 		Name:  "rollup.validator.validation-interval",
@@ -129,11 +146,13 @@ var (
 	sequencerCLIFlags = []cli.Flag{
 		sequencerAddrFlag,
 		sequencerClefEndpointFlag,
+		sequencerPassphraseFlag,
 		sequencerSequencingIntervalFlag,
 	}
 	validatorCLIFlags = []cli.Flag{
 		validatorAddrFlag,
 		validatorClefEndpointFlag,
+		validatorPassphraseFlag,
 		validatorValidationIntervalFlag,
 	}
 )
