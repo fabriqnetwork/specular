@@ -250,8 +250,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerOwner);
         seqIn.pause();
 
-        uint256 inboxSizeInitial = seqIn.getInboxSize();
-
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
         // Each `context` is represented with uint256 2-tuple: (numTxs, l2Timestamp)

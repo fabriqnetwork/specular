@@ -26,6 +26,8 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import {AccessControlDefaultAdminRulesUpgradeable} from
+    "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
 
 import "./challenge/IChallenge.sol";
 import "./challenge/SymChallenge.sol";
@@ -39,9 +41,12 @@ abstract contract RollupBase is
     IChallengeResultReceiver,
     Initializable,
     UUPSUpgradeable,
-    OwnableUpgradeable,
-    PausableUpgradeable
+    PausableUpgradeable,
+    AccessControlDefaultAdminRulesUpgradeable
 {
+    // Access role identifiers
+    bytes32 public constant VALIDATOR_ROLE = keccak256("VALIDATOR_ROLE");
+
     // Config parameters
     uint256 public confirmationPeriod; // number of L1 blocks
     uint256 public challengePeriod; // number of L1 blocks
@@ -63,13 +68,18 @@ abstract contract RollupBase is
     }
 
     function __RollupBase_init() internal onlyInitializing {
-        __Ownable_init();
+        __AccessControlDefaultAdminRules_init(3 days, msg.sender);
         __UUPSUpgradeable_init();
         __Pausable_init();
     }
 }
 
 contract Rollup is RollupBase {
+    modifier validatorOnly() {
+        _checkRole(VALIDATOR_ROLE);
+        _;
+    }
+
     modifier stakedOnly() {
         if (!isStaked(msg.sender)) {
             revert NotStaked();
@@ -100,11 +110,14 @@ contract Rollup is RollupBase {
         uint256 _baseStakeAmount,
         uint256 _initialAssertionID,
         uint256 _initialInboxSize,
-        bytes32 _initialVMhash
+        bytes32 _initialVMhash,
+        address[] calldata _validators
     ) public initializer {
         if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
             revert ZeroAddress();
         }
+        __RollupBase_init();
+
         vault = _vault;
         daProvider = IDAProvider(_daProvider);
         verifier = IVerifier(_verifier);
@@ -118,6 +131,11 @@ contract Rollup is RollupBase {
         lastConfirmedAssertionID = _initialAssertionID;
         lastCreatedAssertionID = _initialAssertionID;
 
+        // Initialize role based access control
+        for (uint256 i = 0; i < _validators.length; i++) {
+            grantRole(VALIDATOR_ROLE, _validators[i]);
+        }
+
         createAssertionHelper(
             _initialAssertionID, // assertionID
             _initialVMhash,
@@ -126,8 +144,6 @@ contract Rollup is RollupBase {
             block.number // deadline (unchallengeable)
         );
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash);
-
-        __RollupBase_init();
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -135,11 +151,11 @@ contract Rollup is RollupBase {
         _disableInitializers();
     }
 
-    function pause() public onlyOwner {
+    function pause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         _pause();
     }
 
-    function unpause() public onlyOwner {
+    function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         _unpause();
     }
 
@@ -148,7 +164,7 @@ contract Rollup is RollupBase {
         _;
     }
 
-    function _authorizeUpgrade(address) internal override onlyOwner whenPaused hasConsensus {}
+    function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) whenPaused hasConsensus {}
 
     /// @inheritdoc IRollup
     function currentRequiredStake() public view override returns (uint256) {
@@ -256,7 +272,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function setDAProvider(address newDAProvider) external override onlyOwner {
+    function setDAProvider(address newDAProvider) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (lastCreatedAssertionID > lastResolvedAssertionID) {
             revert InvalidConfigChange();
         }
@@ -265,7 +281,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function setConfirmationPeriod(uint256 newPeriod) external override onlyOwner {
+    function setConfirmationPeriod(uint256 newPeriod) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (lastCreatedAssertionID > lastResolvedAssertionID) {
             revert InvalidConfigChange();
         }
@@ -274,7 +290,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function setChallengePeriod(uint256 newPeriod) external override onlyOwner {
+    function setChallengePeriod(uint256 newPeriod) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (lastCreatedAssertionID > lastResolvedAssertionID) {
             revert InvalidConfigChange();
         }
@@ -283,7 +299,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function setMinimumAssertionPeriod(uint256 newPeriod) external override onlyOwner {
+    function setMinimumAssertionPeriod(uint256 newPeriod) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (lastCreatedAssertionID > lastResolvedAssertionID) {
             revert InvalidConfigChange();
         }
@@ -292,7 +308,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function setBaseStakeAmount(uint256 newAmount) external override onlyOwner {
+    function setBaseStakeAmount(uint256 newAmount) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (lastCreatedAssertionID != lastResolvedAssertionID || newAmount > baseStakeAmount) {
             revert InvalidConfigChange();
         }
@@ -301,7 +317,34 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function stake() external payable override {
+    function addValidator(address validator) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (hasRole(VALIDATOR_ROLE, validator)) {
+            revert RoleAlreadyGranted();
+        }
+        grantRole(VALIDATOR_ROLE, validator);
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function removeValidator(address validator) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (!hasRole(VALIDATOR_ROLE, validator)) {
+            revert NoRoleToRevoke();
+        }
+        revokeRole(VALIDATOR_ROLE, validator);
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function removeOwnValidatorRole() external override {
+        if (!hasRole(VALIDATOR_ROLE, msg.sender)) {
+            revert NoRoleToRevoke();
+        }
+        renounceRole(VALIDATOR_ROLE, msg.sender);
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function stake() external payable override validatorOnly {
         if (isStaked(msg.sender)) {
             stakers[msg.sender].amountStaked += msg.value;
         } else {
@@ -332,7 +375,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function removeStake(address stakerAddress) external override {
+    function removeStake(address stakerAddress) external override validatorOnly {
         requireStaked(stakerAddress);
         // Require that staker is staked on a confirmed assertion.
         Staker storage staker = stakers[stakerAddress];
@@ -345,12 +388,13 @@ contract Rollup is RollupBase {
         // Note: we don't need to modify assertion state because you can only unstake from a confirmed assertion.
         deleteStaker(stakerAddress);
 
+        //slither-disable-next-line arbitrary-send-eth
         (bool success,) = stakerAddress.call{value: stakerAmountStaked}("");
         if (!success) revert TransferFailed();
     }
 
     /// @inheritdoc IRollup
-    function advanceStake(uint256 assertionID) external override stakedOnly whenNotPaused {
+    function advanceStake(uint256 assertionID) external override stakedOnly whenNotPaused validatorOnly {
         Staker storage staker = stakers[msg.sender];
         if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
@@ -371,7 +415,13 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 vmHash, uint256 inboxSize) external override stakedOnly whenNotPaused {
+    function createAssertion(bytes32 vmHash, uint256 inboxSize)
+        external
+        override
+        stakedOnly
+        whenNotPaused
+        validatorOnly
+    {
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
@@ -401,6 +451,7 @@ contract Rollup is RollupBase {
     function challengeAssertion(address[2] calldata players, uint256[2] calldata assertionIDs)
         external
         override
+        validatorOnly
         returns (address)
     {
         uint256 defenderAssertionID = assertionIDs[0];
@@ -453,7 +504,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function confirmFirstUnresolvedAssertion() external override {
+    function confirmFirstUnresolvedAssertion() external override validatorOnly {
         requireFirstUnresolvedAssertionIsConfirmable();
         // Confirm assertion.
         // delete assertions[lastConfirmedAssertionID];
@@ -463,7 +514,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function rejectFirstUnresolvedAssertion(address stakerAddress) external override {
+    function rejectFirstUnresolvedAssertion(address stakerAddress) external override validatorOnly {
         requireFirstUnresolvedAssertionIsRejectable(stakerAddress);
         // Reject assertion.
         lastResolvedAssertionID++;
