@@ -15,127 +15,49 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	rollupTypes "github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
+// TODO: delete.
 type BaseService struct {
-	Config *Config
+	Config BaseConfig
 
-	Eth          Backend
+	Eth          api.ExecutionBackend
 	ProofBackend proof.Backend
 	L1Client     client.L1BridgeClient
-	L1Syncer     *client.L1Syncer
+	L1Syncer     *eth.EthSyncer
 
 	Cancel context.CancelFunc
 	Wg     sync.WaitGroup
 }
 
-func NewBaseService(eth Backend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg *Config) (*BaseService, error) {
+type BaseConfig interface {
+	GetRollupGenesisBlock() uint64
+	GetAccountAddr() common.Address
+}
+
+func NewBaseService(execBackend api.ExecutionBackend, proofBackend proof.Backend, l1Client client.L1BridgeClient, cfg BaseConfig) (*BaseService, error) {
 	return &BaseService{
 		Config:       cfg,
-		Eth:          eth,
+		Eth:          execBackend,
 		ProofBackend: proofBackend,
 		L1Client:     l1Client,
-		L1Syncer:     nil,
+		L1Syncer:     eth.NewEthSyncer(eth.NewEthState()),
 	}, nil
 }
 
 // Starts the rollup service.
-func (b *BaseService) Start() (context.Context, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	b.Cancel = cancel
-	b.L1Syncer = client.NewL1Syncer(ctx, b.L1Client)
-	b.L1Syncer.Start(ctx)
-	return ctx, nil
-}
-
-func (b *BaseService) Stop() error {
-	log.Info("Stopping service...")
-	b.Cancel()
-	b.Wg.Wait()
-	log.Info("Service stopped.")
+func (b *BaseService) Start(ctx context.Context, eg api.ErrGroup) error {
+	b.L1Syncer.Start(ctx, b.L1Client)
 	return nil
 }
 
 func (b *BaseService) Chain() *core.BlockChain {
 	return b.Eth.BlockChain()
-}
-
-// Gets the last validated assertion.
-func (b *BaseService) GetLastValidatedAssertion(ctx context.Context) (*rollupTypes.Assertion, error) {
-	opts := bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
-	assertionID, err := b.L1Client.GetLastValidatedAssertionID(&opts)
-
-	var assertionCreatedEvent *bindings.IRollupAssertionCreated
-	var lastValidatedAssertion bindings.IRollupAssertion
-	if err != nil {
-		// If no assertion was validated (or other errors encountered), try to use the genesis assertion.
-		log.Warn("No validated assertions found, using genesis assertion", "err", err)
-		assertionCreatedEvent, err = b.L1Client.GetGenesisAssertionCreated(&opts)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-		}
-		// Check that the genesis assertion is correct.
-		vmHash := common.BytesToHash(assertionCreatedEvent.VmHash[:])
-		genesisRoot := b.Chain().GetBlockByNumber(0).Root()
-		if vmHash != genesisRoot {
-			return nil, fmt.Errorf("Mismatching genesis %s vs %s", vmHash, genesisRoot.String())
-		}
-		log.Info("Genesis assertion found", "assertionID", assertionCreatedEvent.AssertionID)
-		// Get assertion.
-		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionCreatedEvent.AssertionID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get genesis assertion, err: %w", err)
-		}
-	} else {
-		// If an assertion was validated, use it.
-		log.Info("Last validated assertion ID found", "assertionID", assertionID)
-		lastValidatedAssertion, err = b.L1Client.GetAssertion(assertionID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get last validated assertion, err: %w", err)
-		}
-		opts = bind.FilterOpts{Start: lastValidatedAssertion.ProposalTime.Uint64(), Context: ctx}
-		assertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-		}
-		assertionCreatedEvent, err = filterAssertionCreatedWithID(assertionCreatedIter, assertionID)
-		if err != nil {
-			return nil, fmt.Errorf("Failed to get `AssertionCreated` event for last validated assertion, err: %w", err)
-		}
-	}
-	// Initialize assertion.
-	assertion := NewAssertionFrom(&lastValidatedAssertion, assertionCreatedEvent)
-	// Set its boundaries using parent. TODO: move this out. Use local caching.
-	opts = bind.FilterOpts{Start: b.Config.L1RollupGenesisBlock, Context: ctx}
-	parentAssertionCreatedIter, err := b.L1Client.FilterAssertionCreated(&opts)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
-	}
-	parentAssertionCreatedEvent, err := filterAssertionCreatedWithID(parentAssertionCreatedIter, lastValidatedAssertion.Parent)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get `AssertionCreated` event for parent assertion, err: %w", err)
-	}
-	err = b.setL2BlockBoundaries(assertion, parentAssertionCreatedEvent)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to set L2 block boundaries for last validated assertion, err: %w", err)
-	}
-	return assertion, nil
-}
-
-func (b *BaseService) Stake(ctx context.Context) error {
-	staker, err := b.L1Client.GetStaker()
-	if err != nil {
-		return fmt.Errorf("Failed to get staker, to stake, err: %w", err)
-	}
-	if !staker.IsStaked {
-		err = b.L1Client.Stake(big.NewInt(int64(b.Config.RollupStakeAmount)))
-	}
-	if err != nil {
-		return fmt.Errorf("Failed to stake, err: %w", err)
-	}
-	return nil
 }
 
 // Sync to current L1 block head and commit blocks.
@@ -190,24 +112,6 @@ func (b *BaseService) SyncLoop(ctx context.Context, start uint64, newBatchCh cha
 	}
 }
 
-func filterAssertionCreatedWithID(iter *bindings.IRollupAssertionCreatedIterator, assertionID *big.Int) (*bindings.IRollupAssertionCreated, error) {
-	var assertionCreated *bindings.IRollupAssertionCreated
-	for iter.Next() {
-		// Assumes invariant: only one `AssertionCreated` event per assertion ID.
-		if iter.Event.AssertionID.Cmp(assertionID) == 0 {
-			assertionCreated = iter.Event
-			break
-		}
-	}
-	if iter.Error() != nil {
-		return nil, fmt.Errorf("Failed to iterate through `AssertionCreated` events, err: %w", iter.Error())
-	}
-	if assertionCreated == nil {
-		return nil, fmt.Errorf("No `AssertionCreated` event found for %v.", assertionID)
-	}
-	return assertionCreated, nil
-}
-
 func (b *BaseService) processTxBatchAppendedEvents(
 	ctx context.Context,
 	eventsIter *bindings.ISequencerInboxTxBatchAppendedIterator,
@@ -233,90 +137,33 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	if err != nil {
 		return fmt.Errorf("Failed to get transaction associated with TxBatchAppended event, err: %w", err)
 	}
-	// Decode input to appendTxBatch transaction.
-	decoded, err := b.L1Client.DecodeAppendTxBatchInput(tx)
+	in, err := bridge.UnpackAppendTxBatchInput(tx)
 	if err != nil {
 		return fmt.Errorf("Failed to decode transaction associated with TxBatchAppended event, err: %w", err)
 	}
-	// Construct batch. TODO: decode into blocks directly.
-	batch, err := rollupTypes.TxBatchFromDecoded(decoded)
+	blocks, err := derivation.BlocksFromData(in)
 	if err != nil {
-		return fmt.Errorf("Failed to split AppendTxBatch input into batches, err: %w", err)
+		return fmt.Errorf("Failed to split AppendTxBatch input into blocks, err: %w", err)
 	}
-	log.Info("Decoded batch", "#txs", len(batch.Txs))
-	blocks := batch.SplitToBlocks()
-	log.Info("Batch split into blocks", "#blocks", len(blocks))
-
-	currentBlockNumber := batch.FirstL2BlockNumber.Uint64()
+	log.Info("Decoded blocks", "#blocks", len(blocks))
 	localBlockNumber := b.Eth.BlockChain().CurrentBlock().NumberU64()
-	log.Info("Batch starts with block number", "#firstL2BlockNumber", currentBlockNumber)
-
 	// Commit only blocks ahead of the current L2 chain.
 	for i := range blocks {
-		log.Trace(
-			"Comparing current block number to last block on local chain",
-			"#currentBlockNumber", currentBlockNumber,
-			"#lastLocalBlock", localBlockNumber,
-		)
-
-		if currentBlockNumber > localBlockNumber {
-			log.Info("Commiting batch starting from block", "#blockNumber", currentBlockNumber)
+		if blocks[i].BlockNumber() > localBlockNumber {
 			blocks = blocks[i:]
-			b.commitBlocks(currentBlockNumber, blocks)
+			b.commitBlocks(blocks)
 			break
 		}
-
-		currentBlockNumber += 1
 	}
 
 	return nil
 }
 
-// TODO: clean up.
-func (b *BaseService) setL2BlockBoundaries(
-	assertion *rollupTypes.Assertion,
-	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
-) error {
-	numBlocks := b.Chain().CurrentBlock().Number().Uint64()
-	if numBlocks == 0 {
-		log.Info("Zero-initializing assertion block boundaries.")
-		assertion.StartBlock = 0
-		assertion.EndBlock = 0
-		return nil
-	}
-	startFound := false
-	// Note: by convention defined in Rollup.sol, the parent VmHash is the
-	// same as the child only when the assertion is the genesis assertion.
-	// This is a hack to avoid mis-setting `assertion.StartBlock`.
-	if assertion.ID == parentAssertionCreatedEvent.AssertionID {
-		parentAssertionCreatedEvent.VmHash = common.Hash{}
-		startFound = true
-	}
-	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID)
-	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
-	for i := uint64(0); i <= numBlocks; i++ {
-		// TODO: remove assumption of VM hash being the block root.
-		root := b.Chain().GetBlockByNumber(i).Root()
-		if root == parentAssertionCreatedEvent.VmHash {
-			log.Info("Found start block", "l2 block#", i+1)
-			assertion.StartBlock = i + 1
-			startFound = true
-		} else if root == assertion.VmHash {
-			log.Info("Found end block", "l2 block#", i)
-			assertion.EndBlock = i
-			if !startFound {
-				return fmt.Errorf("Found end block before start block for assertion with hash %d", assertion.VmHash)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("Could not find start or end block for assertion with hash %s", assertion.VmHash)
-}
-
 // commitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
 // TODO: use StateProcessor::Process() instead
-func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTypes.SequenceBlock) error {
+func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
+	firstL2BlockNumber := blocks[0].BlockNumber()
 	log.Trace(
 		"Committing blocks",
 		"#firstL2BlockNumber", firstL2BlockNumber,
@@ -355,17 +202,26 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTy
 			ParentHash: parent.Hash(),
 			Number:     new(big.Int).SetUint64(currentBlockNumber),
 			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
-			Time:       sblock.Timestamp,
-			Coinbase:   b.Config.SequencerAddr,
+			Time:       sblock.Timestamp(),
+			Coinbase:   b.Config.GetAccountAddr(),
 			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
 		}
-
 		gasPool := new(core.GasPool).AddGas(header.GasLimit)
 		var receipts []*types.Receipt
-		for idx, tx := range sblock.Txs {
+
+		var txs []*types.Transaction
+		for i, tx := range sblock.Txs() {
+			err := txs[i].UnmarshalBinary(tx)
+			if err != nil {
+				return err
+			}
+		}
+
+		for idx, tx := range txs {
 			state.Prepare(tx.Hash(), idx)
+			addr := b.Config.GetAccountAddr()
 			receipt, err := core.ApplyTransaction(
-				chainConfig, b.Chain(), &b.Config.SequencerAddr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
+				chainConfig, b.Chain(), &addr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
 			if err != nil {
 				log.Warn("Error while applying transactions", "#err", err)
 				return err
@@ -377,7 +233,7 @@ func (b *BaseService) commitBlocks(firstL2BlockNumber uint64, blocks []*rollupTy
 		header.Root = state.IntermediateRoot(b.Chain().Config().IsEIP158(header.Number))
 		header.UncleHash = types.CalcUncleHash(nil)
 		// Assemble block
-		block := types.NewBlock(header, sblock.Txs, nil, receipts, trie.NewStackTrie(nil))
+		block := types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil))
 		hash := block.Hash()
 		// Finalize receipts and logs
 		var logs []*types.Log

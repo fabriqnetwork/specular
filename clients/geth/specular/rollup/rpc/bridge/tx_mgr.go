@@ -20,8 +20,8 @@ type EthTxManager interface {
 }
 
 type bridgeConfig interface {
-	SequencerInboxAddr() common.Address
-	RollupAddr() common.Address
+	GetSequencerInboxAddr() common.Address
+	GetRollupAddr() common.Address
 }
 
 func NewTxManager(txMgr EthTxManager, cfg bridgeConfig) (*TxManager, error) {
@@ -42,18 +42,18 @@ func (m *TxManager) AppendTxBatch(
 	if err != nil {
 		return nil, err
 	}
-	addr := m.cfg.SequencerInboxAddr()
+	addr := m.cfg.GetSequencerInboxAddr()
 	return m.Send(ctx, txmgr.TxCandidate{TxData: data, To: &addr})
 }
 
 // IRollup
 
 func (m *TxManager) Stake(ctx context.Context, stakeAmount *big.Int) (*types.Receipt, error) {
-	data, err := packStakeInput(stakeAmount)
+	data, err := packStakeInput()
 	if err != nil {
 		return nil, err
 	}
-	return m.sendRollupTx(ctx, data)
+	return m.sendRollupTx(ctx, data, stakeAmount.Uint64())
 }
 
 func (m *TxManager) AdvanceStake(ctx context.Context, assertionID *big.Int) (*types.Receipt, error) {
@@ -61,7 +61,7 @@ func (m *TxManager) AdvanceStake(ctx context.Context, assertionID *big.Int) (*ty
 	if err != nil {
 		return nil, err
 	}
-	return m.sendRollupTx(ctx, data)
+	return m.sendRollupTx(ctx, data, 0)
 }
 
 func (m *TxManager) CreateAssertion(ctx context.Context, vmHash common.Hash, inboxSize *big.Int) (*types.Receipt, error) {
@@ -69,7 +69,7 @@ func (m *TxManager) CreateAssertion(ctx context.Context, vmHash common.Hash, inb
 	if err != nil {
 		return nil, err
 	}
-	return m.sendRollupTx(ctx, data)
+	return m.sendRollupTx(ctx, data, 0)
 }
 
 func (m *TxManager) ConfirmFirstUnresolvedAssertion(ctx context.Context) (*types.Receipt, error) {
@@ -77,7 +77,7 @@ func (m *TxManager) ConfirmFirstUnresolvedAssertion(ctx context.Context) (*types
 	if err != nil {
 		return nil, err
 	}
-	return m.sendRollupTx(ctx, data)
+	return m.sendRollupTx(ctx, data, 0)
 }
 
 func (m *TxManager) RejectFirstUnresolvedAssertion(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error) {
@@ -85,10 +85,10 @@ func (m *TxManager) RejectFirstUnresolvedAssertion(ctx context.Context, stakerAd
 	if err != nil {
 		return nil, err
 	}
-	return m.sendRollupTx(ctx, data)
+	return m.sendRollupTx(ctx, data, 0)
 }
 
-func (m *TxManager) sendRollupTx(ctx context.Context, data []byte) (*types.Receipt, error) {
-	addr := m.cfg.RollupAddr()
-	return m.Send(ctx, txmgr.TxCandidate{TxData: data, To: &addr})
+func (m *TxManager) sendRollupTx(ctx context.Context, data []byte, value uint64) (*types.Receipt, error) {
+	addr := m.cfg.GetRollupAddr()
+	return m.Send(ctx, txmgr.TxCandidate{TxData: data, To: &addr, Value: big.NewInt(0).SetUint64(value)})
 }

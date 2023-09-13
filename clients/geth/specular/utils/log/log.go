@@ -32,6 +32,12 @@ func Crit(msg string, args ...interface{}) {
 	log.Crit(getLogPrefix()+" | "+msg, args...)
 }
 
+// Prettier error logging.
+func Errorf(msg string, err error, args ...interface{}) {
+	wrappedErr := fmt.Errorf(getLogPrefix()+" | "+msg, err)
+	log.Error(wrappedErr.Error(), args...)
+}
+
 func getLogPrefix() string {
 	// Skip two call frames (from here to the caller of log.X)
 	pc, _, line, _ := runtime.Caller(2)

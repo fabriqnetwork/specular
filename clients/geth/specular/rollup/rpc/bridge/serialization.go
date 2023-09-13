@@ -7,21 +7,24 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
 const (
 	TxBatchAppendedEventName = "TxBatchAppended"
-	// ISequencerInbox.sol
+	// ISequencerInbox.sol functions
 	AppendTxBatchFnName = "appendTxBatch"
-	// IRollup.sol
+	// IRollup.sol functions
 	StakeFnName                           = "stake"
 	AdvanceStakeFnName                    = "advanceStake"
 	CreateAssertionFnName                 = "createAssertion"
 	ConfirmFirstUnresolvedAssertionFnName = "confirmFirstUnresolvedAssertion"
 	RejectFirstUnresolvedAssertionFnName  = "rejectFirstUnresolvedAssertion"
-	// IChallenge.sol
+	// IChallenge.sol functions
 	bisectExecutionFn = "bisectExecution"
+	// IRollup.sol errors (TODO: figure out a work-around to hardcoding)
+	NoUnresolvedAssertionErr     = "Error: VM Exception while processing transaction: reverted with custom error 'NoUnresolvedAssertion()'"
+	ConfirmationPeriodPendingErr = "Error: VM Exception while processing transaction: reverted with custom error 'ConfirmationPeriodPending()'"
 
 	MethodNumBytes = 4
 )
@@ -68,8 +71,8 @@ func UnpackBisectExecutionInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.challengeAbi.Methods[bisectExecutionFn].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
-func packStakeInput(stakeAmount *big.Int) ([]byte, error) {
-	return serializationUtil.rollupAbi.Pack(StakeFnName, stakeAmount)
+func packStakeInput() ([]byte, error) {
+	return serializationUtil.rollupAbi.Pack(StakeFnName)
 }
 
 func packAdvanceStakeInput(assertionID *big.Int) ([]byte, error) {
@@ -93,15 +96,15 @@ func ensureUtilInit() error {
 	if serializationUtil == nil {
 		inboxAbi, err := bindings.ISequencerInboxMetaData.GetAbi()
 		if err != nil {
-			return fmt.Errorf("Failed to get ISequencerInbox ABI: %w", err)
+			return fmt.Errorf("failed to get ISequencerInbox ABI: %w", err)
 		}
 		rollupAbi, err := bindings.IRollupMetaData.GetAbi()
 		if err != nil {
-			return fmt.Errorf("Failed to get IRollup ABI: %w", err)
+			return fmt.Errorf("failed to get IRollup ABI: %w", err)
 		}
 		challengeAbi, err := bindings.ISymChallengeMetaData.GetAbi()
 		if err != nil {
-			return fmt.Errorf("Failed to get ISymChallenge ABI: %w", err)
+			return fmt.Errorf("failed to get ISymChallenge ABI: %w", err)
 		}
 		serializationUtil = &bridgeSerializationUtil{
 			inboxAbi:     inboxAbi,

@@ -3,95 +3,201 @@ package rollup
 import (
 	"bytes"
 	"context"
+	"math"
 	"math/big"
-	"time"
+	"reflect"
 
-	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/accounts"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/node"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/disseminator"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/indexer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
+	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
 )
 
-// RegisterRollupService registers rollup service configured by ctx
-func RegisterRollupService(stack *node.Node, eth services.Backend, proofBackend proof.Backend, cfg *services.Config) {
-	// Unlock account for L1 transaction signer
-	var ks *keystore.KeyStore
-	if keystores := stack.AccountManager().Backends(keystore.KeyStoreType); len(keystores) > 0 {
-		ks = keystores[0].(*keystore.KeyStore)
-	}
-	if ks == nil {
-		log.Crit("Failed to register the Rollup service: keystore not found")
-	}
-	chainID := big.NewInt(int64(cfg.L1ChainID))
-	json, err := ks.Export(accounts.Account{Address: cfg.Coinbase}, cfg.Passphrase, "")
+// TODO: this is the last Geth-specific interface here; remove.
+type accountManager interface {
+	Backends(reflect.Type) []accounts.Backend
+}
+
+type serviceCfg interface {
+	GetAccountAddr() common.Address
+	GetClefEndpoint() string
+	GetPassphrase() string
+	GetTxMgrCfg() txmgr.Config
+}
+
+// Creates services configured by cfg:
+// - Sequencer (if sequencer configured)
+// - L2 block data disseminator (if sequencer configured)
+// - Validator (if validator configured)
+func CreateRollupServices(
+	accMgr accountManager,
+	execBackend api.ExecutionBackend,
+	proofBackend proof.Backend,
+	cfg *services.SystemConfig,
+) ([]api.Service, error) {
+	var services []api.Service
+	legacyService, err := createLegacyService(accMgr, execBackend, proofBackend, cfg)
 	if err != nil {
-		log.Crit("Failed to register the Rollup service", "err", err)
+		return nil, err
 	}
-
-	var auth *bind.TransactOpts
-	if cfg.ClefEndpoint != "" {
-		clef, err := external.NewExternalSigner(cfg.ClefEndpoint)
+	services = append(services, legacyService)
+	if cfg.Sequencer().GetIsEnabled() {
+		disseminator, err := createDisseminator(context.Background(), cfg, accMgr)
 		if err != nil {
-			log.Crit("Failed to create external signer from clef endpoint", "err", err)
+			return nil, fmt.Errorf("failed to initialize sequencer: %w", err)
 		}
-		auth = bind.NewClefTransactor(clef, accounts.Account{Address: cfg.Coinbase})
-	} else {
-		log.Warn("no external signer specified, using geth signer")
-		auth, err = bind.NewTransactorWithChainID(bytes.NewReader(json), cfg.Passphrase, chainID)
+		services = append(services, disseminator)
+	}
+	if cfg.Validator().GetIsEnabled() {
+		validator, err := createValidator(context.Background(), cfg, accMgr)
 		if err != nil {
-			log.Crit("Failed to register the Rollup service", "err", err)
+			return nil, fmt.Errorf("failed to initialize validator: %w", err)
 		}
+		services = append(services, validator)
 	}
+	return services, nil
+}
 
-	// Register services
-	ctx := context.Background()
-	retryOpts := []retry.Option{
-		retry.Context(ctx),
-		retry.Attempts(3),
-		retry.Delay(5 * time.Second),
-		retry.LastErrorOnly(true),
-		retry.RetryIf(func(err error) bool {
-			// limit retry to connection error, nonce error
-			// if err == ? {
-			// 	return false
-			return true
-		}),
-		retry.OnRetry(func(n uint, err error) {
-			log.Error("Failed attempt", "attempt", n, "err", err)
-		}),
-	}
+// TODO: delete.
+func createLegacyService(
+	accMgr accountManager,
+	execBackend api.ExecutionBackend,
+	proofBackend proof.Backend,
+	cfg *services.SystemConfig,
+) (api.Service, error) {
 	l1Client, err := client.NewEthBridgeClient(
-		ctx,
-		cfg.L1Endpoint,
-		cfg.L1RollupGenesisBlock,
+		context.Background(),
+		cfg.L1().Endpoint,
 		cfg.SequencerInboxAddr,
-		cfg.RollupAddr,
-		auth,
-		retryOpts,
+		eth.DefaultRetryOpts,
 	)
 	if err != nil {
-		log.Crit("Failed to register the Rollup service: cannot create l1 client", "err", err)
+		return nil, err
 	}
-	var service node.Lifecycle
-	switch cfg.Node {
-	case services.NODE_SEQUENCER:
-		service, err = sequencer.New(eth, proofBackend, l1Client, cfg)
-	case services.NODE_INDEXER:
-		service, err = indexer.New(eth, proofBackend, l1Client, cfg)
-	default:
-		err = fmt.Errorf("Node type unkown: %v", cfg.Node)
+	// Register service
+	var (
+		service    api.Service
+		serviceCfg = struct {
+			services.SequencerConfig
+			services.L1Config
+		}{cfg.Sequencer(), cfg.L1()}
+	)
+	if cfg.Sequencer().GetIsEnabled() {
+		service, err = sequencer.New(execBackend, proofBackend, l1Client, serviceCfg)
+	} else {
+		service, err = indexer.New(execBackend, proofBackend, l1Client, serviceCfg)
 	}
+	return service, err
+}
+
+func createDisseminator(
+	ctx context.Context,
+	cfg *services.SystemConfig,
+	accountMgr accountManager,
+) (*disseminator.BatchDisseminator, error) {
+	l1TxMgr, err := createTxManager(ctx, cfg.L1(), cfg.Sequencer(), accountMgr)
 	if err != nil {
-		log.Crit("Failed to register rollup service", "err", err)
+		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
-	stack.RegisterLifecycle(service)
+	batchBuilder, err := derivation.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize batch builder: %w", err)
+	}
+	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
+	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
+}
+
+func createValidator(
+	ctx context.Context,
+	cfg *services.SystemConfig,
+	accountMgr accountManager,
+) (*validator.Validator, error) {
+	l1TxMgr, err := createTxManager(ctx, cfg.L1(), cfg.Validator(), accountMgr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
+	}
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
+	}
+	l1BridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.L1())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
+	}
+	l1State := eth.NewEthState()
+	l1Syncer := eth.NewEthSyncer(l1State)
+	l1Syncer.Start(ctx, l1Client)
+	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
+	return validator.NewValidator(cfg.Validator(), l1TxMgr, l1BridgeClient, l1State, l2Client), nil
+}
+
+func createTxManager(
+	ctx context.Context,
+	l1Cfg services.L1Config,
+	serCfg serviceCfg,
+	accountMgr accountManager,
+) (*bridge.TxManager, error) {
+	transactor, err := createTransactor(
+		accountMgr, serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetPassphrase(), l1Cfg.GetChainID(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
+	}
+	l1Client, err := eth.DialWithRetry(ctx, l1Cfg.GetEndpoint())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
+	}
+	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
+		return transactor.Signer(address, tx)
+	}
+	return bridge.NewTxManager(txmgr.NewTxManager(serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
+}
+
+// Creates a transactor for the given account address, either using the clef endpoint or passphrase.
+func createTransactor(
+	mgr accountManager,
+	accountAddress common.Address,
+	clefEndpoint string,
+	passphrase string,
+	chainID uint64,
+) (*bind.TransactOpts, error) {
+	if clefEndpoint != "" {
+		clef, err := external.NewExternalSigner(clefEndpoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize external signer from clef endpoint: %w", err)
+		}
+		return bind.NewClefTransactor(clef, accounts.Account{Address: accountAddress}), nil
+	}
+	log.Warn("No external signer specified, using geth signer")
+	var ks *keystore.KeyStore
+	if keystores := mgr.Backends(keystore.KeyStoreType); len(keystores) > 0 {
+		ks = keystores[0].(*keystore.KeyStore)
+	} else {
+		return nil, fmt.Errorf("keystore not found")
+	}
+	json, err := ks.Export(accounts.Account{Address: accountAddress}, passphrase, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to export account for %s: %w", accountAddress, err)
+	}
+	transactor, err := bind.NewTransactorWithChainID(bytes.NewReader(json), passphrase, new(big.Int).SetUint64(chainID))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create transactor: %w", err)
+	}
+	return transactor, nil
 }

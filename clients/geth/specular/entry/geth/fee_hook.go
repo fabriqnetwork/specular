@@ -1,4 +1,4 @@
-package rollup
+package geth
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/utils/log"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // TODO: maybe move these constants to the rollup config or a separate file
@@ -20,8 +20,8 @@ const (
 )
 
 type RollupConfig interface {
-	GetCoinbase() common.Address         // recipient of the L1 Fee
-	GetL2ChainID() uint64                // chain ID of the specular rollup
+	GetAccountAddr() common.Address      // recipient of the L1 Fee
+	GetChainID() uint64                  // chain ID of the specular rollup
 	GetL1FeeOverhead() int64             // fixed cost of submitting a tx to L1
 	GetL1FeeMultiplier() float64         // value to scale the L1 Fee
 	GetL1OracleAddress() common.Address  // contract providing the L1 basefee
@@ -50,7 +50,7 @@ func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transact
 	var txData types.TxData
 	if msg.GasTipCap() != nil {
 		txData = &types.DynamicFeeTx{
-			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			ChainID:    big.NewInt(int64(cfg.GetChainID())),
 			Nonce:      msg.Nonce(),
 			GasTipCap:  msg.GasTipCap(),
 			GasFeeCap:  msg.GasFeeCap(),
@@ -62,7 +62,7 @@ func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transact
 		}
 	} else if msg.AccessList() != nil {
 		txData = &types.AccessListTx{
-			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			ChainID:    big.NewInt(int64(cfg.GetChainID())),
 			Nonce:      msg.Nonce(),
 			GasPrice:   msg.GasPrice(),
 			Gas:        msg.Gas(),
@@ -151,7 +151,7 @@ func chargeL1Fee(l1Fee *big.Int, msg types.Message, evm *vm.EVM, cfg RollupConfi
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	evm.StateDB.AddBalance(cfg.GetCoinbase(), l1Fee)
+	evm.StateDB.AddBalance(cfg.GetAccountAddr(), l1Fee)
 	evm.StateDB.SubBalance(msg.From(), l1Fee)
 
 	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())

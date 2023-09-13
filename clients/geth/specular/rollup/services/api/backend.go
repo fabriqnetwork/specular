@@ -1,4 +1,4 @@
-package services
+package api
 
 import (
 	"github.com/ethereum/go-ethereum/core"
@@ -6,8 +6,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
-// Required interface for interacting with Ethereum instance
-type Backend interface {
+// Required interface for interacting with Ethereum instance.
+type ExecutionBackend interface {
 	BlockChain() *core.BlockChain
 	TxPool() *core.TxPool
 	StateAtBlock(block *types.Block, reexec uint64, base *state.StateDB, checkLive bool, preferDisk bool) (statedb *state.StateDB, err error)
