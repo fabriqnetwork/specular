@@ -90,6 +90,10 @@ var (
 		Value: "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168", // keccak256("specular.basefee")
 	}
 	// Sequencer config flags
+	sequencerEnableSequencerFlag = &cli.BoolFlag{
+		Name:  "rollup.sequencer",
+		Usage: "Whether this node is a sequencer",
+	}
 	sequencerAddrFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer.addr",
 		Usage: "The sequencer address",
@@ -108,6 +112,10 @@ var (
 		Value: 8,
 	}
 	// Validator config flags
+	validatorEnableValidatorFlag = &cli.BoolFlag{
+		Name:  "rollup.validator",
+		Usage: "Whether this node is a validator",
+	}
 	validatorAddrFlag = &cli.StringFlag{
 		Name:  "rollup.validator.addr",
 		Usage: "The validator address",
@@ -144,12 +152,14 @@ var (
 		l2L1OracleBaseFeeSlotFlag,
 	}
 	sequencerCLIFlags = []cli.Flag{
+		sequencerEnableSequencerFlag,
 		sequencerAddrFlag,
 		sequencerClefEndpointFlag,
 		sequencerPassphraseFlag,
 		sequencerSequencingIntervalFlag,
 	}
 	validatorCLIFlags = []cli.Flag{
+		validatorEnableValidatorFlag,
 		validatorAddrFlag,
 		validatorClefEndpointFlag,
 		validatorPassphraseFlag,

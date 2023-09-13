@@ -57,14 +57,14 @@ func CreateRollupServices(
 		return nil, err
 	}
 	services = append(services, legacyService)
-	if cfg.Sequencer().GetAccountAddr() != (common.Address{}) {
+	if cfg.Sequencer().GetIsEnabled() {
 		disseminator, err := createDisseminator(context.Background(), cfg, accMgr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize sequencer: %w", err)
 		}
 		services = append(services, disseminator)
 	}
-	if cfg.Validator().GetAccountAddr() != (common.Address{}) {
+	if cfg.Validator().GetIsEnabled() {
 		validator, err := createValidator(context.Background(), cfg, accMgr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize validator: %w", err)

@@ -106,6 +106,9 @@ func (c L2Config) GetL1OracleBaseFeeSlot() common.Hash { return c.L1OracleBaseFe
 
 // Sequencer node configuration
 type SequencerConfig struct {
+	// Whether this node is a sequencer
+	IsEnabled bool `toml:"enabled,omitempty"`
+	// The address of this sequencer
 	AccountAddr common.Address `toml:"account_addr,omitempty"`
 	// The Clef Endpoint used for signing txs
 	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
@@ -117,6 +120,7 @@ type SequencerConfig struct {
 	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
 
+func (c SequencerConfig) GetIsEnabled() bool                      { return c.IsEnabled }
 func (c SequencerConfig) GetAccountAddr() common.Address          { return c.AccountAddr }
 func (c SequencerConfig) GetClefEndpoint() string                 { return c.ClefEndpoint }
 func (c SequencerConfig) GetPassphrase() string                   { return c.Passphrase }
@@ -128,6 +132,7 @@ func newSequencerConfigFromCLI(
 	txMgrCfg txmgr.Config,
 ) SequencerConfig {
 	return SequencerConfig{
+		IsEnabled:             cliCtx.Bool(sequencerEnableSequencerFlag.Name),
 		AccountAddr:           common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
 		ClefEndpoint:          cliCtx.String(sequencerClefEndpointFlag.Name),
 		Passphrase:            cliCtx.String(sequencerPassphraseFlag.Name),
@@ -137,6 +142,9 @@ func newSequencerConfigFromCLI(
 }
 
 type ValidatorConfig struct {
+	// Whether this node is a validator
+	IsEnabled bool `toml:"enabled,omitempty"`
+	// The address of this validator
 	AccountAddr common.Address `toml:"account_addr,omitempty"`
 	// The Clef Endpoint used for signing txs
 	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
@@ -148,6 +156,7 @@ type ValidatorConfig struct {
 	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
 
+func (c ValidatorConfig) GetIsEnabled() bool                   { return c.IsEnabled }
 func (c ValidatorConfig) GetAccountAddr() common.Address       { return c.AccountAddr }
 func (c ValidatorConfig) GetClefEndpoint() string              { return c.ClefEndpoint }
 func (c ValidatorConfig) GetPassphrase() string                { return c.Passphrase }
@@ -159,6 +168,7 @@ func newValidatorConfigFromCLI(
 	txMgrCfg txmgr.Config,
 ) ValidatorConfig {
 	return ValidatorConfig{
+		IsEnabled:          cliCtx.Bool(validatorEnableValidatorFlag.Name),
 		AccountAddr:        common.HexToAddress(cliCtx.String(validatorAddrFlag.Name)),
 		ClefEndpoint:       cliCtx.String(validatorClefEndpointFlag.Name),
 		Passphrase:         cliCtx.String(validatorPassphraseFlag.Name),
