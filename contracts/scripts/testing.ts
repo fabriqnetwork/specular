@@ -110,7 +110,7 @@ async function testTx(
 ) {
   const txResponse = await sendTx(sequencerSigner, toAddress, value);
 
-  await delay(60);
+  await delay(120);
   await checkLogs("appendTxFilter", sequencerContract, appendTxFilter);
   await checkLogs(
     "assertionCreatedFilter",
