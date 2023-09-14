@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/beacon"
+	"github.com/ethereum/go-ethereum/beacon/engine"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
@@ -14,9 +14,9 @@ import (
 
 type Config interface{ GetDisseminationInterval() time.Duration }
 
-type ForkChoiceState = beacon.ForkchoiceStateV1
-type ForkChoiceResponse = beacon.ForkChoiceResponse
-type BuildPayloadResponse = beacon.ForkChoiceResponse
+type ForkChoiceState = engine.ForkchoiceStateV1
+type ForkChoiceResponse = engine.ForkChoiceResponse
+type BuildPayloadResponse = engine.ForkChoiceResponse
 
 type BatchBuilder interface {
 	Append(block derivation.DerivationBlock, header derivation.HeaderRef) error
