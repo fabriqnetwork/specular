@@ -161,48 +161,6 @@ func (b *BaseService) processTxBatchAppendedEvent(
 	return nil
 }
 
-// TODO: clean up.
-func (b *BaseService) setL2BlockBoundaries(
-	assertion *rollupTypes.Assertion,
-	parentAssertionCreatedEvent *bindings.IRollupAssertionCreated,
-) error {
-	numBlocks := b.Chain().CurrentBlock().Number.Uint64()
-	if numBlocks == 0 {
-		log.Info("Zero-initializing assertion block boundaries.")
-		assertion.StartBlock = 0
-		assertion.EndBlock = 0
-		return nil
-	}
-	startFound := false
-	// Note: by convention defined in Rollup.sol, the parent VmHash is the
-	// same as the child only when the assertion is the genesis assertion.
-	// This is a hack to avoid mis-setting `assertion.StartBlock`.
-	if assertion.ID.Cmp(parentAssertionCreatedEvent.AssertionID) == 0 {
-		log.Info("Found genesis start block", "id", assertion.ID)
-		parentAssertionCreatedEvent.VmHash = common.Hash{}
-		startFound = true
-	}
-	log.Info("Searching for start and end blocks for assertion.", "id", assertion.ID)
-	// Find start and end blocks using L2 chain (assumes it's synced at least up to the assertion).
-	for i := uint64(0); i <= numBlocks; i++ {
-		// TODO: remove assumption of VM hash being the block root.
-		root := b.Chain().GetBlockByNumber(i).Root()
-		if root == parentAssertionCreatedEvent.VmHash {
-			log.Info("Found start block", "l2 block#", i+1)
-			assertion.StartBlock = i + 1
-			startFound = true
-		} else if root == assertion.VmHash {
-			log.Info("Found end block", "l2 block#", i)
-			assertion.EndBlock = i
-			if !startFound {
-				return fmt.Errorf("Found end block before start block for assertion with hash %d", assertion.VmHash)
-			}
-			return nil
-		}
-	}
-	return fmt.Errorf("Could not find start or end block for assertion with hash %s", assertion.VmHash)
-}
-
 // commitBlocks executes and commits sequenced blocks to local blockchain
 // TODO: this function shares a lot of codes with Batcher
 // TODO: use StateProcessor::Process() instead
@@ -245,8 +203,8 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 		header := &types.Header{
 			ParentHash: parent.Hash(),
 			Number:     new(big.Int).SetUint64(currentBlockNumber),
-			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
-			Time:       sblock.Timestamp,
+			GasLimit:   core.CalcGasLimit(parent.GasLimit, ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
+			Time:       sblock.Timestamp(),
 			Coinbase:   b.Config.GetAccountAddr(),
 			Difficulty: common.Big0, // Fake difficulty. Avoid use 0 here because it means the merge happened
 		}

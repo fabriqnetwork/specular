@@ -36,17 +36,17 @@ func New(eth api.ExecutionBackend, proofBackend proof.Backend, l1Client client.L
 func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Transaction, tx *txpool.LazyTransaction) ([]*types.Transaction, error) {
 	// Check if tx in batch
 	for i := len(batchTxs) - 1; i >= 0; i-- {
-		if batchTxs[i].Hash() == tx.Hash() {
+		if batchTxs[i].Hash() == tx.Hash {
 			return batchTxs, nil
 		}
 	}
 	// Check if tx exists on chain
-	prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash())
+	prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("Checking GetTransaction, err: %w", err)
 	}
 	if prevTx == nil {
-		batchTxs = append(batchTxs, tx)
+		batchTxs = append(batchTxs, tx.Resolve().Tx)
 	}
 	return batchTxs, nil
 }

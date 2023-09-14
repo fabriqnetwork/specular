@@ -152,7 +152,7 @@ func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, evm *vm.EVM, cfg Rollu
 	}
 
 	evm.StateDB.AddBalance(cfg.GetAccountAddr(), l1Fee)
-	evm.StateDB.SubBalance(msg.From(), l1Fee)
+	evm.StateDB.SubBalance(msg.GetFrom(), l1Fee)
 
 	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
 	return nil
