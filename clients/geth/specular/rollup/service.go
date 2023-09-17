@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
@@ -27,6 +26,7 @@ import (
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/sequencer"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/validator"
 	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularl2/specular/clients/geth/specular/utils/log"
 )
 
 // TODO: this is the last Geth-specific interface here; remove.
@@ -111,7 +111,7 @@ func createDisseminator(
 	cfg *services.SystemConfig,
 	accountMgr accountManager,
 ) (*disseminator.BatchDisseminator, error) {
-	l1TxMgr, err := createTxManager(ctx, cfg.L1(), cfg.Sequencer(), accountMgr)
+	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer(), accountMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -128,7 +128,7 @@ func createValidator(
 	cfg *services.SystemConfig,
 	accountMgr accountManager,
 ) (*validator.Validator, error) {
-	l1TxMgr, err := createTxManager(ctx, cfg.L1(), cfg.Validator(), accountMgr)
+	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator(), accountMgr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -149,6 +149,7 @@ func createValidator(
 
 func createTxManager(
 	ctx context.Context,
+	name string,
 	l1Cfg services.L1Config,
 	serCfg serviceCfg,
 	accountMgr accountManager,
@@ -166,7 +167,7 @@ func createTxManager(
 	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
-	return bridge.NewTxManager(txmgr.NewTxManager(serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
+	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
 }
 
 // Creates a transactor for the given account address, either using the clef endpoint or passphrase.

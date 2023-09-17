@@ -64,6 +64,7 @@ type ETHBackend interface {
 type TxManager struct {
 	cfg     Config
 	backend ETHBackend
+	l       log.Logger
 	signer  SignerFn
 
 	nonce     *uint64
@@ -73,10 +74,11 @@ type TxManager struct {
 type SignerFn func(ctx context.Context, address common.Address, tx *types.Transaction) (*types.Transaction, error)
 
 // NewTxManager initializes a new TxManager with the passed Config.
-func NewTxManager(cfg Config, backend ETHBackend, signer SignerFn) *TxManager {
+func NewTxManager(l log.Logger, cfg Config, backend ETHBackend, signer SignerFn) *TxManager {
 	return &TxManager{
 		cfg:     cfg,
 		backend: backend,
+		l:       l,
 		signer:  signer,
 	}
 }
@@ -135,7 +137,7 @@ func (m *TxManager) send(ctx context.Context, candidate TxCandidate) (*types.Rec
 	tx, err := retry.Do(ctx, 10, retry.Fixed(2*time.Second), func() (*types.Transaction, error) {
 		tx, err := m.craftTx(ctx, candidate)
 		if err != nil {
-			log.Warn("Failed to create a transaction, will retry", "err", err)
+			m.l.Warn("Failed to create a transaction, will retry", "err", err)
 		}
 		return tx, err
 	})
@@ -172,7 +174,7 @@ func (m *TxManager) craftTx(ctx context.Context, candidate TxCandidate) (*types.
 		Value:     candidate.Value,
 	}
 
-	log.Info("creating tx", "to", rawTx.To, "from", m.cfg.From)
+	m.l.Info("Creating tx", "to", rawTx.To, "from", m.cfg.From)
 
 	// If the gas limit is set, we can use that as the gas
 	if candidate.GasLimit != 0 {
@@ -261,7 +263,7 @@ func (m *TxManager) sendTx(ctx context.Context, tx *types.Transaction) (*types.R
 			}
 			// If we see lots of unrecoverable errors (and no pending transactions) abort sending the transaction.
 			if sendState.ShouldAbortImmediately() {
-				log.Warn("Aborting transaction submission")
+				m.l.Warn("Aborting transaction submission")
 				return nil, errors.New("aborted transaction sending")
 			}
 			// Increase the gas price & submit the new transaction
@@ -290,8 +292,8 @@ func (m *TxManager) sendTx(ctx context.Context, tx *types.Transaction) (*types.R
 // It should be called in a new go-routine. It will send the receipt to receiptChan in a non-blocking way if a receipt is found
 // for the transaction.
 func (m *TxManager) publishAndWaitForTx(ctx context.Context, tx *types.Transaction, sendState *SendState, receiptChan chan *types.Receipt) {
-	log := log.New("hash", tx.Hash(), "nonce", tx.Nonce(), "gasTipCap", tx.GasTipCap(), "gasFeeCap", tx.GasFeeCap())
-	log.Info("publishing transaction")
+	log := m.l.New("hash", tx.Hash(), "nonce", tx.Nonce(), "gasTipCap", tx.GasTipCap(), "gasFeeCap", tx.GasFeeCap())
+	log.Info("Publishing transaction")
 
 	cCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
@@ -356,13 +358,13 @@ func (m *TxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendSt
 	receipt, err := m.backend.TransactionReceipt(ctx, txHash)
 	if errors.Is(err, ethereum.NotFound) {
 		sendState.TxNotMined(txHash)
-		log.Trace("Transaction not yet mined", "hash", txHash)
+		m.l.Trace("Transaction not yet mined", "hash", txHash)
 		return nil
 	} else if err != nil {
-		log.Info("Receipt retrieval failed", "hash", txHash, "err", err)
+		m.l.Info("Receipt retrieval failed", "hash", txHash, "err", err)
 		return nil
 	} else if receipt == nil {
-		log.Warn("Receipt and error are both nil", "hash", txHash)
+		m.l.Warn("Receipt and error are both nil", "hash", txHash)
 		return nil
 	}
 
@@ -372,11 +374,11 @@ func (m *TxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendSt
 	txHeight := receipt.BlockNumber.Uint64()
 	tipHeight, err := m.backend.BlockNumber(ctx)
 	if err != nil {
-		log.Error("Unable to fetch block number", "err", err)
+		m.l.Error("Unable to fetch block number", "err", err)
 		return nil
 	}
 
-	log.Debug("Transaction mined, checking confirmations", "hash", txHash, "txHeight", txHeight,
+	m.l.Debug("Transaction mined, checking confirmations", "hash", txHash, "txHeight", txHeight,
 		"tipHeight", tipHeight, "numConfirmations", m.cfg.NumConfirmations)
 
 	// The transaction is considered confirmed when
@@ -387,13 +389,13 @@ func (m *TxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendSt
 	// tipHeight. The equation is rewritten in this form to avoid
 	// underflows.
 	if txHeight+m.cfg.NumConfirmations <= tipHeight+1 {
-		log.Info("Transaction confirmed", "hash", txHash)
+		m.l.Info("Transaction confirmed", "hash", txHash)
 		return receipt
 	}
 
 	// Safe to subtract since we know the LHS above is greater.
 	confsRemaining := (txHeight + m.cfg.NumConfirmations) - (tipHeight + 1)
-	log.Debug("Transaction not yet confirmed", "hash", txHash, "confsRemaining", confsRemaining)
+	m.l.Debug("Transaction not yet confirmed", "hash", txHash, "confsRemaining", confsRemaining)
 	return nil
 }
 
@@ -403,23 +405,23 @@ func (m *TxManager) queryReceipt(ctx context.Context, txHash common.Hash, sendSt
 // doesn't linger in the mempool. Finally to avoid runaway price increases, fees are capped at a
 // `feeLimitMultiplier` multiple of the suggested values.
 func (m *TxManager) increaseGasPrice(ctx context.Context, tx *types.Transaction) (*types.Transaction, error) {
-	log.Info("bumping gas price for tx", "hash", tx.Hash(), "tip", tx.GasTipCap(), "fee", tx.GasFeeCap(), "gaslimit", tx.Gas())
+	m.l.Info("bumping gas price for tx", "hash", tx.Hash(), "tip", tx.GasTipCap(), "fee", tx.GasFeeCap(), "gaslimit", tx.Gas())
 	tip, basefee, err := m.suggestGasPriceCaps(ctx)
 	if err != nil {
-		log.Warn("failed to get suggested gas tip and basefee", "err", err)
-		return tx, nil
+		m.l.Warn("failed to get suggested gas tip and basefee", "err", err)
+		return nil, err
 	}
-	bumpedTip, bumpedFee := updateFees(tx.GasTipCap(), tx.GasFeeCap(), tip, basefee, log.Root())
+	bumpedTip, bumpedFee := updateFees(tx.GasTipCap(), tx.GasFeeCap(), tip, basefee, m.l)
 
 	// Make sure increase is at most 5x the suggested values
 	maxTip := new(big.Int).Mul(tip, big.NewInt(feeLimitMultiplier))
 	if bumpedTip.Cmp(maxTip) > 0 {
-		log.Warn(fmt.Sprintf("bumped tip getting capped at %dx multiple of the suggested value", feeLimitMultiplier), "bumped", bumpedTip, "suggestion", tip)
+		m.l.Warn(fmt.Sprintf("bumped tip getting capped at %dx multiple of the suggested value", feeLimitMultiplier), "bumped", bumpedTip, "suggestion", tip)
 		bumpedTip.Set(maxTip)
 	}
 	maxFee := calcGasFeeCap(new(big.Int).Mul(basefee, big.NewInt(feeLimitMultiplier)), maxTip)
 	if bumpedFee.Cmp(maxFee) > 0 {
-		log.Warn("bumped fee getting capped at multiple of the implied suggested value", "bumped", bumpedFee, "suggestion", maxFee)
+		m.l.Warn("bumped fee getting capped at multiple of the implied suggested value", "bumped", bumpedFee, "suggestion", maxFee)
 		bumpedFee.Set(maxFee)
 	}
 
@@ -447,11 +449,11 @@ func (m *TxManager) increaseGasPrice(ctx context.Context, tx *types.Transaction)
 		// original tx can get included in a block just before the above call. In this case the
 		// error is due to the tx reverting with message "block number must be equal to next
 		// expected block number"
-		log.Warn("failed to re-estimate gas", "err", err, "gaslimit", tx.Gas())
+		m.l.Warn("failed to re-estimate gas", "err", err, "gaslimit", tx.Gas())
 		return nil, err
 	}
 	if tx.Gas() != gas {
-		log.Info("re-estimated gas differs", "oldgas", tx.Gas(), "newgas", gas)
+		m.l.Info("re-estimated gas differs", "oldgas", tx.Gas(), "newgas", gas)
 	}
 	rawTx.Gas = gas
 
@@ -459,7 +461,7 @@ func (m *TxManager) increaseGasPrice(ctx context.Context, tx *types.Transaction)
 	defer cancel()
 	newTx, err := m.signer(ctx, m.cfg.From, types.NewTx(rawTx))
 	if err != nil {
-		log.Warn("failed to sign new transaction", "err", err)
+		m.l.Warn("failed to sign new transaction", "err", err)
 		return tx, nil
 	}
 	return newTx, nil
