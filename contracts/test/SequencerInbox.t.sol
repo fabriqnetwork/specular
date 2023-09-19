@@ -93,7 +93,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(alice);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
-        seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
+        seqIn.appendTxBatch(contexts, txLengths, 1, txBatchVersion, "0x");
     }
 
     function test_appendTxBatch_emptyBatch_reverts() public {
@@ -101,7 +102,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerAddress);
         uint256[] memory contexts = new uint256[](1);
         uint256[] memory txLengths = new uint256[](1);
-        seqIn.appendTxBatch(contexts, txLengths, 1, "0x");
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
+        seqIn.appendTxBatch(contexts, txLengths, 1, txBatchVersion, "0x");
     }
 
     //////////////////////////////
@@ -142,11 +144,12 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
         assertGt(inboxSizeFinal, inboxSizeInitial);
@@ -182,12 +185,13 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
         bytes memory txBatch = _helper_createTxBatch_hardcoded();
         uint256[] memory txLengths = _helper_findTxLength_hardcoded();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -230,6 +234,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         // Now, we want to trigger the `txnBatchDataOverflow`, so we want to disturn the values receieved in the txLengths array.
         for (uint256 i; i < numTxns; i++) {
@@ -239,7 +244,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
         vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
     }
 
     function test_appendTxBatch_paused_reverts(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
@@ -279,11 +284,12 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
         vm.expectRevert("Pausable: paused");
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
     }
 
     /////////////////////////////////////////////////////////////////////////////////////////
@@ -313,10 +319,11 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -340,16 +347,14 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256[] memory contexts = generateContexts(numBlocks, numTxPerBlock);
 
         (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
+        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, 0, txBatch);
+        seqIn.appendTxBatch(contexts, txLengths, 0, txBatchVersion, txBatch);
         assertEq(seqIn.getInboxSize(), numTx);
-
+        
         // randomly choose a transaction to verify and prepare the proof
         txToVerify = bound(txToVerify, 0, numTx - 1);
-        uint256 batchNum = 0;
-        uint256 numTxBefore = txToVerify;
-        uint256 numTxAfter = numTx - txToVerify - 1;
 
         bytes memory txAfterData = generateTxAfterData(txToVerify, numTx, numTxPerBlock, contexts);
 
@@ -361,11 +366,17 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // prepare the accumulator hash of the preceding transactions in the batch
         bytes32 accBefore = generateAccumulator(txToVerify, numTxPerBlock, contexts);
 
-        bytes memory batchInfo = abi.encodePacked(batchNum, numTxBefore, numTxAfter, accBefore);
+        {
+            uint256 batchNum = 0;
+            uint256 numTxBefore = txToVerify;
+            uint256 numTxAfter = numTx - txToVerify - 1;
 
-        bytes memory proof = abi.encodePacked(proofContextHash, batchInfo, txAfterData);
+            bytes memory batchInfo = abi.encodePacked(batchNum, numTxBefore, numTxAfter, accBefore);
 
-        seqIn.verifyTxInclusion(encodedTx, proof);
+            bytes memory proof = abi.encodePacked(proofContextHash, batchInfo, txAfterData);
+
+            seqIn.verifyTxInclusion(encodedTx, proof);
+        }
     }
 
     /////////////////////////
