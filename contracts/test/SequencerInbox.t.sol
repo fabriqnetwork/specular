@@ -352,7 +352,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, 0, txBatchVersion, txBatch);
         assertEq(seqIn.getInboxSize(), numTx);
-        
+
         // randomly choose a transaction to verify and prepare the proof
         txToVerify = bound(txToVerify, 0, numTx - 1);
 

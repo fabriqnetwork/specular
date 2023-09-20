@@ -39,8 +39,8 @@ contract RLPEncodedTransactionsUtil is Test {
     ];
 
     function _helper_sequencerInbox_appendTx_Version() internal returns (uint256) {
-      // Update this as necessary
-      return 0;
+        // Update this as necessary
+        return 0;
     }
 
     function _helper_sequencerInbox_appendTx(uint256 numTxns) internal view returns (bytes memory, uint256[] memory) {
