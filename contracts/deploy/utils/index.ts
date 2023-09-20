@@ -79,7 +79,7 @@ export async function deployUUPSProxiedContract(
   const impl = await deploy(name, {
     from: deployer,
     log: true,
-  });
+  }).catch((e) => console.log(e));
 
   let proxyAddress: string;
 

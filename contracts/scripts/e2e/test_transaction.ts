@@ -28,11 +28,15 @@ export async function setupSigners(
   sequencerPrivateKeyPath: string,
   validatorPrivateKeyPath: string
 ) {
-  const sequencerPrivateKey = fs.readFileSync(sequencerPrivateKeyPath, "utf8");
-  const sequencerSigner = new Wallet(sequencerPrivateKey, l2Provider);
+  const validatorSigner = new ethers.Wallet(
+    process.env.DEPLOYER_PRIVATE_KEY,
+    l2Provider
+  );
 
-  const validatorPrivateKey = fs.readFileSync(validatorPrivateKeyPath, "utf8");
-  const validatorSigner = new Wallet(validatorPrivateKey, l2Provider);
+  const sequencerSigner = new ethers.Wallet(
+    process.env.RELAYER_PRIVATE_KEY,
+    l2Provider
+  );
 
   return {
     sequencerSigner,

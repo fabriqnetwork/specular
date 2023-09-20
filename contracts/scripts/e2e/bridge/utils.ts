@@ -12,21 +12,25 @@ const l1OracleAddress = process.env.L1_ORACLE_ADDR;
 const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {
+  const sequencer = new ethers.Wallet(
+    process.env.SEQUENCER_PRIVATE_KEY,
+    l2Provider
+  );
   const l1Bridger = new ethers.Wallet(
-    process.env.BRIDGER_PRIVATE_KEY,
+    process.env.DEPLOYER_PRIVATE_KEY,
     l1Provider
   );
   const l2Bridger = new ethers.Wallet(
-    process.env.BRIDGER_PRIVATE_KEY,
+    process.env.DEPLOYER_PRIVATE_KEY,
     l2Provider
   );
 
   const l1Relayer = new ethers.Wallet(
-    process.env.SEQUENCER_PRIVATE_KEY,
+    process.env.RELAYER_PRIVATE_KEY,
     l1Provider
   );
   const l2Relayer = new ethers.Wallet(
-    process.env.SEQUENCER_PRIVATE_KEY,
+    process.env.RELAYER_PRIVATE_KEY,
     l2Provider
   );
 
@@ -58,7 +62,7 @@ export async function getSignersAndContracts() {
 
   const L1OracleFactory = await ethers.getContractFactory(
     "L1Oracle",
-    l2Relayer
+    sequencer
   );
   const l1Oracle = L1OracleFactory.attach(l1OracleAddress);
 

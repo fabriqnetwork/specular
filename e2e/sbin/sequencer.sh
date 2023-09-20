@@ -21,6 +21,7 @@ exec $L2GETH_BIN \
     --networkid $NETWORK_ID \
     --nodiscover \
     --maxpeers 0 \
+    --verbosity 3 \
     --http \
     --http.port=$L2_HTTP_PORT \
     --http.addr=0.0.0.0 \
