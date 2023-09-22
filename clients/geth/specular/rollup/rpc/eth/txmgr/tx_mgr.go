@@ -215,7 +215,6 @@ func (m *TxManager) nextNonce(ctx context.Context) (uint64, error) {
 		childCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 		defer cancel()
 		nonce, err := m.backend.NonceAt(childCtx, m.cfg.From, nil)
-		m.l.Warn("next nonce", "nonce", nonce)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get nonce: %w", err)
 		}

@@ -25,15 +25,15 @@ GETH_DOCKER_URL="ws://172.17.0.1:8545"
 
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$SEQUENCER_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1] /" &
+  $GETH_DOCKER_URL | sed "s/^/[L1] /"
 
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$VALIDATOR_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1] /" &
+  $GETH_DOCKER_URL | sed "s/^/[L1] /"
 
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1] /" &
+  $GETH_DOCKER_URL | sed "s/^/[L1] /"
 
 sleep 10
 
