@@ -5,7 +5,7 @@ import {
   getWithdrawalProof,
   delay,
   getLastBlockNumber,
-} from "./utils";
+} from "../utils";
 
 async function main() {
   const {

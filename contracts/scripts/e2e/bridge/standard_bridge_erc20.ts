@@ -7,7 +7,7 @@ import {
   delay,
   getLastBlockNumber,
   deployTokenPair,
-} from "./utils";
+} from "../utils";
 
 async function main() {
   const {

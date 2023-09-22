@@ -54,23 +54,23 @@ npx hardhat deploy --network specularLocalDev
 
 case $1 in
 
-  general)
-    npx ts-node scripts/testing.ts
+  transactions)
+    npx hardhat run scripts/e2e/transactions.ts
     RESULT=$?
     ;;
 
   deposit)
-    npx hardhat run scripts/bridge/standard_bridge_deposit_eth.ts
+    npx hardhat run scripts/e2e/bridge/standard_bridge_deposit_eth.ts
     RESULT=$?
     ;;
 
   withdraw)
-    npx hardhat run scripts/bridge/standard_bridge_withdraw_eth.ts
+    npx hardhat run scripts/e2e/bridge/standard_bridge_withdraw_eth.ts
     RESULT=$?
     ;;
 
   erc20)
-    npx hardhat run scripts/bridge/standard_bridge_erc20.ts
+    npx hardhat run scripts/e2e/bridge/standard_bridge_erc20.ts
     RESULT=$?
     ;;
 
