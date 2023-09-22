@@ -208,11 +208,14 @@ func (m *TxManager) nextNonce(ctx context.Context) (uint64, error) {
 	m.nonceLock.Lock()
 	defer m.nonceLock.Unlock()
 
-	if m.nonce == nil {
-		// Fetch the sender's nonce from the latest known block (nil `blockNumber`)
+	// currently the L1Oracle is set externally using the sequencer account
+	// we have to assume that the nonce might have changed from on of these outside txs
+	// if m.nonce == nil {
+	if true {
 		childCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 		defer cancel()
 		nonce, err := m.backend.NonceAt(childCtx, m.cfg.From, nil)
+		m.l.Warn("next nonce", "nonce", nonce)
 		if err != nil {
 			return 0, fmt.Errorf("failed to get nonce: %w", err)
 		}

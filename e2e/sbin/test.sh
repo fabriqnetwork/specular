@@ -14,8 +14,8 @@ docker run -d \
   -v ./../docker:/root \
   -p 8545:8545 \
   ethereum/client-go \
-  --dev --dev.period 5 \
-  --verbosity 5 \
+  --dev --dev.period 10 \
+  --verbosity 3 \
   --http --http.api eth,web3,net --http.addr 0.0.0.0 \
   --ws --ws.api eth,net,web3 --ws.addr 0.0.0.0 --ws.port 8545 2>&1
 
