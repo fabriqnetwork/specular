@@ -4,12 +4,12 @@ GO_SRC = ./...
 GOBIN = ./build/bin
 # TODO use env variables
 SPECULAR_DIR = ./
-CONTRACTS_DIR = ../../../contracts
+CONTRACTS_DIR = ../../contracts
 # geth
 GETH_SRC = ./cmd/geth/
 GETH_TARGET = $(GOBIN)/geth
 # clef
-CLEF_SRC = ../go-ethereum/cmd/clef/
+CLEF_SRC = ../el_clients/go-ethereum/cmd/clef/
 CLEF_TARGET = $(GOBIN)/clef
 # bindings
 BINDINGS_TARGET = ./bindings
@@ -46,7 +46,7 @@ geth-docker: bindings-docker
 	@echo "Done building geth."
 	@echo "Run \"$(GETH_TARGET)\" to launch geth."
 # Assumes contracts already built.
-bindings-docker: 
+bindings-docker:
 	go generate $(GO_SRC)
 	touch $(BINDINGS_TARGET)
 
