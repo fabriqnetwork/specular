@@ -195,7 +195,7 @@ func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 		batchAttrs.Contexts(),
 		batchAttrs.TxLengths(),
 		batchAttrs.FirstL2BlockNumber(),
-    batchAttrs.TxBatchVersion(),
+	batchAttrs.TxBatchVersion(),
 		batchAttrs.TxBatch(),
 	)
 	if err != nil {
