@@ -1,56 +1,44 @@
 .PHONY: install specular clean geth-docker contracts
 
-GO_SRC = ./...
-GOBIN = ./build/bin
-# TODO use env variables
-SPECULAR_DIR = ./
-CONTRACTS_DIR = ../../../contracts
-# geth
-GETH_SRC = ./cmd/geth/
-GETH_TARGET = $(GOBIN)/geth
-# clef
-CLEF_SRC = ../go-ethereum/cmd/clef/
-CLEF_TARGET = $(GOBIN)/clef
-# bindings
-BINDINGS_TARGET = ./bindings
-# contracts
+SIDECAR_DIR = services/sidecar
+SIDECAR_BIN = $(SIDECAR_DIR)/build/bin
+
+CONTRACTS_DIR = contracts/
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
 CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
-# PHONY targets
+BINDINGS_TARGET = ./bindings
 
-# Makes all targets
-install: specular $(GETH_TARGET) $(CLEF_TARGET)
-# Builds specular go source
-# TODO: use real target to optimize build time
-specular: $(BINDINGS_TARGET) $(shell find $(SPECULAR_DIR) -type f -name "*.go")
-	go build $(GO_SRC)
-# for back-compat
+GETH_SRC = $(SIDECAR_DIR)/cmd/geth/
+GETH_TARGET = $(SIDECAR_BIN)/geth
+
+CLEF_SRC = $(GETH_SRC)/go-ethereum/cmd/clef/
+CLEF_TARGET = $(GOBIN)/clef
+
+install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
+
 geth: $(GETH_TARGET)
+
+sidecar: $(BINDINGS_TARGET) $(shell find $(SIDECAR_DIR) -type f -name "*.go")
+	cd $(SIDECAR_DIR)
+	go build ./...
+
+contracts: $(CONTRACTS_TARGET) # for back-compat
+
 # Removes:
 # - bindings (do not remove bindings/gen.go)
 # - contracts (this has to happen after bindings)
 # - geth and clef
-clean:
-	rm -f $(BINDINGS_TARGET)/I*.go
-	cd $(CONTRACTS_DIR) && npx hardhat clean
-	rm -rf $(GETH_TARGET)
-	rm -rf $(CLEF_TARGET)
-contracts: $(CONTRACTS_TARGET) # for back-compat
-
-# PHONY docker targets
 
 # Docker process skips geth prereqs for docker building.
 geth-docker: bindings-docker
 	go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GETH_TARGET)\" to launch geth."
-# Assumes contracts already built.
-bindings-docker: 
-	go generate $(GO_SRC)
-	touch $(BINDINGS_TARGET)
 
-# Real targets
+bindings-docker:
+	go generate ./...
+	touch $(BINDINGS_TARGET)
 
 # prereqs: all new/deleted files in contracts/ AND existing solidity files
 $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -name "*.sol")
@@ -59,7 +47,7 @@ $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -nam
 # `touch` ensures the target is newer than preqreqs.
 # This is required since `go generate` may not add/delete files.
 $(BINDINGS_TARGET): $(CONTRACTS_TARGET)
-	go generate $(GO_SRC)
+	go generate ./...
 	touch $(BINDINGS_TARGET)
 
 $(GETH_TARGET): $(BINDINGS_TARGET)
@@ -71,3 +59,9 @@ $(CLEF_TARGET): $(CLEF_SRC)
 	go build -o $(CLEF_TARGET) $(CLEF_SRC)
 	@echo "Done building clef."
 	@echo "Run \"$(GOBIN)/clef\" to launch clef."
+
+clean:
+	rm -f $(BINDINGS_TARGET)/I*.go
+	cd $(CONTRACTS_DIR) && npx hardhat clean
+	rm -rf $(GETH_TARGET)
+	rm -rf $(CLEF_TARGET)
