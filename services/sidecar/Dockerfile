@@ -10,7 +10,7 @@ RUN pnpm fetch
 COPY . /specular
 RUN pnpm install --offline --frozen-lockfile
 
-WORKDIR /specular/clients/geth/specular
+WORKDIR /specular/services/sidecar/
 RUN make contracts
 
 # Build geth binary
