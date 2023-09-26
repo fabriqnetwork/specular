@@ -28,4 +28,4 @@ if $USE_CLEF == 'true'; then
     args+=(--rollup.clefendpoint $CLEF_ENDPOINT)
 fi
 
-$GETH_SPECULAR_DIR/build/bin/geth "${args[@]}"
+$SIDECAR_DIR/build/bin/geth "${args[@]}"

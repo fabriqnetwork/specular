@@ -7,7 +7,7 @@ cd $DATA_DIR
 
 CLEF_PW="unsafe-password"
 echo ${CLEF_PW} | \
-$GETH_SPECULAR_DIR/build/bin/clef \
+$SIDECAR_DIR/build/bin/clef \
     --suppress-bootwarn \
     --configdir ./data_clef/ \
     --auditlog ./data_clef/audit.log \
