@@ -39,12 +39,12 @@ clean:
 
 # Docker process skips geth prereqs for docker building.
 geth-docker: bindings-docker
-	go build -o $(GETH_TARGET) $(GETH_SRC)
+	go build -o ./$(GETH_TARGET) ./$(GETH_SRC)
 	@echo "Done building geth."
 	@echo "Run \"$(GETH_TARGET)\" to launch geth."
 
 bindings-docker:
-	cd $(SIDECAR_DIR) && go generate ./$(SIDECAR_DIR)/...
+	cd $(SIDECAR_DIR) && go generate ./...
 	touch $(SIDECAR_BINDINGS_TARGET)
 
 # prereqs: all new/deleted files in contracts/ AND existing solidity files
