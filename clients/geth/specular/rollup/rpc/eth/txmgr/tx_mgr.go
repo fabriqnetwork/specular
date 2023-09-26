@@ -159,14 +159,8 @@ func (m *TxManager) craftTx(ctx context.Context, candidate TxCandidate) (*types.
 	}
 	gasFeeCap := calcGasFeeCap(basefee, gasTipCap)
 
-	nonce, err := m.nextNonce(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	rawTx := &types.DynamicFeeTx{
 		ChainID:   m.cfg.ChainID,
-		Nonce:     nonce,
 		To:        candidate.To,
 		GasTipCap: gasTipCap,
 		GasFeeCap: gasFeeCap,
@@ -195,6 +189,13 @@ func (m *TxManager) craftTx(ctx context.Context, candidate TxCandidate) (*types.
 		rawTx.Gas = gas
 	}
 
+	// Avoid bumping the nonce if the gas estimation fails.
+	nonce, err := m.nextNonce(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rawTx.Nonce = nonce
+
 	ctx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 	defer cancel()
 	return m.signer(ctx, m.cfg.From, types.NewTx(rawTx))
@@ -208,10 +209,7 @@ func (m *TxManager) nextNonce(ctx context.Context) (uint64, error) {
 	m.nonceLock.Lock()
 	defer m.nonceLock.Unlock()
 
-	// currently the L1Oracle is set externally using the sequencer account
-	// we have to assume that the nonce might have changed from on of these outside txs
-	// if m.nonce == nil {
-	if true {
+	if m.nonce == nil {
 		childCtx, cancel := context.WithTimeout(ctx, m.cfg.NetworkTimeout)
 		defer cancel()
 		nonce, err := m.backend.NonceAt(childCtx, m.cfg.From, nil)
