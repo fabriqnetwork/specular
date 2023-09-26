@@ -2,7 +2,7 @@ module github.com/specularl2/specular/clients/geth/specular
 
 go 1.19
 
-replace github.com/ethereum/go-ethereum => ../go-ethereum
+replace github.com/ethereum/go-ethereum => ../el_clients/go-ethereum
 
 require (
 	github.com/avast/retry-go/v4 v4.3.3

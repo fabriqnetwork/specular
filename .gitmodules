@@ -4,6 +4,6 @@
 [submodule "blockscout"]
 	path = blockscout
 	url = https://github.com/SpecularL2/blockscout
-[submodule "services/el_client/geth"]
-	path = services/el_client/geth
+[submodule "services/el_clients/go-ethereum"]
+	path = services/el_clients/go-ethereum
 	url = https://github.com/specularL2/go-ethereum
