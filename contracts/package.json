@@ -15,7 +15,7 @@
     "lint:forge-tests:check": "npx ts-node scripts/forge-test-names.ts",
     "test": "forge test",
     "preinstall": "npx only-allow pnpm",
-    "prepare": "pnpm build"
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [],
   "author": "Specular contributors",

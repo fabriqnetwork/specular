@@ -12,8 +12,7 @@
     "build": "tsc",
     "gen:binding": "typechain --target ethers-v5 --out-dir src/types/contracts \"./node_modules/@specularl2/contracts/artifacts/src/**/*[!dbg].json\"",
     "preinstall": "npx only-allow pnpm",
-    "prepare": "pnpm run gen:binding",
-    "prepack": "pnpm run build"
+    "prepublishOnly": "pnpm run gen:binding && pnpm run build"
   },
   "author": "Specular contributors",
   "license": "Apache-2.0",
