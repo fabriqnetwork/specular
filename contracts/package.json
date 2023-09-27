@@ -12,7 +12,7 @@
     "build": "hardhat compile",
     "lint:fix": "forge fmt",
     "lint:check": "forge fmt --check",
-    "lint:forge-tests:check": "ts-node scripts/forge-test-names.ts",
+    "lint:forge-tests:check": "npx ts-node scripts/forge-test-names.ts",
     "test": "forge test",
     "preinstall": "npx only-allow pnpm",
     "prepare": "pnpm build"
