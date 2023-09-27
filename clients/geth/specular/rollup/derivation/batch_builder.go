@@ -121,7 +121,7 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 	// Construct batch attributes.
 	var (
 		firstL2BlockNumber = big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
-    txBatchVersion     = big.NewInt(0) // TODO: Find a better place to not hard code this
+		txBatchVersion     = big.NewInt(0) // TODO: Find a better place to not hard code this
 		attrs              = &BatchAttributes{contexts, txLengths, firstL2BlockNumber, txBatchVersion, buf.Bytes()}
 	)
 	log.Info("Serialized l2 blocks", "first", firstL2BlockNumber, "last", b.pendingBlocks[idx].BlockNumber())
