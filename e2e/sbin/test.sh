@@ -9,15 +9,15 @@ set +o allexport
 
 # Spin up L1 node
 cd $CONTRACTS_DIR
-docker run -d \
+docker run \
   --name geth_container \
   -v ./../docker:/root \
   -p 8545:8545 \
   ethereum/client-go \
-  --dev --dev.period 1 \
+  --dev --dev.period 10 \
   --verbosity 3 \
   --http --http.api eth,web3,net --http.addr 0.0.0.0 \
-  --ws --ws.api eth,net,web3 --ws.addr 0.0.0.0 --ws.port 8545 2>&1 | sed "s/^/[L1] /"
+  --ws --ws.api eth,net,web3 --ws.addr 0.0.0.0 --ws.port 8545 2>&1 | sed "s/^/[L1] /" &
 
 sleep 3
 
@@ -48,11 +48,10 @@ L2GETH_PID=$!
 $SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT
 $SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT
 
-# Run testing script
 cd $CONTRACTS_DIR
-npx hardhat deploy --network specularLocalDev | sed "s/^/[L2] /"
+npx hardhat deploy --network specularLocalDev | sed "s/^/[DEPLOY] /"
 
-
+# Run testing script
 case $1 in
 
   transactions)

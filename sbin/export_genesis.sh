@@ -7,6 +7,7 @@ cd $DATA_DIR
 
 mkdir tmp_data/
 
+
 args=(
     --datadir ./tmp_data/
     --verbosity 0

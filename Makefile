@@ -9,8 +9,8 @@ CONTRACTS_SRC = $(CONTRACTS_DIR)/src
 CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
 #TODO migrate to services/el_clients/go-ethereum
-GETH_SRC = $(SIDECAR_DIR)/cmd/geth/
-GETH_TARGET = $(SIDECAR_BIN)/geth
+GETH_SRC = ./cmd/geth/
+GETH_TARGET = ./build/bin/geth
 
 CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
 CLEF_TARGET = $(SIDECAR_BIN)/clef
@@ -58,7 +58,7 @@ $(SIDECAR_BINDINGS_TARGET): $(CONTRACTS_TARGET)
 	touch $(SIDECAR_BINDINGS_TARGET)
 
 $(GETH_TARGET): $(SIDECAR_BINDINGS_TARGET)
-	go build -o ./$(GETH_TARGET) ./$(GETH_SRC)
+	cd $(SIDECAR_DIR) && go build -o $(GETH_TARGET) $(GETH_SRC)
 	@echo "Done building geth."
 	#@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
