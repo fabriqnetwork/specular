@@ -55,7 +55,9 @@ func BlocksFromData(calldata []any) ([]DerivationBlock, error) {
 		contexts           = calldata[0].([]*big.Int)
 		txLengths          = calldata[1].([]*big.Int)
 		firstL2BlockNumber = calldata[2].(*big.Int)
-		txBatch            = calldata[3].([]byte)
+		// TODO: commented until multiple versions have been used
+		//txBatchVersion     = calldata[3].(*big.Int)
+		txBatch = calldata[4].([]byte)
 	)
 	if len(contexts)%2 != 0 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}

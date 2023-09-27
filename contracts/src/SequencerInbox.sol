@@ -37,6 +37,9 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
 
+    // Current txBatch serialization version
+    uint256 public constant currentTxBatchVersion = 0;
+
     address public sequencerAddress;
 
     function initialize(address _sequencerAddress) public initializer {
@@ -74,10 +77,15 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         uint256[] calldata contexts,
         uint256[] calldata txLengths,
         uint256 firstL2BlockNumber,
+        uint256 txBatchVersion,
         bytes calldata txBatch
     ) external override whenNotPaused {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
+        }
+
+        if (txBatchVersion != currentTxBatchVersion) {
+            revert TxBatchVersionIncorrect();
         }
 
         uint256 numTxs = inboxSize;
