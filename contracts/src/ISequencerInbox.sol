@@ -44,17 +44,10 @@ interface ISequencerInbox is IDAProvider {
 
     /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.
-     * @param contexts Array of contexts, where each context is represented by a uint256 2-tuple:
-     * (numTxs, l2Timestamp). Each context corresponds to a single "L2 block".
-     * @param txLengths Array of lengths of each encoded tx in txBatch.
-     * @param firstL2BlockNumber The block number of the first "L2 block" included in this batch.
      * @param txBatchVersion The serialization version of the submitted tx batch
      * @param txBatch Batch of RLP-encoded transactions.
      */
     function appendTxBatch(
-        uint256[] calldata contexts,
-        uint256[] calldata txLengths,
-        uint256 firstL2BlockNumber,
         uint256 txBatchVersion,
         bytes calldata txBatch
     ) external;
