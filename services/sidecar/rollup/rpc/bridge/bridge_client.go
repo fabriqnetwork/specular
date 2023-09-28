@@ -54,6 +54,10 @@ func (c *BridgeClient) GetAssertion(ctx context.Context, assertionID *big.Int) (
 	return c.IRollup.GetAssertion(&bind.CallOpts{Pending: false, Context: ctx}, assertionID)
 }
 
+func (c *BridgeClient) GetInboxSize(ctx context.Context) (*big.Int, error) {
+	return c.ISequencerInbox.GetInboxSize(&bind.CallOpts{Pending: false, Context: ctx})
+}
+
 func (c *BridgeClient) GetLastConfirmedAssertionID(ctx context.Context) (*big.Int, error) {
 	return c.IRollup.GetLastConfirmedAssertionID(&bind.CallOpts{Pending: false, Context: ctx})
 }

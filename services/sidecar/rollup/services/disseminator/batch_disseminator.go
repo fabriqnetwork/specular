@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
@@ -190,14 +191,17 @@ func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to build batch: %w", err)
 	}
-	receipt, err := d.l1TxMgr.AppendTxBatch(
-		ctx,
-		batchAttrs.Contexts(),
-		batchAttrs.TxLengths(),
-		batchAttrs.FirstL2BlockNumber(),
-		batchAttrs.TxBatchVersion(),
-		batchAttrs.TxBatch(),
-	)
+	rlpBatchData, err := rlp.EncodeToBytes(batchAttrs)
+	if err != nil {
+		return fmt.Errorf("failed to encode batch: %w", err)
+	}
+
+	// Prepend batch data with version
+	txBatchData := make([]byte, len(rlpBatchData)+1)
+	txBatchData[0] = derivation.TxBatchVersion()
+	copy(txBatchData[1:], rlpBatchData)
+
+	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, txBatchData)
 	if err != nil {
 		return fmt.Errorf("failed to send batch transaction: %w", err)
 	}

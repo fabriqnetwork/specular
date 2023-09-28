@@ -235,7 +235,7 @@ contract RollupTest is RollupBaseSetup {
     // Admin
     ///////////////
 
-    function testFuzz_addValidators_succeeds() external {
+    function test_addValidators_succeeds() external {
         // Initialize rollup with an empty validator whitelist
         _initializeRollup(
             0, // confirmationPeriod
@@ -269,7 +269,7 @@ contract RollupTest is RollupBaseSetup {
         assertFalse(rollup.hasRole(rollup.VALIDATOR_ROLE(), bob), "Expected address not to be in validator whitelist");
     }
 
-    function testFuzz_removeValidators_succeeds() external {
+    function test_removeValidators_succeeds() external {
         // Initialize rollup with alice in the validator whitelist
         address[] memory validators = new address[](1);
         validators[0] = alice;
@@ -302,7 +302,7 @@ contract RollupTest is RollupBaseSetup {
         assertFalse(rollup.hasRole(rollup.VALIDATOR_ROLE(), alice), "Expected address to be in validator whitelist");
     }
 
-    function testFuzz_removeOwnValidatorRole_succeeds() external {
+    function test_removeOwnValidatorRole_succeeds() external {
         address[] memory validators = new address[](1);
         validators[0] = alice;
         // Initialize rollup with alice in validator whitelist
@@ -407,16 +407,10 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 baseStakeAmount,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            baseStakeAmount,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, baseStakeAmount, initialAssertionID
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -428,16 +422,10 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            type(uint256).max,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, type(uint256).max, initialAssertionID
         );
 
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -461,12 +449,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID);
 
         uint256 initialStakers = rollup.numStakers();
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -497,12 +482,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID);
 
         uint256 initialStakers = rollup.numStakers();
         uint256 minimumAmount = rollup.baseStakeAmount();
@@ -536,12 +518,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1000, initialAssertionID);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalanceInitial = alice.balance;
@@ -605,16 +584,10 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 baseStakeAmount,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            baseStakeAmount,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, baseStakeAmount, initialAssertionID
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -633,16 +606,10 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 baseStakeAmount,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            baseStakeAmount,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, baseStakeAmount, initialAssertionID
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -660,12 +627,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -695,12 +659,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 confirmationPeriod,
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -736,7 +697,7 @@ contract RollupTest is RollupBaseSetup {
     ) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -758,7 +719,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 1;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -792,16 +753,10 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 baseStakeAmount,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            baseStakeAmount,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, baseStakeAmount, initialAssertionID
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -819,12 +774,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 amountToWithdraw,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -852,12 +804,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 amountToWithdraw,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -890,12 +839,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 amountToWithdraw,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 100000, initialAssertionID);
 
         // Alice has not staked yet and therefore, this function should return `false`
         (bool isAliceStaked,,,) = rollup.stakers(alice);
@@ -924,7 +870,7 @@ contract RollupTest is RollupBaseSetup {
     {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -941,7 +887,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 1;
 
         vm.prank(alice);
         rollup.createAssertion(mockVmHash, mockInboxSize);
@@ -966,16 +912,10 @@ contract RollupTest is RollupBaseSetup {
         uint256 minimumAssertionPeriod,
         uint256 baseStakeAmount,
         uint256 assertionID,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            baseStakeAmount,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, baseStakeAmount, initialAssertionID
         );
 
         // Alice has not staked yet and therefore, this function should return `false`
@@ -994,12 +934,9 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 assertionID,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) external {
-        _initializeRollup(
-            confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID, initialInboxSize
-        );
+        _initializeRollup(confirmationPeriod, challengePeriod, minimumAssertionPeriod, 1 ether, initialAssertionID);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -1019,7 +956,7 @@ contract RollupTest is RollupBaseSetup {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
 
@@ -1042,7 +979,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 1;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -1085,7 +1022,7 @@ contract RollupTest is RollupBaseSetup {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
 
@@ -1108,7 +1045,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 1;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -1175,17 +1112,11 @@ contract RollupTest is RollupBaseSetup {
         uint256 minimumAssertionPeriod,
         uint256 defenderAssertionID,
         uint256 challengerAssertionID,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) public {
         // Initializing the rollup
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            type(uint256).max,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, type(uint256).max, initialAssertionID
         );
 
         defenderAssertionID = bound(defenderAssertionID, challengerAssertionID, type(uint256).max);
@@ -1209,19 +1140,13 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 initialAssertionID,
-        uint256 initialInboxSize,
         uint256 challengerAssertionID,
         uint256 defenderAssertionID
     ) public {
         // Initializing the rollup
         initialAssertionID = bound(initialAssertionID, 0, (type(uint256).max - 10));
         _initializeRollup(
-            confirmationPeriod,
-            challengePeriod,
-            minimumAssertionPeriod,
-            type(uint256).max,
-            initialAssertionID,
-            initialInboxSize
+            confirmationPeriod, challengePeriod, minimumAssertionPeriod, type(uint256).max, initialAssertionID
         );
 
         uint256 lastCreatedAssertionID = rollup.lastCreatedAssertionID();
@@ -1249,7 +1174,7 @@ contract RollupTest is RollupBaseSetup {
     ) public {
         // Initializing the rollup
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0);
 
         uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
 
@@ -1267,7 +1192,7 @@ contract RollupTest is RollupBaseSetup {
             _increaseSequencerInboxSize();
 
             bytes32 mockVmHash = bytes32("");
-            uint256 mockInboxSize = 6;
+            uint256 mockInboxSize = 1;
 
             // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
             vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -1317,7 +1242,6 @@ contract RollupTest is RollupBaseSetup {
     function _increaseSequencerInboxSize() internal {
         uint256 seqInboxSizeInitial = seqIn.getInboxSize();
         uint256 numTxnsPerBlock = 3;
-        uint256 firstL2BlockNumber = block.timestamp / 20;
 
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
@@ -1336,15 +1260,13 @@ contract RollupTest is RollupBaseSetup {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         bytes memory txBatch = _helper_createTxBatch_hardcoded();
-        uint256[] memory txLengths = _helper_findTxLength_hardcoded();
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
+        seqIn.appendTxBatch(txBatch);
 
         uint256 seqInboxSizeFinal = seqIn.getInboxSize();
-        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 6, "Sequencer inbox size did not increase by 6");
+        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 1, "Sequencer inbox size did not increment");
     }
 
     function _initializeRollup(
@@ -1352,8 +1274,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 challengePeriod,
         uint256 minimumAssertionPeriod,
         uint256 baseStakeAmount,
-        uint256 initialAssertionID,
-        uint256 initialInboxSize
+        uint256 initialAssertionID
     ) internal {
         address[] memory validators = new address[](2);
         validators[0] = alice;
@@ -1364,7 +1285,7 @@ contract RollupTest is RollupBaseSetup {
             minimumAssertionPeriod,
             baseStakeAmount,
             initialAssertionID,
-            initialInboxSize,
+            0, // initialInboxSize
             validators
         );
     }

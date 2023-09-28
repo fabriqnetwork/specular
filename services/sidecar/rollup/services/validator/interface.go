@@ -27,6 +27,7 @@ type TxManager interface {
 type BridgeClient interface {
 	GetRequiredStakeAmount(ctx context.Context) (*big.Int, error)
 	GetStaker(ctx context.Context, addr common.Address) (bindings.IRollupStaker, error)
+	GetInboxSize(ctx context.Context) (*big.Int, error)
 	GetAssertion(ctx context.Context, assertionID *big.Int) (bindings.IRollupAssertion, error)
 	GetLastConfirmedAssertionID(ctx context.Context) (*big.Int, error)
 	RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) error
