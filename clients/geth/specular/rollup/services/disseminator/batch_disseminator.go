@@ -9,6 +9,7 @@ import (
 	"time"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
@@ -190,14 +191,11 @@ func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to build batch: %w", err)
 	}
-	receipt, err := d.l1TxMgr.AppendTxBatch(
-		ctx,
-		batchAttrs.Contexts(),
-		batchAttrs.TxLengths(),
-		batchAttrs.FirstL2BlockNumber(),
-		batchAttrs.TxBatchVersion(),
-		batchAttrs.TxBatch(),
-	)
+	bytes, err := rlp.EncodeToBytes(batchAttrs)
+	if err != nil {
+		return fmt.Errorf("failed to encode batch: %w", err)
+	}
+	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, derivation.TxBatchVersion(), bytes)
 	if err != nil {
 		return fmt.Errorf("failed to send batch transaction: %w", err)
 	}

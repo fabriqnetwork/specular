@@ -38,25 +38,24 @@ contract RLPEncodedTransactionsUtil is Test {
         )
     ];
 
-    function _helper_sequencerInbox_appendTx_Version() internal returns (uint256) {
+    function _helper_sequencerInbox_appendTx_Version() internal pure returns (uint256) {
         // Update this as necessary
         return 0;
     }
 
-    function _helper_sequencerInbox_appendTx(uint256 numTxns) internal view returns (bytes memory, uint256[] memory) {
-        uint256[] memory transactionLengths = new uint256[](numTxns);
+    // TODO: RLP encode txBatch format
+    function _helper_sequencerInbox_appendTx(uint256 numTxns) internal view returns (bytes memory) {
         bytes memory combinedNumTxnsBytes;
         uint256 rlpEncodedTxnIndex;
 
         for (uint256 i; i < numTxns; i++) {
             rlpEncodedTxnIndex = i % 10;
             combinedNumTxnsBytes = bytes.concat(combinedNumTxnsBytes, rlpEncodedTransactions[rlpEncodedTxnIndex]);
-            transactionLengths[i] = rlpEncodedTransactions[rlpEncodedTxnIndex].length;
         }
 
         bytes memory resultantTxnBatchBytes = abi.encodePacked(combinedNumTxnsBytes);
 
-        return (resultantTxnBatchBytes, transactionLengths);
+        return resultantTxnBatchBytes;
     }
 
     function _helper_sequencerInbox_appendTx_old(uint256 numTxns)
