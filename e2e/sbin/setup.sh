@@ -26,4 +26,4 @@ cp $SIDECAR_DIR/data/genesis.json $PROJECT_DATA_DIR/genesis.json
 
 # Build L2 client
 cd $SBIN_DIR/../..
-make sidecar
+make

@@ -17,7 +17,7 @@ CLEF_TARGET = $(SIDECAR_BIN)/clef
 
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
-install: sidecar $(GETH_TARGET)
+install: $(GETH_TARGET)
 
 geth: $(GETH_TARGET)
 
@@ -59,6 +59,7 @@ $(SIDECAR_BINDINGS_TARGET): $(CONTRACTS_TARGET)
 
 $(GETH_TARGET): $(SIDECAR_BINDINGS_TARGET)
 	cd $(SIDECAR_DIR) && go build -o $(GETH_TARGET) $(GETH_SRC)
+
 	@echo "Done building geth."
 	#@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
