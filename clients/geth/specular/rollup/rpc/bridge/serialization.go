@@ -26,7 +26,7 @@ const (
 	NoUnresolvedAssertionErr     = "Error: VM Exception while processing transaction: reverted with custom error 'NoUnresolvedAssertion()'"
 	ConfirmationPeriodPendingErr = "Error: VM Exception while processing transaction: reverted with custom error 'ConfirmationPeriodPending()'"
 
-	MethodNumBytes = 5
+	MethodNumBytes = 4
 )
 
 // Using singleton for convenience.
