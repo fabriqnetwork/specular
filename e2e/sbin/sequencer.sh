@@ -22,6 +22,7 @@ exec $L2GETH_BIN \
     --nodiscover \
     --maxpeers 0 \
     --http \
+    --verbosity 3 \
     --http.port=$L2_HTTP_PORT \
     --http.addr=0.0.0.0 \
     --http.corsdomain=* \
