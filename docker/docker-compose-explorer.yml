@@ -50,7 +50,6 @@ services:
       INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: "true"
       DATABASE_URL: postgresql://postgres:@database:5432/blockscout
       ECTO_USE_SSL: "false"
-      SECRET_KEY_BASE: '56NtB48ear7+wMSf0IQuWDAAazhpb31qyc7GiyspBP2vh7t5zlCsF5QDv76chXeN'
 
   redis_db:
     image: 'redis:alpine'
