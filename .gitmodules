@@ -7,6 +7,3 @@
 [submodule "blockscout"]
 	path = blockscout
 	url = https://github.com/SpecularL2/blockscout
-[submodule "bridge-frontend"]
-	path = bridge-frontend
-	url = https://github.com/SpecularL2/bridge-frontend.git
