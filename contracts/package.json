@@ -8,7 +8,7 @@
     "build": "forge build",
     "lint:fix": "forge fmt",
     "lint:check": "forge fmt --check",
-    "lint:forge-tests:check": "ts-node scripts/forge-test-names.ts",
+    "lint:forge-tests:check": "ts-node scripts/forge_test_names.ts",
     "test": "forge test"
   },
   "keywords": [],
