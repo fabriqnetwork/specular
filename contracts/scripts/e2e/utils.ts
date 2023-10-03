@@ -162,11 +162,12 @@ export function delay(ms: number) {
 }
 
 export function getLastBlockNumber(data) {
+  // TODO: consider using the npm bindings package
   const iface = new ethers.utils.Interface([
-    "function appendTxBatch(uint256[],uint256[],uint256,bytes)",
+    "function appendTxBatch(uint256[],uint256[],uint256,uint256,bytes)",
   ]);
   const decoded = iface.decodeFunctionData(
-    "appendTxBatch(uint256[],uint256[],uint256,bytes)",
+    "appendTxBatch(uint256[],uint256[],uint256,uint256,bytes)",
     data
   );
   const contexts: BigNumber[] = decoded[0];
