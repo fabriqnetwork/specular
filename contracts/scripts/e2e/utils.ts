@@ -161,12 +161,13 @@ export function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function getLastBlockNumber(data) {
-  const iface = new ethers.utils.Interface([
-    "function appendTxBatch(uint256[],uint256[],uint256,bytes)",
-  ]);
+export async function getLastBlockNumber(data) {
+  // TODO: consider using the npm bindings package
+  const InboxFactory = await ethers.getContractFactory("SequencerInbox");
+  const iface = InboxFactory.interface;
+
   const decoded = iface.decodeFunctionData(
-    "appendTxBatch(uint256[],uint256[],uint256,bytes)",
+    data.slice(0, 10), // method id (8 hex chars) with leading Ox
     data
   );
   const contexts: BigNumber[] = decoded[0];

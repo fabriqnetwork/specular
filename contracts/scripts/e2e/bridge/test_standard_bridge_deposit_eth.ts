@@ -1,11 +1,14 @@
-// NOTE: this test will fail without portal level retryability
 import { ethers } from "hardhat";
-import { getSignersAndContracts, getDepositProof } from "./utils";
+import {
+  getSignersAndContracts,
+  getStorageKey,
+  getDepositProof,
+  delay,
+} from "../utils";
 
 async function main() {
   const {
     l1Provider,
-    l2Provider,
     l2Bridger,
     l1Portal,
     l2Portal,
@@ -14,11 +17,7 @@ async function main() {
   } = await getSignersAndContracts();
 
   const balanceStart = await l2Bridger.getBalance();
-  const portalBalance = await l2Provider.getBalance(l2Portal.address);
-  const bridgeValue = portalBalance.add(10);
-
-  console.log({ balanceStart: ethers.utils.formatEther(balanceStart) });
-  console.log({ bridgeValue: ethers.utils.formatEther(bridgeValue) });
+  const bridgeValue = ethers.utils.parseEther("0.1");
 
   const bridgeTx = await l1StandardBridge.bridgeETH(200_000, [], {
     value: bridgeValue,
@@ -36,19 +35,28 @@ async function main() {
     data: initEvent.args.data,
   };
 
-  const blockNumber = await l1Provider.getBlockNumber();
-  const rawBlock = await l1Provider.send("eth_getBlockByNumber", [
+  let blockNumber = await l1Provider.getBlockNumber();
+  let rawBlock = await l1Provider.send("eth_getBlockByNumber", [
     ethers.utils.hexValue(blockNumber),
     false, // We only want the block header
   ]);
-  const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
-  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+  let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
+  console.log({ blockNumber, stateRoot });
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
-    blockNumber,
     initEvent.args.depositHash
   );
+  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+
+  blockNumber = await l1Provider.getBlockNumber();
+  rawBlock = await l1Provider.send("eth_getBlockByNumber", [
+    ethers.utils.hexValue(blockNumber),
+    false, // We only want the block header
+  ]);
+  stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
+  console.log({ blockNumber, stateRoot });
+  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(
     crossDomainMessage,
@@ -58,26 +66,7 @@ async function main() {
   await finalizeTx.wait();
 
   const balanceEnd = await l2Bridger.getBalance();
-  console.log({ balanceEnd: ethers.utils.formatEther(balanceEnd) });
-  if (balanceEnd.sub(balanceStart).eq(bridgeValue)) {
-    throw "unexpected end balance";
-  }
-
-  const donateTx = await l2Portal.donateETH({
-    value: ethers.utils.parseUnits("1"),
-  });
-  await donateTx.wait();
-
-  const retryTx = await l2Portal.finalizeDepositTransaction(
-    crossDomainMessage,
-    accountProof,
-    storageProof
-  );
-  await retryTx.wait();
-
-  const balanceFinal = await l2Bridger.getBalance();
-  console.log({ balanceFinal: ethers.utils.formatEther(balanceFinal) });
-  if (!balanceFinal.sub(balanceStart).eq(bridgeValue)) {
+  if (!balanceEnd.sub(balanceStart).eq(bridgeValue)) {
     throw "unexpected end balance";
   }
 

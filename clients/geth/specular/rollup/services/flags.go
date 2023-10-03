@@ -77,7 +77,7 @@ var (
 	l2L1FeeMultiplierFlag = &cli.Float64Flag{
 		Name:  "rollup.l2.l1-fee-multiplier",
 		Usage: "Scalar value to increase the L1 Fee",
-		Value: 1.5,
+		Value: 1.0,
 	}
 	l2L1OracleAddressFlag = &cli.StringFlag{
 		Name:  "rollup.l2.l1-oracle-address",

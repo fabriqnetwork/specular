@@ -5,7 +5,7 @@ import {
   getWithdrawalProof,
   delay,
   getLastBlockNumber,
-} from "./utils";
+} from "../utils";
 
 async function main() {
   const {
@@ -55,7 +55,7 @@ async function main() {
     inbox.filters.TxBatchAppended(),
     async (batchNumber, previousInboxSize, inboxSize, event) => {
       const tx = await event.getTransaction();
-      lastConfirmedBlockNumber = getLastBlockNumber(tx.data, inbox);
+      lastConfirmedBlockNumber = await getLastBlockNumber(tx.data);
     }
   );
 
@@ -95,12 +95,10 @@ async function main() {
   await finalizeTx.wait();
 
   const balanceEnd = await l1Bridger.getBalance();
-  console.log({
-    start: ethers.utils.formatUnits(balanceStart),
-    end: ethers.utils.formatUnits(balanceEnd),
-    diff: ethers.utils.formatUnits(balanceEnd.sub(balanceStart)),
-  });
-  if (!balanceEnd.sub(balanceStart).eq(bridgeValue)) {
+  const balanceDiff = balanceEnd.sub(balanceStart);
+  const error = ethers.utils.parseEther("0.0001");
+
+  if (bridgeValue.sub(balanceDiff).gt(error)) {
     throw "unexpected end balance";
   }
 

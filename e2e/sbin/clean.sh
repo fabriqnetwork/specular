@@ -13,3 +13,8 @@ docker remove --force geth_container
 rm -rf $PROJECT_DATA_DIR/geth
 rm -rf $PROJECT_DATA_DIR/keystore
 rm -rf $PROJECT_DATA_DIR/geth.ipc
+
+# Remove deployments
+rm -rf $CONTRACTS_DIR/deployments/localhost
+rm -rf $CONTRACTS_DIR/deployments/specularLocalDev
+
