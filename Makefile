@@ -59,7 +59,6 @@ $(SIDECAR_BINDINGS_TARGET): $(CONTRACTS_TARGET)
 
 $(GETH_TARGET): $(SIDECAR_BINDINGS_TARGET)
 	cd $(SIDECAR_DIR) && go build -o $(GETH_TARGET) $(GETH_SRC)
-
 	@echo "Done building geth."
 	#@echo "Run \"$(GOBIN)/geth\" to launch geth."
 

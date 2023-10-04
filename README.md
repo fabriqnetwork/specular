@@ -60,7 +60,7 @@ npx hardhat node
 SPECULAR_REPO/sbin/start_sequencer.sh
 ```
 
-Make sure there are logs for `Sequencer started` and `Validator started` in the respective consoles.
+Make sure there are logs for `Sequencer started` in the respective console.
 In the first terminal where L1 node is running, you can see the sequencer staked on the Rollup contract.
 
 **Restarts**

@@ -46,9 +46,9 @@ func RegisterGethRollupServices(
 	if err != nil {
 		return fmt.Errorf("failed to create rollup services: %w", err)
 	}
-	eg, ctx := errgroup.WithContext(context.Background())
 	log.Info("Registering services...")
 	for _, service := range services {
+		eg, ctx := errgroup.WithContext(context.Background())
 		stack.RegisterLifecycle(&gethRollupService{ctx, eg, service})
 	}
 	return nil
