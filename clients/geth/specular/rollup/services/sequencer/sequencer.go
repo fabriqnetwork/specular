@@ -46,7 +46,7 @@ func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Tra
 		return nil, fmt.Errorf("Checking GetTransaction, err: %w", err)
 	}
 	if prevTx == nil {
-		batchTxs = append(batchTxs, tx.Resolve().Tx)
+		batchTxs = append(batchTxs, tx.Resolve())
 	}
 	return batchTxs, nil
 }
@@ -151,7 +151,7 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 				acc, _ := types.Sender(signer, tx)
 				txs[acc] = append(txs[acc], &txpool.LazyTransaction{
 					Hash:      tx.Hash(),
-					Tx:        &txpool.Transaction{Tx: tx},
+					Tx:        tx,
 					Time:      tx.Time(),
 					GasFeeCap: tx.GasFeeCap(),
 					GasTipCap: tx.GasTipCap(),

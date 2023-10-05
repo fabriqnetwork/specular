@@ -22,8 +22,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/specularl2/specular/clients/geth/specular/internal/version"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/specularl2/specular/clients/geth/specular/internal/version"
 	"github.com/urfave/cli/v2"
 )
 
