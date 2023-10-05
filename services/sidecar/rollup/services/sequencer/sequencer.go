@@ -7,12 +7,12 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/proof"
+	"github.com/specularL2/specular/services/sidecar/rollup/client"
+	"github.com/specularL2/specular/services/sidecar/rollup/services"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 const timeInterval = 3 * time.Second

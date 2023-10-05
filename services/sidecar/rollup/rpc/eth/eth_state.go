@@ -5,9 +5,9 @@ import (
 	"fmt"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/utils"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/rollup/types"
+	"github.com/specularL2/specular/services/sidecar/utils"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 // Thread-safe. Tracks the latest, last safe and last finalized L1 headers received.

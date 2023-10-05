@@ -31,8 +31,8 @@ import (
 	"github.com/ethereum/go-ethereum/les"
 	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
+	"github.com/specularL2/specular/services/sidecar/internal/ethapi"
+	"github.com/specularL2/specular/services/sidecar/proof"
 )
 
 // RegisterEthService adds an Ethereum client to the stack.

@@ -7,8 +7,8 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 type ethClient interface {

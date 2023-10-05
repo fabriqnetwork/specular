@@ -24,9 +24,9 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/proof/proof"
-	"github.com/specularl2/specular/clients/geth/specular/proof/prover"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/proof/proof"
+	"github.com/specularL2/specular/services/sidecar/proof/prover"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 
 const (

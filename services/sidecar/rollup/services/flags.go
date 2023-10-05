@@ -1,7 +1,7 @@
 package services
 
 import (
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	"github.com/urfave/cli/v2"
 )
 

@@ -3,8 +3,8 @@ package derivation
 import (
 	"math/big"
 
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 // `DerivationBlock` represents a block from which the L2 chain can be derived.

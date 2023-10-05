@@ -12,14 +12,14 @@ import (
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/bindings"
+	"github.com/specularL2/specular/services/sidecar/proof"
+	"github.com/specularL2/specular/services/sidecar/rollup/client"
+	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 
 // TODO: delete.

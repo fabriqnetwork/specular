@@ -9,12 +9,12 @@ import (
 	"time"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/rollup/types"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 // Disseminates batches of L2 blocks via L1.

@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/specularl2/specular/clients/geth/specular/proof"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/proof"
+	"github.com/specularL2/specular/services/sidecar/rollup/client"
+	"github.com/specularL2/specular/services/sidecar/rollup/services"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
 )
 
 // TODO: delete.

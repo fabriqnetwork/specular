@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/utils"
+	"github.com/specularL2/specular/services/sidecar/utils"
 	"golang.org/x/sync/errgroup"
 )
 

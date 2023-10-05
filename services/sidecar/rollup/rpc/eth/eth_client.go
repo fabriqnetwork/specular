@@ -11,8 +11,8 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 const (

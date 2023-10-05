@@ -7,9 +7,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
+	"github.com/specularL2/specular/services/sidecar/bindings"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
+	"github.com/specularL2/specular/services/sidecar/rollup/types"
 )
 
 type Config interface {

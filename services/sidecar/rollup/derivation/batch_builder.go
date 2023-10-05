@@ -7,8 +7,8 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/types"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/rollup/types"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 type batchBuilder struct {

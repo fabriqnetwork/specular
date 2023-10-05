@@ -13,7 +13,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
 )
 
 // Batcher assumes exclusive control of underlying blockchain, i.e.

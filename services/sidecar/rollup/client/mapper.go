@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/utils"
-	"github.com/specularl2/specular/clients/geth/specular/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 
 // Interface used to represent Iterators from `bindings`

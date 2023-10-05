@@ -7,8 +7,8 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
+	"github.com/specularL2/specular/services/sidecar/bindings"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 )
 
 // TODO: delete this file

@@ -42,11 +42,11 @@ import (
 	"github.com/ethereum/go-ethereum/node"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/naoina/toml"
-	specularUtils "github.com/specularl2/specular/clients/geth/specular/cmd/utils"
-	entry "github.com/specularl2/specular/clients/geth/specular/entry/geth"
-	"github.com/specularl2/specular/clients/geth/specular/internal/ethapi"
-	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services"
+	specularUtils "github.com/specularL2/specular/services/sidecar/cmd/utils"
+	entry "github.com/specularL2/specular/services/sidecar/entry/geth"
+	"github.com/specularL2/specular/services/sidecar/internal/ethapi"
+	"github.com/specularL2/specular/services/sidecar/internal/flags"
+	"github.com/specularL2/specular/services/sidecar/rollup/services"
 )
 
 var (

@@ -9,10 +9,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
-	"github.com/specularl2/specular/clients/geth/specular/utils/log"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 var transactTimeout = 10 * time.Minute

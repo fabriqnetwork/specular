@@ -20,7 +20,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/specularl2/specular/clients/geth/specular/proof/proof"
+	"github.com/specularL2/specular/services/sidecar/proof/proof"
 )
 
 type PlaceHolderProof struct{}

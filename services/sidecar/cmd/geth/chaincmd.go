@@ -38,7 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"github.com/specularl2/specular/clients/geth/specular/internal/flags"
+	"github.com/specularL2/specular/services/sidecar/internal/flags"
 	"github.com/urfave/cli/v2"
 )
 

@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth/txmgr"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	"github.com/urfave/cli/v2"
 )
 
