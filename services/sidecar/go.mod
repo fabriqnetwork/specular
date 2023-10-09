@@ -1,4 +1,4 @@
-module github.com/specularl2/specular/services/sidecar
+module github.com/specularL2/specular/services/sidecar
 
 go 1.19
 

@@ -106,6 +106,15 @@ func createLegacyService(
 	return service, err
 }
 
+
+func CreateDisseminator(
+	ctx context.Context,
+	cfg *services.SystemConfig,
+	accountMgr accountManager,
+) (*disseminator.BatchDisseminator, error) {
+	return createDisseminator(ctx, cfg, accountMgr)
+}
+
 func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
@@ -121,6 +130,14 @@ func createDisseminator(
 	}
 	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
+}
+
+func CreateValidator(
+	ctx context.Context,
+	cfg *services.SystemConfig,
+	accountMgr accountManager,
+) (*validator.Validator, error) {
+	return createValidator(ctx, cfg, accountMgr)
 }
 
 func createValidator(

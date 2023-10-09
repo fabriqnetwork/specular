@@ -15,12 +15,14 @@ type SystemConfig struct {
 	L2Config        `toml:"l2,omitempty"`
 	SequencerConfig `toml:"sequencer,omitempty"`
 	ValidatorConfig `toml:"validator,omitempty"`
+	KeyStoreConfig  `toml:"keystore,omitempty"`
 }
 
 func (c *SystemConfig) L1() L1Config               { return c.L1Config }
 func (c *SystemConfig) L2() L2Config               { return c.L2Config }
 func (c *SystemConfig) Sequencer() SequencerConfig { return c.SequencerConfig }
 func (c *SystemConfig) Validator() ValidatorConfig { return c.ValidatorConfig }
+func (c *SystemConfig) KeyStore() KeyStoreConfig   { return c.KeyStoreConfig }
 
 // Parses all CLI flags and returns a full system config.
 func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
@@ -48,6 +50,7 @@ func parseFlags(cliCtx *cli.Context) *SystemConfig {
 		L2Config:        newL2ConfigFromCLI(cliCtx),
 		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerTxMgrCfg),
 		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
+		KeyStoreConfig:  newKeyStoreConfigFromCLI(cliCtx),
 	}
 }
 
@@ -174,5 +177,23 @@ func newValidatorConfigFromCLI(
 		Passphrase:         cliCtx.String(validatorPassphraseFlag.Name),
 		ValidationInterval: time.Duration(cliCtx.Uint(validatorValidationIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:           txMgrCfg,
+	}
+}
+
+type KeyStoreConfig struct {
+	DataDir string `toml:"datadir,omitempty"`
+	KeyStoreDir string `toml:"keystore,omitempty"`
+	ExternalSigner string `toml:"signer,omitempty"`
+}
+
+func (c KeyStoreConfig) GetDataDir() string { return c.DataDir }
+func (c KeyStoreConfig) GetKeyStoreDir() string { return c.KeyStoreDir }
+func (c KeyStoreConfig) GetExternalSigner() string { return c.ExternalSigner }
+
+func newKeyStoreConfigFromCLI(cliCtx *cli.Context) KeyStoreConfig {
+	return KeyStoreConfig{
+		DataDir:        cliCtx.String(dataDirFlag.Name),
+		KeyStoreDir:    cliCtx.String(keyStoreDirFlag.Name),
+		ExternalSigner: cliCtx.String(externalSignerFlag.Name),
 	}
 }

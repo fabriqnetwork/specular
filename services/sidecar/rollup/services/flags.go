@@ -14,6 +14,7 @@ func CLIFlags() []cli.Flag {
 		txmgr.CLIFlags(sequencerTxMgrNamespace),
 		validatorCLIFlags,
 		txmgr.CLIFlags(validatorTxMgrNamespace),
+		keystoreCLIFlags,
 	)
 }
 
@@ -133,6 +134,19 @@ var (
 		Usage: "Time between batch validation steps (seconds)",
 		Value: 10,
 	}
+	// KeyStore config flags
+	dataDirFlag = &cli.StringFlag{
+		Name:     "keystore.datadir",
+		Usage:    "Data directory for the databases and keystore",
+	}
+	keyStoreDirFlag = &cli.StringFlag{
+		Name:     "keystore.keystore",
+		Usage:    "Directory for the keystore (default = inside the datadir)",
+	}
+	externalSignerFlag = &cli.StringFlag{
+		Name:     "keystore.signer",
+		Usage:    "External signer (url or path to ipc file)",
+	}
 )
 
 var (
@@ -164,5 +178,10 @@ var (
 		validatorClefEndpointFlag,
 		validatorPassphraseFlag,
 		validatorValidationIntervalFlag,
+	}
+	keystoreCLIFlags = []cli.Flag{
+		dataDirFlag,
+		keyStoreDirFlag,
+		externalSignerFlag,
 	}
 )
