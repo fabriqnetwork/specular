@@ -135,10 +135,10 @@ var (
 		Value: 10,
 	}
 	// KeyStore config flags
-	dataDirFlag = &cli.StringFlag{
-		Name:     "keystore.datadir",
-		Usage:    "Data directory for the databases and keystore",
-	}
+	//dataDirFlag = &cli.StringFlag{
+		//Name:     "keystore.datadir",
+		//Usage:    "Data directory for the databases and keystore",
+	//}
 	keyStoreDirFlag = &cli.StringFlag{
 		Name:     "keystore.keystore",
 		Usage:    "Directory for the keystore (default = inside the datadir)",
@@ -146,6 +146,7 @@ var (
 	externalSignerFlag = &cli.StringFlag{
 		Name:     "keystore.signer",
 		Usage:    "External signer (url or path to ipc file)",
+		Value:    "",
 	}
 )
 
@@ -180,7 +181,6 @@ var (
 		validatorValidationIntervalFlag,
 	}
 	keystoreCLIFlags = []cli.Flag{
-		dataDirFlag,
 		keyStoreDirFlag,
 		externalSignerFlag,
 	}

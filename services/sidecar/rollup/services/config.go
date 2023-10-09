@@ -192,7 +192,6 @@ func (c KeyStoreConfig) GetExternalSigner() string { return c.ExternalSigner }
 
 func newKeyStoreConfigFromCLI(cliCtx *cli.Context) KeyStoreConfig {
 	return KeyStoreConfig{
-		DataDir:        cliCtx.String(dataDirFlag.Name),
 		KeyStoreDir:    cliCtx.String(keyStoreDirFlag.Name),
 		ExternalSigner: cliCtx.String(externalSignerFlag.Name),
 	}

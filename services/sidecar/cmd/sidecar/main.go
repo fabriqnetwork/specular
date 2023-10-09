@@ -19,7 +19,10 @@ import (
 
 func initializeAccountManager(cfg services.KeyStoreConfig) *accounts.Manager {
 	keyDir := cfg.GetKeyStoreDir()
-	acctMgr := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: false})
+	log.Info(keyDir)
+
+	// TODO: verify if hard-coded true is a problem
+	acctMgr := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true})
 
 	// TODO: Enable external signer
 	//if (cfg.ExternalSigner) {
@@ -32,7 +35,9 @@ func initializeAccountManager(cfg services.KeyStoreConfig) *accounts.Manager {
 		//}
 	//}
 
-	acctMgr.AddBackend(keystore.NewKeyStore(keyDir, keystore.StandardScryptN, keystore.StandardScryptP))
+	keystore := keystore.NewKeyStore(keyDir, keystore.StandardScryptN, keystore.StandardScryptP)
+
+	acctMgr.AddBackend(keystore)
 
 	return acctMgr
 }
@@ -48,7 +53,6 @@ func startService(cliCtx *cli.Context) error {
 
 	log.Info("Initializing Account Manager")
 
-	// TODO: verify if hard-coded false is a problem
 	acctMgr := initializeAccountManager(cfg.KeyStore())
 
 	log.Info("Starting disseminator+validator")
@@ -84,6 +88,8 @@ func main() {
         Usage: "launch validator+disseminator",
         Action: startService,
     }
+
+	app.Flags = services.CLIFlags()
 
     if err := app.Run(os.Args); err != nil {
 		fmt.Fprintln(os.Stderr, err)

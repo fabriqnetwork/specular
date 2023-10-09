@@ -191,7 +191,7 @@ func createTxManager(
 func createTransactor(
 	mgr accountManager,
 	accountAddress common.Address,
-	clefEndpoint string,
+	//clefEndpoint string,
 	passphrase string,
 	chainID uint64,
 ) (*bind.TransactOpts, error) {
