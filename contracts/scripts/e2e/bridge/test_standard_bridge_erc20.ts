@@ -122,7 +122,7 @@ async function main() {
     inbox.filters.TxBatchAppended(),
     async (batchNumber, previousInboxSize, inboxSize, event) => {
       const tx = await event.getTransaction();
-      lastConfirmedBlockNumber = getLastBlockNumber(tx.data, inbox);
+      lastConfirmedBlockNumber = await getLastBlockNumber(tx.data);
     }
   );
 

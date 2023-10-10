@@ -53,29 +53,29 @@ npx hardhat deploy --network specularLocalDev | sed "s/^/[L2 deploy] /"
 
 # Run testing script
 case $1 in
-
   transactions)
-    npx hardhat run scripts/e2e/transactions.ts | sed "s/^/[TEST] /"
+    npx hardhat run scripts/e2e/test_transactions.ts
     RESULT=$?
     ;;
 
   deposit)
-    npx hardhat run scripts/e2e/bridge/standard_bridge_deposit_eth.ts | sed "s/^/[TEST] /"
+    npx hardhat run scripts/e2e/bridge/test_standard_bridge_deposit_eth.ts
     RESULT=$?
     ;;
 
   withdraw)
-    npx hardhat run scripts/e2e/bridge/standard_bridge_withdraw_eth.ts | sed "s/^/[TEST] /"
-   RESULT=$?
+    npx hardhat run scripts/e2e/bridge/test_standard_bridge_withdraw_eth.ts
+    RESULT=$?
     ;;
 
   erc20)
-    npx hardhat run scripts/e2e/bridge/standard_bridge_erc20.ts | sed "s/^/[TEST] /"
+    npx hardhat run scripts/e2e/bridge/test_standard_bridge_erc20.ts
     RESULT=$?
     ;;
 
   *)
     echo "unknown test"
+    RESULT=1
     ;;
 esac
 
