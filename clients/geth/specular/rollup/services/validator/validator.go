@@ -7,9 +7,9 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/bridge"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/rpc/eth"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/services/api"
 	"github.com/specularl2/specular/clients/geth/specular/utils/log"
@@ -23,23 +23,18 @@ func (e unexpectedSystemStateError) Error() string {
 	return fmt.Sprintf("service entered unexpected state: %s", e.msg)
 }
 
-type SequencerInbox interface {
-	GetInboxSize(*bind.CallOpts) (*big.Int, error)
-}
-
 type Validator struct {
 	cfg            Config
 	l1TxMgr        TxManager
 	l1BridgeClient BridgeClient
 	l1State        EthState
 	l2Client       L2Client
-	sequencerInbox SequencerInbox
 
 	lastCreatedAssertionAttrs assertionAttributes
 }
 
 type assertionAttributes struct {
-	inboxSize *big.Int
+	l2BlockNum uint64
 	l2VMHash   common.Hash
 }
 
@@ -49,9 +44,8 @@ func NewValidator(
 	l1BridgeClient BridgeClient,
 	l1State EthState,
 	l2Client L2Client,
-	sequencerInbox SequencerInbox,
 ) *Validator {
-	return &Validator{cfg: cfg, l1TxMgr: l1TxMgr, l1BridgeClient: l1BridgeClient, l1State: l1State, l2Client: l2Client, sequencerInbox: sequencerInbox}
+	return &Validator{cfg: cfg, l1TxMgr: l1TxMgr, l1BridgeClient: l1BridgeClient, l1State: l1State, l2Client: l2Client}
 }
 
 func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
@@ -116,18 +110,15 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get next assertion attrs: %w", err)
 	}
-
-	log.Debug("creating assertion", "inboxSize", assertionAttrs.inboxSize, "blockNum", v.lastCreatedAssertionAttrs.inboxSize)
 	// TODO fix assumptions: not reorg-resistant. Other validators may have inserted new assertions.
-	if assertionAttrs.inboxSize.Uint64() <= v.lastCreatedAssertionAttrs.inboxSize.Uint64() {
+	if assertionAttrs.l2BlockNum <= v.lastCreatedAssertionAttrs.l2BlockNum {
 		log.Info("No new blocks to create assertion for yet.")
 		return nil
 	}
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
-
 	// TOOD: GasLimit: 0 ...?
-	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2VMHash, assertionAttrs.inboxSize)
+	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2VMHash, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
 	if err != nil {
 		return err
 	}
@@ -135,7 +126,7 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 		log.Error("Tx successfully published but reverted", "tx_hash", receipt.TxHash)
 	} else {
 		log.Info("Tx successfully published", "tx_hash", receipt.TxHash)
-		log.Info("Created assertion", "inboxSize", assertionAttrs.inboxSize)
+		log.Info("Created assertion", "l2Block#", assertionAttrs.l2BlockNum)
 		v.lastCreatedAssertionAttrs = assertionAttrs
 	}
 	return nil
@@ -146,18 +137,15 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	// Simulate a confirmation attempt.
 	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
-	// custom errors are not supported by abigen so this doesnt actually work i think
-	// https://github.com/ethereum/go-ethereum/issues/26823
 	if err != nil {
 		errStr := err.Error()
-		log.Warn("assertion not confirmable", "errStr", errStr)
-		// if errStr == bridge.NoUnresolvedAssertionErr {
-		// 	log.Trace("No unresolved assertion to resolve.")
-		// } else if errStr == bridge.ConfirmationPeriodPendingErr {
-		// 	log.Trace("Too early to confirm first unresolved assertion.")
-		// } else {
-		// 	return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
-		// }
+		if errStr == bridge.NoUnresolvedAssertionErr {
+			log.Trace("No unresolved assertion to resolve.")
+		} else if errStr == bridge.ConfirmationPeriodPendingErr {
+			log.Trace("Too early to confirm first unresolved assertion.")
+		} else {
+			return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
+		}
 		return nil
 	}
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
@@ -180,7 +168,7 @@ func (v *Validator) rollback(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get assertion: %w", err)
 	}
-	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.InboxSize, assertion.StateHash}
+	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.InboxSize.Uint64(), assertion.StateHash}
 	return nil
 }
 
@@ -192,12 +180,7 @@ func (v *Validator) getNextAssertionAttrs(ctx context.Context) (assertionAttribu
 	if err != nil {
 		return assertionAttributes{}, fmt.Errorf("failed to get finalized assertion attrs: %w", err)
 	}
-
-	inboxSize, err := v.sequencerInbox.GetInboxSize(nil)
-	if err != nil {
-		return assertionAttributes{}, fmt.Errorf("failed to get inbox size: %w", err)
-	}
-	return assertionAttributes{inboxSize, header.Root}, nil
+	return assertionAttributes{header.Number.Uint64(), header.Root}, nil
 }
 
 func (v *Validator) ensureStaked(ctx context.Context) error {

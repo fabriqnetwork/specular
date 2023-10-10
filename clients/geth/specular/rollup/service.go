@@ -13,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularl2/specular/clients/geth/specular/bindings"
 	"github.com/specularl2/specular/clients/geth/specular/proof"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/client"
 	"github.com/specularl2/specular/clients/geth/specular/rollup/derivation"
@@ -141,17 +140,11 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
 	}
-	sequencerInbox, err := bindings.NewISequencerInbox(cfg.GetSequencerInboxAddr(), l1Client)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize sequencer inbox binding: %w", err)
-	}
-
-
 	l1State := eth.NewEthState()
 	l1Syncer := eth.NewEthSyncer(l1State)
 	l1Syncer.Start(ctx, l1Client)
 	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
-	return validator.NewValidator(cfg.Validator(), l1TxMgr, l1BridgeClient, l1State, l2Client, sequencerInbox), nil
+	return validator.NewValidator(cfg.Validator(), l1TxMgr, l1BridgeClient, l1State, l2Client), nil
 }
 
 func createTxManager(

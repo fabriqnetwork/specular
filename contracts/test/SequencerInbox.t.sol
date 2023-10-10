@@ -126,7 +126,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
         // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
 
-        uint256 firstL2BlockNumber = block.timestamp / 20;
+        uint256 firstL2BlockNumber = 0;
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
@@ -154,7 +154,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 inboxSizeFinal = seqIn.getInboxSize();
         assertGt(inboxSizeFinal, inboxSizeInitial);
 
-        uint256 expectedInboxSize = numTxns;
+        uint256 expectedInboxSize = txnBlocks;
         assertEq(inboxSizeFinal, expectedInboxSize);
     }
 
@@ -166,7 +166,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 numTxnsPerBlock = 3;
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
-        uint256 firstL2BlockNumber = block.timestamp / 20;
+        uint256 firstL2BlockNumber = 0;
 
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 2-tuple: (numTxs, l2Timestamp)
@@ -175,7 +175,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 timeStamp1 = block.timestamp / 10;
         uint256 timeStamp2 = block.timestamp / 5;
 
-        uint256[] memory contexts = new uint256[](6);
+        uint256[] memory contexts = new uint256[](4);
 
         // Let's assume that we had 2 blocks and each had 3 transactions
         contexts[0] = (numTxnsPerBlock);
@@ -197,7 +197,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         assertGt(inboxSizeFinal, inboxSizeInitial);
 
-        uint256 expectedInboxSize = numTxns;
+        // Should equal the number of blocks
+        uint256 expectedInboxSize = 2;
         assertEq(inboxSizeFinal, expectedInboxSize);
     }
 
@@ -215,7 +216,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
         // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
 
-        uint256 firstL2BlockNumber = block.timestamp / 20;
+        uint256 firstL2BlockNumber = 0;
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
@@ -265,7 +266,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
         // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
 
-        uint256 firstL2BlockNumber = block.timestamp / 20;
+        uint256 firstL2BlockNumber = 0;
 
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
@@ -301,7 +302,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 150);
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
-        uint256 firstL2BlockNumber = block.timestamp / 20;
+        uint256 firstL2BlockNumber = 0;
 
         // Each context corresponds to a single "L2 block"
         // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
@@ -311,7 +312,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         uint256[] memory contexts = new uint256[](3);
 
-        // Let's assume that we had 2 blocks and each had 3 transactions, but we fail to pass the block.timestamp and block.number of the 2nd transaction block.
+        // Let's assume that we had 2 blocks and each had 3 transactions, but we fail to pass the block.timestamp of the 2nd transaction block.
         contexts[0] = (numTxnsPerBlock);
         contexts[1] = (timeStamp1);
         contexts[2] = (numTxnsPerBlock);
@@ -328,7 +329,8 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
         assertGt(inboxSizeFinal, inboxSizeInitial);
-        assertEq(inboxSizeFinal, numTxnsPerBlock); // Since the timestamp and block.number were not included for the 2nd block, only 1st block's 3 txns are included.
+        // Only the first block with complete data should be added
+        assertEq(inboxSizeFinal, 1);
     }
 
     //////////////////////////////
@@ -351,7 +353,7 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         vm.prank(sequencerAddress);
         seqIn.appendTxBatch(contexts, txLengths, 0, txBatchVersion, txBatch);
-        assertEq(seqIn.getInboxSize(), numTx);
+        assertEq(seqIn.getInboxSize(), numBlocks);
 
         // randomly choose a transaction to verify and prepare the proof
         txToVerify = bound(txToVerify, 0, numTx - 1);

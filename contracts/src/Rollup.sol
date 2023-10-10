@@ -424,11 +424,12 @@ contract Rollup is RollupBase {
     {
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
+        emit AssertionCreated(parent.inboxSize, msg.sender, vmHash);
         // Require that enough time has passed since the last assertion.
         if (block.number - parent.proposalTime < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
         }
-        // Require that the assertion at least includes one transaction
+        // Require that the assertion at least includes one block
         if (inboxSize <= parent.inboxSize) {
             revert EmptyAssertion();
         }

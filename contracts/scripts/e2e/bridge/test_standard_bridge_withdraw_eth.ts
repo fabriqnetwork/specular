@@ -97,7 +97,7 @@ async function main() {
 
   const balanceEnd = await l1Bridger.getBalance();
   const balanceDiff = balanceEnd.sub(balanceStart);
-  const error = ethers.utils.parseEther("0.0001");
+  const error = ethers.utils.parseEther("0.001");
 
   if (bridgeValue.sub(balanceDiff).gt(error)) {
     throw "unexpected end balance";

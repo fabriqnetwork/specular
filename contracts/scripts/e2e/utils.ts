@@ -22,11 +22,11 @@ export async function getSignersAndContracts() {
   );
 
   const l1Relayer = new ethers.Wallet(
-    process.env.SEQUENCER_PRIVATE_KEY,
+    process.env.BRIDGER_PRIVATE_KEY,
     l1Provider
   );
   const l2Relayer = new ethers.Wallet(
-    process.env.SEQUENCER_PRIVATE_KEY,
+    process.env.BRIDGER_PRIVATE_KEY,
     l2Provider
   );
 
@@ -58,7 +58,7 @@ export async function getSignersAndContracts() {
 
   const L1OracleFactory = await ethers.getContractFactory(
     "L1Oracle",
-    l2Relayer
+    l2Bridger
   );
   const l1Oracle = L1OracleFactory.attach(l1OracleAddress);
 

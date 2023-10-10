@@ -33,6 +33,8 @@ import "./libraries/Errors.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     // Total number of transactions
+    uint256 private numTxs;
+    // Number of blocks written to the inbox
     uint256 private inboxSize;
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
@@ -88,7 +90,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             revert TxBatchVersionIncorrect();
         }
 
-        uint256 numTxs = inboxSize;
+        uint256 preBatchNumTxs = numTxs;
         bytes32 runningAccumulator;
         if (accumulators.length > 0) {
             runningAccumulator = accumulators[accumulators.length - 1];
@@ -105,12 +107,13 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             uint256 numCtxTxs = contexts[i];
 
             for (uint256 j = 0; j < numCtxTxs; j++) {
-                uint256 txLength = txLengths[numTxs - inboxSize];
+                uint256 txLength = txLengths[numTxs - preBatchNumTxs];
                 if (dataOffset + txLength > txBatch.length) {
                     revert TxBatchDataOverflow();
                 }
                 bytes32 txDataHash = keccak256(txBatch[dataOffset:dataOffset + txLength]);
 
+                // TODO: can we hash the blocknumber instead of the number of Txs?
                 runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, txDataHash));
 
                 dataOffset += txLength;
@@ -122,9 +125,15 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             l2BlockNumber++;
         }
 
-        if (numTxs <= inboxSize) revert EmptyBatch();
+        // TODO: do we need the inboxSize check?
+        // if (l2BlockNumber <= inboxSize)revert EmptyBatch();
+        if (numTxs <= preBatchNumTxs) {
+            revert EmptyBatch();
+        }
+
         uint256 start = inboxSize;
-        inboxSize = numTxs;
+        inboxSize = l2BlockNumber;
+
         accumulators.push(runningAccumulator);
 
         emit TxBatchAppended(accumulators.length - 1, start, inboxSize);
@@ -148,27 +157,27 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
         // Deserialize batch info.
         uint256 batchNum;
-        uint256 numTxs;
+        uint256 numProofTxs;
         uint256 numTxsAfterInBatch;
         bytes32 acc;
         (offset, batchNum) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, numTxs) = DeserializationLib.deserializeUint256(proof, offset);
+        (offset, numProofTxs) = DeserializationLib.deserializeUint256(proof, offset);
         (offset, numTxsAfterInBatch) = DeserializationLib.deserializeUint256(proof, offset);
         (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
 
         // Start accumulator at the tx.
         bytes32 txDataHash = keccak256(encodedTx);
 
-        acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
-        numTxs++;
+        acc = keccak256(abi.encodePacked(acc, numProofTxs, txContextHash, txDataHash));
+        numProofTxs++;
 
         // Compute final accumulator value.
         for (uint256 i = 0; i < numTxsAfterInBatch; i++) {
             (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
             (offset, txDataHash) = DeserializationLib.deserializeBytes32(proof, offset);
 
-            acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
-            numTxs++;
+            acc = keccak256(abi.encodePacked(acc, numProofTxs, txContextHash, txDataHash));
+            numProofTxs++;
         }
 
         if (acc != accumulators[batchNum]) {

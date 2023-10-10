@@ -736,7 +736,7 @@ contract RollupTest is RollupBaseSetup {
     ) external {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 1);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -758,7 +758,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 2;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -924,7 +924,7 @@ contract RollupTest is RollupBaseSetup {
     {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 1);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
         uint256 aliceBalance = alice.balance;
@@ -941,7 +941,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 2;
 
         vm.prank(alice);
         rollup.createAssertion(mockVmHash, mockInboxSize);
@@ -1019,7 +1019,7 @@ contract RollupTest is RollupBaseSetup {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 1);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
 
@@ -1042,7 +1042,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 2;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -1085,7 +1085,7 @@ contract RollupTest is RollupBaseSetup {
         // Bounding it otherwise, function `newAssertionDeadline()` overflows
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
 
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 1);
 
         uint256 minimumAmount = rollup.baseStakeAmount();
 
@@ -1108,7 +1108,7 @@ contract RollupTest is RollupBaseSetup {
         _increaseSequencerInboxSize();
 
         bytes32 mockVmHash = bytes32("");
-        uint256 mockInboxSize = 6;
+        uint256 mockInboxSize = 2;
 
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -1249,7 +1249,7 @@ contract RollupTest is RollupBaseSetup {
     ) public {
         // Initializing the rollup
         confirmationPeriod = bound(confirmationPeriod, 1, type(uint128).max);
-        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 5);
+        _initializeRollup(confirmationPeriod, challengePeriod, 1 days, 1 ether, 0, 1);
 
         uint256 lastConfirmedAssertionID = rollup.lastConfirmedAssertionID();
 
@@ -1267,7 +1267,7 @@ contract RollupTest is RollupBaseSetup {
             _increaseSequencerInboxSize();
 
             bytes32 mockVmHash = bytes32("");
-            uint256 mockInboxSize = 6;
+            uint256 mockInboxSize = 2;
 
             // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
             vm.roll(block.number + rollup.minimumAssertionPeriod());
@@ -1313,7 +1313,7 @@ contract RollupTest is RollupBaseSetup {
         return boundedUint;
     }
 
-    // This function increases the inbox size by 6
+    // This function increases the inbox size by 2
     function _increaseSequencerInboxSize() internal {
         uint256 seqInboxSizeInitial = seqIn.getInboxSize();
         uint256 numTxnsPerBlock = 3;
@@ -1344,7 +1344,7 @@ contract RollupTest is RollupBaseSetup {
         seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
 
         uint256 seqInboxSizeFinal = seqIn.getInboxSize();
-        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 6, "Sequencer inbox size did not increase by 6");
+        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 2, "Sequencer inbox size did not increase by 2");
     }
 
     function _initializeRollup(
