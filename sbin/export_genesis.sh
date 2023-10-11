@@ -12,7 +12,7 @@ args=(
     --verbosity 0
 )
 
-$SIDECAR_DIR/build/bin/geth init --datadir ./tmp_data ./genesis.json
-$SIDECAR_DIR/build/bin/geth "${args[@]}" dump 0
+$GETH_DIR/build/bin/geth init --datadir ./tmp_data ./genesis.json
+$GETH_DIR/build/bin/geth "${args[@]}" dump 0
 
 rm -r tmp_data/
