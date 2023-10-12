@@ -1,4 +1,4 @@
-package geth
+package hook
 
 import (
 	"fmt"

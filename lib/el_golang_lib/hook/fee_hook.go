@@ -1,4 +1,4 @@
-package geth
+package hook
 
 import (
 	"bytes"
@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/specularL2/specular/services/sidecar/utils/log"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 // TODO: maybe move these constants to the rollup config or a separate file
@@ -20,8 +20,8 @@ const (
 )
 
 type RollupConfig interface {
-	GetAccountAddr() common.Address      // recipient of the L1 Fee
-	GetChainID() uint64                  // chain ID of the specular rollup
+	GetCoinbase() common.Address         // recipient of the L1 Fee
+	GetL2ChainID() uint64                // chain ID of the specular rollup
 	GetL1FeeOverhead() int64             // fixed cost of submitting a tx to L1
 	GetL1FeeMultiplier() float64         // value to scale the L1 Fee
 	GetL1OracleAddress() common.Address  // contract providing the L1 basefee
@@ -34,51 +34,63 @@ type RollupConfig interface {
 func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
 	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
-	return func(msg types.Message, evm *vm.EVM) error {
+	return func(msg vm.MessageInterface, db vm.StateDB) error {
 		tx := transactionFromMessage(msg, cfg)
-		fee, err := calculateL1Fee(tx, evm, cfg)
+		fee, err := calculateL1Fee(tx, db, cfg)
 		if err != nil {
 			return err
 		}
-		return chargeL1Fee(fee, msg, evm, cfg)
+
+		return chargeL1Fee(fee, msg, db, cfg)
+	}
+}
+
+// MakeSpecularEVMPreTransferHook creates specular's vm.EVMReader function
+// which is injected into the EVM and can be used to return the L1Fee of a transaction.
+// This is a read only method and does not change the state.
+func MakeSpecularL1FeeReader(cfg RollupConfig) vm.EVMReader {
+	log.Info("Injected Specular EVM reader")
+	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
+	return func(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
+		return calculateL1Fee(tx, db, cfg)
 	}
 }
 
 // creates a Transaction from a transaction
 // the Tx Type is reconstructed and the signature is left empty
-func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transaction {
+func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Transaction {
 	var txData types.TxData
-	if msg.GasTipCap() != nil {
+	if msg.GetGasTipCap() != nil {
 		txData = &types.DynamicFeeTx{
-			ChainID:    big.NewInt(int64(cfg.GetChainID())),
-			Nonce:      msg.Nonce(),
-			GasTipCap:  msg.GasTipCap(),
-			GasFeeCap:  msg.GasFeeCap(),
-			Gas:        msg.Gas(),
-			To:         msg.To(),
-			Value:      msg.Value(),
-			Data:       msg.Data(),
-			AccessList: msg.AccessList(),
+			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			Nonce:      msg.GetNonce(),
+			GasTipCap:  msg.GetGasTipCap(),
+			GasFeeCap:  msg.GetGasFeeCap(),
+			Gas:        msg.GetGasLimit(),
+			To:         msg.GetTo(),
+			Value:      msg.GetValue(),
+			Data:       msg.GetData(),
+			AccessList: msg.GetAccessList(),
 		}
-	} else if msg.AccessList() != nil {
+	} else if msg.GetAccessList() != nil {
 		txData = &types.AccessListTx{
-			ChainID:    big.NewInt(int64(cfg.GetChainID())),
-			Nonce:      msg.Nonce(),
-			GasPrice:   msg.GasPrice(),
-			Gas:        msg.Gas(),
-			To:         msg.To(),
-			Value:      msg.Value(),
-			Data:       msg.Data(),
-			AccessList: msg.AccessList(),
+			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			Nonce:      msg.GetNonce(),
+			GasPrice:   msg.GetGasPrice(),
+			Gas:        msg.GetGasLimit(),
+			To:         msg.GetTo(),
+			Value:      msg.GetValue(),
+			Data:       msg.GetData(),
+			AccessList: msg.GetAccessList(),
 		}
 	} else {
 		txData = &types.LegacyTx{
-			Nonce:    msg.Nonce(),
-			GasPrice: msg.GasPrice(),
-			Gas:      msg.Gas(),
-			To:       msg.To(),
-			Value:    msg.Value(),
-			Data:     msg.Data(),
+			Nonce:    msg.GetNonce(),
+			GasPrice: msg.GetGasPrice(),
+			Gas:      msg.GetGasLimit(),
+			To:       msg.GetTo(),
+			Value:    msg.GetValue(),
+			Data:     msg.GetData(),
 		}
 	}
 	return types.NewTx(txData)
@@ -88,7 +100,7 @@ func transactionFromMessage(msg types.Message, cfg RollupConfig) *types.Transact
 // L1Fee = L1FeeMultiplier * L1BaseFee * (TxDataGas + L1OverheadGas)
 // L1BaseFee is dynamically set by the L1Oracle
 // L1FeeMultiplier & L1OverheadGas are set in the rollup configuration
-func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.Int, error) {
+func calculateL1Fee(tx *types.Transaction, db vm.StateDB, cfg RollupConfig) (*big.Int, error) {
 	// calculate L1 gas from RLP encoding
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
@@ -106,7 +118,7 @@ func calculateL1Fee(tx *types.Transaction, evm *vm.EVM, cfg RollupConfig) (*big.
 		zeroes, ones = zeroesAndOnes(rlp)
 
 		txDataGas    = big.NewInt(zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne + cfg.GetL1FeeOverhead())
-		basefee      = readStorageSlot(evm, cfg.GetL1OracleAddress(), cfg.GetL1OracleBaseFeeSlot())
+		basefee      = readStorageSlot(db, cfg.GetL1OracleAddress(), cfg.GetL1OracleBaseFeeSlot())
 		feeMutiplier = cfg.GetL1FeeMultiplier()
 
 		l1Fee       = new(big.Int).Mul(txDataGas, basefee)
@@ -145,22 +157,23 @@ func ScaleBigInt(num *big.Int, scalar float64) *big.Int {
 
 // subtract the L1 Fee from the sender of the Tx
 // add the Fee to the balance of the coinbase address
-func chargeL1Fee(l1Fee *big.Int, msg types.Message, evm *vm.EVM, cfg RollupConfig) error {
-	senderBalance := evm.StateDB.GetBalance(msg.From())
+func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, cfg RollupConfig) error {
+	senderBalance := db.GetBalance(msg.GetFrom())
+
 	if senderBalance.Cmp(l1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	evm.StateDB.AddBalance(cfg.GetAccountAddr(), l1Fee)
-	evm.StateDB.SubBalance(msg.From(), l1Fee)
+	db.AddBalance(cfg.GetCoinbase(), l1Fee)
+	db.SubBalance(msg.GetFrom(), l1Fee)
 
 	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
 	return nil
 }
 
 // read the value from a given address / storage slot
-func readStorageSlot(evm *vm.EVM, address common.Address, slot common.Hash) *big.Int {
-	return evm.StateDB.GetState(address, slot).Big()
+func readStorageSlot(db vm.StateDB, address common.Address, slot common.Hash) *big.Int {
+	return db.GetState(address, slot).Big()
 }
 
 // zeroesAndOnes counts the number of 0 bytes and non 0 bytes in a byte slice
