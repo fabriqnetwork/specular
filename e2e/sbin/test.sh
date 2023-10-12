@@ -17,7 +17,7 @@ docker run -d \
   --dev --dev.period 1 \
   --verbosity 3 \
   --http --http.api eth,web3,net --http.addr 0.0.0.0 \
-  --ws --ws.api eth,net,web3 --ws.addr 0.0.0.0 --ws.port 8545 2>&1 | sed "s/^/[L1] /"
+  --ws --ws.api eth,net,web3 --ws.addr 0.0.0.0 --ws.port 8545 2>&1 | sed "s/^/[L1 geth] /"
 
 sleep 3
 
@@ -25,33 +25,33 @@ GETH_DOCKER_URL="ws://172.17.0.1:8545"
 
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$SEQUENCER_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1] /"
+  $GETH_DOCKER_URL | sed "s/^/[L1 fund] /"
 
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$VALIDATOR_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1] /"
+  $GETH_DOCKER_URL | sed "s/^/[L1 fund] /"
 
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1] /"
+  $GETH_DOCKER_URL | sed "s/^/[L1 fund] /"
 
-sleep 10
+sleep 5
 
-npx hardhat deploy --network localhost | sed "s/^/[L1] /"
+npx hardhat deploy --network localhost | sed "s/^/[L1 deploy] /"
 
 # Spin up L2 node
 cd $PROJECT_DATA_DIR
-$SBIN_DIR/sequencer.sh 2>&1 | sed "s/^/[L2] /" &
+$SBIN_DIR/sequencer.sh 2>&1 | sed "s/^/[L2 geth] /"
 L2GETH_PID=$!
 
 # Wait for nodes
-$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT
-$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT
+$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT | sed "s/^/[WAIT] /"
+$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT | sed "s/^/[WAIT] /"
+
+cd $CONTRACTS_DIR
+npx hardhat deploy --network specularLocalDev | sed "s/^/[L2 deploy] /"
 
 # Run testing script
-cd $CONTRACTS_DIR
-npx hardhat deploy --network specularLocalDev | sed "s/^/[L2] /"
-
 case $1 in
   transactions)
     npx hardhat run scripts/e2e/test_transactions.ts

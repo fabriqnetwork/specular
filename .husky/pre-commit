@@ -4,12 +4,13 @@
 cd contracts
 pnpm lint-staged
 
-GO_DIRECTORY="../clients/geth/specular"
-if git diff --cached --quiet -- "$GO_DIRECTORY"; then
-    echo "No Changes Found in $GO_DIRECTORY, skipping `make install`"
+cd ..
+
+SIDECAR_DIR="services/sidecar"
+if git diff --cached --quiet -- "$SIDECAR_DIR"; then
+    echo "No Changes Found in $SIDECAR_DIR, skipping `make install`"
 else
-    echo "Changes found in $GO_DIRECTORY"
-    cd ../clients/geth/specular
+    echo "Changes found in $SIDECAR_DIR"
     make install
     echo "Successfully ran `make install`"
 fi

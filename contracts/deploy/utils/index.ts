@@ -75,11 +75,12 @@ export async function deployUUPSProxiedContract(
     });
   }
 
+  console.log("waiting for deployment");
   // Deploy implementation
   const impl = await deploy(name, {
     from: deployer,
     log: true,
-  });
+  }).catch((e: Error) => console.log(e));
 
   let proxyAddress: string;
 
