@@ -307,12 +307,10 @@ func (m *TxManager) publishAndWaitForTx(ctx context.Context, tx *types.Transacti
 			log.Warn("nonce too low", "err", err)
 		case errStringMatch(err, context.Canceled):
 			log.Warn("transaction send cancelled", "err", err)
-		case errStringMatch(err, core.ErrAlreadyKnown):
-			log.Warn("resubmitted already known transaction", "err", err)
-		case errStringMatch(err, core.ErrReplaceUnderpriced):
-			log.Warn("transaction replacement is underpriced", "err", err)
-		case errStringMatch(err, core.ErrUnderpriced):
-			log.Warn("transaction is underpriced", "err", err)
+		case errStringMatch(err, core.ErrKnownBlock):
+			log.Warn("resubmitted already known block", "err", err)
+		case errStringMatch(err, core.ErrFeeCapTooLow):
+			log.Warn("transaction fee cap too low", "err", err)
 		default:
 			log.Error("unable to publish transaction", "err", err)
 		}

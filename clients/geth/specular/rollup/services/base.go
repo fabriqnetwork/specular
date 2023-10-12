@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/trie"
@@ -81,7 +82,7 @@ func (b *BaseService) SyncL2ChainToL1Head(ctx context.Context, start uint64) (ui
 		"Synced L1->L2",
 		"l1 start", start,
 		"l1 end", l1BlockHead,
-		"l2 size", b.Chain().CurrentBlock().Number(),
+		"l2 size", b.Chain().CurrentBlock().Number,
 	)
 	return l1BlockHead, nil
 }
@@ -146,7 +147,8 @@ func (b *BaseService) processTxBatchAppendedEvent(
 		return fmt.Errorf("Failed to split AppendTxBatch input into blocks, err: %w", err)
 	}
 	log.Info("Decoded blocks", "#blocks", len(blocks))
-	localBlockNumber := b.Eth.BlockChain().CurrentBlock().NumberU64()
+	localBlockNumber := b.Eth.BlockChain().CurrentBlock().Number.Uint64()
+
 	// Commit only blocks ahead of the current L2 chain.
 	for i := range blocks {
 		if blocks[i].BlockNumber() > localBlockNumber {
@@ -183,11 +185,11 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 		return fmt.Errorf("missing parent")
 	}
 	expectedParentNum := firstL2BlockNumber - 1
-	if expectedParentNum != parent.NumberU64() {
+	if expectedParentNum != parent.Number.Uint64() {
 		log.Warn("Parent block number mismatch", "#parentBlock", parent, "#firstL2BlockNumber", firstL2BlockNumber)
 		return fmt.Errorf("rollup services unsynced")
 	}
-	state, err := b.Chain().StateAt(parent.Root())
+	state, err := b.Chain().StateAt(parent.Root)
 	if err != nil {
 		log.Warn("Could not read parent state")
 		return err
@@ -201,10 +203,10 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 		header := &types.Header{
 			ParentHash: parent.Hash(),
 			Number:     new(big.Int).SetUint64(currentBlockNumber),
-			GasLimit:   core.CalcGasLimit(parent.GasLimit(), ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
+			GasLimit:   core.CalcGasLimit(parent.GasLimit, ethconfig.Defaults.Miner.GasCeil), // TODO: this may cause problem if the gas limit generated on sequencer side mismatch with this one
 			Time:       sblock.Timestamp(),
 			Coinbase:   b.Config.GetAccountAddr(),
-			Difficulty: common.Big1, // Fake difficulty. Avoid use 0 here because it means the merge happened
+			Difficulty: common.Big0, // Fake difficulty. Avoid use 0 here because it means the merge happened
 		}
 		gasPool := new(core.GasPool).AddGas(header.GasLimit)
 		var receipts []*types.Receipt
@@ -217,9 +219,14 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 			}
 		}
 
-		for idx, tx := range txs {
-			state.Prepare(tx.Hash(), idx)
+		for _, tx := range txs {
 			addr := b.Config.GetAccountAddr()
+			// Convert the transaction into a Message object so that we can get the
+			// sender. This method performs an ecrecover, which can be expensive.
+			msg, _ := core.TransactionToMessage(tx, types.LatestSignerForChainID(tx.ChainId()), nil)
+
+			rules := chainConfig.Rules(header.Number, false, header.Time)
+			state.Prepare(rules, msg.From, addr, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
 			receipt, err := core.ApplyTransaction(
 				chainConfig, b.Chain(), &addr, gasPool, state, header, tx, &header.GasUsed, *b.Chain().GetVMConfig())
 			if err != nil {
@@ -234,6 +241,7 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 		header.UncleHash = types.CalcUncleHash(nil)
 		// Assemble block
 		block := types.NewBlock(header, txs, nil, receipts, trie.NewStackTrie(nil))
+
 		hash := block.Hash()
 		// Finalize receipts and logs
 		var logs []*types.Log
@@ -250,12 +258,24 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 			}
 			logs = append(logs, receipt.Logs...)
 		}
-		_, err := b.Chain().WriteBlockAndSetHead(block, receipts, logs, state, true)
+
+		// Write state changes to db
+		root, err := state.Commit(header.Number.Uint64(), true)
 		if err != nil {
-			log.Warn("Error while writing new block", "#err", err)
+			log.Error("L2 state write error: %v", err)
 			return err
 		}
-		parent = block
+		if err := state.Database().TrieDB().Commit(root, false); err != nil {
+			log.Error("L2 trie write error: %v", err)
+			return err
+		}
+		_, err = b.Chain().InsertChain(types.Blocks{block})
+		if err != nil {
+			log.Error("Could not sync next L2 block %v", err)
+			return err
+		}
+
+		parent = block.Header()
 
 		// Only increment currentBlockNumber after block and header have been written to chain
 		currentBlockNumber += 1
@@ -263,7 +283,7 @@ func (b *BaseService) commitBlocks(blocks []derivation.DerivationBlock) error {
 
 	log.Trace(
 		"All blocks have been written",
-		"Chain height after write", b.Chain().CurrentBlock().NumberU64(),
+		"Chain height after write", b.Chain().CurrentBlock().Number.Uint64(),
 	)
 
 	return nil
