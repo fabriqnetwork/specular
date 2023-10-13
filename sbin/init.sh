@@ -6,18 +6,8 @@ SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure_system.sh
 
 cd $DATA_DIR
-$SIDECAR_DIR/build/bin/geth \
-  --datadir ./data_sequencer \
-  --networkid $NETWORK_ID \
-  init ./genesis.json
-
-$SIDECAR_DIR/build/bin/geth \
-  --datadir ./data_validator \
-  --networkid $NETWORK_ID \
-  init ./genesis.json
-
-$SIDECAR_DIR/build/bin/geth \
-  --datadir ./data_indexer \
+$GETH_DIR/build/bin/geth \
+  --datadir ./ \
   --networkid $NETWORK_ID \
   init ./genesis.json
 
