@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularL2/specular/services/sidecar/proof"
 	"github.com/specularL2/specular/services/sidecar/rollup/client"
@@ -32,20 +33,20 @@ func New(eth api.ExecutionBackend, proofBackend proof.Backend, l1Client client.L
 }
 
 // Appends tx to batch if not already exists in batch or on chain
-func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Transaction, tx *types.Transaction) ([]*types.Transaction, error) {
+func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Transaction, tx *txpool.LazyTransaction) ([]*types.Transaction, error) {
 	// Check if tx in batch
 	for i := len(batchTxs) - 1; i >= 0; i-- {
-		if batchTxs[i].Hash() == tx.Hash() {
+		if batchTxs[i].Hash() == tx.Hash {
 			return batchTxs, nil
 		}
 	}
 	// Check if tx exists on chain
-	prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash())
+	prevTx, _, _, _, err := s.ProofBackend.GetTransaction(ctx, tx.Hash)
 	if err != nil {
 		return nil, fmt.Errorf("Checking GetTransaction, err: %w", err)
 	}
 	if prevTx == nil {
-		batchTxs = append(batchTxs, tx)
+		batchTxs = append(batchTxs, tx.Resolve())
 	}
 	return batchTxs, nil
 }
@@ -54,7 +55,7 @@ func (s *Sequencer) modifyTxnsInBatch(ctx context.Context, batchTxs []*types.Tra
 func (s *Sequencer) addTxsToBatchAndCommit(
 	ctx context.Context,
 	batcher *Batcher,
-	txs *types.TransactionsByPriceAndNonce,
+	txs *transactionsByPriceAndNonce,
 	batchTxs []*types.Transaction,
 	signer types.Signer,
 ) ([]*types.Transaction, error) {
@@ -109,11 +110,11 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 		select {
 		case <-ticker.C:
 			// Get pending txs - locals and remotes, sorted by price
-			var txs []*types.Transaction
-			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+			var txs []*txpool.LazyTransaction
+			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number, batcher.header.Time)
 
 			pending := s.Eth.TxPool().Pending(true)
-			localTxs, remoteTxs := make(map[common.Address]types.Transactions), pending
+			localTxs, remoteTxs := make(map[common.Address][]*txpool.LazyTransaction), pending
 			for _, account := range s.Eth.TxPool().Locals() {
 				if txs = remoteTxs[account]; len(txs) > 0 {
 					delete(remoteTxs, account)
@@ -121,14 +122,14 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 				}
 			}
 			if len(localTxs) > 0 {
-				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
+				sortedTxs := newTransactionsByPriceAndNonce(signer, localTxs, batcher.header.BaseFee)
 				batchTxs, err = s.addTxsToBatchAndCommit(ctx, batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
 					log.Crit("Failed to process local txs", "err", err)
 				}
 			}
 			if len(remoteTxs) > 0 {
-				sortedTxs := types.NewTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
+				sortedTxs := newTransactionsByPriceAndNonce(signer, remoteTxs, batcher.header.BaseFee)
 				batchTxs, err = s.addTxsToBatchAndCommit(ctx, batcher, sortedTxs, batchTxs, signer)
 				if err != nil {
 					log.Crit("Failed to process remote txs", "err", err)
@@ -144,13 +145,19 @@ func (s *Sequencer) batchingLoop(ctx context.Context) {
 		case ev := <-txsCh:
 			// Batch txs in case of txEvent
 			log.Info("Received txsCh event", "txs", len(ev.Txs))
-			txs := make(map[common.Address]types.Transactions)
-			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number)
+			txs := make(map[common.Address][]*txpool.LazyTransaction)
+			signer := types.MakeSigner(batcher.chainConfig, batcher.header.Number, batcher.header.Time)
 			for _, tx := range ev.Txs {
 				acc, _ := types.Sender(signer, tx)
-				txs[acc] = append(txs[acc], tx)
+				txs[acc] = append(txs[acc], &txpool.LazyTransaction{
+					Hash:      tx.Hash(),
+					Tx:        tx,
+					Time:      tx.Time(),
+					GasFeeCap: tx.GasFeeCap(),
+					GasTipCap: tx.GasTipCap(),
+				})
 			}
-			sortedTxs := types.NewTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
+			sortedTxs := newTransactionsByPriceAndNonce(signer, txs, batcher.header.BaseFee)
 			batchTxs, err = s.addTxsToBatchAndCommit(ctx, batcher, sortedTxs, batchTxs, signer)
 			if err != nil {
 				log.Crit("Failed to process txsCh event ", "err", err)

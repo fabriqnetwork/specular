@@ -159,7 +159,7 @@ func ScaleBigInt(num *big.Int, scalar float64) *big.Int {
 // add the Fee to the balance of the coinbase address
 func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, cfg RollupConfig) error {
 	senderBalance := db.GetBalance(msg.GetFrom())
-
+  
 	if senderBalance.Cmp(l1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}

@@ -181,12 +181,10 @@ func newValidatorConfigFromCLI(
 }
 
 type KeyStoreConfig struct {
-	DataDir string `toml:"datadir,omitempty"`
 	KeyStoreDir string `toml:"keystore,omitempty"`
 	ExternalSigner string `toml:"signer,omitempty"`
 }
 
-func (c KeyStoreConfig) GetDataDir() string { return c.DataDir }
 func (c KeyStoreConfig) GetKeyStoreDir() string { return c.KeyStoreDir }
 func (c KeyStoreConfig) GetExternalSigner() string { return c.ExternalSigner }
 
