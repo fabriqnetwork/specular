@@ -9,16 +9,18 @@
     "constantinopleBlock": 0,
     "petersburgBlock": 0,
     "istanbulBlock": 0,
-    "muirGlacierBlock":0,
+    "muirGlacierBlock": 0,
     "berlinBlock": 0,
     "londonBlock": 0,
-    "mergeForkBlock": 0,
-    "mergeNetsplitBlock": 0,
-    "terminalTotalDifficulty": 0,
-    "terminalTotalDifficultyPassed": true
+    "arrowGlacierBlock": 0,
+    "grayGlacierBlock": 0,
+    "MergeNetsplitBlock": 0,
+    "TerminalTotalDifficulty": 0,
+    "TerminalTotalDifficultyPassed": true
   },
   "difficulty": "0",
   "gasLimit": "8000000",
+  "baseFee": "10",
   "extradata": "",
   "preDeploy": [
     {

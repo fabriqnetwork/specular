@@ -16,7 +16,6 @@ package prover
 
 import (
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -58,7 +57,7 @@ func (l *OneStepProver) CaptureExit(output []byte, gasUsed uint64, err error) {
 func (l *OneStepProver) CaptureFault(pc uint64, op vm.OpCode, gas, cost uint64, scope *vm.ScopeContext, depth int, err error) {
 }
 
-func (l *OneStepProver) CaptureEnd(output []byte, gasUsed uint64, t time.Duration, err error) {
+func (l *OneStepProver) CaptureEnd(output []byte, gasUsed uint64, err error) {
 }
 
 func (l *OneStepProver) GetProof() (*proof.OneStepProof, error) {
