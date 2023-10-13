@@ -43,7 +43,7 @@ contract RLPEncodedTransactionsUtil is Test {
         return 0;
     }
 
-    // TODO: RLP encode txBatch format
+    // TODO: RLP encode txBatch format. This function encodes the old batch data format.
     function _helper_sequencerInbox_appendTx(uint256 numTxns) internal view returns (bytes memory) {
         bytes memory combinedNumTxnsBytes;
         uint256 rlpEncodedTxnIndex;
