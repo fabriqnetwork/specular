@@ -1,1 +1,3 @@
 project
+data/data*
+data/genesis.json
