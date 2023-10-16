@@ -3,6 +3,7 @@ import inquirer from "inquirer";
 
 import ERC1967Proxy from "@openzeppelin/contracts/build/contracts/ERC1967Proxy.json";
 import UUPSUpgradeable from "@openzeppelin/contracts-upgradeable/build/contracts/UUPSUpgradeable.json";
+import { BlockTag } from "@ethersproject/providers";
 
 /**
  * Deploy options for UUPS proxied contracts
@@ -82,6 +83,7 @@ export async function deployUUPSProxiedContract(
   });
 
   let proxyAddress: string;
+  let blockNumber: BlockTag;
 
   if (existingDeployment) {
     proxyAddress = existingDeployment.address;
@@ -95,7 +97,8 @@ export async function deployUUPSProxiedContract(
     );
     // Upgrade proxy
     const tx = await proxy.upgradeTo(impl.address);
-    await tx.wait();
+    const receipt = await tx.wait();
+    blockNumber = receipt.blockNumber;
   } else {
     // Assemble initialization data data
     const initData = Factory.interface.encodeFunctionData(initializer, args);
@@ -107,6 +110,7 @@ export async function deployUUPSProxiedContract(
       log: true,
     });
     proxyAddress = proxy.address;
+    blockNumber = proxy.receipt.blockNumber;
   }
 
   // Force import to ensure that the proxy is registered in the upgrades plugin
@@ -114,13 +118,19 @@ export async function deployUUPSProxiedContract(
     upgrades.forceImport(proxyAddress, Factory, { kind: "uups" });
   }
 
-  console.log(`${name} Proxy:`, proxyAddress);
-  console.log(
-    `${name} Implementation Address`,
-    await upgrades.erc1967.getImplementationAddress(proxyAddress)
-  );
-  console.log(
-    `${name} Admin Address`,
-    await upgrades.erc1967.getAdminAddress(proxyAddress)
-  );
+  const blockHeader = await ethers.provider.getBlock(blockNumber);
+
+  console.log({
+    contractName: name,
+    proxyAddress,
+    implementationAddress: await upgrades.erc1967.getImplementationAddress(
+      proxyAddress
+    ),
+    adminAddress: await upgrades.erc1967.getAdminAddress(proxyAddress),
+    blockInfo: {
+      number: blockHeader.number,
+      timestamp: blockHeader.timestamp,
+      hash: blockHeader.hash,
+    },
+  });
 }
