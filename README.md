@@ -3,13 +3,14 @@
 ## Directory Structure
 
 <pre>
-├── <a href="./services">clients/geth</a>: Specular L2 clients
-│   ├── <a href="./services/el_clients/go-ethereum">go-ethereum</a>: Minimally modified go-ethereum to support Specular prover
-│   └── <a href="./services/sidecar">specular</a>: Specular client software
-│       ├── <a href="./services/sidecar/bindings">bindings</a>: Golang bindings of Specular L1 contracts
-│       ├── <a href="./services/sidecar/proof">proof</a>: Specular prover
-│       └── <a href="./services/sidecar/rollup">rollup</a>: Specular rollup services
-└── <a href="./contracts">contracts</a>: Specular L1 contracts
+├── <a href="./services/">services</a>: Specular L2 clients
+│   ├── <a href="./services/cl_clients">cl_clients</a>: Consensus layer clients
+│   ├── <a href="./services/el_clients/">el_clients</a>: Execution layer clients
+│   │      └── <a href="./services/el_clients/go-ethereum/">go-ethereum</a>: Minimally modified geth fork
+│   └── <a href="./services/sidecar/">sidecar</a>: The Specular sidecar service
+├── <a href="./contracts">contracts</a>: Specular L1 and L2 contracts
+└── <a href="./lib/">lib</a>: Libraries used in L2 EL Clients
+    └── <a href="./lib/el_golang_lib/">el_golang_lib</a>: Library for golang clients
 </pre>
 
 ## License
@@ -18,7 +19,7 @@ Unless specified in subdirectories, this repository is licensed under the [Apach
 
 ## Running a local network
 
-This guide will demonstrate how to set up a rollup network containing L2 sequencer nodes, running over a Hardhat L1 node---all on your local machine.
+This guide will demonstrate how to set up a rollup network containing L2 sequencer nodes, running over a Geth L1 node---all on your local machine.
 After the 3 nodes are running, you can use MetaMask to send custom transactions to the sequencer, and see how transactions are executed on the L2 network, sequenced to the L1 network, and confirmed.
 In this example, all nodes operate honestly (no challenges are issued).
 
@@ -28,20 +29,19 @@ Install all dependencies and build the modified L2 Geth node
 ```sh
 cd SPECULAR_REPO
 pnpm install
-make install
+make geth sidecar
 ```
 
 ### Generate the genesis file
 
 ```sh
-SPECULAR_REPO/config/sbin/create_genesis.sh
+SPECULAR_REPO/sbin/create_genesis.sh
 ```
 
 ### L2 setup
 
 ```sh
-cd SPECULAR_REPO/sbin
-./import_accounts.sh && ./init.sh
+SPECULAR_REPO/sbin/init_geth.sh
 ```
 
 ### L1 local dev node installation
@@ -52,12 +52,13 @@ See [here](https://github.com/SpecularL2/specular/tree/main/contracts) for more 
 
 ```sh
 # Terminal #1: start L1 node
-pnpm install
-cd contracts
-npx hardhat node
+SPECULAR_REPO/sbin/start_l1.sh
 
-# Terminal #2: start sequencer
-SPECULAR_REPO/sbin/start_sequencer.sh
+# Terminal #2: start L2 EL client
+SPECULAR_REPO/sbin/start_geth.sh
+
+# Terminal #3: start Specular sidecar
+SPECULAR_REPO/sbin/start_sidecar.sh
 ```
 
 Make sure there are logs for `Sequencer started` in the respective console.

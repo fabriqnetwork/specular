@@ -1,9 +1,18 @@
 # Define directory structure for other scripts.
-SBIN=`dirname $0`
+SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="`cd "$SBIN"; pwd`"
 
-export ROOT_DIR=$SBIN/..
-export CONTRACTS_DIR=$ROOT_DIR/contracts
-export DATA_DIR=$ROOT_DIR/e2e/data
-export GETH_DIR=$ROOT_DIR/services/el_clients/go-ethereum
-export SIDECAR_DIR=$ROOT_DIR/services/sidecar
+ROOT_DIR=$SBIN/..
+
+CONTRACTS_DIR=$ROOT_DIR/contracts
+DATA_DIR=$ROOT_DIR/e2e/data
+CONFIG_DIR=$ROOT_DIR/config
+GETH_DIR=$ROOT_DIR/services/el_clients/go-ethereum
+SIDECAR_DIR=$ROOT_DIR/services/sidecar
+
+# Define binaries
+SIDECAR_BIN=$SIDECAR_DIR/build/bin/sidecar
+GETH_BIN=$GETH_DIR/build/bin/geth
+
+# Load environment variables
+source $DATA_DIR/e2e.env

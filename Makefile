@@ -19,26 +19,31 @@ GETH_BIN_TARGET = ./build/bin/geth
 
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
-install: $(GETH_BIN_TARGET)
+install: geth sidecar
 
 geth: $(GETH_BIN_TARGET)
 
-sidecar: $(SIDECAR_BINDINGS_TARGET) $(shell find $(SIDECAR_DIR) -type f -name "*.go")
+sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
+
+# `touch` ensures the target is newer than preqreqs.
+# This is required since `go generate` may not add/delete files.
+bindings: $(CONTRACTS_TARGET)
+	cd $(SIDECAR_DIR) && go generate ./...
+	touch $(SIDECAR_BINDINGS_TARGET)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
 
+# Removes:
+# - bindings (do not remove bindings/gen.go)
+# - contracts (this has to happen after bindings)
+# - geth and clef
 clean:
 	rm -f $(SIDECAR_BINDINGS_TARGET)/I*.go
 	cd $(CONTRACTS_DIR) && npx hardhat clean
 	rm -rf $(SIDECAR_BIN_TARGET)
 	rm -rf $(GETH_BIN_TARGET)
 	#rm -rf $(CLEF_TARGET)
-
-# Removes:
-# - bindings (do not remove bindings/gen.go)
-# - contracts (this has to happen after bindings)
-# - geth and clef
 
 # Docker process skips geth prereqs for docker building.
 geth-docker: bindings-docker
@@ -54,13 +59,7 @@ bindings-docker:
 $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -name "*.sol")
 	sbin/compile_contracts.sh
 
-# `touch` ensures the target is newer than preqreqs.
-# This is required since `go generate` may not add/delete files.
-$(SIDECAR_BINDINGS_TARGET): $(CONTRACTS_TARGET)
-	cd $(SIDECAR_DIR) && go generate ./...
-	touch $(SIDECAR_BINDINGS_TARGET)
-
-$(GETH_BIN_TARGET): $(SIDECAR_BINDINGS_TARGET)
+$(GETH_BIN_TARGET):
 	cd $(GETH_SRC) && go build -o $(GETH_BIN_TARGET) $(GETH_BIN_SRC)
 	@echo "Done building geth."
 	#@echo "Run \"$(GOBIN)/geth\" to launch geth."

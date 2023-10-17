@@ -177,8 +177,6 @@ func startService(cliCtx *cli.Context) error {
 
 	acctMgr := initializeAccountManager(cfg.KeyStore())
 
-	log.Info("Starting disseminator+validator")
-
 	var disseminator *disseminator.BatchDisseminator
 	var validator *validator.Validator
 
@@ -200,6 +198,9 @@ func startService(cliCtx *cli.Context) error {
 
 	validatorErrorGroup, validatorCtx := errgroup.WithContext(context.Background())
 	validator.Start(validatorCtx, validatorErrorGroup)
+
+	<-disseminatorCtx.Done()
+	<-validatorCtx.Done()
 
 	return nil
 }
