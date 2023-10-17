@@ -1,0 +1,41 @@
+name: Release snapshot
+
+# Releases a snapshot release when new commits merge to develop
+# This ensures the release process is working as expected as well as always gives us a release
+# we should move to a single branch in near future
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - develop
+
+jobs:
+  snapshot-snapshot:
+    name: Publish snapshot release to npm
+    if: github.repository == 'SpecularL2/specular'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: ./.github/actions/node
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - name: Set deployment token
+        run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish snapshots
+        uses: seek-oss/changesets-snapshot@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

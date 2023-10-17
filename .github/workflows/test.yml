@@ -38,10 +38,6 @@ jobs:
       - name: Setup Node
         uses: ./.github/actions/node
 
-      - name: Setup ts-node
-        run: |
-          pnpm install ts-node
-
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:

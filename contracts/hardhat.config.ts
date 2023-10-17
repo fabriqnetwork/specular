@@ -7,7 +7,7 @@ import "@nomiclabs/hardhat-waffle";
 import "hardhat-abi-exporter";
 import "hardhat-deploy";
 import "@openzeppelin/hardhat-upgrades";
-import "@typechain/hardhat";
+// import "@typechain/hardhat";
 
 const mnemonic =
   process.env.MNEMONIC ??

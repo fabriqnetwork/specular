@@ -1,0 +1,30 @@
+{
+  "name": "@specularl2/sdk",
+  "version": "0.0.1",
+  "description": "",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist/**/*"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "gen:binding": "typechain --target ethers-v5 --out-dir src/types/contracts \"./node_modules/@specularl2/contracts/artifacts/src/**/*[!dbg].json\"",
+    "preinstall": "npx only-allow pnpm",
+    "prepublishOnly": "pnpm run gen:binding && pnpm run build"
+  },
+  "author": "Specular contributors",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@specularl2/contracts": "workspace:*",
+    "typechain": "^8.1.1",
+    "typescript": "^4.9.3"
+  },
+  "dependencies": {
+    "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/bytes": "^5.7.0",
+    "@ethersproject/providers": "^5.7.2",
+    "ethers": "^5.7.2"
+  }
+}
