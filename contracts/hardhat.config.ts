@@ -9,6 +9,8 @@ import "hardhat-deploy";
 import "@openzeppelin/hardhat-upgrades";
 import "@typechain/hardhat";
 
+import "./tasks/config_l1_timestamp";
+
 const mnemonic =
   process.env.MNEMONIC ??
   "test test test test test test test test test test test junk";
