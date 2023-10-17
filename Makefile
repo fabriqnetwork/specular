@@ -24,6 +24,7 @@ install: $(GETH_BIN_TARGET)
 geth: $(GETH_BIN_TARGET)
 
 sidecar: $(SIDECAR_BINDINGS_TARGET) $(shell find $(SIDECAR_DIR) -type f -name "*.go")
+	cd $(SIDECAR_DIR) && go generate ./...
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat

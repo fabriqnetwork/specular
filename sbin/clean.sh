@@ -3,8 +3,14 @@ SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
 
-cd $DATA_DIR
-rm -rf ./data_sequencer/geth
-rm -rf ./data_validator/geth
-rm -rf ./data_indexer/geth
+# Remove L1 docker container
+docker remove --force geth_container
 
+# Clean up data dir
+rm -rf $DATA_DIR/geth
+rm -rf $DATA_DIR/keystore
+rm -rf $DATA_DIR/geth.ipc
+
+# Remove deployments
+rm -rf $CONTRACTS_DIR/deployments/localhost
+rm -rf $CONTRACTS_DIR/deployments/specularLocalDev

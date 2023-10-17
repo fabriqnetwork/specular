@@ -1,52 +1,28 @@
 #!/bin/bash
+E2E_SBIN_DIR=$(dirname "$(readlink -f "$0")")
+E2E_SBIN_DIR="`cd "$E2E_SBIN_DIR"; pwd`"
 
-# Configure variables
-SBIN_DIR=`dirname $0`
-SBIN_DIR="`cd "$SBIN_DIR"; pwd`"
-set -o allexport
-source $SBIN_DIR/configure.sh
-set +o allexport
+cd $E2E_SBIN_DIR/../../sbin
+. ./configure.sh
 
-# Spin up L1 node
-cd $CONTRACTS_DIR
-docker run -d \
-  --name geth_container \
-  -v ./../docker:/root \
-  -p 8545:8545 \
-  ethereum/client-go \
-  --dev --dev.period 1 \
-  --verbosity 3 \
-  --http --http.api eth,web3,net --http.addr 0.0.0.0 \
-  --ws --ws.api eth,net,web3 --ws.addr 0.0.0.0 --ws.port 8545 2>&1 | sed "s/^/[L1 geth] /"
+# TODO: improve logs accross these scripts
 
-sleep 3
+$SBIN/start_l1.sh &
 
-GETH_DOCKER_URL="ws://172.17.0.1:8545"
+$SBIN/clean.sh
+$SBIN/init_geth.sh
 
-docker exec geth_container geth attach --exec \
-  "eth.sendTransaction({ from: eth.coinbase, to: '"$SEQUENCER_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1 fund] /"
+# TODO: this is not actually working right now
 
-docker exec geth_container geth attach --exec \
-  "eth.sendTransaction({ from: eth.coinbase, to: '"$VALIDATOR_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1 fund] /"
+$SBIN/start_sidecar.sh &
+SIDECAR_PID=$!
 
-docker exec geth_container geth attach --exec \
-  "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDR"', value: web3.toWei(10000, 'ether') })" \
-  $GETH_DOCKER_URL | sed "s/^/[L1 fund] /"
-
-sleep 5
-
-npx hardhat deploy --network localhost | sed "s/^/[L1 deploy] /"
-
-# Spin up L2 node
-cd $PROJECT_DATA_DIR
-$SBIN_DIR/sequencer.sh 2>&1 | sed "s/^/[L2 geth] /"
-L2GETH_PID=$!
+$SBIN/start_geth.sh &
+GETH_PID=$!
 
 # Wait for nodes
-$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT | sed "s/^/[WAIT] /"
-$SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT | sed "s/^/[WAIT] /"
+$E2E_SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT | sed "s/^/[WAIT] /"
+$E2E_SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT | sed "s/^/[WAIT] /"
 
 cd $CONTRACTS_DIR
 npx hardhat deploy --network specularLocalDev | sed "s/^/[L2 deploy] /"
@@ -81,8 +57,10 @@ esac
 
 
 # Kill nodes
-disown $L2GETH_PID
-kill $L2GETH_PID
+disown $GETH_PID
+disown $SIDECAR_PID
+kill $GETH_PID
+kill $SIDECAR_PID
 
 # Clean up
 $SBIN_DIR/clean.sh

@@ -2,7 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
-. $SBIN/configure_system.sh
+
 cd $DATA_DIR
 
 args=(
@@ -16,12 +16,8 @@ args=(
     --rollup.sequencer.addr $SEQUENCER_ADDR
     --rollup.validator
     --rollup.validator.addr $VALIDATOR_ADDR
-    --keystore.keystore $DATA_DIR/data_sequencer/keystore
+    --keystore.keystore $DATA_DIR/keystore
 )
-
-if [[ $USE_CLEF == 'true' ]]; then
-    args+=(--rollup.sequencer.clef-endpoint $CLEF_ENDPOINT)
-fi
 
 $SIDECAR_DIR/build/bin/sidecar "${args[@]}"
 
