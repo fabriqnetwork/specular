@@ -1,9 +1,14 @@
-.PHONY: install sidecar clean geth-docker contracts
+.PHONY: install sidecar ripcord clean geth-docker contracts
 
 SIDECAR_DIR = services/sidecar
 SIDECAR_BIN_SRC = ./cmd/sidecar
 SIDECAR_BIN_TARGET = ./build/bin/sidecar
 SIDECAR_BINDINGS_TARGET = $(SIDECAR_DIR)/bindings
+
+RIPCORD_DIR = services/cl_clients/ripcord
+RIPCORD_BIN_SRC = ./cmd/geth
+RIPCORD_BIN_TARGET = ./build/bin/geth
+RIPCORD_BINDINGS_TARGET = $(RIPCORD_DIR)/bindings
 
 CONTRACTS_DIR = contracts/
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
@@ -19,17 +24,21 @@ GETH_BIN_TARGET = ./build/bin/geth
 
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
-install: geth sidecar
+install: geth sidecar ripcord
 
 geth: $(GETH_BIN_TARGET)
 
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
+ripcord: $(RIPCORD_BINDINGS_TARGET) $(shell find $(RIPCORD_DIR) -type f -name "*.go")
+	cd $(RIPCORD_DIR) && go build -o $(RIPCORD_BIN_TARGET) $(RIPCORD_BIN_SRC)
+
 # `touch` ensures the target is newer than preqreqs.
 # This is required since `go generate` may not add/delete files.
 bindings: $(CONTRACTS_TARGET)
 	cd $(SIDECAR_DIR) && go generate ./...
+  cd $(RIPCORD_DIR) && go generate ./...
 	touch $(SIDECAR_BINDINGS_TARGET)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
@@ -62,7 +71,6 @@ $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -nam
 $(GETH_BIN_TARGET):
 	cd $(GETH_SRC) && go build -o $(GETH_BIN_TARGET) $(GETH_BIN_SRC)
 	@echo "Done building geth."
-	#@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
 #$(CLEF_TARGET): $(CLEF_SRC)
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)
