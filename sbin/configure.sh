@@ -1,3 +1,4 @@
+#!/bin/bash
 # Define directory structure for other scripts.
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="`cd "$SBIN"; pwd`"
@@ -15,4 +16,4 @@ SIDECAR_BIN=$SIDECAR_DIR/build/bin/sidecar
 GETH_BIN=$GETH_DIR/build/bin/geth
 
 # Load environment variables
-source $DATA_DIR/e2e.env
+. $DATA_DIR/e2e.env
