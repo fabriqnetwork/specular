@@ -149,7 +149,7 @@ var (
 		utils.EnableL2EngineApiFlag,
 		// <specular modification/>
 		configFileFlag,
-	}, utils.NetworkFlags, utils.DatabaseFlags)
+	}, utils.NetworkFlags, utils.DatabasePathFlags)
 
 	rpcFlags = []cli.Flag{
 		utils.HTTPEnabledFlag,

@@ -50,7 +50,7 @@ var (
 		ArgsUsage: "<genesisPath>",
 		Flags: flags.Merge([]cli.Flag{
 			utils.CachePreimagesFlag,
-		}, utils.DatabaseFlags),
+		}, utils.DatabasePathFlags),
 		Description: `
 The init command initializes a new genesis block and definition for the network.
 This is a destructive action and changes the network in which you will be
@@ -97,7 +97,7 @@ if one is set.  Otherwise it prints the genesis from the datadir.`,
 			utils.TxLookupLimitFlag,
 			utils.TransactionHistoryFlag,
 			utils.StateHistoryFlag,
-		}, utils.DatabaseFlags),
+		}, utils.DatabasePathFlags),
 		Description: `
 The import command imports blocks from an RLP-encoded form. The form can be one file
 with several RLP-encoded blocks, or several files can be used.
@@ -113,7 +113,7 @@ processing will proceed even if an individual RLP-file import failure occurs.`,
 		Flags: flags.Merge([]cli.Flag{
 			utils.CacheFlag,
 			utils.SyncModeFlag,
-		}, utils.DatabaseFlags),
+		}, utils.DatabasePathFlags),
 		Description: `
 Requires a first argument of the file to write to.
 Optional second and third arguments control the first and
@@ -129,7 +129,7 @@ be gzipped.`,
 		Flags: flags.Merge([]cli.Flag{
 			utils.CacheFlag,
 			utils.SyncModeFlag,
-		}, utils.DatabaseFlags),
+		}, utils.DatabasePathFlags),
 		Description: `
 The import-preimages command imports hash preimages from an RLP encoded stream.
 It's deprecated, please use "geth db import" instead.
@@ -143,7 +143,7 @@ It's deprecated, please use "geth db import" instead.
 		Flags: flags.Merge([]cli.Flag{
 			utils.CacheFlag,
 			utils.SyncModeFlag,
-		}, utils.DatabaseFlags),
+		}, utils.DatabasePathFlags),
 		Description: `
 The export-preimages command exports hash preimages to an RLP encoded stream.
 It's deprecated, please use "geth db export" instead.
@@ -162,7 +162,7 @@ It's deprecated, please use "geth db export" instead.
 			utils.IncludeIncompletesFlag,
 			utils.StartKeyFlag,
 			utils.DumpLimitFlag,
-		}, utils.DatabaseFlags),
+		}, utils.DatabasePathFlags),
 		Description: `
 This command dumps out the state for a given block (or latest, if none provided).
 `,

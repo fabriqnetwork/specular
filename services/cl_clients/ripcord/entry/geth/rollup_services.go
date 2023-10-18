@@ -42,13 +42,15 @@ func RegisterGethRollupServices(
 	}
 	vmConfig.SpecularEVMPreTransferHook = MakeSpecularEVMPreTransferHook(hookCfg{cfg.L2(), cfg.Sequencer()})
 
-	service, err := rollup.CreateSequencer(stack.AccountManager(), eth, proofBackend, cfg)
+	services, err := rollup.CreateRollupServices(stack.AccountManager(), eth, proofBackend, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create rollup services: %w", err)
 	}
 	eg, ctx := errgroup.WithContext(context.Background())
-	log.Info("Registering sequencer...")
-	stack.RegisterLifecycle(&gethRollupService{ctx, eg, service})
+	log.Info("Registering services...")
+	for _, service := range services {
+		stack.RegisterLifecycle(&gethRollupService{ctx, eg, service})
+	}
 	return nil
 }
 

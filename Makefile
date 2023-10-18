@@ -31,14 +31,14 @@ geth: $(GETH_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
-ripcord: $(RIPCORD_BINDINGS_TARGET) $(shell find $(RIPCORD_DIR) -type f -name "*.go")
+ripcord: bindings $(shell find $(RIPCORD_DIR) -type f -name "*.go")
 	cd $(RIPCORD_DIR) && go build -o $(RIPCORD_BIN_TARGET) $(RIPCORD_BIN_SRC)
 
 # `touch` ensures the target is newer than preqreqs.
 # This is required since `go generate` may not add/delete files.
 bindings: $(CONTRACTS_TARGET)
 	cd $(SIDECAR_DIR) && go generate ./...
-  cd $(RIPCORD_DIR) && go generate ./...
+	cd $(RIPCORD_DIR) && go generate ./...
 	touch $(SIDECAR_BINDINGS_TARGET)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
