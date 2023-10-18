@@ -49,17 +49,24 @@ func (e *DecodeTxBatchError) Error() string {
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
 func BlocksFromData(calldata []any) ([]DerivationBlock, error) {
-	if len(calldata) != 2 {
+	if len(calldata) != 1 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(calldata))}
 	}
 	var (
-		// TODO: commented until multiple versions have been used
-		//txBatchVersion     = calldata[0].(*big.Int)
-		txBatch = calldata[1].([]byte)
+		txBatchData = calldata[0].([]byte)
 	)
 
+	if len(txBatchData) == 0 {
+		return nil, &DecodeTxBatchError{fmt.Sprintf("empty tx batch data")}
+	}
+
+	txBatchVersion := txBatchData[0]
+	if txBatchVersion != TxBatchVersion() {
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid tx batch version")}
+	}
+
 	var decodedBatch BatchAttributes
-	if err := rlp.Decode(bytes.NewReader(txBatch), &decodedBatch); err != nil {
+	if err := rlp.Decode(bytes.NewReader(txBatchData[:1]), &decodedBatch); err != nil {
 		return nil, err
 	}
 

@@ -51,8 +51,8 @@ func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
-func packAppendTxBatchInput(txBatchVersion *big.Int, txBatch []byte) ([]byte, error) {
-	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, txBatchVersion, txBatch)
+func packAppendTxBatchInput(txBatchData []byte) ([]byte, error) {
+	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, txBatchData)
 }
 
 // IRollup.sol

@@ -31,7 +31,7 @@ type BatchAttributes struct {
 }
 
 // TODO: find a better place to not hardcode this
-func TxBatchVersion() *big.Int { return big.NewInt(0) }
+func TxBatchVersion() byte { return byte(0x00) }
 
 type HeaderRef interface {
 	GetHash() common.Hash

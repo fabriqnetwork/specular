@@ -29,7 +29,6 @@ type BatchBuilder interface {
 type TxManager interface {
 	AppendTxBatch(
 		ctx context.Context,
-		version *big.Int,
 		batchData []byte,
 	) (*ethTypes.Receipt, error)
 }
