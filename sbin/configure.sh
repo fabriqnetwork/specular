@@ -9,10 +9,12 @@ DATA_DIR=$ROOT_DIR/e2e/data
 CONFIG_DIR=$ROOT_DIR/config
 GETH_DIR=$ROOT_DIR/services/el_clients/go-ethereum
 SIDECAR_DIR=$ROOT_DIR/services/sidecar
+RIPCORD_DIR=$ROOT_DIR/services/cl_clients/ripcord
 
 # Define binaries
 SIDECAR_BIN=$SIDECAR_DIR/build/bin/sidecar
 GETH_BIN=$GETH_DIR/build/bin/geth
+RIPCORD_BIN=$RIPCORD_DIR/build/bin/geth
 
 # Load environment variables
 source $DATA_DIR/e2e.env

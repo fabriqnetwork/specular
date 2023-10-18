@@ -2,11 +2,10 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 . $SBIN/configure.sh
-. $SBIN/configure_system.sh
 cd $DATA_DIR
 
 args=(
-    --datadir ./data_sequencer
+    --datadir .
     --http --http.addr '0.0.0.0' --http.port 4011 --http.api 'personal,eth,net,web3,txpool,miner,proof,debug'
     --ws --ws.addr '0.0.0.0' --ws.port 4012 --ws.api 'personal,eth,net,web3,txpool,miner,proof,debug'
     --http.corsdomain '*' --ws.origins '*'
@@ -27,4 +26,4 @@ if [[ $USE_CLEF == 'true' ]]; then
     args+=(--rollup.sequencer.clef-endpoint $CLEF_ENDPOINT)
 fi
 
-$GETH_SPECULAR_DIR/build/bin/geth "${args[@]}"
+$RIPCORD_BIN "${args[@]}"
