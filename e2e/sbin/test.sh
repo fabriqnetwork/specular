@@ -7,25 +7,23 @@ cd $E2E_SBIN_DIR/../../sbin
 
 # TODO: improve logs accross these scripts
 
-$SBIN/start_l1.sh &
-
 $SBIN/clean.sh
-$SBIN/init_geth.sh
+$SBIN/start_l1.sh 2>&1 | sed "s/^/[L1] /"
 
-# TODO: this is not actually working right now
+$SBIN/init_ripcord.sh 2>&1 | sed "s/^/[L2] /"
+$SBIN/start_ripcord.sh 2>&1 | sed "s/^/[L2] /" &
 
-$SBIN/start_sidecar.sh &
-SIDECAR_PID=$!
-
-$SBIN/start_geth.sh &
-GETH_PID=$!
+sleep 5
 
 # Wait for nodes
 $E2E_SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L1_WS_PORT | sed "s/^/[WAIT] /"
 $E2E_SBIN_DIR/wait-for-it.sh -t 60 $HOST:$L2_HTTP_PORT | sed "s/^/[WAIT] /"
 
+sleep 5
+
 cd $CONTRACTS_DIR
 npx hardhat deploy --network specularLocalDev | sed "s/^/[L2 deploy] /"
+# docker logs geth_container --follow
 
 # Run testing script
 case $1 in

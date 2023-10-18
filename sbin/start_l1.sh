@@ -33,8 +33,9 @@ docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDR"', value: web3.toWei(10000, 'ether') })" \
   $GETH_DOCKER_URL
 
+docker exec geth_container geth attach --exec \
+  "eth.sendTransaction({ from: eth.coinbase, to: '"$BRIDGER_ADDR"', value: web3.toWei(10000, 'ether') })" \
+  $GETH_DOCKER_URL | sed "s/^/[L1] /"
 
 cd $CONTRACTS_DIR
 npx hardhat deploy --network localhost
-
-docker logs geth_container --follow

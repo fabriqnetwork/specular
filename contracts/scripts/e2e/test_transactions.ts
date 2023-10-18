@@ -41,8 +41,8 @@ async function main() {
 
   const error = ethers.utils.parseEther("0.001");
   if (
-    !startBalances.l2Relayer
-      .sub(endBalances.l2Relayer)
+    !startBalances.l2Bridger
+      .sub(endBalances.l2Bridger)
       .sub(totalValue)
       .lt(error)
   ) {

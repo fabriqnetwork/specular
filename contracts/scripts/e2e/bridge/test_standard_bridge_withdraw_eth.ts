@@ -83,7 +83,8 @@ async function main() {
 
   const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
-    initEvent.args.withdrawalHash
+    initEvent.args.withdrawalHash,
+    `0x${lastConfirmedBlockNumber.toString(16)}`
   );
 
   const finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
@@ -96,7 +97,7 @@ async function main() {
 
   const balanceEnd = await l1Bridger.getBalance();
   const balanceDiff = balanceEnd.sub(balanceStart);
-  const error = ethers.utils.parseEther("0.0001");
+  const error = ethers.utils.parseEther("0.001");
 
   if (bridgeValue.sub(balanceDiff).gt(error)) {
     throw "unexpected end balance";

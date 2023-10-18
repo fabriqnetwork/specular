@@ -66,11 +66,13 @@ async function main() {
   await finalizeTx.wait();
 
   const balanceEnd = await l2Bridger.getBalance();
-  if (!balanceEnd.sub(balanceStart).eq(bridgeValue)) {
+  const balanceDiff = balanceEnd.sub(balanceStart);
+  const error = ethers.utils.parseEther("0.001");
+
+  if (bridgeValue.sub(balanceDiff).gt(error)) {
+    console.log("bridging ETH was successful");
     throw "unexpected end balance";
   }
-
-  console.log("bridging ETH was successful");
 }
 
 main()

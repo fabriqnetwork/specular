@@ -2,6 +2,7 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
 
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
+import { ethers } from "hardhat";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const { deployments, getNamedAccounts, companionNetworks } = hre;
@@ -17,6 +18,9 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const args = [l1OracleProxyAddress, l1PortalProxyAddress];
   await deployUUPSProxiedContract(hre, deployer, "L2Portal", args);
 
+  const b = await ethers.provider.getBalance(deployer);
+  console.log({ balance: ethers.utils.formatEther(b) });
+
   // fund l2 portal
   const l2PortalFactory = await ethers.getContractFactory("L2Portal");
   const l2Portal = await l2PortalFactory.attach(
@@ -26,6 +30,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   );
 
   const value = ethers.utils.parseUnits(process.env.L2_PORTAL_FUNDING_ETH);
+  console.log({ value: ethers.utils.formatEther(value) });
   const tx = await l2Portal.donateETH({ value });
   const r = await tx.wait();
   console.log({ msg: "funded l2 portal", receipt: r });

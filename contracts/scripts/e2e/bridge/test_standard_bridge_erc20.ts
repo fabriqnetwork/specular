@@ -144,7 +144,8 @@ async function main() {
 
   const withdrawalProof = await getWithdrawalProof(
     l2Portal.address,
-    withdrawalEvent.args.withdrawalHash
+    withdrawalEvent.args.withdrawalHash,
+    `0x${lastConfirmedBlockNumber.toString(16)}`
   );
 
   const finalizeTx = await l1Portal.finalizeWithdrawalTransaction(

@@ -1,7 +1,7 @@
 #!/bin/bash
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
-. $SBIN/configure.sh
+source $SBIN/configure.sh
 cd $DATA_DIR
 
 args=(
@@ -25,5 +25,9 @@ args=(
 if [[ $USE_CLEF == 'true' ]]; then
     args+=(--rollup.sequencer.clef-endpoint $CLEF_ENDPOINT)
 fi
+
+echo $L1_ENDPOINT
+echo $L1_ENDPOINT
+echo $L1_ENDPOINT
 
 $RIPCORD_BIN "${args[@]}"
