@@ -15,6 +15,12 @@ jobs:
     if: github.repository == 'SpecularL2/specular'
     runs-on: ubuntu-latest
     steps:
+      - name: Cache git folder
+        uses: actions/cache@v3
+        with:
+          path: ./.git
+          key: git-folder
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
