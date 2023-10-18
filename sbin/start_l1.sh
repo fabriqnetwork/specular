@@ -1,7 +1,7 @@
 #!/bin/bash
 SBIN_DIR=`dirname $0`
 SBIN_DIR="`cd "$SBIN_DIR"; pwd`"
-source $SBIN_DIR/configure.sh
+. $SBIN_DIR/configure.sh
 
 cd $ROOT_DIR
 
