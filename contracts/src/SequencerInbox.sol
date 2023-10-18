@@ -38,7 +38,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
     bytes32[] public accumulators;
 
     // Current txBatch serialization version
-    uint256 public constant currentTxBatchVersion = 0;
+    uint8 public constant currentTxBatchVersion = 0;
 
     address public sequencerAddress;
 
@@ -74,13 +74,17 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
     /// @inheritdoc ISequencerInbox
     function appendTxBatch(
-        uint256 txBatchVersion,
-        bytes calldata 
+        bytes calldata txBatchData
     ) external override whenNotPaused {
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
 
+        if (txBatchData.length == 0) {
+            revert TxBatchDataUnderflow();
+        }
+
+        uint8 txBatchVersion = uint8(txBatchData[0]);
         if (txBatchVersion != currentTxBatchVersion) {
             revert TxBatchVersionIncorrect();
         }

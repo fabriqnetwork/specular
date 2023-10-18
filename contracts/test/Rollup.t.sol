@@ -1310,11 +1310,10 @@ contract RollupTest is RollupBaseSetup {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         bytes memory txBatch = _helper_createTxBatch_hardcoded();
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(txBatchVersion, txBatch);
+        seqIn.appendTxBatch(txBatch);
 
         uint256 seqInboxSizeFinal = seqIn.getInboxSize();
         assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 1, "Sequencer inbox size did not increment");

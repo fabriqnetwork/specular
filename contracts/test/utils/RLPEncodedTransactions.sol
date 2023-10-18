@@ -38,14 +38,15 @@ contract RLPEncodedTransactionsUtil is Test {
         )
     ];
 
-    function _helper_sequencerInbox_appendTx_Version() internal pure returns (uint256) {
+    function _helper_sequencerInbox_appendTx_Version() internal pure returns (uint8) {
         // Update this as necessary
         return 0;
     }
 
     // TODO: RLP encode txBatch format. This function encodes the old batch data format.
     function _helper_sequencerInbox_appendTx(uint256 numTxns) internal view returns (bytes memory) {
-        bytes memory combinedNumTxnsBytes;
+        bytes memory combinedNumTxnsBytes = new bytes(1);
+        combinedNumTxnsBytes[0] = bytes1(_helper_sequencerInbox_appendTx_Version());
         uint256 rlpEncodedTxnIndex;
 
         for (uint256 i; i < numTxns; i++) {
@@ -79,7 +80,7 @@ contract RLPEncodedTransactionsUtil is Test {
     }
 
     function _helper_createTxBatch_hardcoded() internal view returns (bytes memory) {
-        return abi.encodePacked(
+        bytes memory txs = abi.encodePacked(
             RLPEncodedTransactionsUtil.rlpEncodedTransactions[0],
             RLPEncodedTransactionsUtil.rlpEncodedTransactions[1],
             RLPEncodedTransactionsUtil.rlpEncodedTransactions[2],
@@ -87,13 +88,8 @@ contract RLPEncodedTransactionsUtil is Test {
             RLPEncodedTransactionsUtil.rlpEncodedTransactions[4],
             RLPEncodedTransactionsUtil.rlpEncodedTransactions[5]
         );
-    }
-
-    function _helper_findTxLength_hardcoded() internal view returns (uint256[] memory) {
-        uint256[] memory transactionLengthArray = new uint256[](6);
-        for (uint256 i; i < 6; i++) {
-            transactionLengthArray[i] = RLPEncodedTransactionsUtil.rlpEncodedTransactions[i].length;
-        }
-        return transactionLengthArray;
+        bytes memory result = new bytes(1);
+        result[0] = 0; // tx version
+        return bytes.concat(result, txs);
     }
 }

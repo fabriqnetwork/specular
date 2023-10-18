@@ -91,16 +91,14 @@ contract SequencerInboxTest is SequencerBaseSetup {
     function test_appendTxBatch_invalidSequencer_reverts() public {
         vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencerAddress));
         vm.prank(alice);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-        seqIn.appendTxBatch(txBatchVersion, "0x");
+        seqIn.appendTxBatch(hex"00");
     }
 
     function test_appendTxBatch_emptyBatch_succeeds() public {
         uint256 inboxSizeInitial = seqIn.getInboxSize();
 
         vm.prank(sequencerAddress);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-        seqIn.appendTxBatch(txBatchVersion, "0x");
+        seqIn.appendTxBatch(hex"00");
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
         assertEq(inboxSizeFinal, inboxSizeInitial + 1); 
@@ -142,12 +140,11 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
         bytes memory txBatch = _helper_sequencerInbox_appendTx(numTxns);
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(txBatchVersion, txBatch);
+        seqIn.appendTxBatch(txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
         assertGt(inboxSizeFinal, inboxSizeInitial);
@@ -172,12 +169,11 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // uint256 timeStamp2 = block.timestamp / 5;
 
         // txBatch is defined as: Batch of RLP-encoded transactions
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
         bytes memory txBatch = _helper_createTxBatch_hardcoded();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(txBatchVersion, txBatch);
+        seqIn.appendTxBatch(txBatch);
 
         uint256 inboxSizeFinal = seqIn.getInboxSize();
 
@@ -219,12 +215,11 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         bytes memory txBatch = _helper_sequencerInbox_appendTx(numTxns);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
         vm.expectRevert("Pausable: paused");
-        seqIn.appendTxBatch(txBatchVersion, txBatch);
+        seqIn.appendTxBatch(txBatch);
     }
 
     //////////////////////////////
