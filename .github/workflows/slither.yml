@@ -30,6 +30,15 @@ jobs:
       - name: Generate Lock File
         working-directory: ./contracts
         run: pnpm make-dedicated-lockfile
+
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+      
+      - name: Forge install
+        working-directory: ./contracts
+        run: forge install
       
       - name: ls
         working-directory: ./contracts
