@@ -30,6 +30,10 @@ jobs:
       - name: Generate Lock File
         working-directory: ./contracts
         run: pnpm make-dedicated-lockfile
+      
+      - name: ls
+        working-directory: ./contracts
+        run: ls -al
 
       - name: Run Slither
         uses: crytic/slither-action@v0.3.0
