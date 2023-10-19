@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - zhe/fix_slither
 
 jobs:
   pre_job:
