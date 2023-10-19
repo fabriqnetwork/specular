@@ -43,6 +43,7 @@ jobs:
           node-version: 16
           target: ./contracts
           fail-on: none
+          slither-version: 0.9.6
           slither-args: '--filter-paths "(lib/|@openzeppelin|hardhat|src/libraries/BytesLib.sol|test/)"'
 
       - name: Upload SARIF file
