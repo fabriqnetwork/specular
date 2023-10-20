@@ -19,5 +19,5 @@ args=(
     --keystore.keystore $DATA_DIR/keystore
 )
 
-$SIDECAR_DIR/build/bin/sidecar "${args[@]}"
+SEQUENCER_PRIVATE_KEY=$SEQUENCER_PRIVATE_KEY $SIDECAR_DIR/build/bin/sidecar "${args[@]}"
 

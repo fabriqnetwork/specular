@@ -1,0 +1,11 @@
+services:
+  sidecar:
+    image: ${L2_DOCKER_TAG:-specularl2/sidecar:latest}
+    build:
+      context: ../..
+      dockerfile: ./services/sidecar/Dockerfile
+    volumes:
+      - ${SPECULAR_DATADIR:-$PWD/data}:/specular
+    env_file:
+      - ../../e2e/data/e2e.env
+    entrypoint: sidecar.sh
