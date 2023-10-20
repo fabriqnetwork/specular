@@ -12,6 +12,7 @@ args=(
     --http.corsdomain '*' --ws.origins '*'
     --http.vhosts '*'
     --networkid $NETWORK_ID
+    --miner.recommit 0
 )
 
 $GETH_BIN "${args[@]}"
