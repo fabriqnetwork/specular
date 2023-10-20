@@ -14,9 +14,18 @@ importers:
       '@pnpm/make-dedicated-lockfile':
         specifier: ^0.5.0
         version: 0.5.0
+      '@types/node':
+        specifier: ^18.13.0
+        version: 18.14.2
       husky:
         specifier: ^8.0.1
         version: 8.0.1
+      ts-node:
+        specifier: ^10.9.1
+        version: 10.9.1(@types/node@18.14.2)(typescript@4.9.5)
+      typescript:
+        specifier: ^4.9.3
+        version: 4.9.5
 
   config:
     dependencies:
@@ -1958,7 +1967,7 @@ packages:
   /@types/readable-stream@2.3.15:
     resolution: {integrity: sha512-oM5JSKQCcICF1wvGgmecmHldZ48OZamtMxcGGVICOJA8o8cahXC1zEVAif8iwoc5j8etxFaRFnf095+CDsuoFQ==}
     dependencies:
-      '@types/node': 18.13.0
+      '@types/node': 18.14.2
       safe-buffer: 5.1.2
     dev: false
 
@@ -10343,7 +10352,6 @@ packages:
       typescript: 4.9.5
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
-    dev: false
 
   /tslib@1.14.1:
     resolution: {integrity: sha512-Xni35NKzjgMrwevysHTCArtLDpPvye8zV/0E4EyYn43P7/7qvQwPh9BGkHewbMulVntbigmcT7rdX3BNo9wRJg==}
