@@ -33,6 +33,14 @@ cd contracts
 Setup the environment variables needed for deployment.
 An example config for running locally can be found in `./contracts/.env.example`.
 
+## Forge install
+
+Install all required contract dependencies:
+
+```sh
+forge install
+```
+
 ## Run Tests
 
 ```sh
