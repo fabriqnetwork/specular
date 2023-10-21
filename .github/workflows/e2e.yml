@@ -27,18 +27,10 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
-
-      - name: Build node
-        uses: ./.github/actions/node
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
+      - uses: ./.github/actions/node
+      - run: make
       - name: Run tests
         run: ./sbin/run_e2e_tests.sh ${{ matrix.test-name }}

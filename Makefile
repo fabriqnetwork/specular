@@ -56,12 +56,11 @@ bindings-docker:
 
 # prereqs: all new/deleted files in contracts/ AND existing solidity files
 $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -name "*.sol")
-	sbin/compile_contracts.sh
+	cd contracts && pnpm build
 
 $(GETH_BIN_TARGET):
 	cd $(GETH_SRC) && go build -o $(GETH_BIN_TARGET) $(GETH_BIN_SRC)
 	@echo "Done building geth."
-	#@echo "Run \"$(GOBIN)/geth\" to launch geth."
 
 #$(CLEF_TARGET): $(CLEF_SRC)
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)

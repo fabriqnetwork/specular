@@ -1,4 +1,4 @@
-name: 'Setup Node Workspace'
+name: 'Build node dependencies'
 
 runs:
   using: "composite"
@@ -24,7 +24,3 @@ runs:
     - name: Install dependencies
       shell: bash
       run: pnpm install
-
-    - name: Build node
-      shell: bash
-      run: make
