@@ -10,4 +10,4 @@ sidecar \
     --rollup.l2.chainid $NETWORK_ID \
     --rollup.sequencer.addr $SEQUENCER_ADDR \
     --rollup.validator \
-    --rollup.validator.addr $VALIDATOR_ADDR \
+    --rollup.validator.addr $VALIDATOR_ADDR

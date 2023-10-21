@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"math"
 	"math/big"
 	"os"
@@ -44,7 +45,15 @@ func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 ) (*disseminator.BatchDisseminator, error) {
-	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer())
+
+	hexKey := os.Getenv("SEQUENCER_PRIVATE_KEY")
+	log.Info("getting private key from env")
+	privateKey, err := crypto.HexToECDSA(hexKey[2:])
+	if err != nil && cfg.Sequencer().ClefEndpoint == "" {
+		return nil, fmt.Errorf("could not read private key: %w", err)
+	}
+
+	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer(), privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -60,7 +69,14 @@ func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 ) (*validator.Validator, error) {
-	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator())
+
+	hexKey := os.Getenv("VALIDATOR_PRIVATE_KEY")
+	privateKey, err := crypto.HexToECDSA(hexKey[2:])
+	if err != nil && cfg.Validator().ClefEndpoint == "" {
+		return nil, fmt.Errorf("could not read private key: %w", err)
+	}
+
+	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator(), privateKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -84,9 +100,10 @@ func createTxManager(
 	name string,
 	l1Cfg services.L1Config,
 	serCfg serviceCfg,
+	privateKey *ecdsa.PrivateKey,
 ) (*bridge.TxManager, error) {
 	transactor, err := createTransactor(
-		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), l1Cfg.GetChainID(),
+		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), l1Cfg.GetChainID(), privateKey,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
@@ -106,6 +123,7 @@ func createTransactor(
 	accountAddress common.Address,
 	clefEndpoint string,
 	chainID uint64,
+	privateKey *ecdsa.PrivateKey,
 ) (*bind.TransactOpts, error) {
 	if clefEndpoint != "" {
 		clef, err := external.NewExternalSigner(clefEndpoint)
@@ -115,14 +133,7 @@ func createTransactor(
 		return bind.NewClefTransactor(clef, accounts.Account{Address: accountAddress}), nil
 	}
 
-	hexKey := os.Getenv("SEQUENCER_PRIVATE_KEY")
-	log.Info("getting private key from env", "account", accountAddress)
-	prvKey, err := crypto.HexToECDSA(hexKey[2:])
-	if err != nil {
-		return nil, fmt.Errorf("could not read private key: %w", err)
-	}
-
-	return bind.NewKeyedTransactorWithChainID(prvKey, new(big.Int).SetUint64(chainID))
+	return bind.NewKeyedTransactorWithChainID(privateKey, new(big.Int).SetUint64(chainID))
 }
 
 

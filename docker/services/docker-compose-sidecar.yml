@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   sidecar:
     image: ${L2_DOCKER_TAG:-specularl2/sidecar:latest}
