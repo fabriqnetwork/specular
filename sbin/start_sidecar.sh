@@ -1,9 +1,20 @@
 #!/bin/bash
-SBIN=`dirname $0`
-SBIN="`cd "$SBIN"; pwd`"
-. $SBIN/configure.sh
+if [ -z $SIDECAR ]; then
+    # If no binary specified, assume repo directory structure.
+    SBIN=`dirname $0`
+    SBIN="`cd "$SBIN"; pwd`"
+    . $SBIN/configure.sh
+    SIDECAR=$SIDECAR_BIN
+fi
 
-cd $DATA_DIR
+# Check that the dotenv exists.
+ENV=".sidecar.env"
+if ! test -f $ENV; then
+    echo "Expected dotenv at $ENV (does not exist)."
+    exit
+fi
+echo "Using dotenv: $ENV"
+. $ENV
 
 args=(
     --rollup.sequencer
@@ -16,8 +27,6 @@ args=(
     --rollup.sequencer.addr $SEQUENCER_ADDR
     --rollup.validator
     --rollup.validator.addr $VALIDATOR_ADDR
-    --keystore.keystore $DATA_DIR/keystore
 )
 
-$SIDECAR_DIR/build/bin/sidecar "${args[@]}"
-
+$SIDECAR "${args[@]}"

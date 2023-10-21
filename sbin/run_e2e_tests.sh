@@ -1,16 +1,15 @@
 #!/bin/bash
-E2E_SBIN_DIR=$(dirname "$(readlink -f "$0")")
-E2E_SBIN_DIR="`cd "$E2E_SBIN_DIR"; pwd`"
+SBIN=$(dirname "$(readlink -f "$0")")
+SBIN="`cd "$SBIN_DIR"; pwd`"
+ROOT="`cd $SBIN/../; pwd`"
+. $SBIN/configure.sh
 
-cd $E2E_SBIN_DIR/../../sbin
-. ./configure.sh
+cp $ROOT/config/deployments/local_devnet/* .
+$SBIN/clean.sh
 
 # TODO: improve logs accross these scripts
 
 $SBIN/start_l1.sh &
-
-$SBIN/clean.sh
-$SBIN/init_geth.sh
 
 # TODO: this is not actually working right now
 

@@ -9,7 +9,6 @@ CONTRACTS_DIR = contracts/
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
 CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
-#TODO migrate to services/el_clients/go-ethereum
 GETH_SRC = services/el_clients/go-ethereum
 GETH_BIN_SRC = ./cmd/geth/
 GETH_BIN_TARGET = ./build/bin/geth

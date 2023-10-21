@@ -1,16 +1,27 @@
 #!/bin/bash
-SBIN=`dirname $0`
-SBIN="`cd "$SBIN"; pwd`"
-. $SBIN/configure.sh
+# Check that the dotenv exists.
+ENV=".sp_geth.env"
+if ! test -f $ENV; then
+    echo "Expected dotenv at $ENV (does not exist)."
+    exit
+fi
+echo "Cleaning deployment for dotenv: $ENV"
+. $ENV
 
-# Remove L1 docker container
-docker remove --force geth_container
+echo "Removing env files..."
+rm .sp_geth.env
+rm .sp_magi.env
+rm .sidecar.env
+echo "Removing data dir..."
+rm -rf $DATA_DIR
 
-# Clean up data dir
-rm -rf $DATA_DIR/geth
-rm -rf $DATA_DIR/keystore
-rm -rf $DATA_DIR/geth.ipc
-
-# Remove deployments
+echo "Removing contract deployment files..."
 rm -rf $CONTRACTS_DIR/deployments/localhost
 rm -rf $CONTRACTS_DIR/deployments/specularLocalDev
+
+# Remove L1 docker container
+# TODO: does this belong here?
+echo "Removing docker container..."
+docker remove --force geth_container
+
+echo "Done."
