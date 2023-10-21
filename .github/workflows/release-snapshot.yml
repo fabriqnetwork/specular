@@ -21,16 +21,13 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
-      - name: Setup Node
+      - name: Build node
         uses: ./.github/actions/node
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-      
-      - name: Build contracts
-        run: cd contracts && pnpm build
 
       - name: Set deployment token
         run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"

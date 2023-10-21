@@ -1,22 +1,14 @@
 # E2E test-suite
 
-## Setup
-
-Run if genesis changes.
-
-```sh
-./sbin/setup.sh
-```
-
-## Test
+**Run tests**
 
 ```sh
 ./sbin/run_e2e_tests.sh
 ```
 
-## Cleanup
+**Cleanup**
 
-Run if `./sbin/run_e2e_tests.sh` failed to clean up due to testing errors.
+Run if the above command failed to clean up due to an error.
 
 ```sh
 ./sbin/clean.sh

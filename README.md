@@ -26,7 +26,7 @@ Note: all commands below assume you are in the project root directory.
 
 ```sh
 pnpm install
-make install
+make
 ```
 
 ### Configure network

@@ -35,7 +35,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-foundry-
 
-      - name: Setup Node
+      - name: Build node
         uses: ./.github/actions/node
 
       - name: Install Foundry
@@ -53,4 +53,3 @@ jobs:
 
       - name: Check forge tests names
         run: pnpm lint:forge-tests:check
-
