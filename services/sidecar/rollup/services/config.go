@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/urfave/cli/v2"
 )
 
@@ -26,10 +27,10 @@ func (c *SystemConfig) Validator() ValidatorConfig { return c.ValidatorConfig }
 
 // Parses all CLI flags and returns a full system config.
 func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
-	return parseFlags(cliCtx), nil
+	return parseFlags(cliCtx)
 }
 
-func parseFlags(cliCtx *cli.Context) *SystemConfig {
+func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.DeveloperFlag)
 	var sequencerAddr common.Address
@@ -45,12 +46,20 @@ func parseFlags(cliCtx *cli.Context) *SystemConfig {
 		sequencerTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, sequencerTxMgrNamespace, l1ChainID, sequencerAddr)
 		validatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
 	)
-	return &SystemConfig{
+	cfg := &SystemConfig{
 		L1Config:        newL1ConfigFromCLI(cliCtx),
 		L2Config:        newL2ConfigFromCLI(cliCtx),
 		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerTxMgrCfg),
 		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
 	}
+	// Validate.
+	if err := cfg.SequencerConfig.validate(); err != nil {
+		return nil, fmt.Errorf("sequencer config invalid: %w", err)
+	}
+	if err := cfg.ValidatorConfig.validate(); err != nil {
+		return nil, fmt.Errorf("validator config invalid: %w", err)
+	}
+	return cfg, nil
 }
 
 // L1 configuration
@@ -129,6 +138,14 @@ func (c SequencerConfig) GetClefEndpoint() string                 { return c.Cle
 func (c SequencerConfig) GetDisseminationInterval() time.Duration { return c.DisseminationInterval }
 func (c SequencerConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
 
+// Validates the configuration.
+func (c SequencerConfig) validate() error {
+	if c.SecretKey == nil && c.ClefEndpoint == "" {
+		return fmt.Errorf("missing both secret key and clef endpoint (require at least one)")
+	}
+	return nil
+}
+
 func newSequencerConfigFromCLI(
 	cliCtx *cli.Context,
 	txMgrCfg txmgr.Config,
@@ -164,6 +181,14 @@ func (c ValidatorConfig) GetSecretKey() *ecdsa.PrivateKey      { return c.Secret
 func (c ValidatorConfig) GetClefEndpoint() string              { return c.ClefEndpoint }
 func (c ValidatorConfig) GetValidationInterval() time.Duration { return c.ValidationInterval }
 func (c ValidatorConfig) GetTxMgrCfg() txmgr.Config            { return c.TxMgrCfg }
+
+// Validates the configuration.
+func (c ValidatorConfig) validate() error {
+	if c.SecretKey == nil && c.ClefEndpoint == "" {
+		return fmt.Errorf("missing both secret key and clef endpoint (require at least one)")
+	}
+	return nil
+}
 
 func newValidatorConfigFromCLI(
 	cliCtx *cli.Context,

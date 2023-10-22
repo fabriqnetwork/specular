@@ -27,6 +27,9 @@ jobs:
         with:
           version: nightly
 
+      - name: Build contracts
+        run: cd contracts && pnpm build
+
       - name: Set deployment token
         run: npm config set '//registry.npmjs.org/:_authToken' "${NPM_TOKEN}"
         env:

@@ -77,7 +77,7 @@ func (b *Broker[T]) SubscribeWithCallback(
 			case head := <-inCh:
 				err := callbackFn(ctx, head)
 				if err != nil {
-					log.Error("Failed triggering callback, err: %w", err)
+					log.Errorf("Failed triggering callback: %w", err)
 					return
 				}
 			case <-ctx.Done():
@@ -112,7 +112,7 @@ func SubscribeMappedToMany[T any, U any](
 			case head := <-inCh:
 				out, err := mapFn(ctx, head)
 				if err != nil {
-					log.Error("Failed to map, err: %w", err)
+					log.Errorf("Failed to map: %w", err)
 					return
 				}
 				for _, event := range out {
