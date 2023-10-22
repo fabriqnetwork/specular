@@ -8,9 +8,9 @@ if [ -z $SP_GETH ]; then
     SP_GETH=$GETH_BIN
 fi
 
-# Check that the dotenv exists.
+# Check that the dotenv exists, or GENESIS_PATH is set.
 ENV=".genesis.env"
-if ! test -f $ENV; then
+if ! test -f $ENV && [ -z ${GENESIS_PATH+x} ]; then
     echo "Expected dotenv at $ENV (does not exist)."
     exit
 fi

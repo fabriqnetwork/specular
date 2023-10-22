@@ -1,5 +1,6 @@
 /*.env
 /*.txt
 /sp_*.json
+/base_*.json
 /*genesis.json
 node_modules

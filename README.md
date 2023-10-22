@@ -40,10 +40,12 @@ Start a new L1 chain and deploy the protocol contracts.
 ```sh
 # Copy .genesis.env
 cp config/deployments/local_devnet/.genesis.env .
-# Generate the genesis
+cp config/deployments/local_devnet/base_genesis.json .
+# Generate the genesis json file
 ./sbin/create_genesis.sh
-# Deploy to L1
+# Start L1 and deploy
 ./sbin/start_l1.sh
+# Generate the rollup json file
 ```
 
 ### Configure network
@@ -54,11 +56,12 @@ To configure a local devnet, you can just use the existing example configs in `l
 cp -a config/deployments/local_devnet/. .
 ```
 
-The scripts in the next subsection expect to find the following dotenv files in the current working directory.
+In general, the scripts expect to find the following dotenv files in the current working directory:
 ```sh
-.sp_geth.env # Expected by `start_geth.sh`
+.genesis.env # Expected by `start_l1.sh`
+.sp_geth.env # Expected by `start_sp_geth.sh`
 .sp_magi.env # Expected by `start_sp_magi.sh`
-.sidecar.env # Expected by `start_sidecar.sh` and `start_l1.sh`.
+.sidecar.env # Expected by `start_sidecar.sh`
 ```
 
 The env files copied set:
@@ -69,9 +72,9 @@ The env files copied set:
 
 ```sh
 # Terminal #2: start L2-EL client
-./sbin/start_geth.sh
+./sbin/start_sp_geth.sh
 # Terminal #3: start L2-CL client
-./sbin/start_magi.sh
+./sbin/start_sp_magi.sh
 # Terminal #4: start sidecar
 ./sbin/start_sidecar.sh
 ```
@@ -87,10 +90,10 @@ After the nodes are running, you can use your wallet (e.g. MetaMask) to send tra
 **Configure wallet**
 
 1. Go to `$DATA_DIR/keys`, import the sequencer key to MetaMask.
-Both accounts are pre-funded with 10 ETH each on L2 network, and you can use them to send transactions. Note: on L2, these two accounts are just normal accounts; not to be confused with the sequencer roles on L1 (the addresses are just being reused).
-2. In `Settings -> Networks`, create a new network called `L2` which connects to the sequencer.
+Both accounts are pre-funded with 10 ETH each on L2, and you can use them to send transactions.
+2. In `Settings -> Networks`, create a new network called `L2`, which connects to the sequencer.
 The sequencer node should be running while creating the network.
-Enter `http://localhost:4011` for RPC URL, `13527` for Chain ID, `ETH` for currency symbol (we haven't changed the symbol yet).
+Enter `http://localhost:4011` for the RPC URL, `13527` for the chain ID and `ETH` for currency symbol.
 
 **Transact**
 

@@ -21,6 +21,7 @@ docker rm --force l1_geth
 # Start L1 network.
 echo "Starting L1..."
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
+echo "Parsed port: $L1_WS_PORT from $L1_ENDPOINT"
 docker run -d \
   --name l1_geth \
   -p $L1_WS_PORT:$L1_WS_PORT \
@@ -47,7 +48,7 @@ docker exec l1_geth geth attach --exec \
 docker exec l1_geth geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
   $L1_ENDPOINT
-
+sleep 5
 
 # Deploy contracts
 echo "Deploying l1 contracts..."
