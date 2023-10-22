@@ -46,8 +46,8 @@ The scripts in the next subsection expect to find the following dotenv files in 
 
 To configure a local devnet, you can just use the existing example in `local_devnet` as-is.
 ```sh
-# Copy config files
-cp config/deployments/local_devnet/* .
+# Copy all config files
+cp -a config/deployments/local_devnet/. .
 # Generate the genesis file
 ./sbin/create_genesis.sh
 ```

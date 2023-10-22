@@ -4,12 +4,13 @@
 cd contracts
 pnpm lint-staged
 cd ..
+make
 
-SIDECAR_DIR="services/sidecar"
-if git diff --cached --quiet -- "$SIDECAR_DIR"; then
-    echo "No changes found in $SIDECAR_DIR, skipping `make`"
-else
-    echo "Changes found in $SIDECAR_DIR"
-    make
-    echo "Successfully ran `make`"
-fi
+# SIDECAR_DIR="services/sidecar"
+# if git diff --cached --quiet -- "$SIDECAR_DIR"; then
+#     echo "No changes found in $SIDECAR_DIR, skipping `make`"
+# else
+#     echo "Changes found in $SIDECAR_DIR"
+#     make sidecar
+#     echo "Successfully ran `make`"
+# fi

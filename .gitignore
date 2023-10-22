@@ -1,5 +1,5 @@
 /*.env
-/*.prv
 /*.txt
 /sp_*.json
+/*genesis.json
 node_modules

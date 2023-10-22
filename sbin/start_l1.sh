@@ -16,7 +16,7 @@ echo "Using dotenv: $ENV"
 . $ENV
 
 
-docker remove --force geth_container
+docker rm --force geth_container
 
 # Start L1 network.
 docker run -d \

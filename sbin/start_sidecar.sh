@@ -25,8 +25,10 @@ args=(
     --rollup.l1.rollup-genesis-block $GENESIS_L1_BLOCK_NUM
     --rollup.l2.chainid $NETWORK_ID
     --rollup.sequencer.addr $SEQUENCER_ADDR
+    --sequencer.secret-key $SEQUENCER_SECRET_KEY
     --rollup.validator
     --rollup.validator.addr $VALIDATOR_ADDR
+    --validator.secret-key $VALIDATOR_SECRET_KEY
 )
 
 $SIDECAR "${args[@]}"

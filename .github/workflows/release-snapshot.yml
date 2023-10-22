@@ -20,9 +20,7 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-
-      - name: Build node
-        uses: ./.github/actions/node
+      - uses: ./.github/actions/node
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1

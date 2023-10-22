@@ -13,15 +13,14 @@ GETH_SRC = services/el_clients/go-ethereum
 GETH_BIN_SRC = ./cmd/geth/
 GETH_BIN_TARGET = ./build/bin/geth
 
+# TODO add clef back in when moving to services/el_clients/go-ethereum
 #CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
 #CLEF_TARGET = $(SIDECAR_BIN)/clef
-
-# TODO add clef back in when moving to services/el_clients/go-ethereum
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
+
 install: geth sidecar
-
-geth: $(GETH_BIN_TARGET)
-
+geth:
+	cd $(GETH_SRC) && GOFLAGS="-buildvcs=false" $(MAKE) geth
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
@@ -59,8 +58,7 @@ $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -nam
 	cd contracts && pnpm build
 
 $(GETH_BIN_TARGET):
-	cd $(GETH_SRC) && go build -o $(GETH_BIN_TARGET) $(GETH_BIN_SRC)
-	@echo "Done building geth."
+	cd $(GETH_SRC) && $(MAKE) geth
 
 #$(CLEF_TARGET): $(CLEF_SRC)
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)
