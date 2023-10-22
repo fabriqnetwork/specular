@@ -19,8 +19,7 @@ GETH_BIN_TARGET = ./build/bin/geth
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
 
 install: geth sidecar
-geth:
-	cd $(GETH_SRC) && GOFLAGS="-buildvcs=false" $(MAKE) geth
+geth: $(GETH_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
@@ -58,7 +57,7 @@ $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -nam
 	cd contracts && pnpm build
 
 $(GETH_BIN_TARGET):
-	cd $(GETH_SRC) && $(MAKE) geth
+	cd $(GETH_SRC) && GOFLAGS="-buildvcs=false" $(MAKE) geth
 
 #$(CLEF_TARGET): $(CLEF_SRC)
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)
