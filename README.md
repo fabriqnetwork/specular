@@ -15,11 +15,11 @@
     └── <a href="./lib/el_golang_lib/">el_golang_lib</a>: Library for golang EL clients
 </pre>
 
-This guide will walk you through how to set up a local devnet containing an L2 sequencer running over a local L1 node.
-In this example, all nodes operate honestly (no challenges are issued).
+## License
+
+Unless specified in subdirectories, this repository is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See `LICENSE` for details.
 
 ## Build from source
-Clone this repository along with its submodules.
 ```sh
 git clone https://github.com/specularl2/specular
 cd specular
@@ -35,6 +35,8 @@ make
 
 ## Running a local devnet
 
+This guide will walk you through how to set up a local devnet containing an L2 sequencer running over a local L1 node.
+
 ### Configure network
 
 To configure a local devnet, you can just use an existing example from `config` as-is.
@@ -43,27 +45,26 @@ To configure a local devnet, you can just use an existing example from `config` 
 cp -a config/deployments/local_devnet/. .
 ```
 
-In general, the following dotenv files are expected in the current working directory (depending on the scripts used):
+This copies multiple dotenv files (below) which are expected by scripts to be in the current directory.
+Some of these env files also reference the `genesis.json` and `rollup.json` used to configure the protocol.
 ```sh
-.genesis.env # Expected by `create_genesis.sh` and `start_l1.sh`
+.genesis.env # Expected by `create_genesis.sh` and `start_l1.sh` (not necessary for existing chains)
 .sp_geth.env # Expected by `start_sp_geth.sh`
 .sp_magi.env # Expected by `start_sp_magi.sh`
 .sidecar.env # Expected by `start_sidecar.sh`
 ```
-Note that `.genesis.env` is not necessary if you're connecting to an existing chain.
 
 ### Start L1
-In the same directory as your config files, run the following scripts to
-initialize a new L1 chain and deploy the protocol contracts.
+In the same directory, run the following scripts to initialize a new L1 chain and deploy the protocol contracts.
 ```sh
 # Generate the genesis json file
 ./sbin/create_genesis.sh
-# Start L1 and deploy
+# Start L1 and deploy contracts
 ./sbin/start_l1.sh
 # TODO: Generate the rollup json file
 ```
 
-### Start a node
+### Start an L2 node
 
 ```sh
 # Terminal #2: start L2-EL client
@@ -77,10 +78,7 @@ initialize a new L1 chain and deploy the protocol contracts.
 At this point, you'll have two chains started with the following parameters
 - L2: chain ID `13527`, with a sequencer exposed on ports `4011` (http) and `4012` (ws).
 - L1: chain ID `31337`, on port `8545` (ws).
-
-**Restart network**
-
-To clear network state, run `./sbin/clean.sh`.
+To restart/clear network state, run `./sbin/clean.sh`.
 
 ### Transact using MetaMask
 
@@ -88,27 +86,18 @@ After the nodes are running, you can use your wallet (e.g. MetaMask) to send tra
 
 **Configure wallet**
 
-1. Go to `$DATA_DIR/keys`, import the sequencer key to MetaMask.
-Both accounts are pre-funded with 10 ETH each on L2, and you can use them to send transactions.
+1. Go to `.sidecar.env` and import the validator key to MetaMask. The account is pre-funded on L2, so you can use it to transact.
 2. In `Settings -> Networks`, create a new network called `L2`, which connects to the sequencer.
-The sequencer node should be running while creating the network.
 Enter `http://localhost:4011` for the RPC URL, `13527` for the chain ID and `ETH` for currency symbol.
 
 **Transact**
 
-Remember to reset the account after every clean start of the network.
-Select the appropriate account, go to `Setting -> Advanced`, and click `Reset Account`.
-This ensures the account nonce cache in MetaMask is cleared.
-
 Now, you can use the pre-funded account to send transactions.
-
-After an L2 transaction, in the Hardhat node console, observe the resultant transactions occuring on L1:
+After an L2 transaction, in the Hardhat node console, observe the resulting L1 transactions:
 - sequencer calls `appendTxBatch` to sequence transaction
-- sequencer calls `createAssertion` to create disputable assertion
+- sequencer calls `createAssertion` to commit to a new disputable state assertion
 - sequencer calls `confirmFirstUnresolvedAssertion` to confirm the assertion after every staker has attested to it.
 
 If you restart the network after having transacted with MetaMask, don't forget to reset your MetaMask account.
-
-## License
-
-Unless specified in subdirectories, this repository is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See `LICENSE` for details.
+Select the appropriate account, go to `Setting -> Advanced`, and click `Reset Account`.
+This ensures the account nonce cache in MetaMask is cleared.
