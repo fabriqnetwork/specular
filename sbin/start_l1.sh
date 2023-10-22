@@ -16,12 +16,13 @@ echo "Using dotenv: $ENV"
 . $ENV
 
 
+echo "Force-removing geth_container if it exists..."
 docker rm --force geth_container
 
+echo "Starting L1.."
 # Start L1 network.
 docker run -d \
   --name geth_container \
-  -v ./docker:/root \
   -p $L1_WS_PORT:$L1_WS_PORT \
   ethereum/client-go \
   --dev \
@@ -37,7 +38,7 @@ docker run -d \
 
 sleep 3
 
-# Fund sidecar addresses.
+echo "Funding addresses..."
 docker exec geth_container geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$SEQUENCER_ADDR"', value: web3.toWei(10000, 'ether') })" \
   $L1_ENDPOINT
@@ -52,6 +53,7 @@ docker exec geth_container geth attach --exec \
 
 
 # Deploy contracts
+echo "Deploying l1 contracts..."
 cd $CONTRACTS_DIR
 npx hardhat deploy --network localhost
 
