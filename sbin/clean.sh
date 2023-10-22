@@ -22,6 +22,6 @@ rm -rf $CONTRACTS_DIR/deployments/specularLocalDev
 # Remove L1 docker container
 # TODO: does this belong here?
 echo "Removing docker container..."
-docker rm --force geth_container
+docker rm --force l1_geth
 
 echo "Done."

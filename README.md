@@ -35,21 +35,30 @@ make
 
 ## Running a local network
 
+### Start L1
+Start a new L1 chain and deploy the protocol contracts.
+```sh
+# Copy .genesis.env
+cp config/deployments/local_devnet/.genesis.env .
+# Generate the genesis
+./sbin/create_genesis.sh
+# Deploy to L1
+./sbin/start_l1.sh
+```
+
 ### Configure network
+
+To configure a local devnet, you can just use the existing example configs in `local_devnet` as-is.
+```sh
+# Copy all config files
+cp -a config/deployments/local_devnet/. .
+```
 
 The scripts in the next subsection expect to find the following dotenv files in the current working directory.
 ```sh
 .sp_geth.env # Expected by `start_geth.sh`
 .sp_magi.env # Expected by `start_sp_magi.sh`
 .sidecar.env # Expected by `start_sidecar.sh` and `start_l1.sh`.
-```
-
-To configure a local devnet, you can just use the existing example in `local_devnet` as-is.
-```sh
-# Copy all config files
-cp -a config/deployments/local_devnet/. .
-# Generate the genesis file
-./sbin/create_genesis.sh
 ```
 
 The env files copied set:
@@ -59,8 +68,6 @@ The env files copied set:
 ### Start a node
 
 ```sh
-# Terminal #1: start L1 network
-./sbin/start_l1.sh
 # Terminal #2: start L2-EL client
 ./sbin/start_geth.sh
 # Terminal #3: start L2-CL client

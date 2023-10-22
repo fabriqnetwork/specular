@@ -55,36 +55,31 @@ func startService(cliCtx *cli.Context) error {
 	}
 
 	var (
-		disseminator    *disseminator.BatchDisseminator
-		validator       *validator.Validator
-		disseminatorCtx context.Context
-		validatorCtx    context.Context
+		disseminator *disseminator.BatchDisseminator
+		validator    *validator.Validator
+		eg, ctx      = errgroup.WithContext(context.Background())
 	)
 	if cfg.Sequencer().GetIsEnabled() {
 		disseminator, err = createDisseminator(context.Background(), cfg)
 		if err != nil {
 			return fmt.Errorf("failed to create disseminator: %w", err)
 		}
-		eg, disseminatorCtx := errgroup.WithContext(context.Background())
-		disseminator.Start(disseminatorCtx, eg)
+		if err := disseminator.Start(ctx, eg); err != nil {
+			return fmt.Errorf("failed to start disseminator: %w", err)
+		}
 	}
 	if cfg.Validator().GetIsEnabled() {
 		validator, err = createValidator(context.Background(), cfg)
 		if err != nil {
 			return fmt.Errorf("failed to create validator: %w", err)
 		}
-		eg, validatorCtx := errgroup.WithContext(context.Background())
-		validator.Start(validatorCtx, eg)
+		if err := validator.Start(ctx, eg); err != nil {
+			return fmt.Errorf("failed to start validator: %w", err)
+		}
 	}
-
-	// wait for services to finish
-	if cfg.Sequencer().GetIsEnabled() {
-		<-disseminatorCtx.Done()
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("service failed while running: %w", err)
 	}
-	if cfg.Validator().GetIsEnabled() {
-		<-validatorCtx.Done()
-	}
-
 	return nil
 }
 
