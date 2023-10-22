@@ -39,8 +39,8 @@ make
 
 The scripts in the next subsection expect to find the following dotenv files in the current working directory.
 ```sh
-.sp-geth.env # Expected by `start_geth.sh`
-.sp-magi.env # Expected by `start_sp_magi.sh`
+.sp_geth.env # Expected by `start_geth.sh`
+.sp_magi.env # Expected by `start_sp_magi.sh`
 .sidecar.env # Expected by `start_sidecar.sh` and `start_l1.sh`.
 ```
 
