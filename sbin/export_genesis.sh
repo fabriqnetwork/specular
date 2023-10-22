@@ -11,8 +11,8 @@ fi
 # Check that the dotenv exists, or GENESIS_PATH is set.
 ENV=".genesis.env"
 if ! test -f $ENV && [ -z ${GENESIS_PATH+x} ]; then
-    echo "Expected dotenv at $ENV (does not exist)."
-    exit
+    echo "Expected GENESIS_PATH (not set) OR dotenv at $ENV (does not exist)."
+    exit 1
 fi
 . $ENV
 

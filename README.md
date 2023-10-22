@@ -33,40 +33,35 @@ pnpm install
 make
 ```
 
-## Running a local network
-
-### Start L1
-Start a new L1 chain and deploy the protocol contracts.
-```sh
-# Copy .genesis.env
-cp config/deployments/local_devnet/.genesis.env .
-cp config/deployments/local_devnet/base_genesis.json .
-# Generate the genesis json file
-./sbin/create_genesis.sh
-# Start L1 and deploy
-./sbin/start_l1.sh
-# Generate the rollup json file
-```
+## Running a local devnet
 
 ### Configure network
 
-To configure a local devnet, you can just use the existing example configs in `local_devnet` as-is.
+To configure a local devnet, you can just use an existing example from `config` as-is.
 ```sh
 # Copy all config files
 cp -a config/deployments/local_devnet/. .
 ```
 
-In general, the scripts expect to find the following dotenv files in the current working directory:
+In general, the following dotenv files are expected in the current working directory (depending on the scripts used):
 ```sh
-.genesis.env # Expected by `start_l1.sh`
+.genesis.env # Expected by `create_genesis.sh` and `start_l1.sh`
 .sp_geth.env # Expected by `start_sp_geth.sh`
 .sp_magi.env # Expected by `start_sp_magi.sh`
 .sidecar.env # Expected by `start_sidecar.sh`
 ```
+Note that `.genesis.env` is not necessary if you're connecting to an existing chain.
 
-The env files copied set:
-- L2 chain ID `13527`, with a sequencer exposed on ports `4011` (http) and `4012` (ws).
-- L1 chain ID `31337`, on port `8545` (ws).
+### Start L1
+In the same directory as your config files, run the following scripts to
+initialize a new L1 chain and deploy the protocol contracts.
+```sh
+# Generate the genesis json file
+./sbin/create_genesis.sh
+# Start L1 and deploy
+./sbin/start_l1.sh
+# TODO: Generate the rollup json file
+```
 
 ### Start a node
 
@@ -78,6 +73,10 @@ The env files copied set:
 # Terminal #4: start sidecar
 ./sbin/start_sidecar.sh
 ```
+
+At this point, you'll have two chains started with the following parameters
+- L2: chain ID `13527`, with a sequencer exposed on ports `4011` (http) and `4012` (ws).
+- L1: chain ID `31337`, on port `8545` (ws).
 
 **Restart network**
 

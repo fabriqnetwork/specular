@@ -48,15 +48,9 @@ docker exec l1_geth geth attach --exec \
 docker exec l1_geth geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
   $L1_ENDPOINT
-sleep 5
 
 # Deploy contracts
 echo "Deploying l1 contracts..."
-relpath () {
-    echo `python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"`
-}
-GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR` # use relative path
-cd $CONTRACTS_DIR
-GENESIS_PATH=$GENESIS_PATH npx hardhat deploy --network localhost
+cd $CONTRACTS_DIR && npx hardhat deploy --network localhost
 
 docker logs l1_geth --follow
