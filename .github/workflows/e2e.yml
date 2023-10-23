@@ -30,7 +30,10 @@ jobs:
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
-      - uses: ./.github/actions/node
-      - run: make
+
+      - name: Build node
+        uses: ./.github/actions/node
+        run: make
+
       - name: Run tests
         run: ./sbin/run_e2e_tests.sh ${{ matrix.test-name }}

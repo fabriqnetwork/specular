@@ -77,9 +77,11 @@ func startService(cliCtx *cli.Context) error {
 			return fmt.Errorf("failed to start validator: %w", err)
 		}
 	}
+	log.Info("Services running.")
 	if err := eg.Wait(); err != nil {
 		return fmt.Errorf("service failed while running: %w", err)
 	}
+	log.Info("Services stopped.")
 	return nil
 }
 

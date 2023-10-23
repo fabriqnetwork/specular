@@ -42,8 +42,10 @@ if [ -d "$CONTRACTS_DIR" ]; then
             exit
         fi
     fi
-    # Write file, using relative paths.
+    # Write files, using relative paths.
     echo "Initializing $CONTRACTS_ENV"
     GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
     echo GENESIS_PATH=$GENESIS_PATH >> $CONTRACTS_ENV
+    ROLLUP_CFG_PATH=`relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR`
+    echo ROLLUP_CFG_PATH=$ROLLUP_CFG_PATH >> $CONTRACTS_ENV
 fi
