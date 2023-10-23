@@ -47,7 +47,21 @@ interface ISequencerInbox is IDAProvider {
 
     /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.
-     * @param txBatchData Batch of RLP-encoded transactions.
+     * @param txBatchData Batch of RLP-encoded transactions, encoded as:
+     * txBatchData format:
+     *   txBatchData = version || batchData (|| is concatenation)
+     *   where:
+     *   - version: uint8
+     *   - data: bytes
+     * batchData format:
+     *   batchData = RLP([firstL2BlockNum, batchList])
+     *   where:
+     *   - firstL2BlockNum: uint256
+     *   - batchList: List[blockData]
+     *   blockData = [timestamp, txList]
+     *   where:
+     *   - timestamp: uint256
+     *   - txList: bytes
      */
     function appendTxBatch(bytes calldata txBatchData) external;
 }
