@@ -14,7 +14,6 @@ func CLIFlags() []cli.Flag {
 		txmgr.CLIFlags(sequencerTxMgrNamespace),
 		validatorCLIFlags,
 		txmgr.CLIFlags(validatorTxMgrNamespace),
-		keystoreCLIFlags,
 	)
 }
 
@@ -27,6 +26,7 @@ func mergeFlagGroups(groups ...[]cli.Flag) []cli.Flag {
 	return flags
 }
 
+// TODO: remove `rollup.` namespace/prefixing
 const (
 	CmdlineFlagName = "rollup.l1.endpoint"
 	// txmgr flag namespaces
@@ -99,6 +99,10 @@ var (
 		Name:  "rollup.sequencer.addr",
 		Usage: "The sequencer address",
 	}
+	sequencerSecretKeyFlag = &cli.StringFlag{
+		Name:  "sequencer.secret-key",
+		Usage: "The secret key for sequencer.addr",
+	}
 	sequencerClefEndpointFlag = &cli.StringFlag{
 		Name:  "rollup.sequencer.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a sequencer signer",
@@ -121,6 +125,10 @@ var (
 		Name:  "rollup.validator.addr",
 		Usage: "The validator address",
 	}
+	validatorSecretKeyFlag = &cli.StringFlag{
+		Name:  "validator.secret-key",
+		Usage: "The private key for validator.addr",
+	}
 	validatorClefEndpointFlag = &cli.StringFlag{
 		Name:  "rollup.validator.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a validator signer",
@@ -133,20 +141,6 @@ var (
 		Name:  "rollup.validator.validation-interval",
 		Usage: "Time between batch validation steps (seconds)",
 		Value: 10,
-	}
-	// KeyStore config flags
-	//dataDirFlag = &cli.StringFlag{
-		//Name:     "keystore.datadir",
-		//Usage:    "Data directory for the databases and keystore",
-	//}
-	keyStoreDirFlag = &cli.StringFlag{
-		Name:     "keystore.keystore",
-		Usage:    "Directory for the keystore (default = inside the datadir)",
-	}
-	externalSignerFlag = &cli.StringFlag{
-		Name:     "keystore.signer",
-		Usage:    "External signer (url or path to ipc file)",
-		Value:    "",
 	}
 )
 
@@ -169,6 +163,7 @@ var (
 	sequencerCLIFlags = []cli.Flag{
 		sequencerEnableSequencerFlag,
 		sequencerAddrFlag,
+		sequencerSecretKeyFlag,
 		sequencerClefEndpointFlag,
 		sequencerPassphraseFlag,
 		sequencerSequencingIntervalFlag,
@@ -176,12 +171,9 @@ var (
 	validatorCLIFlags = []cli.Flag{
 		validatorEnableValidatorFlag,
 		validatorAddrFlag,
+		validatorSecretKeyFlag,
 		validatorClefEndpointFlag,
 		validatorPassphraseFlag,
 		validatorValidationIntervalFlag,
-	}
-	keystoreCLIFlags = []cli.Flag{
-		keyStoreDirFlag,
-		externalSignerFlag,
 	}
 )

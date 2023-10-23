@@ -9,20 +9,21 @@ CONTRACTS_DIR = contracts/
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
 CONTRACTS_TARGET = $(CONTRACTS_DIR)/artifacts/build-info
 
-#TODO migrate to services/el_clients/go-ethereum
 GETH_SRC = services/el_clients/go-ethereum
 GETH_BIN_SRC = ./cmd/geth/
 GETH_BIN_TARGET = ./build/bin/geth
 
-#CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
-#CLEF_TARGET = $(SIDECAR_BIN)/clef
+MAGI_DIR = services/cl_clients/magi
+MAGI_BIN_TARGET = services/cl_clients/magi/target/debug/magi
 
 # TODO add clef back in when moving to services/el_clients/go-ethereum
+#CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
+#CLEF_TARGET = $(SIDECAR_BIN)/clef
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
-install: geth sidecar
 
+install: geth magi sidecar
 geth: $(GETH_BIN_TARGET)
-
+magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
@@ -57,12 +58,13 @@ bindings-docker:
 
 # prereqs: all new/deleted files in contracts/ AND existing solidity files
 $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -name "*.sol")
-	sbin/compile_contracts.sh
+	cd contracts && pnpm build
 
 $(GETH_BIN_TARGET):
-	cd $(GETH_SRC) && go build -o $(GETH_BIN_TARGET) $(GETH_BIN_SRC)
-	@echo "Done building geth."
-	#@echo "Run \"$(GOBIN)/geth\" to launch geth."
+	cd $(GETH_SRC) && GOFLAGS="-buildvcs=false" $(MAKE) geth
+
+$(MAGI_BIN_TARGET):
+	cd $(MAGI_DIR) && cargo build
 
 #$(CLEF_TARGET): $(CLEF_SRC)
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)

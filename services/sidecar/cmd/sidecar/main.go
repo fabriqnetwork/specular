@@ -2,10 +2,9 @@ package main
 
 import (
 	"context"
-	"bytes"
+	"crypto/ecdsa"
 	"math"
 	"math/big"
-	"reflect"
 	"os"
 
 	"github.com/urfave/cli/v2"
@@ -14,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	bind "github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/accounts/external"
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
@@ -29,49 +27,69 @@ import (
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
-// TODO: this is the last Geth-specific interface here; remove.
-type accountManager interface {
-	Backends(reflect.Type) []accounts.Backend
-}
-
 type serviceCfg interface {
 	GetAccountAddr() common.Address
+	GetSecretKey() *ecdsa.PrivateKey
 	GetClefEndpoint() string
-	GetPassphrase() string
 	GetTxMgrCfg() txmgr.Config
 }
 
-func initializeAccountManager(cfg services.KeyStoreConfig) *accounts.Manager {
-	keyDir := cfg.GetKeyStoreDir()
-	log.Info(keyDir)
+func main() {
+	app := &cli.App{
+		Name:   "sidecar",
+		Usage:  "launch a validator and/or disseminator",
+		Action: startService,
+	}
+	app.Flags = services.CLIFlags()
+	if err := app.Run(os.Args); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
 
-	// TODO: verify if hard-coded true is a problem
-	acctMgr := accounts.NewManager(&accounts.Config{InsecureUnlockAllowed: true})
+func startService(cliCtx *cli.Context) error {
+	log.Info("Reading configuration")
+	cfg, err := services.ParseSystemConfig(cliCtx)
+	if err != nil {
+		return fmt.Errorf("failed to parse config: %w", err)
+	}
 
-	// TODO: Enable external signer
-	//if (cfg.ExternalSigner) {
-		//log.Info("Using external signer", "url", cfg.ExternalSigner)
-		//if extapi, err := external.NewExternalBackend(cfg.ExternalSigner); err == nil {
-			//am.AddBackend(extapi)
-			//return nil
-		//} else {
-			//return fmt.Errorf("error connecting to external signer: %v", err)
-		//}
-	//}
-
-	keystore := keystore.NewKeyStore(keyDir, keystore.StandardScryptN, keystore.StandardScryptP)
-
-	acctMgr.AddBackend(keystore)
-
-	return acctMgr
+	var (
+		disseminator *disseminator.BatchDisseminator
+		validator    *validator.Validator
+		eg, ctx      = errgroup.WithContext(context.Background())
+	)
+	if cfg.Sequencer().GetIsEnabled() {
+		disseminator, err = createDisseminator(context.Background(), cfg)
+		if err != nil {
+			return fmt.Errorf("failed to create disseminator: %w", err)
+		}
+		if err := disseminator.Start(ctx, eg); err != nil {
+			return fmt.Errorf("failed to start disseminator: %w", err)
+		}
+	}
+	if cfg.Validator().GetIsEnabled() {
+		validator, err = createValidator(context.Background(), cfg)
+		if err != nil {
+			return fmt.Errorf("failed to create validator: %w", err)
+		}
+		if err := validator.Start(ctx, eg); err != nil {
+			return fmt.Errorf("failed to start validator: %w", err)
+		}
+	}
+	log.Info("Services running.")
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("service failed while running: %w", err)
+	}
+	log.Info("Services stopped.")
+	return nil
 }
 
 func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
-	accountMgr accountManager,
 ) (*disseminator.BatchDisseminator, error) {
-	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer(), accountMgr)
+	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -86,9 +104,8 @@ func createDisseminator(
 func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
-	accountMgr accountManager,
 ) (*validator.Validator, error) {
-	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator(), accountMgr)
+	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -112,10 +129,9 @@ func createTxManager(
 	name string,
 	l1Cfg services.L1Config,
 	serCfg serviceCfg,
-	accountMgr accountManager,
 ) (*bridge.TxManager, error) {
 	transactor, err := createTransactor(
-		accountMgr, serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetPassphrase(), l1Cfg.GetChainID(),
+		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetSecretKey(), l1Cfg.GetChainID(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
@@ -130,12 +146,11 @@ func createTxManager(
 	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
 }
 
-// Creates a transactor for the given account address, either using the clef endpoint or passphrase.
+// Creates a transactor for the given account address, either using a clef endpoint (preferred) or secret key.
 func createTransactor(
-	mgr accountManager,
 	accountAddress common.Address,
 	clefEndpoint string,
-	passphrase string,
+	secretKey *ecdsa.PrivateKey,
 	chainID uint64,
 ) (*bind.TransactOpts, error) {
 	if clefEndpoint != "" {
@@ -146,76 +161,5 @@ func createTransactor(
 		return bind.NewClefTransactor(clef, accounts.Account{Address: accountAddress}), nil
 	}
 	log.Warn("No external signer specified, using geth signer")
-	var ks *keystore.KeyStore
-	if keystores := mgr.Backends(keystore.KeyStoreType); len(keystores) > 0 {
-		ks = keystores[0].(*keystore.KeyStore)
-	} else {
-		return nil, fmt.Errorf("keystore not found")
-	}
-	json, err := ks.Export(accounts.Account{Address: accountAddress}, passphrase, "")
-	if err != nil {
-		return nil, fmt.Errorf("failed to export account for %s: %w", accountAddress, err)
-	}
-	transactor, err := bind.NewTransactorWithChainID(bytes.NewReader(json), passphrase, new(big.Int).SetUint64(chainID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create transactor: %w", err)
-	}
-	return transactor, nil
-}
-
-
-func startService(cliCtx *cli.Context) error {
-
-	log.Info("Reading configuration")
-
-	cfg, err := services.ParseSystemConfig(cliCtx)
-	if err != nil {
-		return fmt.Errorf("failed to parse config: %w", err)
-	}
-
-	log.Info("Initializing Account Manager")
-
-	acctMgr := initializeAccountManager(cfg.KeyStore())
-
-	var disseminator *disseminator.BatchDisseminator
-	var validator *validator.Validator
-
-	if cfg.Sequencer().GetIsEnabled() {
-		disseminator, err = createDisseminator(context.Background(), cfg, acctMgr)
-		if err != nil {
-			return fmt.Errorf("failed to initialize disseminator: %w", err)
-		}
-	}
-	if cfg.Validator().GetIsEnabled() {
-		validator, err = createValidator(context.Background(), cfg, acctMgr)
-		if err != nil {
-			return fmt.Errorf("failed to initialize validator: %w", err)
-		}
-	}
-
-	disseminatorErrorGroup, disseminatorCtx := errgroup.WithContext(context.Background())
-	disseminator.Start(disseminatorCtx, disseminatorErrorGroup)
-
-	validatorErrorGroup, validatorCtx := errgroup.WithContext(context.Background())
-	validator.Start(validatorCtx, validatorErrorGroup)
-
-	<-disseminatorCtx.Done()
-	<-validatorCtx.Done()
-
-	return nil
-}
-
-func main() {
-    app := &cli.App{
-        Name:  "sidecar",
-        Usage: "launch validator+disseminator",
-        Action: startService,
-    }
-
-	app.Flags = services.CLIFlags()
-
-    if err := app.Run(os.Args); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-    }
+	return bind.NewKeyedTransactorWithChainID(secretKey, new(big.Int).SetUint64(chainID))
 }

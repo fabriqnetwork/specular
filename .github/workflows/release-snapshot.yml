@@ -20,15 +20,13 @@ jobs:
         with:
           submodules: recursive
           fetch-depth: 0
-
-      - name: Setup Node
-        uses: ./.github/actions/node
+      - uses: ./.github/actions/node
 
       - name: Install Foundry
         uses: foundry-rs/foundry-toolchain@v1
         with:
           version: nightly
-      
+
       - name: Build contracts
         run: cd contracts && pnpm build
 

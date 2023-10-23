@@ -1,106 +1,105 @@
 # Specular Monorepo
 
+**Warning**: This repository is a prototype and should not be used in production yet.
+
 ## Directory Structure
 
 <pre>
-├── <a href="./services/">services</a>: Specular L2 clients
-│   ├── <a href="./services/cl_clients">cl_clients</a>: Consensus layer clients
-│   ├── <a href="./services/el_clients/">el_clients</a>: Execution layer clients
+├── <a href="./services/">services</a>: L2 services
+│   ├── <a href="./services/cl_clients">cl_clients</a>: Consensus-layer clients
+│   ├── <a href="./services/el_clients/">el_clients</a>: Execution-layer clients
 │   │      └── <a href="./services/el_clients/go-ethereum/">go-ethereum</a>: Minimally modified geth fork
-│   └── <a href="./services/sidecar/">sidecar</a>: The Specular sidecar service
-├── <a href="./contracts">contracts</a>: Specular L1 and L2 contracts
+│   └── <a href="./services/sidecar/">sidecar</a>: Sidecar services
+├── <a href="./contracts">contracts</a>: L1 and L2 contracts
 └── <a href="./lib/">lib</a>: Libraries used in L2 EL Clients
-    └── <a href="./lib/el_golang_lib/">el_golang_lib</a>: Library for golang clients
+    └── <a href="./lib/el_golang_lib/">el_golang_lib</a>: Library for golang EL clients
 </pre>
 
 ## License
 
 Unless specified in subdirectories, this repository is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). See `LICENSE` for details.
 
-## Running a local network
-
-This guide will demonstrate how to set up a rollup network containing L2 sequencer nodes, running over a Geth L1 node---all on your local machine.
-After the 3 nodes are running, you can use MetaMask to send custom transactions to the sequencer, and see how transactions are executed on the L2 network, sequenced to the L1 network, and confirmed.
-In this example, all nodes operate honestly (no challenges are issued).
-
-### Build
-Install all dependencies and build the modified L2 Geth node
-
+## Build from source
 ```sh
-cd SPECULAR_REPO
+git clone https://github.com/specularl2/specular
+cd specular
+git submodule update --init
+```
+
+Install all dependencies and build the node binaries.
+Note: the rest of the commands below assume you are in the project root directory.
+```
 pnpm install
-make geth sidecar
+make
 ```
 
-### Generate the genesis file
+## Running a local devnet
+
+This guide will walk you through how to set up a local devnet containing an L2 sequencer running over a local L1 node.
+
+### Configure network
+
+To configure a local devnet, you can just use an existing example from `config` as-is.
+```sh
+mkdir workspace
+# Copy all config files
+cp -a config/deployments/local_devnet/. workspace/
+```
+
+This copies multiple dotenv files (below) which are expected by scripts to be in the current directory.
+Some of these env files also reference the `genesis.json` and `rollup.json` used to configure the protocol.
+```sh
+.genesis.env # Expected by `create_genesis.sh` and `start_l1.sh` (not necessary for existing chains)
+.sp_geth.env # Expected by `start_sp_geth.sh`
+.sp_magi.env # Expected by `start_sp_magi.sh`
+.sidecar.env # Expected by `start_sidecar.sh`
+```
+
+### Start L1
+From the same directory, run the following scripts to initialize a new L1 chain and deploy the protocol contracts.
+```sh
+cd workspace
+# Generate the genesis json file
+../sbin/create_genesis.sh
+# Start L1 and deploy contracts
+../sbin/start_l1.sh
+# TODO: Generate the rollup json file
+```
+
+### Start an L2 node
 
 ```sh
-SPECULAR_REPO/sbin/create_genesis.sh
+# Terminal #2: start L2-EL client
+../sbin/start_sp_geth.sh
+# Terminal #3: start L2-CL client
+../sbin/start_sp_magi.sh
+# Terminal #4: start sidecar
+../sbin/start_sidecar.sh
 ```
 
-### L2 setup
-
-```sh
-SPECULAR_REPO/sbin/init_geth.sh
-```
-
-### L1 local dev node installation
-
-See [here](https://github.com/SpecularL2/specular/tree/main/contracts) for more details.
-
-### Start nodes
-
-```sh
-# Terminal #1: start L1 node
-SPECULAR_REPO/sbin/start_l1.sh
-
-# Terminal #2: start L2 EL client
-SPECULAR_REPO/sbin/start_geth.sh
-
-# Terminal #3: start Specular sidecar
-SPECULAR_REPO/sbin/start_sidecar.sh
-```
-
-Make sure there are logs for `Sequencer started` in the respective console.
-In the first terminal where L1 node is running, you can see the sequencer staked on the Rollup contract.
-
-**Restarts**
-
-Currently, the sequencer must start in a clean environment; i.e. you need to clean and reinitialize both L1 and L2 on every start.
-
-To restart the L1 node, use `Ctrl-C` to stop the current running one and run `npx hardhat node` again.
-
-To reinitialize L2 node, under `sbin` directory, run `./clean.sh && ./init.sh`.
-
-Do not forget to reset MetaMask account if you have sent some transactions on L2 (see below for more details).
+At this point, you'll have two chains started with the following parameters
+- L2: chain ID `13527`, with a sequencer exposed on ports `4011` (http) and `4012` (ws).
+- L1: chain ID `31337`, on port `8545` (ws).
+To restart/clear network state, run `./sbin/clean.sh`.
 
 ### Transact using MetaMask
 
-**Configuration**
+After the nodes are running, you can use your wallet (e.g. MetaMask) to send transactions to the sequencer, and see how transactions are executed, sequenced and confirmed.
 
-1. Go to `data/keys`, import the sequencer key to MetaMask.
-Both accounts are pre-funded with 10 ETH each on L2 network, and you can use them to send transactions. Note: on L2, these two accounts are just normal accounts; not to be confused with the sequencer roles on L1 (the addresses are just being reused).
-2. In `Settings -> Networks`, create a new network called `L2` which connects to the sequencer.
-The sequencer node should be running while creating the network.
-Enter `http://localhost:4011` for RPC URL, `13527` for Chain ID, `ETH` for currency symbol (we haven't changed the symbol yet).
+**Configure wallet**
+
+1. Go to `.sidecar.env` and copy the validator key to MetaMask. The account is pre-funded on L2, so you can use it to transact.
+2. In `Settings -> Networks`, create a new network called `L2`, which connects to the sequencer.
+Enter `http://localhost:4011` for the RPC URL, `13527` for the chain ID and `ETH` for currency symbol.
 
 **Transact**
 
-Remember to reset the account after every clean start of the network.
+Now, you can use the pre-funded account to send transactions.
+After an L2 transaction, in the Hardhat node console, observe the resulting L1 transactions:
+- sequencer calls `appendTxBatch` to sequence transaction
+- sequencer calls `createAssertion` to commit to a new disputable state assertion
+- sequencer calls `confirmFirstUnresolvedAssertion` to confirm the assertion after every staker has attested to it.
+
+If you restart the network after having transacted with MetaMask, don't forget to reset your MetaMask account.
 Select the appropriate account, go to `Setting -> Advanced`, and click `Reset Account`.
 This ensures the account nonce cache in MetaMask is cleared.
-
-Now, you can use the pre-funded account to send transactions.
-
-After an L2 transaction, in the Hardhat node console, observe the resultant transactions occuring on L1:
-- sequencer calls `appendTxBatch` to sequence transaction
-- sequencer calls `createAssertion` to create disputable assertion
-- sequencer calls `confirmFirstUnresolvedAssertion` to confirm the assertion after every stakers staked on the assertion
-
-*Make sure that sequencer node is started before sending any transaction to L2.*
-
-### Scenario Parameters
-
-L1: Hardhat, chain ID `31337`, http/ws on port `8545`.
-
-L2: Chain ID `13527`. Sequencer: http on port `4011`, ws on port `4012`; Validator: http on port `4018`, ws on port `4019`.

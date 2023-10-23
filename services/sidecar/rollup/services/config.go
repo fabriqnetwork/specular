@@ -1,12 +1,15 @@
 package services
 
 import (
+	"crypto/ecdsa"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/urfave/cli/v2"
 )
 
@@ -15,21 +18,19 @@ type SystemConfig struct {
 	L2Config        `toml:"l2,omitempty"`
 	SequencerConfig `toml:"sequencer,omitempty"`
 	ValidatorConfig `toml:"validator,omitempty"`
-	KeyStoreConfig  `toml:"keystore,omitempty"`
 }
 
 func (c *SystemConfig) L1() L1Config               { return c.L1Config }
 func (c *SystemConfig) L2() L2Config               { return c.L2Config }
 func (c *SystemConfig) Sequencer() SequencerConfig { return c.SequencerConfig }
 func (c *SystemConfig) Validator() ValidatorConfig { return c.ValidatorConfig }
-func (c *SystemConfig) KeyStore() KeyStoreConfig   { return c.KeyStoreConfig }
 
 // Parses all CLI flags and returns a full system config.
 func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
-	return parseFlags(cliCtx), nil
+	return parseFlags(cliCtx)
 }
 
-func parseFlags(cliCtx *cli.Context) *SystemConfig {
+func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.MiningEnabledFlag)
 	utils.CheckExclusive(cliCtx, l1EndpointFlag, utils.DeveloperFlag)
 	var sequencerAddr common.Address
@@ -45,13 +46,20 @@ func parseFlags(cliCtx *cli.Context) *SystemConfig {
 		sequencerTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, sequencerTxMgrNamespace, l1ChainID, sequencerAddr)
 		validatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
 	)
-	return &SystemConfig{
+	cfg := &SystemConfig{
 		L1Config:        newL1ConfigFromCLI(cliCtx),
 		L2Config:        newL2ConfigFromCLI(cliCtx),
 		SequencerConfig: newSequencerConfigFromCLI(cliCtx, sequencerTxMgrCfg),
 		ValidatorConfig: newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
-		KeyStoreConfig:  newKeyStoreConfigFromCLI(cliCtx),
 	}
+	// Validate.
+	if err := cfg.SequencerConfig.validate(); err != nil {
+		return nil, fmt.Errorf("sequencer config invalid: %w", err)
+	}
+	if err := cfg.ValidatorConfig.validate(); err != nil {
+		return nil, fmt.Errorf("validator config invalid: %w", err)
+	}
+	return cfg, nil
 }
 
 // L1 configuration
@@ -113,10 +121,10 @@ type SequencerConfig struct {
 	IsEnabled bool `toml:"enabled,omitempty"`
 	// The address of this sequencer
 	AccountAddr common.Address `toml:"account_addr,omitempty"`
+	// The secret key for AccountAddr
+	SecretKey *ecdsa.PrivateKey
 	// The Clef Endpoint used for signing txs
 	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
-	// The passphrase of the sequencer account
-	Passphrase string `toml:"passphrase,omitempty"`
 	// Time between batch dissemination (DA) steps
 	DisseminationInterval time.Duration `toml:"dissemination_interval,omitempty"`
 	// Transaction manager configuration
@@ -125,10 +133,18 @@ type SequencerConfig struct {
 
 func (c SequencerConfig) GetIsEnabled() bool                      { return c.IsEnabled }
 func (c SequencerConfig) GetAccountAddr() common.Address          { return c.AccountAddr }
+func (c SequencerConfig) GetSecretKey() *ecdsa.PrivateKey         { return c.SecretKey }
 func (c SequencerConfig) GetClefEndpoint() string                 { return c.ClefEndpoint }
-func (c SequencerConfig) GetPassphrase() string                   { return c.Passphrase }
 func (c SequencerConfig) GetDisseminationInterval() time.Duration { return c.DisseminationInterval }
 func (c SequencerConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
+
+// Validates the configuration.
+func (c SequencerConfig) validate() error {
+	if c.SecretKey == nil && c.ClefEndpoint == "" {
+		return fmt.Errorf("missing both secret key and clef endpoint (require at least one)")
+	}
+	return nil
+}
 
 func newSequencerConfigFromCLI(
 	cliCtx *cli.Context,
@@ -137,8 +153,8 @@ func newSequencerConfigFromCLI(
 	return SequencerConfig{
 		IsEnabled:             cliCtx.Bool(sequencerEnableSequencerFlag.Name),
 		AccountAddr:           common.HexToAddress(cliCtx.String(sequencerAddrFlag.Name)),
+		SecretKey:             toSecretKey(cliCtx.String(sequencerSecretKeyFlag.Name)),
 		ClefEndpoint:          cliCtx.String(sequencerClefEndpointFlag.Name),
-		Passphrase:            cliCtx.String(sequencerPassphraseFlag.Name),
 		DisseminationInterval: time.Duration(cliCtx.Uint(sequencerSequencingIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:              txMgrCfg,
 	}
@@ -149,10 +165,10 @@ type ValidatorConfig struct {
 	IsEnabled bool `toml:"enabled,omitempty"`
 	// The address of this validator
 	AccountAddr common.Address `toml:"account_addr,omitempty"`
+	// The secret key for AccountAddr
+	SecretKey *ecdsa.PrivateKey
 	// The Clef Endpoint used for signing txs
 	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
-	// The passphrase of the validator account
-	Passphrase string `toml:"passphrase,omitempty"`
 	// Time between validation steps
 	ValidationInterval time.Duration `toml:"validation_interval,omitempty"`
 	// Transaction manager configuration
@@ -161,10 +177,18 @@ type ValidatorConfig struct {
 
 func (c ValidatorConfig) GetIsEnabled() bool                   { return c.IsEnabled }
 func (c ValidatorConfig) GetAccountAddr() common.Address       { return c.AccountAddr }
+func (c ValidatorConfig) GetSecretKey() *ecdsa.PrivateKey      { return c.SecretKey }
 func (c ValidatorConfig) GetClefEndpoint() string              { return c.ClefEndpoint }
-func (c ValidatorConfig) GetPassphrase() string                { return c.Passphrase }
 func (c ValidatorConfig) GetValidationInterval() time.Duration { return c.ValidationInterval }
 func (c ValidatorConfig) GetTxMgrCfg() txmgr.Config            { return c.TxMgrCfg }
+
+// Validates the configuration.
+func (c ValidatorConfig) validate() error {
+	if c.SecretKey == nil && c.ClefEndpoint == "" {
+		return fmt.Errorf("missing both secret key and clef endpoint (require at least one)")
+	}
+	return nil
+}
 
 func newValidatorConfigFromCLI(
 	cliCtx *cli.Context,
@@ -173,24 +197,20 @@ func newValidatorConfigFromCLI(
 	return ValidatorConfig{
 		IsEnabled:          cliCtx.Bool(validatorEnableValidatorFlag.Name),
 		AccountAddr:        common.HexToAddress(cliCtx.String(validatorAddrFlag.Name)),
+		SecretKey:          toSecretKey(cliCtx.String(validatorSecretKeyFlag.Name)),
 		ClefEndpoint:       cliCtx.String(validatorClefEndpointFlag.Name),
-		Passphrase:         cliCtx.String(validatorPassphraseFlag.Name),
 		ValidationInterval: time.Duration(cliCtx.Uint(validatorValidationIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:           txMgrCfg,
 	}
 }
 
-type KeyStoreConfig struct {
-	KeyStoreDir string `toml:"keystore,omitempty"`
-	ExternalSigner string `toml:"signer,omitempty"`
-}
-
-func (c KeyStoreConfig) GetKeyStoreDir() string { return c.KeyStoreDir }
-func (c KeyStoreConfig) GetExternalSigner() string { return c.ExternalSigner }
-
-func newKeyStoreConfigFromCLI(cliCtx *cli.Context) KeyStoreConfig {
-	return KeyStoreConfig{
-		KeyStoreDir:    cliCtx.String(keyStoreDirFlag.Name),
-		ExternalSigner: cliCtx.String(externalSignerFlag.Name),
+func toSecretKey(keyStr string) *ecdsa.PrivateKey {
+	if keyStr == "" {
+		return nil
 	}
+	secretKey, err := crypto.HexToECDSA(keyStr[2:])
+	if err != nil {
+		panic("failed to parse secret key: " + err.Error())
+	}
+	return secretKey
 }
