@@ -1,6 +1,2 @@
-/*.env
-/*.txt
-/sp_*.json
-/base_*.json
-/*genesis.json
+/workspace
 node_modules

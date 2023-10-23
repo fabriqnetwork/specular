@@ -41,8 +41,9 @@ This guide will walk you through how to set up a local devnet containing an L2 s
 
 To configure a local devnet, you can just use an existing example from `config` as-is.
 ```sh
+mkdir workspace
 # Copy all config files
-cp -a config/deployments/local_devnet/. .
+cp -a config/deployments/local_devnet/. workspace/
 ```
 
 This copies multiple dotenv files (below) which are expected by scripts to be in the current directory.
@@ -55,12 +56,13 @@ Some of these env files also reference the `genesis.json` and `rollup.json` used
 ```
 
 ### Start L1
-In the same directory, run the following scripts to initialize a new L1 chain and deploy the protocol contracts.
+From the same directory, run the following scripts to initialize a new L1 chain and deploy the protocol contracts.
 ```sh
+cd workspace
 # Generate the genesis json file
-./sbin/create_genesis.sh
+../sbin/create_genesis.sh
 # Start L1 and deploy contracts
-./sbin/start_l1.sh
+../sbin/start_l1.sh
 # TODO: Generate the rollup json file
 ```
 
@@ -68,11 +70,11 @@ In the same directory, run the following scripts to initialize a new L1 chain an
 
 ```sh
 # Terminal #2: start L2-EL client
-./sbin/start_sp_geth.sh
+../sbin/start_sp_geth.sh
 # Terminal #3: start L2-CL client
-./sbin/start_sp_magi.sh
+../sbin/start_sp_magi.sh
 # Terminal #4: start sidecar
-./sbin/start_sidecar.sh
+../sbin/start_sidecar.sh
 ```
 
 At this point, you'll have two chains started with the following parameters
@@ -86,7 +88,7 @@ After the nodes are running, you can use your wallet (e.g. MetaMask) to send tra
 
 **Configure wallet**
 
-1. Go to `.sidecar.env` and import the validator key to MetaMask. The account is pre-funded on L2, so you can use it to transact.
+1. Go to `.sidecar.env` and copy the validator key to MetaMask. The account is pre-funded on L2, so you can use it to transact.
 2. In `Settings -> Networks`, create a new network called `L2`, which connects to the sequencer.
 Enter `http://localhost:4011` for the RPC URL, `13527` for the chain ID and `ETH` for currency symbol.
 
