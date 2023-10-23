@@ -37,7 +37,7 @@ if [ "$SEQUENCER" = true ] ; then
     SEQUENCER_FLAGS="--sequencer --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG"
 fi
 
-exec $MAGI \
+CMD="$MAGI \
     --network $NETWORK \
     --l1-rpc-url $L1_RPC_URL \
     --l2-rpc-url $L2_RPC_URL \
@@ -47,4 +47,7 @@ exec $MAGI \
     --rpc-port $RPC_PORT \
     $SYNC_FLAGS \
     $DEVNET_FLAGS \
-    $SEQUENCER_FLAGS
+    $SEQUENCER_FLAGS"
+
+echo "$CMD"
+exec $CMD
