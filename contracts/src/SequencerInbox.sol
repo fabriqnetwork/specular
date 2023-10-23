@@ -32,8 +32,6 @@ import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
-    // Total number of transactions
-    uint256 private inboxSize;
     // accumulators[i] is an accumulator of transactions in txBatch i.
     bytes32[] public accumulators;
 
@@ -67,11 +65,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
-    /// @inheritdoc IDAProvider
-    function getInboxSize() external view override returns (uint256) {
-        return inboxSize;
-    }
-
     /// @inheritdoc ISequencerInbox
     function appendTxBatch(bytes calldata txBatchData) external override whenNotPaused {
         if (msg.sender != sequencerAddress) {
@@ -87,8 +80,7 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             revert TxBatchVersionIncorrect();
         }
 
-        inboxSize = inboxSize + 1;
-        emit TxBatchAppended(inboxSize);
+        emit TxBatchAppended();
     }
 
     // TODO post EIP-4844: KZG proof verification

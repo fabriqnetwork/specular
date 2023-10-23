@@ -171,10 +171,10 @@ contract Rollup is RollupBase {
         return baseStakeAmount;
     }
 
-    /// @inheritdoc IRollup
-    function confirmedInboxSize() public view override returns (uint256) {
-        return assertions[lastConfirmedAssertionID].inboxSize;
-    }
+    // /// @inheritdoc IRollup
+    // function confirmedInboxSize() public view override returns (uint256) {
+    //     return assertions[lastConfirmedAssertionID].inboxSize;
+    // }
 
     /// @inheritdoc IRollup
     function getStaker(address addr) external view override returns (Staker memory) {
@@ -415,7 +415,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 vmHash, uint256 inboxSize)
+    function createAssertion(bytes32 vmHash, uint256 startBlock)
         external
         override
         stakedOnly
@@ -429,19 +429,14 @@ contract Rollup is RollupBase {
             revert MinimumAssertionPeriodNotPassed();
         }
         // Require that the assertion at least includes one transaction
-        if (inboxSize <= parent.inboxSize) {
+        if (startBlock <= parent.startBlock) {
             revert EmptyAssertion();
-        }
-        // TODO: Enforce stricter bounds on assertion size.
-        // Require that the assertion doesn't read past the end of the current inbox.
-        if (inboxSize > daProvider.getInboxSize()) {
-            revert InboxReadLimitExceeded();
         }
 
         // Initialize assertion.
         lastCreatedAssertionID++;
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash);
-        createAssertionHelper(lastCreatedAssertionID, vmHash, inboxSize, parentID, newAssertionDeadline());
+        createAssertionHelper(lastCreatedAssertionID, vmHash, startBlock, parentID, newAssertionDeadline());
 
         // Update stake.
         stakeOnAssertion(msg.sender, lastCreatedAssertionID);
@@ -573,17 +568,17 @@ contract Rollup is RollupBase {
     function createAssertionHelper(
         uint256 assertionID,
         bytes32 stateHash,
-        uint256 inboxSize,
+        uint256 startBlock,
         uint256 parentID,
         uint256 deadline
     ) private {
         Assertion storage parentAssertion = assertions[parentID];
         AssertionState storage parentAssertionState = assertionState[parentID];
         // Child assertions must have same inbox size
-        uint256 parentChildInboxSize = parentAssertion.childInboxSize;
+        uint256 parentChildInboxSize = parentAssertion.childStartBlock;
         if (parentChildInboxSize == 0) {
-            parentAssertion.childInboxSize = inboxSize;
-        } else if (inboxSize != parentChildInboxSize) {
+            parentAssertion.childStartBlock = startBlock;
+        } else if (startBlock != parentChildInboxSize) {
             revert InvalidInboxSize();
         } else if (parentAssertionState.childStateHashes[stateHash]) {
             revert DuplicateAssertion();
@@ -591,7 +586,7 @@ contract Rollup is RollupBase {
         parentAssertionState.childStateHashes[stateHash] = true;
         assertions[assertionID] = Assertion(
             stateHash,
-            inboxSize,
+            startBlock,
             parentID,
             deadline,
             block.number, // proposal time

@@ -28,7 +28,7 @@ import "./IDAProvider.sol";
  * @notice On-chain DA provider.
  */
 interface ISequencerInbox is IDAProvider {
-    event TxBatchAppended(uint256 batchNumber);
+    event TxBatchAppended();
 
     /// @dev Thrown when the given tx inclusion proof couldn't be verified.
     error ProofVerificationFailed();

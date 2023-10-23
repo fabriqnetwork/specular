@@ -23,10 +23,6 @@ pragma solidity ^0.8.0;
  */
 interface IDAProvider {
     /**
-     * @notice Gets inbox size (total number of messages stored).
-     */
-    function getInboxSize() external view returns (uint256);
-    /**
      * Verifies proof of inclusion of a transaction by the data availability provider.
      * If verification fails, the function reverts.
      * @param encodedTx RLP-encoded transaction.

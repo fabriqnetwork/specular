@@ -29,8 +29,10 @@ import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
 import {Rollup} from "../src/Rollup.sol";
+import {ISequencerInbox} from "../src/ISequencerInbox.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
+
 
 contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     Utils internal utils;
@@ -44,6 +46,8 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     address internal challenger;
 
     Verifier verifier = new Verifier();
+
+    event TxBatchAppended();
 
     function setUp() public virtual {
         utils = new Utils();
@@ -716,7 +720,7 @@ contract RollupTest is RollupBaseSetup {
         (,, stakerAssertionID,) = rollup.stakers(alice);
         assertEq(stakerAssertionID, 0);
 
-        _increaseSequencerInboxSize();
+        _appendTxBatch();
 
         bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 1;
@@ -884,7 +888,7 @@ contract RollupTest is RollupBaseSetup {
         // To avoid the MinimumAssertionPeriodNotPassed error, increase block.number
         vm.roll(block.number + rollup.minimumAssertionPeriod());
 
-        _increaseSequencerInboxSize();
+        _appendTxBatch();
 
         bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 1;
@@ -976,7 +980,7 @@ contract RollupTest is RollupBaseSetup {
         // Let's create a brand new assertion, so that the lastCreatedAssertionID goes up and we can successfully advance stake to the new ID after that
 
         // Increase the sequencerInbox inboxSize with mock transactions we can assert on.
-        _increaseSequencerInboxSize();
+        _appendTxBatch();
 
         bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 1;
@@ -1042,7 +1046,7 @@ contract RollupTest is RollupBaseSetup {
         // Let's create a brand new assertion, so that the lastCreatedAssertionID goes up and we can successfully advance stake to the new ID after that
 
         // Increase the sequencerInbox inboxSize with mock transactions we can assert on.
-        _increaseSequencerInboxSize();
+        _appendTxBatch();
 
         bytes32 mockVmHash = bytes32("");
         uint256 mockInboxSize = 1;
@@ -1189,7 +1193,7 @@ contract RollupTest is RollupBaseSetup {
             require(aliceBalance >= aliceAmountToStake, "Increase balance of Alice to proceed");
             _stake(alice, aliceAmountToStake);
 
-            _increaseSequencerInboxSize();
+            _appendTxBatch();
 
             bytes32 mockVmHash = bytes32("");
             uint256 mockInboxSize = 1;
@@ -1239,34 +1243,17 @@ contract RollupTest is RollupBaseSetup {
     }
 
     // This function increases the inbox size by 6
-    function _increaseSequencerInboxSize() internal {
-        uint256 seqInboxSizeInitial = seqIn.getInboxSize();
-        uint256 numTxnsPerBlock = 3;
-
-        // Each context corresponds to a single "L2 block"
-        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-        // Let's create an array of contexts
-        uint256 timeStamp1 = block.timestamp / 10;
-        uint256 timeStamp2 = block.timestamp / 5;
-
-        uint256[] memory contexts = new uint256[](4);
-
-        // Let's assume that we had 2 blocks and each had 3 transactions
-        contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (timeStamp1);
-        contexts[2] = (numTxnsPerBlock);
-        contexts[3] = (timeStamp2);
-
+    function _appendTxBatch() internal {
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
         bytes memory txBatch = _helper_createTxBatch_hardcoded();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
+        // Expect TxBatchAppended event
+        vm.expectEmit(true, true, true, true, address(seqIn));
+        emit TxBatchAppended();
         seqIn.appendTxBatch(txBatch);
-
-        uint256 seqInboxSizeFinal = seqIn.getInboxSize();
-        assertEq(seqInboxSizeFinal, seqInboxSizeInitial + 1, "Sequencer inbox size did not increment");
     }
 
     function _initializeRollup(
