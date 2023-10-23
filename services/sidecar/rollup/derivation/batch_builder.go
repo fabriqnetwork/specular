@@ -1,6 +1,7 @@
 package derivation
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math/big"
@@ -14,8 +15,8 @@ import (
 type batchBuilder struct {
 	maxBatchSize uint64
 
-	pendingBlocks   []DerivationBlock
-	builtBatchAttrs *BatchAttributes
+	pendingBlocks  []DerivationBlock
+	builtBatchData *[]byte
 
 	lastAppended types.BlockID
 }
@@ -63,15 +64,15 @@ func (b *batchBuilder) Append(block DerivationBlock, header HeaderRef) error {
 
 func (b *batchBuilder) Reset(lastAppended types.BlockID) {
 	b.pendingBlocks = []DerivationBlock{}
-	b.builtBatchAttrs = nil
+	b.builtBatchData = nil
 	b.lastAppended = lastAppended
 }
 
 // This short-circuits the build process if a batch is
 // already built and `Advance` hasn't been called.
-func (b *batchBuilder) Build() (*BatchAttributes, error) {
-	if b.builtBatchAttrs != nil {
-		return b.builtBatchAttrs, nil
+func (b *batchBuilder) Build() (*[]byte, error) {
+	if b.builtBatchData != nil {
+		return b.builtBatchData, nil
 	}
 	if len(b.pendingBlocks) == 0 {
 		return nil, io.EOF
@@ -80,12 +81,17 @@ func (b *batchBuilder) Build() (*BatchAttributes, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build batch: %w", err)
 	}
-	b.builtBatchAttrs = batchAttrs
-	return batchAttrs, nil
+	batchData, err := encodeRLP(batchAttrs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode batch: %w", err)
+	}
+
+	b.builtBatchData = &batchData
+	return b.builtBatchData, nil
 }
 
 func (b *batchBuilder) Advance() {
-	b.builtBatchAttrs = nil
+	b.builtBatchData = nil
 }
 
 func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
@@ -122,4 +128,16 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 	b.pendingBlocks = b.pendingBlocks[idx+1:]
 	log.Trace("Advanced pending blocks", "len", len(b.pendingBlocks))
 	return attrs, nil
+}
+
+func encodeRLP(b *BatchAttributes) ([]byte, error) {
+	var w bytes.Buffer
+	// Batch starts with version byte
+	if err := w.WriteByte(TxBatchVersion()); err != nil {
+		return nil, err
+	}
+
+	buf := rlp.NewEncoderBuffer(&w)
+	err := rlp.Encode(buf, b)
+	return w.Bytes(), err
 }

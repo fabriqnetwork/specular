@@ -87,45 +87,6 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
             revert TxBatchVersionIncorrect();
         }
 
-        // uint256 numTxs = inboxSize;
-        // bytes32 runningAccumulator;
-        // if (accumulators.length > 0) {
-        //     runningAccumulator = accumulators[accumulators.length - 1];
-        // }
-
-        // uint256 dataOffset = 0;
-        // uint256 l2BlockNumber = firstL2BlockNumber;
-
-        // for (uint256 i = 0; i + 2 <= contexts.length; i += 2) {
-        //     // TODO: consider adding L1 context.
-        //     uint256 l2Timestamp = contexts[i + 1];
-        //     bytes32 txContextHash = keccak256(abi.encodePacked(sequencerAddress, l2BlockNumber, l2Timestamp));
-
-        //     uint256 numCtxTxs = contexts[i];
-
-        //     for (uint256 j = 0; j < numCtxTxs; j++) {
-        //         uint256 txLength = txLengths[numTxs - inboxSize];
-        //         if (dataOffset + txLength > txBatch.length) {
-        //             revert TxBatchDataOverflow();
-        //         }
-        //         bytes32 txDataHash = keccak256(txBatch[dataOffset:dataOffset + txLength]);
-
-        //         runningAccumulator = keccak256(abi.encodePacked(runningAccumulator, numTxs, txContextHash, txDataHash));
-
-        //         dataOffset += txLength;
-        //         numTxs++;
-        //     }
-
-        //     // block numbers get incremented by one
-        //     // we can reconstruct all block numbers of the batch since we know the first one
-        //     l2BlockNumber++;
-        // }
-
-        // if (numTxs <= inboxSize) revert EmptyBatch();
-        // uint256 start = inboxSize;
-        // inboxSize = numTxs;
-        // accumulators.push(runningAccumulator);
-
         inboxSize = inboxSize + 1;
         emit TxBatchAppended(inboxSize);
     }
