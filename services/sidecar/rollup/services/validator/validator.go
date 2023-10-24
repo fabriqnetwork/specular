@@ -34,8 +34,8 @@ type Validator struct {
 }
 
 type assertionAttributes struct {
-	inboxSize uint64
-	l2VMHash  common.Hash
+	l2BlockNum uint64
+	l2VMHash   common.Hash
 }
 
 func NewValidator(
@@ -110,16 +110,15 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get next assertion attrs: %w", err)
 	}
-	log.Info("inbox size", "size", assertionAttrs.inboxSize)
 	// TODO fix assumptions: not reorg-resistant. Other validators may have inserted new assertions.
-	if assertionAttrs.inboxSize <= v.lastCreatedAssertionAttrs.inboxSize {
-		log.Info("No new batches to create assertion for yet.")
+	if assertionAttrs.l2BlockNum <= v.lastCreatedAssertionAttrs.l2BlockNum {
+		log.Info("No new blocks to create assertion for yet.")
 		return nil
 	}
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
 	// TOOD: GasLimit: 0 ...?
-	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2VMHash, big.NewInt(0).SetUint64(assertionAttrs.inboxSize))
+	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2VMHash, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
 	if err != nil {
 		return err
 	}
@@ -127,7 +126,7 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 		log.Error("Tx successfully published but reverted", "tx_hash", receipt.TxHash)
 	} else {
 		log.Info("Tx successfully published", "tx_hash", receipt.TxHash)
-		log.Info("Created assertion", "inboxSize", assertionAttrs.inboxSize)
+		log.Info("Created assertion", "l2Block#", assertionAttrs.l2BlockNum)
 		v.lastCreatedAssertionAttrs = assertionAttrs
 	}
 	return nil
@@ -169,7 +168,7 @@ func (v *Validator) rollback(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get assertion: %w", err)
 	}
-	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.InboxSize.Uint64(), assertion.StateHash}
+	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.BlockNum.Uint64(), assertion.StateHash}
 	return nil
 }
 
@@ -181,12 +180,7 @@ func (v *Validator) getNextAssertionAttrs(ctx context.Context) (assertionAttribu
 	if err != nil {
 		return assertionAttributes{}, fmt.Errorf("failed to get finalized assertion attrs: %w", err)
 	}
-	inboxSize, err := v.l1BridgeClient.GetInboxSize(ctx)
-	if err != nil {
-		return assertionAttributes{}, fmt.Errorf("failed to get inbox size: %w", err)
-	}
-
-	return assertionAttributes{inboxSize.Uint64(), header.Root}, nil
+	return assertionAttributes{header.Number.Uint64(), header.Root}, nil
 }
 
 func (v *Validator) ensureStaked(ctx context.Context) error {

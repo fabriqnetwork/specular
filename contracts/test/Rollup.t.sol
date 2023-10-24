@@ -33,7 +33,6 @@ import {ISequencerInbox} from "../src/ISequencerInbox.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
 
-
 contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     Utils internal utils;
     address payable[] internal users;

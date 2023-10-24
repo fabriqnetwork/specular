@@ -135,14 +135,14 @@ interface IRollup {
 
     struct Assertion {
         bytes32 stateHash; // Hash of execution state associated with assertion. Currently equiv to `vmHash`.
-        uint256 startBlock; // Inbox size this assertion advanced to
+        uint256 blockNum; // Block number this assertion advanced to
         uint256 parent; // Parent assertion ID
         uint256 deadline; // Dispute deadline (L1 block number)
         uint256 proposalTime; // L1 block number at which assertion was proposed
         // Staking state
         uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
         // Child state
-        uint256 childStartBlock; // child assertion inbox state
+        uint256 childBlockNum; // child assertion inbox state
     }
 
     // *** Getters ***
@@ -173,11 +173,6 @@ interface IRollup {
      * @return The current required stake amount.
      */
     function currentRequiredStake() external view returns (uint256);
-
-    // /**
-    //  * @return confirmedInboxSize size of inbox confirmed
-    //  */
-    // function confirmedInboxSize() external view returns (uint256);
 
     /**
      * @notice Requires that the first unresolved assertion is confirmable. Otherwise, reverts.

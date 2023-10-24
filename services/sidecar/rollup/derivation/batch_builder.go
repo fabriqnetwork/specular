@@ -81,7 +81,7 @@ func (b *batchBuilder) Build() (*[]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to build batch: %w", err)
 	}
-	batchData, err := encodeRLP(batchAttrs)
+	batchData, err := encodeBatch(batchAttrs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode batch: %w", err)
 	}
@@ -100,7 +100,6 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 		idx    int
 		blocks []BlockAttributes
 	)
-
 	firstL2BlockNumber := big.NewInt(0).SetUint64(b.pendingBlocks[0].BlockNumber())
 	numBytes := uint64(rlp.IntSize(firstL2BlockNumber.Uint64()))
 
@@ -130,7 +129,7 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 	return attrs, nil
 }
 
-func encodeRLP(b *BatchAttributes) ([]byte, error) {
+func encodeBatch(b *BatchAttributes) ([]byte, error) {
 	var w bytes.Buffer
 	// Batch starts with version byte
 	if err := w.WriteByte(TxBatchVersion()); err != nil {

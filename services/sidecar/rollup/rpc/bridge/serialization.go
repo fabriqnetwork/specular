@@ -79,8 +79,8 @@ func packAdvanceStakeInput(assertionID *big.Int) ([]byte, error) {
 	return serializationUtil.rollupAbi.Pack(AdvanceStakeFnName, assertionID)
 }
 
-func packCreateAssertionInput(vmHash common.Hash, inboxSize *big.Int) ([]byte, error) {
-	return serializationUtil.rollupAbi.Pack(CreateAssertionFnName, vmHash, inboxSize)
+func packCreateAssertionInput(vmHash common.Hash, blockNum *big.Int) ([]byte, error) {
+	return serializationUtil.rollupAbi.Pack(CreateAssertionFnName, vmHash, blockNum)
 }
 
 func packConfirmFirstUnresolvedAssertionInput() ([]byte, error) {
