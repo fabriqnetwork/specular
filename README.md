@@ -61,9 +61,8 @@ From the same directory, run the following scripts to initialize a new L1 chain 
 cd workspace
 # Generate the genesis json file
 ../sbin/create_genesis.sh
-# Start L1 and deploy contracts
+# Start L1, deploy contracts and generate the rollup json file
 ../sbin/start_l1.sh
-# TODO: Generate the rollup json file
 ```
 
 ### Start an L2 node

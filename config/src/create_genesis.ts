@@ -6,6 +6,7 @@ import hre from "hardhat";
 import fs from "fs";
 import path from "path";
 import util from "node:util";
+import { parseFlag } from "./utils";
 
 type PreDeploy = {
   address: string;
@@ -15,7 +16,9 @@ type PreDeploy = {
 };
 
 async function main() {
-  const { baseGenesisPath, genesisPath } = parseArgs();
+  const baseGenesisPath = parseFlag("--in")
+  const defaultGenesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
+  const genesisPath = parseFlag("--out", defaultGenesisPath)
   await generateGenesisFile(baseGenesisPath, genesisPath);
 }
 
@@ -34,29 +37,7 @@ export async function generateGenesisFile(
   baseGenesis.alloc = Object.fromEntries(alloc);
 
   fs.writeFileSync(genesisPath, JSON.stringify(baseGenesis, null, 2), "utf-8");
-}
-
-function parseArgs() {
-  const inFlagIndex = process.argv.indexOf("--in");
-  let baseGenesisPath;
-
-  if (inFlagIndex > -1) {
-    baseGenesisPath = process.argv[inFlagIndex + 1];
-  } else {
-    throw Error("Please specify the base genesis path");
-  }
-
-  const outFlagIndex = process.argv.indexOf("--out");
-  let genesisPath;
-
-  if (outFlagIndex > -1) {
-    genesisPath = process.argv[outFlagIndex + 1];
-  } else {
-    console.log("Setting out genesis path same as base genesis path");
-    genesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
-  }
-
-  return { baseGenesisPath, genesisPath };
+  console.log(`successfully wrote genesis file to: ${genesisPath}`)
 }
 
 /**
