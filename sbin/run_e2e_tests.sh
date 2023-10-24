@@ -23,7 +23,7 @@ $SBIN/start_l1.sh &
 $SBIN/start_sidecar.sh &
 SIDECAR_PID=$!
 echo "sidecar PID=$SIDECAR_PID"
-$SBIN/start_geth.sh &
+$SBIN/start_sp_geth.sh &
 SP_GETH_PID=$!
 echo "sp-geth PID=$SP_GETH_PID"
 
