@@ -52,11 +52,12 @@ docker exec l1_geth geth attach --exec \
   "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
   $L1_ENDPOINT
 
+CWD=`pwd`
 # Deploy contracts
 echo "Deploying l1 contracts..."
 cd $CONTRACTS_DIR && npx hardhat deploy --network localhost
 
 echo "Generating rollup config..."
-$SBIN/create_rollup_config.sh
+cd $CWD && $SBIN/create_rollup_config.sh
 
 docker logs l1_geth --follow
