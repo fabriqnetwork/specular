@@ -11,4 +11,3 @@ export function parseFlag(flag: string, defaultValue?: string): string {
   if (value === undefined) throw Error(`no value set for "${flag}"`);
   return value;
 }
-
