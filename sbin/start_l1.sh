@@ -18,6 +18,9 @@ echo "Using dotenv: $ENV"
 echo "Force-removing l1_geth container if it exists..."
 docker rm --force l1_geth
 
+echo "Removing localhost deployment artifacts..."
+rm -rf $CONTRACTS_DIR/deployments/localhost
+
 # Start L1 network.
 echo "Starting L1..."
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
@@ -52,5 +55,8 @@ docker exec l1_geth geth attach --exec \
 # Deploy contracts
 echo "Deploying l1 contracts..."
 cd $CONTRACTS_DIR && npx hardhat deploy --network localhost
+
+echo "Generating rollup config..."
+$SBIN/create_rollup_config.sh
 
 docker logs l1_geth --follow
