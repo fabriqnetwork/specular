@@ -42,6 +42,7 @@ args=(
     --authrpc.addr 0.0.0.0 \
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
+    --syncmode=full \
     --miner.recommit 0
 )
 echo "Starting sp-geth..."
