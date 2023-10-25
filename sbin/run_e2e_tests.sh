@@ -5,6 +5,29 @@ ROOT="`cd $SBIN/../; pwd`"
 CONFIG="$ROOT/config"
 . $SBIN/configure.sh
 
+###### PID handling ######
+trap ctrl_c INT
+
+# Active PIDs
+PIDS=()
+
+function cleanup() {
+    echo "Cleaning up..."
+    for pid in "${PIDS[@]}"; do
+	echo "Killing $pid"
+	disown $pid
+	kill $pid
+    done
+    # Clean up
+    $SBIN/clean.sh
+}
+
+function ctrl_c() {
+    cleanup
+}
+
+##########################
+
 $SBIN/clean.sh
 # Copy config files to cwd.
 echo "Copying local_devnet config files to cwd..."
@@ -18,14 +41,19 @@ echo "Using dotenv: $ENV"
 L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
 
 # TODO: improve logs accross these scripts
+# Start L1
 $SBIN/start_l1.sh &
-# TODO: this is not actually working right now
+L1_PID=$!
+PIDS+=$L1_PID
+
+# Start sidecar
 $SBIN/start_sidecar.sh &
 SIDECAR_PID=$!
-echo "sidecar PID=$SIDECAR_PID"
+PIDS+=$SIDECAR_PID
+# Start sp-geth
 $SBIN/start_sp_geth.sh &
 SP_GETH_PID=$!
-echo "sp-geth PID=$SP_GETH_PID"
+PIDS+=$SP_GETH_PID
 
 # Wait for services
 $SBIN/wait-for-it.sh -t 60 $L1_HOST_AND_PORT | sed "s/^/[WAIT] /"
@@ -58,14 +86,5 @@ case $1 in
     ;;
 esac
 
-
-# Kill nodes
-disown $SP_GETH_PID
-disown $SIDECAR_PID
-kill $SP_GETH_PID
-kill $SIDECAR_PID
-
-# Clean up
-$SBIN/clean.sh
-
+cleanup
 exit $RESULT

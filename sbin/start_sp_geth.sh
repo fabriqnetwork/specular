@@ -43,7 +43,8 @@ args=(
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
     --syncmode=full \
-    --miner.recommit 0
+    --miner.recommit 0 \
+    --enableL2EngineApi # TODO: change name
 )
 echo "Starting sp-geth..."
 $SP_GETH "${args[@]}"

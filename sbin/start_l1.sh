@@ -31,8 +31,8 @@ PIDS=()
 function cleanup() {
     echo "Cleaning up..."
     for pid in "${PIDS[@]}"; do
-	echo "Killing $pid"
-	kill $pid
+        echo "Killing $pid"
+        kill $pid
     done
 }
 
