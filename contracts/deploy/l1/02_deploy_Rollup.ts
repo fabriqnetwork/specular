@@ -11,18 +11,23 @@ const CLIENT_SBIN_DIR = `${__dirname}/../../../sbin`;
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
   const execPromise = util.promisify(exec);
-  let initialVMHash = "";
-  const cmd = `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`;
+  const cmd = `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")} | tail -1`;
+  let stdout = "";
   try {
-    const { stdout } = await execPromise(cmd);
-    initialVMHash = (JSON.parse(stdout).root || "") as string;
-    if (!initialVMHash) {
-      throw Error(`root field not found\n${stdout}`);
-    }
-    console.log("initial VM hash:", initialVMHash);
-  } catch (err) {
+      ({ stdout } = await execPromise(cmd));
+  } catch (error) {
     throw Error(`could not export genesis hash: ${err}`);
   }
+  let initialVMHash = "";
+  try {
+    initialVMHash = (JSON.parse(stdout).hash || "") as string;
+  } catch (err) {
+    throw Error(`could not parse ${stdout}: ${err}`);
+  }
+  if (!initialVMHash) {
+     throw Error(`hash not found\n${stdout}`);
+  }
+  console.log("initial VM hash:", initialVMHash);
 
   const { deployments, getNamedAccounts } = hre;
   const { sequencer, validator, deployer } = await getNamedAccounts();
