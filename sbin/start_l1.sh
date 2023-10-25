@@ -1,11 +1,4 @@
-#!/bin/bash
-if [ -z $CONTRACTS_DIR ]; then
-    SBIN=`dirname $0`
-    SBIN="`cd "$SBIN"; pwd`"
-    . $SBIN/configure.sh
-fi
-echo "Using $CONTRACTS_DIR as deployment source"
-
+#!/bin/sh
 # Check that the dotenv exists.
 ENV=".genesis.env"
 if ! test -f $ENV; then
@@ -21,25 +14,6 @@ rm -rf $CONTRACTS_DIR/deployments/localhost
 L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
 echo "Parsed endpoint ($L1_HOST) and port: $L1_WS_PORT from $L1_ENDPOINT"
-
-###### PID handling ######
-trap ctrl_c INT
-
-# Active PIDs
-PIDS=()
-
-function cleanup() {
-    echo "Cleaning up..."
-    for pid in "${PIDS[@]}"; do
-        echo "Killing $pid"
-        kill $pid
-    done
-}
-
-function ctrl_c() {
-    cleanup
-}
-##########################
 
 # Start L1 network.
 echo "Starting L1..."

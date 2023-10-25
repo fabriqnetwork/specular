@@ -1,4 +1,18 @@
 #!/bin/bash
+
+# Enforce that the dotenv exists.
+ENV=".sp_magi.env"
+
+if ! test -f $ENV; then
+    echo "Expected dotenv at $ENV (does not exist)."
+    exit
+fi
+
+echo "Using dotenv: $ENV"
+# TODO: why does this not work
+#. $ENV
+. $(pwd)/$ENV
+
 if [ -z $MAGI ]; then
     # If no binary specified, assume repo directory structure.
     SBIN=`dirname $0`
@@ -6,16 +20,6 @@ if [ -z $MAGI ]; then
     MAGI=$ROOT/services/cl_clients/magi/target/debug/magi
 fi
 echo "Using bin: $MAGI"
-
-# Enforce that the dotenv exists.
-ENV=".sp_magi.env"
-if test -f $ENV; then
-    echo "Using dotenv: $ENV"
-    . $ENV
-else
-    echo "Expected dotenv at $ENV (does not exist)."
-    exit
-fi
 
 # Set sync flags.
 SYNC_FLAGS=""
@@ -48,6 +52,8 @@ CMD="$MAGI \
     $SYNC_FLAGS \
     $DEVNET_FLAGS \
     $SEQUENCER_FLAGS"
+
+sleep 10
 
 echo "$CMD"
 exec $CMD
