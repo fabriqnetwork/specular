@@ -1,11 +1,9 @@
 import { BigNumber, ethers } from "ethers";
-import { exec } from "child_process";
 import { glob } from "glob";
 import { keccak256 } from "ethereumjs-util";
 import hre from "hardhat";
 import fs from "fs";
 import path from "path";
-import util from "node:util";
 import { parseFlag } from "./utils";
 
 type PreDeploy = {
@@ -54,7 +52,7 @@ async function getArtifact(contractName: string) {
       `could not find artifacts for ${contractName}, checking in node_modules/@openzeppelin`
     );
     const paths =
-      await glob(`../contracts/node_modules/@openzeppelin/**/build/**/${contractName}.json`);
+      await glob(`./node_modules/@openzeppelin/**/build/**/${contractName}.json`);
 
     if (paths.length !== 1) throw Error("no unique artifacts found");
 
@@ -69,10 +67,9 @@ async function getArtifact(contractName: string) {
  * unfortunately this is not exposed through the hre directly so we have to get it manually
  * this is following the approach taken by OZ in the HH upgrade plugin, see:
  * https://github.com/OpenZeppelin/openzeppelin-upgrades/blob/1e28bce2b6bae17c024350c98c6e0c511f3091d3/packages/core/src/validate/query.ts#L81
- * @param {string} contractName - unique name of the contract
  * @param {any} artifact - the contracts compilation artifact
  */
-async function getStorageLayout(contractName: string, artifact: any) {
+async function getStorageLayout(artifact: any) {
   const validationsPath = path.join(hre.config.paths.cache, "validations.json");
   const validations = JSON.parse(fs.readFileSync(validationsPath, "utf-8"));
 
@@ -106,7 +103,6 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
     throw Error(`multiple pre-deploys specified for address: ${p.address}`);
   }
 
-  const execPromise = util.promisify(exec);
   const data = new Map();
   let artifact;
   let storageLayout;
@@ -115,7 +111,7 @@ async function parsePreDeploy(p: PreDeploy, alloc: any) {
 
   if (p.contract) {
     artifact = await getArtifact(p.contract);
-    storageLayout = await getStorageLayout(p.contract, artifact);
+    storageLayout = await getStorageLayout(artifact);
     data.set("code", artifact.deployedBytecode);
   }
 

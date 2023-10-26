@@ -1,11 +1,11 @@
 #!/bin/bash
-if [ ! -d "$CONFIG_DIR" ]; then
+if [ ! -d "$CONTRACTS_DIR" ]; then
     SBIN=`dirname $0`
     SBIN="`cd "$SBIN"; pwd`"
     . $SBIN/configure.sh
-    CONFIG_DIR="`cd "$CONFIG_DIR"; pwd`"
+    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
 fi
-echo "Using $CONFIG_DIR as HH proj"
+echo "Using $CONTRACTS_DIR as HH proj"
 
 # Check that the dotenv exists.
 ENV=".genesis.env"
@@ -22,11 +22,11 @@ relpath () {
 }
 
 # Get relative paths, since we have to run `create_genesis.ts` from the HH proj.
-BASE_GENESIS_PATH=`relpath $BASE_GENESIS_PATH $CONFIG_DIR`
-GENESIS_PATH=`relpath $GENESIS_PATH $CONFIG_DIR`
+BASE_GENESIS_PATH=`relpath $BASE_GENESIS_PATH $CONTRACTS_DIR`
+GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
 
 # Create genesis.json file.
-cd $CONFIG_DIR && npx ts-node src/create_genesis.ts --in $BASE_GENESIS_PATH --out $GENESIS_PATH
+cd $CONTRACTS_DIR && npx ts-node scripts/config/create_genesis.ts --in $BASE_GENESIS_PATH --out $GENESIS_PATH
 
 # If the contracts directory exists, initialize a reference to the genesis file at
 # "contracts/.genesis" (using relative paths as appropriate).

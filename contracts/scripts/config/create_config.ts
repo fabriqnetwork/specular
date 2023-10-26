@@ -11,7 +11,7 @@ type RawLog = {
 async function main() {
   const baseConfigPath = parseFlag("--in")
   const configPath = parseFlag("--out")
-  const deploymentsPath = parseFlag("--deployments", "../contracts/deployments/localhost")
+  const deploymentsPath = parseFlag("--deployments", "./deployments/localhost")
   await generateConfigFile(baseConfigPath, configPath, deploymentsPath);
 }
 
