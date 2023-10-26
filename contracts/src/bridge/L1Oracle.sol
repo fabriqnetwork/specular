@@ -65,13 +65,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
      * @param _hash L1 block hash.
      * @param _stateRoot L1 stateRoot.
      */
-    function setL1OracleValues(
-        uint256 _number,
-        uint256 _timestamp,
-        uint256 _baseFee,
-        bytes32 _hash,
-        bytes32 _stateRoot
-    )
+    function setL1OracleValues(uint256 _number, uint256 _timestamp, uint256 _baseFee, bytes32 _hash, bytes32 _stateRoot)
         external
         onlyCoinbase
         whenNotPaused
