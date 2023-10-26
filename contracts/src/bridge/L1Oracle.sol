@@ -8,19 +8,14 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/
 
 contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     /**
-     * @notice Emitted when the L1 stateRoot is updated.
-     */
-    event L1OracleValuesUpdated(uint256 blockNumber, bytes32 stateRoot, uint256 baseFee);
-
-    /**
      * @notice The latest L1 block number known by the L2 system.
      */
-    uint256 public blockNumber;
+    uint256 public number;
 
     /**
-     * @notice The latest L1 stateRoot known by the L2 system.
+     * @notice The latest L1 block timestamp known by the L2 system.
      */
-    bytes32 public stateRoot;
+    uint256 public timestamp;
 
     /**
      * @notice The latest L1 base fee known by the L2 system.
@@ -28,9 +23,14 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
     uint256 public baseFee;
 
     /**
-     * @notice The address of the L2 sequencer.
+     * @notice The latest L1 block hash known by the L2 system.
      */
-    address public sequencer;
+    bytes32 public hash;
+
+    /**
+     * @notice The latest L1 stateRoot known by the L2 system.
+     */
+    bytes32 public stateRoot;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -39,10 +39,8 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
 
     /**
      * @notice Initializer;
-     * @param _sequencer The address of the L2 sequencer.
      */
-    function initialize(address _sequencer) public initializer {
-        sequencer = _sequencer;
+    function initialize() public initializer {
         __Ownable_init();
         __Pausable_init();
         __UUPSUpgradeable_init();
@@ -61,35 +59,35 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
     /**
      * @notice Updates the L1 block values.
      *
-     * @param _blockNumber L1 blockNumber.
-     * @param _stateRoot L1 stateRoot.
+     * @param _number L1 block number.
+     * @param _timestamp L1 timestamp.
      * @param _baseFee L1 baseFee.
+     * @param _hash L1 block hash.
+     * @param _stateRoot L1 stateRoot.
      */
-    function setL1OracleValues(uint256 _blockNumber, bytes32 _stateRoot, uint256 _baseFee)
+    function setL1OracleValues(
+        uint256 _number,
+        uint256 _timestamp,
+        uint256 _baseFee,
+        bytes32 _hash,
+        bytes32 _stateRoot
+    )
         external
-        onlySequencer
+        onlyCoinbase
         whenNotPaused
     {
-        blockNumber = _blockNumber;
-        stateRoot = _stateRoot;
+        number = _number;
+        timestamp = _timestamp;
         baseFee = _baseFee;
-        emit L1OracleValuesUpdated(blockNumber, _stateRoot, _baseFee);
+        hash = _hash;
+        stateRoot = _stateRoot;
     }
 
     /**
-     * @notice Updates the L2 sequencer address.
-     *
-     * @param _sequencer L2 sequencer address.
+     * @notice Modifier to check if the caller is the coinbase.
      */
-    function setSequencer(address _sequencer) external onlyOwner {
-        sequencer = _sequencer;
-    }
-
-    /**
-     * @notice Modifier to check if the caller is the sequencer.
-     */
-    modifier onlySequencer() {
-        require(msg.sender == sequencer, "Only the sequencer can call this function.");
+    modifier onlyCoinbase() {
+        require(msg.sender == block.coinbase, "Only the coinbase can call this function.");
         _;
     }
 }
