@@ -19,10 +19,12 @@ async function main() {
   const baseGenesisPath = parseFlag("--in")
   const defaultGenesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
   const genesisPath = parseFlag("--out", defaultGenesisPath)
-  await generateGenesisFile(baseGenesisPath, genesisPath);
+  const l1Network = parseFlag("--l1network")
+  await generateGenesisFile(l1Network, baseGenesisPath, genesisPath);
 }
 
 export async function generateGenesisFile(
+  l1Network: string,
   baseGenesisPath: string,
   genesisPath: string
 ) {
@@ -35,6 +37,15 @@ export async function generateGenesisFile(
 
   baseGenesis.preDeploy = undefined;
   baseGenesis.alloc = Object.fromEntries(alloc);
+
+  try {
+    const provider = new ethers.providers.WebSocketProvider(l1Network)
+    const block = await provider.getBlock("safe")
+    baseGenesis.timestamp = block.timestamp
+    provider._websocket.terminate();
+  } catch (error) {
+    console.error(`could not get l1 safe block from network: ${l1Network}, error: ${error}`);
+  }
 
   fs.writeFileSync(genesisPath, JSON.stringify(baseGenesis, null, 2), "utf-8");
   console.log(`successfully wrote genesis file to: ${genesisPath}`)
