@@ -25,16 +25,16 @@ relpath () {
 BASE_ROLLUP_CFG_PATH=`relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR`
 ROLLUP_CFG_PATH=`relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR`
 
-cd $CONTRACTS_DIR
 echo "Generating genesis..."
 $SBIN/create_genesis.sh
 
 # echo "Deploying l1 contracts..."
-# npx hardhat deploy --network localhost
-# echo "Generating rollup config..."
-# npx ts-node scripts/config/create_config.ts \
-#   --in $BASE_ROLLUP_CFG_PATH \
-#   --out $ROLLUP_CFG_PATH \
-#   --l1-network $L1_ENDPOINT
+cd $CONTRACTS_DIR
+npx hardhat deploy --network localhost
+echo "Generating rollup config..."
+npx ts-node scripts/config/create_config.ts \
+  --in $BASE_ROLLUP_CFG_PATH \
+  --out $ROLLUP_CFG_PATH \
+  --l1-network $L1_ENDPOINT
 
 echo "Done."
