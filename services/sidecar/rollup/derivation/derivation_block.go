@@ -61,12 +61,17 @@ func BlocksFromData(calldata []any) ([]DerivationBlock, error) {
 	}
 
 	txBatchVersion := txBatchData[0]
-	if txBatchVersion != TxBatchVersion() {
-		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid tx batch version")}
+	switch txBatchVersion {
+	case 0:
+		return blocksFromV0Data(txBatchData[1:])
+	default:
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid tx batch version: {%d}", txBatchVersion)}
 	}
+}
 
+func blocksFromV0Data(v0Data []byte) ([]DerivationBlock, error) {
 	var decodedBatch BatchAttributes
-	if err := rlp.Decode(bytes.NewReader(txBatchData[:1]), &decodedBatch); err != nil {
+	if err := rlp.Decode(bytes.NewReader(v0Data), &decodedBatch); err != nil {
 		return nil, err
 	}
 

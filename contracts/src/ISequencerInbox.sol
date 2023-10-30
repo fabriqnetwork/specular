@@ -36,10 +36,10 @@ interface ISequencerInbox is IDAProvider {
     /// @dev Thrown when sequencer tries to append an empty batch
     error EmptyBatch();
 
-    /// @dev Thrown when underflow occurs reading txBatch
+    /// @dev Thrown when underflow occurs reading txBatchData
     error TxBatchDataUnderflow();
 
-    /// @dev Thrown when overflow occurs reading txBatch
+    /// @dev Thrown when overflow occurs reading txBatchData
     error TxBatchDataOverflow();
 
     /// @dev Thrown when a transaction batch has an incorrect version

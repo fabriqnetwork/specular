@@ -172,6 +172,11 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
+    function confirmedBlockNum() public view override returns (uint256) {
+        return assertions[lastConfirmedAssertionID].blockNum;
+    }
+
+    /// @inheritdoc IRollup
     function getStaker(address addr) external view override returns (Staker memory) {
         return stakers[addr];
     }

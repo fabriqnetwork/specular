@@ -33,9 +33,9 @@ func NewTxManager(txMgr EthTxManager, cfg bridgeConfig) (*TxManager, error) {
 
 func (m *TxManager) AppendTxBatch(
 	ctx context.Context,
-	txBatch *[]byte,
+	txBatchData []byte,
 ) (*types.Receipt, error) {
-	data, err := packAppendTxBatchInput(txBatch)
+	data, err := packAppendTxBatchInput(txBatchData)
 	if err != nil {
 		return nil, err
 	}

@@ -175,6 +175,11 @@ interface IRollup {
     function currentRequiredStake() external view returns (uint256);
 
     /**
+     * @return confirmedBlockNum size of inbox confirmed
+     */
+    function confirmedBlockNum() external view returns (uint256);
+
+    /**
      * @notice Requires that the first unresolved assertion is confirmable. Otherwise, reverts.
      * This is exposed as a utility function to validators.
      */

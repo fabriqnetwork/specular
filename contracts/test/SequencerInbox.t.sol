@@ -94,9 +94,10 @@ contract SequencerInboxTest is SequencerBaseSetup {
         seqIn.appendTxBatch(hex"00");
     }
 
-    function test_appendTxBatch_emptyBatch_succeeds() public {
+    function test_appendTxBatch_invalidVersion_reverts() public {
+        vm.expectRevert(ISequencerInbox.TxBatchVersionIncorrect.selector);
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(hex"00");
+        seqIn.appendTxBatch(hex"01"); // version 0 is the only valid version
     }
 
     //////////////////////////////

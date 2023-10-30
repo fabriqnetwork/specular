@@ -2,6 +2,7 @@ package derivation
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -16,7 +17,7 @@ type batchBuilder struct {
 	maxBatchSize uint64
 
 	pendingBlocks  []DerivationBlock
-	builtBatchData *[]byte
+	builtBatchData []byte
 
 	lastAppended types.BlockID
 }
@@ -70,7 +71,7 @@ func (b *batchBuilder) Reset(lastAppended types.BlockID) {
 
 // This short-circuits the build process if a batch is
 // already built and `Advance` hasn't been called.
-func (b *batchBuilder) Build() (*[]byte, error) {
+func (b *batchBuilder) Build() ([]byte, error) {
 	if b.builtBatchData != nil {
 		return b.builtBatchData, nil
 	}
@@ -86,7 +87,7 @@ func (b *batchBuilder) Build() (*[]byte, error) {
 		return nil, fmt.Errorf("failed to encode batch: %w", err)
 	}
 
-	b.builtBatchData = &batchData
+	b.builtBatchData = batchData
 	return b.builtBatchData, nil
 }
 
@@ -95,6 +96,10 @@ func (b *batchBuilder) Advance() {
 }
 
 func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
+	if len(b.pendingBlocks) == 0 {
+		return nil, errors.New("no pending blocks")
+	}
+
 	var (
 		block  DerivationBlock
 		idx    int
@@ -122,7 +127,7 @@ func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 	}
 	// Construct batch attributes.
 	attrs := &BatchAttributes{firstL2BlockNumber, blocks}
-	log.Info("Serialized l2 blocks", "first", firstL2BlockNumber, "last", b.pendingBlocks[idx].BlockNumber())
+	log.Info("Serialized l2 blocks", "first", firstL2BlockNumber, "last", block.BlockNumber())
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[idx+1:]
 	log.Trace("Advanced pending blocks", "len", len(b.pendingBlocks))
