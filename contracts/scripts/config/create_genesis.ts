@@ -16,8 +16,8 @@ type PreDeploy = {
 async function main() {
   const baseGenesisPath = parseFlag("--in")
   const defaultGenesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
-  const genesisPath = parseFlag("--out", defaultGenesisPath)
-  const l1RpcUrl = parseFlag("--l1-rpc-url")
+  const genesisPath = parseFlag("--out", defaultGenesisPath);
+  const l1RpcUrl = parseFlag("--l1-rpc-url");
   await generateGenesisFile(baseGenesisPath, genesisPath, l1RpcUrl);
 }
 
@@ -38,6 +38,7 @@ export async function generateGenesisFile(
 
   // ethers v6 provides a better handle to close the websocket,
   // but we need to do this in v5 so the script terminates
+  console.log("trying to get latest safe block");
   try {
     const provider = new ethers.providers.WebSocketProvider(l1RpcUrl)
     const block = await provider.getBlock("safe")

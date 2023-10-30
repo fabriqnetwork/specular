@@ -24,6 +24,7 @@ relpath () {
 # Get relative paths, since we have to run `create_genesis.ts` from the HH proj.
 BASE_ROLLUP_CFG_PATH=`relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR`
 ROLLUP_CFG_PATH=`relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR`
+GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
 
 echo "Generating genesis..."
 $SBIN/create_genesis.sh
@@ -35,6 +36,7 @@ echo "Generating rollup config..."
 npx ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
+  --genesis $GENESIS_PATH \
   --l1-network $L1_ENDPOINT
 
 echo "Done."
