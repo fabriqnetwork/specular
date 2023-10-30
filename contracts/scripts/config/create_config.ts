@@ -51,7 +51,7 @@ export async function generateConfigFile(
   baseConfig.genesis.l1.number = l1Number;
   baseConfig.genesis.l2.hash = l2Hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
-  baseConfig.genesis.l2_time = genesis.l2_time;
+  baseConfig.genesis.l2_time = genesis.timestamp;
 
   fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
   console.log(`successfully wrote config to: ${configPath}`)
