@@ -17,12 +17,14 @@ async function main() {
   const baseGenesisPath = parseFlag("--in")
   const defaultGenesisPath = path.join(path.dirname(baseGenesisPath), "genesis.json");
   const genesisPath = parseFlag("--out", defaultGenesisPath)
-  await generateGenesisFile(baseGenesisPath, genesisPath);
+  const l1RpcUrl = parseFlag("--l1-rpc-url")
+  await generateGenesisFile(baseGenesisPath, genesisPath, l1RpcUrl);
 }
 
 export async function generateGenesisFile(
   baseGenesisPath: string,
-  genesisPath: string
+  genesisPath: string,
+  l1RpcUrl: string
 ) {
   const baseGenesis = JSON.parse(fs.readFileSync(baseGenesisPath, "utf-8"));
 
@@ -33,6 +35,17 @@ export async function generateGenesisFile(
 
   baseGenesis.preDeploy = undefined;
   baseGenesis.alloc = Object.fromEntries(alloc);
+
+  // ethers v6 provides a better handle to close the websocket,
+  // but we need to do this in v5 so the script terminates
+  try {
+    const provider = new ethers.providers.WebSocketProvider(l1RpcUrl)
+    const block = await provider.getBlock("safe")
+    baseGenesis.timestamp = block.timestamp
+    provider._websocket.terminate();
+  } catch (error) {
+    console.error(`could not get l1 safe block from network: ${l1RpcUrl}, error: ${error}`);
+  }
 
   fs.writeFileSync(genesisPath, JSON.stringify(baseGenesis, null, 2), "utf-8");
   console.log(`successfully wrote genesis file to: ${genesisPath}`)

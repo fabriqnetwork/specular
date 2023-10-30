@@ -42,8 +42,7 @@ This guide will walk you through how to set up a local devnet containing an L2 s
 To configure a local devnet, you can just use an existing example from `config` as-is.
 ```sh
 mkdir workspace
-# Copy all config files
-cp -a config/deployments/local_devnet/. workspace/
+cp -a config/local_devnet/. workspace/ # copy all config files
 ```
 
 This copies multiple dotenv files (below) which are expected by scripts to be in the current directory.
@@ -59,27 +58,26 @@ Some of these env files also reference the `genesis.json` and `rollup.json` used
 From the same directory, run the following scripts to initialize a new L1 chain and deploy the protocol contracts.
 ```sh
 cd workspace
-# Generate the genesis json file
-../sbin/create_genesis.sh
-# Start L1, deploy contracts and generate the rollup json file
+# Terminal #1
 ../sbin/start_l1.sh
 ```
 
 ### Start an L2 node
 
 ```sh
-# Terminal #2: start L2-EL client
+# Terminal #2
+../sbin/deploy_l1_contracts.sh
 ../sbin/start_sp_geth.sh
-# Terminal #3: start L2-CL client
+# Terminal #3
 ../sbin/start_sp_magi.sh
-# Terminal #4: start sidecar
+# Terminal #4
 ../sbin/start_sidecar.sh
 ```
 
 At this point, you'll have two chains started with the following parameters
 - L2: chain ID `13527`, with a sequencer exposed on ports `4011` (http) and `4012` (ws).
 - L1: chain ID `31337`, on port `8545` (ws).
-To restart/clear network state, run `./sbin/clean.sh`.
+To restart/clear network state, run `../sbin/clean.sh`.
 
 ### Transact using MetaMask
 

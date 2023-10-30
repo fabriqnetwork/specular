@@ -26,24 +26,25 @@ BASE_GENESIS_PATH=`relpath $BASE_GENESIS_PATH $CONTRACTS_DIR`
 GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
 
 # Create genesis.json file.
-cd $CONTRACTS_DIR && npx ts-node scripts/config/create_genesis.ts --in $BASE_GENESIS_PATH --out $GENESIS_PATH
+cd $CONTRACTS_DIR
+npx ts-node scripts/config/create_genesis.ts \
+    --in $BASE_GENESIS_PATH \
+    --out $GENESIS_PATH \
+    --l1-rpc-url $L1_ENDPOINT
 
-# If the contracts directory exists, initialize a reference to the genesis file at
+# Initialize a reference to the genesis file at
 # "contracts/.genesis" (using relative paths as appropriate).
-if [ -d "$CONTRACTS_DIR" ]; then
-    CONTRACTS_DIR=`cd $CONTRACTS_DIR; pwd`
-    CONTRACTS_ENV=$CONTRACTS_DIR/$ENV
-    # If it already exists, check if we should overwrite the file.
-    if test -f $CONTRACTS_ENV; then
-        read -r -p "Overwrite $CONTRACTS_ENV with a new file? [y/N] " response
-        if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-            rm $CONTRACTS_ENV
-        else
-            exit
-        fi
+CONTRACTS_ENV=$CONTRACTS_DIR/$ENV
+# If it already exists, check if we should overwrite the file.
+if test -f $CONTRACTS_ENV; then
+    read -r -p "Overwrite $CONTRACTS_ENV with a new file? [y/N] " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+	rm $CONTRACTS_ENV
+    else
+	exit
     fi
-    # Write file, using relative paths.
-    echo "Initializing $CONTRACTS_ENV"
-    GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
-    echo GENESIS_PATH=$GENESIS_PATH >> $CONTRACTS_ENV
 fi
+# Write file, using relative paths.
+echo "Initializing $CONTRACTS_ENV"
+GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
+echo GENESIS_PATH=$GENESIS_PATH >> $CONTRACTS_ENV

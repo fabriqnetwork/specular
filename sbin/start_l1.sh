@@ -18,7 +18,6 @@ echo "Using dotenv: $ENV"
 echo "Removing localhost deployment artifacts..."
 rm -rf $CONTRACTS_DIR/deployments/localhost
 
-CWD=`pwd`
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
 echo "Parsed port: $L1_WS_PORT from $L1_ENDPOINT"
 
@@ -82,13 +81,6 @@ else
     echo "invalid value for L1_STACK: $L1_STACK"
     exit 1
 fi
-
-# Deploy contracts
-echo "Deploying l1 contracts..."
-cd $CONTRACTS_DIR && npx hardhat deploy --network localhost
-
-echo "Generating rollup config..."
-cd $CWD && $SBIN/create_rollup_config.sh
 
 # Follow output
 if [ $L1_STACK = "geth" ]; then
