@@ -140,6 +140,9 @@ func (c SequencerConfig) GetTxMgrCfg() txmgr.Config               { return c.TxM
 
 // Validates the configuration.
 func (c SequencerConfig) validate() error {
+	if !c.IsEnabled {
+		return nil
+	}
 	if c.SecretKey == nil && c.ClefEndpoint == "" {
 		return fmt.Errorf("missing both secret key and clef endpoint (require at least one)")
 	}
@@ -184,6 +187,9 @@ func (c ValidatorConfig) GetTxMgrCfg() txmgr.Config            { return c.TxMgrC
 
 // Validates the configuration.
 func (c ValidatorConfig) validate() error {
+	if !c.IsEnabled {
+		return nil
+	}
 	if c.SecretKey == nil && c.ClefEndpoint == "" {
 		return fmt.Errorf("missing both secret key and clef endpoint (require at least one)")
 	}
