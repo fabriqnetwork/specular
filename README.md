@@ -67,6 +67,7 @@ cd workspace
 ```sh
 # Terminal #2
 ../sbin/deploy_l1_contracts.sh
+../sbin/create_genesis.sh
 ../sbin/start_sp_geth.sh
 # Terminal #3
 ../sbin/start_sp_magi.sh
