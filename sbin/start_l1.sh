@@ -18,9 +18,9 @@ echo "Using dotenv: $ENV"
 echo "Removing localhost deployment artifacts..."
 rm -rf $CONTRACTS_DIR/deployments/localhost
 
-CWD=`pwd`
+L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
-echo "Parsed port: $L1_WS_PORT from $L1_ENDPOINT"
+echo "Parsed endpoint ($L1_HOST) and port: $L1_WS_PORT from $L1_ENDPOINT"
 
 ###### PID handling ######
 trap ctrl_c INT
@@ -43,7 +43,7 @@ function ctrl_c() {
 
 # Start L1 network.
 echo "Starting L1..."
-if [ $L1_STACK = "geth" ]; then
+if [ "$L1_STACK" = "geth" ]; then
     echo "Force-removing l1_geth container if it exists..."
     docker rm --force l1_geth
     docker run -d \
@@ -72,8 +72,8 @@ if [ $L1_STACK = "geth" ]; then
     docker exec l1_geth geth attach --exec \
       "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
       $L1_ENDPOINT
-elif [ $L1_STACK = "hardhat" ]; then
-    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --port $L1_WS_PORT &
+elif [ "$L1_STACK" = "hardhat" ]; then
+    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_WS_PORT &
     L1_PID=$!
     PIDS+=$L1_PID
     echo "L1 PID: $L1_PID"
@@ -83,16 +83,9 @@ else
     exit 1
 fi
 
-# Deploy contracts
-echo "Deploying l1 contracts..."
-cd $CONTRACTS_DIR && npx hardhat deploy --network localhost
-
-echo "Generating rollup config..."
-cd $CWD && $SBIN/create_rollup_config.sh
-
 # Follow output
-if [ $L1_STACK = "geth" ]; then
+if [ "$L1_STACK" = "geth" ]; then
     docker logs l1_geth --follow
-elif [ $L1_STACK = "hardhat" ]; then
+elif [ "$L1_STACK" = "hardhat" ]; then
     tail -f $PID
 fi

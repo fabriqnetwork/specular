@@ -9,10 +9,11 @@ type RawLog = {
 }
 
 async function main() {
-  const baseConfigPath = parseFlag("--in")
-  const configPath = parseFlag("--out")
-  const deploymentsPath = parseFlag("--deployments", "./deployments/localhost")
-  await generateConfigFile(baseConfigPath, configPath, deploymentsPath);
+  const baseConfigPath = parseFlag("--in");
+  const configPath = parseFlag("--out");
+  const genesisPath = parseFlag("--genesis");
+  const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
+  await generateConfigFile(baseConfigPath, configPath, genesisPath, deploymentsPath);
 }
 
 /**
@@ -22,6 +23,7 @@ async function main() {
 export async function generateConfigFile(
   baseConfigPath: string,
   configPath: string,
+  genesisPath: string,
   deploymentsPath: string
 ) {
   // check the deployments dir - error out if it is not there
@@ -43,12 +45,15 @@ export async function generateConfigFile(
     .pop()
 
   // write out new file
+  // TODO: use on-chain data-only or genesis-only
   const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"))
   baseConfig.genesis.l1.hash = l1Hash;
   baseConfig.genesis.l1.number = l1Number;
   baseConfig.genesis.l2.hash = l2Hash;
+  const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
+  baseConfig.genesis.l2_time = genesis.timestamp;
 
-  fs.writeFileSync(configPath, JSON.stringify(baseConfig));
+  fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
   console.log(`successfully wrote config to: ${configPath}`)
 }
 

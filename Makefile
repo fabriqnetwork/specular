@@ -63,7 +63,7 @@ $(CONTRACTS_TARGET): $(CONTRACTS_SRC) $(shell find $(CONTRACTS_DIR) -type f -nam
 $(GETH_BIN_TARGET):
 	cd $(GETH_SRC) && GOFLAGS="-buildvcs=false" $(MAKE) geth
 
-$(MAGI_BIN_TARGET):
+$(MAGI_BIN_TARGET): $(shell find $(MAGI_DIR) -type f -name "*.rs")
 	cd $(MAGI_DIR) && cargo build
 
 #$(CLEF_TARGET): $(CLEF_SRC)

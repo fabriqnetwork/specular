@@ -1,5 +1,4 @@
 #!/bin/bash
-# TODO: rename this file to start_sp_geth.sh to disambiguate
 if [ -z $SP_GETH ]; then
     # If no binary specified, assume repo directory structure.
     SBIN=`dirname $0`
