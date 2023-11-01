@@ -29,12 +29,17 @@ guard_overwrite () {
 	if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
 	    rm $1
 	else
-	    exit 1
+	    exit
 	fi
     fi
 }
 
-# Get relative paths, since we have to run `create_genesis.ts` from the HH proj.
+# Copy .contracts.env
+guard_overwrite $CONTRACTS_DIR/.env
+cp .contracts.env $CONTRACTS_DIR/.env
+
+# Get relative paths, since we have to run `create_genesis.ts`
+# and `create_config.ts` from the HH proj.
 BASE_ROLLUP_CFG_PATH=`relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR`
 ROLLUP_CFG_PATH=`relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR`
 GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`

@@ -48,14 +48,15 @@ cp -a config/local_devnet/. workspace/ # copy all config files
 This copies multiple dotenv files (below) which are expected by scripts to be in the current directory.
 Some of these env files also reference the `genesis.json` and `rollup.json` used to configure the protocol.
 ```sh
-.genesis.env # Expected by `start_l1.sh` (not necessary for existing chains)
-.sp_geth.env # Expected by `start_sp_geth.sh`
-.sp_magi.env # Expected by `start_sp_magi.sh`
-.sidecar.env # Expected by `start_sidecar.sh`
+.genesis.env   # Expected by `start_l1.sh`, `deploy_l1_contracts.sh` (not necessary for existing chains)
+.contracts.env # Expected by `deploy_l1_contracts.sh`
+.sp_geth.env   # Expected by `start_sp_geth.sh`
+.sp_magi.env   # Expected by `start_sp_magi.sh`
+.sidecar.env   # Expected by `start_sidecar.sh`
 ```
 
 ### Start L1
-From the same directory, run the following scripts to initialize a new L1 chain and deploy the protocol contracts.
+Run the below script to initialize a new L1 chain.
 ```sh
 cd workspace
 # Terminal #1
@@ -63,11 +64,10 @@ cd workspace
 ```
 
 ### Start an L2 node
-
+Deploy the L1 contracts on the newly started chain, and spin up all services required to run an L2 node.
 ```sh
 # Terminal #2
-../sbin/deploy_l1_contracts.sh
-../sbin/start_sp_geth.sh
+../sbin/deploy_l1_contracts.sh && ../sbin/start_sp_geth.sh
 # Terminal #3
 ../sbin/start_sp_magi.sh
 # Terminal #4
