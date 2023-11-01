@@ -16,7 +16,8 @@
     "grayGlacierBlock": 0,
     "MergeNetsplitBlock": 0,
     "TerminalTotalDifficulty": 0,
-    "TerminalTotalDifficultyPassed": true
+    "TerminalTotalDifficultyPassed": true,
+    "enableL2GasLimitApi": true
   },
   "difficulty": "0",
   "gasLimit": "8000000",
