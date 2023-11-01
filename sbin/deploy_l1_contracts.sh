@@ -8,13 +8,18 @@ fi
 echo "Using $CONTRACTS_DIR as HH proj"
 
 # Check that the dotenv exists.
-ENV=".genesis.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
+GENESIS_ENV=".genesis.env"
+if ! test -f $GENESIS_ENV; then
+    echo "Expected dotenv at $GENESIS_ENV (does not exist)."
     exit
 fi
-echo "Using dotenv: $ENV"
-. $ENV
+echo "Using genesis dotenv: $GENESIS_ENV"
+. $GENESIS_ENV
+CONTRACTS_ENV=".contracts.env"
+if  ! test -f $CONTRACTS_ENV; then
+    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
+    exit
+fi
 
 # Define a function to convert a path to be relative to another directory.
 relpath () {
@@ -36,7 +41,7 @@ guard_overwrite () {
 
 # Copy .contracts.env
 guard_overwrite $CONTRACTS_DIR/.env
-cp .contracts.env $CONTRACTS_DIR/.env
+cp $CONTRACTS_ENV $CONTRACTS_DIR/.env
 
 # Get relative paths, since we have to run `create_genesis.ts`
 # and `create_config.ts` from the HH proj.
@@ -47,10 +52,12 @@ GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
 # Generate genesis file
 $SBIN/create_genesis.sh
 
+# Deploy contracts
 cd $CONTRACTS_DIR
 echo "Deploying l1 contracts..."
 npx hardhat deploy --network localhost
 
+# Generate rollup config
 echo "Generating rollup config..."
 guard_overwrite $ROLLUP_CFG_PATH
 npx ts-node scripts/config/create_config.ts \
