@@ -21,12 +21,27 @@ relpath () {
     echo `python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"`
 }
 
+# Define a function that requests a user to confirm
+# that overwriting file ($1) is okay, if it exists.
+guard_overwrite () {
+    if test -f $1; then
+	read -r -p "Overwrite $1 with a new file? [y/N] " response
+	if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+	    rm $1
+	else
+	    exit
+	fi
+    fi
+}
+
 # Get relative paths, since we have to run `create_genesis.ts` from the HH proj.
 BASE_GENESIS_PATH=`relpath $BASE_GENESIS_PATH $CONTRACTS_DIR`
 GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
 
 # Create genesis.json file.
+echo "Generating new genesis file at $GENESIS_PATH"
 cd $CONTRACTS_DIR
+guard_overwrite $GENESIS_PATH
 npx ts-node scripts/config/create_genesis.ts \
     --in $BASE_GENESIS_PATH \
     --out $GENESIS_PATH \
@@ -35,15 +50,7 @@ npx ts-node scripts/config/create_genesis.ts \
 # Initialize a reference to the genesis file at
 # "contracts/.genesis" (using relative paths as appropriate).
 CONTRACTS_ENV=$CONTRACTS_DIR/$ENV
-# If it already exists, check if we should overwrite the file.
-if test -f $CONTRACTS_ENV; then
-    read -r -p "Overwrite $CONTRACTS_ENV with a new file? [y/N] " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-	rm $CONTRACTS_ENV
-    else
-	exit
-    fi
-fi
+guard_overwrite $CONTRACTS_ENV
 # Write file, using relative paths.
 echo "Initializing $CONTRACTS_ENV"
 GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`

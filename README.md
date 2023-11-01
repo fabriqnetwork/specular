@@ -48,7 +48,7 @@ cp -a config/local_devnet/. workspace/ # copy all config files
 This copies multiple dotenv files (below) which are expected by scripts to be in the current directory.
 Some of these env files also reference the `genesis.json` and `rollup.json` used to configure the protocol.
 ```sh
-.genesis.env # Expected by `create_genesis.sh` and `start_l1.sh` (not necessary for existing chains)
+.genesis.env # Expected by `start_l1.sh` (not necessary for existing chains)
 .sp_geth.env # Expected by `start_sp_geth.sh`
 .sp_magi.env # Expected by `start_sp_magi.sh`
 .sidecar.env # Expected by `start_sidecar.sh`
@@ -77,7 +77,8 @@ cd workspace
 At this point, you'll have two chains started with the following parameters
 - L2: chain ID `13527`, with a sequencer exposed on ports `4011` (http) and `4012` (ws).
 - L1: chain ID `31337`, on port `8545` (ws).
-To restart/clear network state, run `../sbin/clean.sh`.
+To clear L2 network state, run `../sbin/clean_sp_geth.sh`.
+To clear the L1 deployment, run `../sbin/clean_deployment.sh`.
 
 ### Transact using MetaMask
 
