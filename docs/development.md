@@ -24,10 +24,25 @@ slither .
 ```
 
 ## Testing
+
 **TODO**
 
 ### Test system locally
-See `e2e.md`.
+
+**TODO**
+
+To use the local deployment scripts in `sbin`, you'll need the following dotenv files.
+```sh
+.genesis.env   # Expected by `start_l1.sh` & `deploy_l1_contracts.sh` (not necessary for existing chains)
+.contracts.env # Expected by `deploy_l1_contracts.sh`
+.sp_geth.env   # Expected by `start_sp_geth.sh`
+.sp_magi.env   # Expected by `start_sp_magi.sh`
+.sidecar.env   # Expected by `start_sidecar.sh`
+```
+See `config/example/` for documentation for each dotenv.
+Some of these env files also reference the `genesis.json` and `rollup.json` used to configure the protocol.
+
+See `e2e.md` for running E2E tests.
 
 ### Test system manually
 Given a running local devnet, you can transact with your wallet (e.g. MetaMask) to send transactions to the sequencer.
