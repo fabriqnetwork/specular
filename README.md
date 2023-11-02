@@ -2,7 +2,9 @@
 
 Specular is an L2 system designed to scale Ethereum securely, with minimal additional trust assumptions. Specifically, it is an EVM-native optimistic rollup, relying on existing Ethereum infrastructure both to bootstrap protocol security and to enable native compatibility for all existing Ethereum applications & tooling.
 
-This repository contains the L1 protocol contracts and L2 node software. The source is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) (unless otherwise specified)—see <a href="./LICENSE.md">`LICENSE`</a> for details. **Warning**: This repository is a prototype and should not be used in production yet.
+This repository contains the L1 protocol contracts and L2 node software. The source is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0) (unless otherwise specified)—see <a href="./LICENSE.md">LICENSE</a> for details.
+
+**Warning**: This repository is a prototype and should not be used in production yet.
 
 ## For developers
 
@@ -33,7 +35,7 @@ Note: the commands that follow below assume you are in the project root director
 
 ### Configure network
 
-To configure a local devnet, you can just use an existing example from <a href="./config/">config`</a> as-is.
+To configure a local devnet, you can just use an existing example from <a href="./config/">config</a> as-is.
 ```sh
 mkdir workspace
 cp -a config/local_devnet/. workspace/ # copy all config files

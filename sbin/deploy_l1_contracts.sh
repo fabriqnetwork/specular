@@ -1,7 +1,29 @@
 #!/bin/bash
+SBIN=`dirname $0`
+SBIN="`cd "$SBIN"; pwd`"
+# Parse args.
+optspec=":ch:"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        c)
+	    echo "Cleaning..."
+	    $SBIN/clean_deployment.sh
+	    ;;
+        h)
+            echo "usage: $0 [-c][-h]"
+	    echo "-c : clean before running"
+            exit
+            ;;
+        *)
+            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+                echo "Unknown option: '-${OPTARG}'"
+		exit 1
+            fi
+            ;;
+    esac
+done
+
 if [ ! -d "$CONTRACTS_DIR" ]; then
-    SBIN=`dirname $0`
-    SBIN="`cd "$SBIN"; pwd`"
     . $SBIN/configure.sh
     CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
 fi
@@ -9,14 +31,14 @@ echo "Using $CONTRACTS_DIR as HH proj"
 
 # Check that the dotenv exists.
 GENESIS_ENV=".genesis.env"
-if ! test -f $GENESIS_ENV; then
+if ! test -f "$GENESIS_ENV"; then
     echo "Expected dotenv at $GENESIS_ENV (does not exist)."
     exit
 fi
 echo "Using genesis dotenv: $GENESIS_ENV"
 . $GENESIS_ENV
 CONTRACTS_ENV=".contracts.env"
-if  ! test -f $CONTRACTS_ENV; then
+if  ! test -f "$CONTRACTS_ENV"; then
     echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
     exit
 fi
