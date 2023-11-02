@@ -53,7 +53,8 @@ CMD="$MAGI \
     $DEVNET_FLAGS \
     $SEQUENCER_FLAGS"
 
-sleep 10
+# TODO: wait for config.json to be generated
+sleep 15
 
 echo "$CMD"
 exec $CMD

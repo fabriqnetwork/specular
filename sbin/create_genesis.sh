@@ -1,12 +1,4 @@
 #!/bin/bash
-if [ ! -d "$CONTRACTS_DIR" ]; then
-    SBIN=`dirname $0`
-    SBIN="`cd "$SBIN"; pwd`"
-    . $SBIN/configure.sh
-    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
-fi
-echo "Using $CONTRACTS_DIR as HH proj"
-
 # Check that the dotenv exists.
 ENV=".genesis.env"
 if ! test -f $ENV; then
@@ -15,6 +7,14 @@ if ! test -f $ENV; then
 fi
 echo "Using dotenv: $ENV"
 . $ENV
+
+if [ ! -d "$CONTRACTS_DIR" ]; then
+    SBIN=`dirname $0`
+    SBIN="`cd "$SBIN"; pwd`"
+    . $SBIN/configure.sh
+    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
+fi
+echo "Using $CONTRACTS_DIR as HH proj"
 
 # Define a function to convert a path to be relative to another directory.
 relpath () {

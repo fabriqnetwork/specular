@@ -23,12 +23,6 @@ while getopts "$optspec" optchar; do
     esac
 done
 
-if [ ! -d "$CONTRACTS_DIR" ]; then
-    . $SBIN/configure.sh
-    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
-fi
-echo "Using $CONTRACTS_DIR as HH proj"
-
 # Check that the dotenv exists.
 GENESIS_ENV=".genesis.env"
 if ! test -f "$GENESIS_ENV"; then
@@ -43,6 +37,12 @@ if  ! test -f "$CONTRACTS_ENV"; then
     exit
 fi
 
+if [ ! -d "$CONTRACTS_DIR" ]; then
+    . $SBIN/configure.sh
+    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
+fi
+echo "Using $CONTRACTS_DIR as HH proj"
+
 # Define a function to convert a path to be relative to another directory.
 relpath () {
     echo `python3 -c "import os.path; print(os.path.relpath('$1', '$2'))"`
@@ -51,14 +51,18 @@ relpath () {
 # Define a function that requests a user to confirm
 # that overwriting file ($1) is okay, if it exists.
 guard_overwrite () {
-    if test -f $1; then
-	read -r -p "Overwrite $1 with a new file? [y/N] " response
-	if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-	    rm $1
-	else
-	    exit
-	fi
+  if [ -z "$PS1" ]; then
+    echo "no interactive shell, ignoring guard..."
+    return 0
+  fi
+  if test -f $1; then
+    read -r -p "Overwrite $1 with a new file? [y/N] " response
+    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+      rm $1
+    else
+      exit
     fi
+  fi
 }
 
 # Copy .contracts.env

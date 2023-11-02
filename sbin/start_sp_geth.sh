@@ -22,7 +22,9 @@ while getopts "$optspec" optchar; do
             ;;
     esac
 done
+
 if [ -z $SP_GETH ]; then
+    echo "no binary specified"
     # If no binary specified, assume repo directory structure.
     . $SBIN/configure.sh
     SP_GETH=$GETH_BIN

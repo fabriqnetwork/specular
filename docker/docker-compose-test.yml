@@ -16,6 +16,8 @@ services:
     image: ${L2_DOCKER_TAG:-specularl2/sp-geth:latest}
     build:
       context: ../services/el_clients/go-ethereum
+    env_file:
+      ../workspace/.sp_geth.env
     volumes:
       - ../sbin:/sbin
       - ../workspace:/workspace
@@ -32,8 +34,6 @@ services:
     working_dir: /workspace
     entrypoint: sh ../sbin/start_sp_magi.sh
 
-    # TODO: l1 geth needs a Dockerfile that extends the geth image
-    #       with pnpm and the contracts dir
   l1-geth:
     image: ${L2_DOCKER_TAG:-specularl2/l1_geth:latest}
     build:
