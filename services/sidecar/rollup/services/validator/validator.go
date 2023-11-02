@@ -214,9 +214,9 @@ func (v *Validator) validateGenesis(ctx context.Context) error {
 	vmHash := common.BytesToHash(assertion.StateHash[:])
 	genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
 	if err != nil {
-		return fmt.Errorf("failed to get L2 genesis root: %w", err)
+		return fmt.Errorf("failed to get L2 genesis block: %w", err)
 	}
-	if vmHash != genesisBlock.Root() {
+	if vmHash != genesisBlock.Hash() {
 		return fmt.Errorf("mismatching genesis on L1=%s vs local=%s", vmHash, genesisBlock.Hash().String())
 	}
 	return nil

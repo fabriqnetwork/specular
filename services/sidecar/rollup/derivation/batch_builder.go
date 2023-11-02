@@ -2,7 +2,6 @@ package derivation
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"math/big"
@@ -75,12 +74,9 @@ func (b *batchBuilder) Build() ([]byte, error) {
 	if b.builtBatchData != nil {
 		return b.builtBatchData, nil
 	}
-	if len(b.pendingBlocks) == 0 {
-		return nil, io.EOF
-	}
 	batchAttrs, err := b.serializeToAttrs()
 	if err != nil {
-		return nil, fmt.Errorf("failed to build batch: %w", err)
+		return nil, fmt.Errorf("failed to serialize batch: %w", err)
 	}
 	batchData, err := encodeBatch(batchAttrs)
 	if err != nil {
@@ -97,9 +93,8 @@ func (b *batchBuilder) Advance() {
 
 func (b *batchBuilder) serializeToAttrs() (*BatchAttributes, error) {
 	if len(b.pendingBlocks) == 0 {
-		return nil, errors.New("no pending blocks")
+		return nil, io.EOF
 	}
-
 	var (
 		block  DerivationBlock
 		idx    int
@@ -140,7 +135,6 @@ func encodeBatch(b *BatchAttributes) ([]byte, error) {
 	if err := w.WriteByte(TxBatchVersion()); err != nil {
 		return nil, err
 	}
-
 	buf := rlp.NewEncoderBuffer(&w)
 	err := rlp.Encode(buf, b)
 	return w.Bytes(), err

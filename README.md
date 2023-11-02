@@ -32,7 +32,7 @@ pnpm install && make
 This section will walk you through how to set up a local devnet containing an L2 sequencer running over a local L1 network.
 Note: the commands that follow below assume you are in the project root directory.
 
-### Configure network
+**Configure network**
 
 To configure a local devnet, you can just use an existing example from <a href="./config/">config</a> as-is.
 ```sh
@@ -40,14 +40,14 @@ mkdir workspace
 cp -a config/local_devnet/. workspace/ # copy all config files
 ```
 
-### Start L1
+**Start L1**
 Run the below script to initialize a new local L1 chain.
 ```sh
 cd workspace
 ../sbin/start_l1.sh # Terminal #1
 ```
 
-### Start an L2 node
+**Start an L2 node**
 Deploy the L1 contracts on the newly started chain, and spin up all services required to run an L2 node.
 ```sh
 ../sbin/deploy_l1_contracts.sh && ../sbin/start_sp_geth.sh # Terminal #2
