@@ -1,8 +1,29 @@
 #!/bin/bash
+SBIN=`dirname $0`
+SBIN="`cd "$SBIN"; pwd`"
+# Parse args.
+optspec=":ch:"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        c)
+	    echo "Cleaning..."
+	    $SBIN/clean_sp_geth.sh
+	    ;;
+        h)
+            echo "usage: $0 [-c][-h]"
+	    echo "-c : clean before running"
+            exit
+            ;;
+        *)
+            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+                echo "Unknown option: '-${OPTARG}'"
+		exit 1
+            fi
+            ;;
+    esac
+done
 if [ -z $SP_GETH ]; then
     # If no binary specified, assume repo directory structure.
-    SBIN=`dirname $0`
-    SBIN="`cd "$SBIN"; pwd`"
     . $SBIN/configure.sh
     SP_GETH=$GETH_BIN
 fi

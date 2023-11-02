@@ -1,5 +1,7 @@
 ## Directory Structure
 
+**TODO**
+
 <pre>
 ├── <a href="./services/">services</a>: L2 services
 │   ├── <a href="./services/cl_clients">cl_clients</a>: Consensus-layer clients
