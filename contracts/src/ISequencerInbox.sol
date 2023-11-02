@@ -28,34 +28,40 @@ import "./IDAProvider.sol";
  * @notice On-chain DA provider.
  */
 interface ISequencerInbox is IDAProvider {
-    event TxBatchAppended(uint256 batchNumber, uint256 startTxNumber, uint256 endTxNumber);
+    event TxBatchAppended();
 
-    /// @dev Thrown when the given tx inlcusion proof couldn't be verified.
+    /// @dev Thrown when the given tx inclusion proof couldn't be verified.
     error ProofVerificationFailed();
 
     /// @dev Thrown when sequencer tries to append an empty batch
     error EmptyBatch();
 
-    /// @dev Thrown when overflow occurs reading txBatch (likely due to malformed txLengths)
+    /// @dev Thrown when underflow occurs reading txBatchData
+    error TxBatchDataUnderflow();
+
+    /// @dev Thrown when overflow occurs reading txBatchData
     error TxBatchDataOverflow();
 
-    /// @dev Thrown when overflow occurs reading txBatch (likely due to malformed txLengths)
+    /// @dev Thrown when a transaction batch has an incorrect version
     error TxBatchVersionIncorrect();
 
     /**
      * @notice Appends a batch of transactions (stored in calldata) and emits a TxBatchAppended event.
-     * @param contexts Array of contexts, where each context is represented by a uint256 2-tuple:
-     * (numTxs, l2Timestamp). Each context corresponds to a single "L2 block".
-     * @param txLengths Array of lengths of each encoded tx in txBatch.
-     * @param firstL2BlockNumber The block number of the first "L2 block" included in this batch.
-     * @param txBatchVersion The serialization version of the submitted tx batch
-     * @param txBatch Batch of RLP-encoded transactions.
+     * @param txBatchData Batch of RLP-encoded transactions, encoded as:
+     * txBatchData format:
+     *   txBatchData = version || batchData (|| is concatenation)
+     *   where:
+     *   - version: uint8
+     *   - data: bytes
+     * batchData format:
+     *   batchData = RLP([firstL2BlockNum, batchList])
+     *   where:
+     *   - firstL2BlockNum: uint256
+     *   - batchList: List[blockData]
+     *   blockData = [timestamp, txList]
+     *   where:
+     *   - timestamp: uint256
+     *   - txList: bytes
      */
-    function appendTxBatch(
-        uint256[] calldata contexts,
-        uint256[] calldata txLengths,
-        uint256 firstL2BlockNumber,
-        uint256 txBatchVersion,
-        bytes calldata txBatch
-    ) external;
+    function appendTxBatch(bytes calldata txBatchData) external;
 }

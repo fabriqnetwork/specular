@@ -1,8 +1,9 @@
 package derivation
 
 import (
-	"math/big"
+	"bytes"
 
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
@@ -48,41 +49,42 @@ func (e *DecodeTxBatchError) Error() string {
 
 // Decodes the input of `SequencerInbox.appendTxBatch` call
 func BlocksFromData(calldata []any) ([]DerivationBlock, error) {
-	if len(calldata) != 4 {
+	if len(calldata) != 1 {
 		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid decoded array length %d", len(calldata))}
 	}
 	var (
-		contexts           = calldata[0].([]*big.Int)
-		txLengths          = calldata[1].([]*big.Int)
-		firstL2BlockNumber = calldata[2].(*big.Int)
-		// TODO: commented until multiple versions have been used
-		//txBatchVersion     = calldata[3].(*big.Int)
-		txBatch = calldata[4].([]byte)
+		txBatchData = calldata[0].([]byte)
 	)
-	if len(contexts)%2 != 0 {
-		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid contexts length %d", len(contexts))}
+
+	if len(txBatchData) == 0 {
+		return nil, &DecodeTxBatchError{fmt.Sprintf("empty tx batch data")}
 	}
-	var (
-		batchOffset, numTxs uint64
-		blocks              = make([]DerivationBlock, 0, len(contexts)/2)
-		blockNumber         = firstL2BlockNumber.Uint64()
-	)
-	for i := 0; i < len(contexts); i += 2 {
+
+	txBatchVersion := txBatchData[0]
+	switch txBatchVersion {
+	case 0:
+		return blocksFromV0Data(txBatchData[1:])
+	default:
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid tx batch version: {%d}", txBatchVersion)}
+	}
+}
+
+func blocksFromV0Data(v0Data []byte) ([]DerivationBlock, error) {
+	var decodedBatch BatchAttributes
+	if err := rlp.Decode(bytes.NewReader(v0Data), &decodedBatch); err != nil {
+		return nil, err
+	}
+
+	blocks := make([]DerivationBlock, 0, len(decodedBatch.Blocks))
+	for i, block := range decodedBatch.Blocks {
 		// For each context, decode a block.
 		ctx := DerivationContext{
-			numTxs:      contexts[i].Uint64(),
-			blockNumber: blockNumber + uint64(i),
-			timestamp:   contexts[i+1].Uint64(),
-		}
-		var txs [][]byte
-		for j := uint64(0); j < ctx.numTxs; j++ {
-			encodedTx := txBatch[batchOffset : batchOffset+txLengths[numTxs].Uint64()]
-			txs = append(txs, encodedTx)
-			numTxs++
-			batchOffset += txLengths[numTxs-1].Uint64()
+			numTxs:      uint64(len(block.Txs)),
+			blockNumber: decodedBatch.FirstL2BlockNumber.Uint64() + uint64(i),
+			timestamp:   block.Timestamp.Uint64(),
 		}
 		log.Trace("Block decoded", "block#", ctx.blockNumber, "numTxs", ctx.numTxs)
-		blocks = append(blocks, DerivationBlock{ctx, txs})
+		blocks = append(blocks, DerivationBlock{ctx, block.Txs})
 	}
 	return blocks, nil
 }

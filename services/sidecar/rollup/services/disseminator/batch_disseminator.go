@@ -186,18 +186,11 @@ func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
 // Note: this does not guarantee safety (re-org resistance) but should make re-orgs less likely.
 func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	// Construct tx data.
-	batchAttrs, err := d.batchBuilder.Build()
+	txBatchData, err := d.batchBuilder.Build()
 	if err != nil {
 		return fmt.Errorf("failed to build batch: %w", err)
 	}
-	receipt, err := d.l1TxMgr.AppendTxBatch(
-		ctx,
-		batchAttrs.Contexts(),
-		batchAttrs.TxLengths(),
-		batchAttrs.FirstL2BlockNumber(),
-		batchAttrs.TxBatchVersion(),
-		batchAttrs.TxBatch(),
-	)
+	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, txBatchData)
 	if err != nil {
 		return fmt.Errorf("failed to send batch transaction: %w", err)
 	}

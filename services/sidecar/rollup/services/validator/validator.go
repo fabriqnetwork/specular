@@ -168,7 +168,7 @@ func (v *Validator) rollback(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get assertion: %w", err)
 	}
-	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.InboxSize.Uint64(), assertion.StateHash}
+	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.BlockNum.Uint64(), assertion.StateHash}
 	return nil
 }
 

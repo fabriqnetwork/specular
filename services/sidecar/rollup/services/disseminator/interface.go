@@ -21,7 +21,7 @@ type BuildPayloadResponse = engine.ForkChoiceResponse
 type BatchBuilder interface {
 	Append(block derivation.DerivationBlock, header derivation.HeaderRef) error
 	LastAppended() types.BlockID
-	Build() (*derivation.BatchAttributes, error)
+	Build() ([]byte, error)
 	Advance()
 	Reset(lastAppended types.BlockID)
 }
@@ -29,11 +29,7 @@ type BatchBuilder interface {
 type TxManager interface {
 	AppendTxBatch(
 		ctx context.Context,
-		contexts []*big.Int,
-		txLengths []*big.Int,
-		firstL2BlockNumber *big.Int,
-		txBatchVersion *big.Int,
-		txBatch []byte,
+		txBatchData []byte,
 	) (*ethTypes.Receipt, error)
 }
 

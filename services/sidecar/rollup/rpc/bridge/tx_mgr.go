@@ -33,13 +33,9 @@ func NewTxManager(txMgr EthTxManager, cfg bridgeConfig) (*TxManager, error) {
 
 func (m *TxManager) AppendTxBatch(
 	ctx context.Context,
-	contexts,
-	txLengths []*big.Int,
-	firstL2BlockNumber *big.Int,
-	txBatchVersion *big.Int,
-	txs []byte,
+	txBatchData []byte,
 ) (*types.Receipt, error) {
-	data, err := packAppendTxBatchInput(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txs)
+	data, err := packAppendTxBatchInput(txBatchData)
 	if err != nil {
 		return nil, err
 	}
@@ -65,8 +61,8 @@ func (m *TxManager) AdvanceStake(ctx context.Context, assertionID *big.Int) (*ty
 	return m.sendRollupTx(ctx, data, 0)
 }
 
-func (m *TxManager) CreateAssertion(ctx context.Context, vmHash common.Hash, inboxSize *big.Int) (*types.Receipt, error) {
-	data, err := packCreateAssertionInput(vmHash, inboxSize)
+func (m *TxManager) CreateAssertion(ctx context.Context, vmHash common.Hash, blockNum *big.Int) (*types.Receipt, error) {
+	data, err := packCreateAssertionInput(vmHash, blockNum)
 	if err != nil {
 		return nil, err
 	}

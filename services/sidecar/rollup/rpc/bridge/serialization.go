@@ -51,8 +51,8 @@ func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
-func packAppendTxBatchInput(contexts, txLengths []*big.Int, firstL2BlockNumber *big.Int, txBatchVersion *big.Int, txs []byte) ([]byte, error) {
-	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, contexts, txLengths, firstL2BlockNumber, txBatchVersion, txs)
+func packAppendTxBatchInput(txBatchData []byte) ([]byte, error) {
+	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, txBatchData)
 }
 
 // IRollup.sol
@@ -79,8 +79,8 @@ func packAdvanceStakeInput(assertionID *big.Int) ([]byte, error) {
 	return serializationUtil.rollupAbi.Pack(AdvanceStakeFnName, assertionID)
 }
 
-func packCreateAssertionInput(vmHash common.Hash, inboxSize *big.Int) ([]byte, error) {
-	return serializationUtil.rollupAbi.Pack(CreateAssertionFnName, vmHash, inboxSize)
+func packCreateAssertionInput(vmHash common.Hash, blockNum *big.Int) ([]byte, error) {
+	return serializationUtil.rollupAbi.Pack(CreateAssertionFnName, vmHash, blockNum)
 }
 
 func packConfirmFirstUnresolvedAssertionInput() ([]byte, error) {

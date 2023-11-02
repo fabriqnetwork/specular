@@ -91,19 +91,13 @@ contract SequencerInboxTest is SequencerBaseSetup {
     function test_appendTxBatch_invalidSequencer_reverts() public {
         vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencerAddress));
         vm.prank(alice);
-        uint256[] memory contexts = new uint256[](1);
-        uint256[] memory txLengths = new uint256[](1);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-        seqIn.appendTxBatch(contexts, txLengths, 1, txBatchVersion, "0x");
+        seqIn.appendTxBatch(hex"00");
     }
 
-    function test_appendTxBatch_emptyBatch_reverts() public {
-        vm.expectRevert(ISequencerInbox.EmptyBatch.selector);
+    function test_appendTxBatch_invalidVersion_reverts() public {
+        vm.expectRevert(ISequencerInbox.TxBatchVersionIncorrect.selector);
         vm.prank(sequencerAddress);
-        uint256[] memory contexts = new uint256[](1);
-        uint256[] memory txLengths = new uint256[](1);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-        seqIn.appendTxBatch(contexts, txLengths, 1, txBatchVersion, "0x");
+        seqIn.appendTxBatch(hex"01"); // version 0 is the only valid version
     }
 
     //////////////////////////////
@@ -113,8 +107,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
         numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
         txnBlocks = bound(txnBlocks, 1, 10);
-
-        uint256 inboxSizeInitial = seqIn.getInboxSize();
 
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
@@ -126,8 +118,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
         uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
         // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
 
-        uint256 firstL2BlockNumber = block.timestamp / 20;
-
         // Let's create an array of contexts
         uint256[] memory contexts = new uint256[](numContextsArrEntries);
         for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
@@ -144,18 +134,11 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
+        bytes memory txBatch = _helper_sequencerInbox_appendTx(numTxns);
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
-
-        uint256 inboxSizeFinal = seqIn.getInboxSize();
-        assertGt(inboxSizeFinal, inboxSizeInitial);
-
-        uint256 expectedInboxSize = numTxns;
-        assertEq(inboxSizeFinal, expectedInboxSize);
+        seqIn.appendTxBatch(txBatch);
     }
 
     function test_appendTxBatch_case2Hardcoded_succeeds() public {
@@ -163,88 +146,12 @@ contract SequencerInboxTest is SequencerBaseSetup {
         // Here, we are assuming we have 2 transaction blocks with 3 transactions each (initial lower load hardcoded test)
         /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        uint256 numTxnsPerBlock = 3;
-        uint256 inboxSizeInitial = seqIn.getInboxSize();
-
-        uint256 firstL2BlockNumber = block.timestamp / 20;
-
-        // Each context corresponds to a single "L2 block"
-        // `contexts` is represented with uint256 2-tuple: (numTxs, l2Timestamp)
-        // Let's create an array of contexts
-        uint256 numTxns = numTxnsPerBlock * 2;
-        uint256 timeStamp1 = block.timestamp / 10;
-        uint256 timeStamp2 = block.timestamp / 5;
-
-        uint256[] memory contexts = new uint256[](6);
-
-        // Let's assume that we had 2 blocks and each had 3 transactions
-        contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (timeStamp1);
-        contexts[2] = (numTxnsPerBlock);
-        contexts[3] = (timeStamp2);
-
-        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
         bytes memory txBatch = _helper_createTxBatch_hardcoded();
-        uint256[] memory txLengths = _helper_findTxLength_hardcoded();
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
-
-        uint256 inboxSizeFinal = seqIn.getInboxSize();
-
-        assertGt(inboxSizeFinal, inboxSizeInitial);
-
-        uint256 expectedInboxSize = numTxns;
-        assertEq(inboxSizeFinal, expectedInboxSize);
-    }
-
-    function test_appendTxBatch_txBatchDataOverflow_reverts(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
-        // We will operate at a limit of transactionsPerBlock = 30 and number of transactionBlocks = 10.
-        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 30);
-        txnBlocks = bound(txnBlocks, 1, 10);
-
-        // Each context corresponds to a single "L2 block"
-        uint256 numTxns = numTxnsPerBlock * txnBlocks;
-        uint256 numContextsArrEntries = 2 * txnBlocks; // Since each `context` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-
-        // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
-        vm.warp(block.timestamp + (4 * txnBlocks));
-        uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
-        // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
-
-        uint256 firstL2BlockNumber = block.timestamp / 20;
-
-        // Let's create an array of contexts
-        uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
-            // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
-            contexts[i] = numTxnsPerBlock;
-
-            // Formula used for blockTimestamp: (current block.timestamp) / 5x
-            contexts[i + 1] = txnBlockTimestamp;
-
-            // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
-            // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
-            ++txnBlockTimestamp;
-        }
-
-        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
-        // txBatch is defined as: Batch of RLP-encoded transactions
-        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-
-        // Now, we want to trigger the `txnBatchDataOverflow`, so we want to disturn the values receieved in the txLengths array.
-        for (uint256 i; i < numTxns; i++) {
-            txLengths[i] = txLengths[i] + 1;
-        }
-
-        // Pranking as the sequencer and calling appendTxBatch (should throw the TxBatchDataOverflow error)
-        vm.expectRevert(ISequencerInbox.TxBatchDataOverflow.selector);
-        vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
+        seqIn.appendTxBatch(txBatch);
     }
 
     function test_appendTxBatch_paused_reverts(uint256 numTxnsPerBlock, uint256 txnBlocks) public {
@@ -257,126 +164,18 @@ contract SequencerInboxTest is SequencerBaseSetup {
 
         // Each context corresponds to a single "L2 block"
         uint256 numTxns = numTxnsPerBlock * txnBlocks;
-        // Each `context` is represented with uint256 2-tuple: (numTxs, l2Timestamp)
-        uint256 numContextsArrEntries = 2 * txnBlocks;
 
         // Making sure that the block.timestamp is a reasonable value (> txnBlocks)
         vm.warp(block.timestamp + (4 * txnBlocks));
-        uint256 txnBlockTimestamp = block.timestamp - (2 * txnBlocks); // Subtracing just `txnBlocks` would have sufficed. However we are subtracting 2 times txnBlocks for some margin of error.
-        // The objective for this subtraction is that while building the `contexts` array, no timestamp should go higher than the current block.timestamp
-
-        uint256 firstL2BlockNumber = block.timestamp / 20;
-
-        // Let's create an array of contexts
-        uint256[] memory contexts = new uint256[](numContextsArrEntries);
-        for (uint256 i = 0; i < numContextsArrEntries; i += 2) {
-            // The first entry for `contexts` for each txnBlock is `numTxns` which we are keeping as constant for all blocks for this test
-            contexts[i] = numTxnsPerBlock;
-
-            // Formula used for blockTimestamp: (current block.timestamp) / 5x
-            contexts[i + 1] = txnBlockTimestamp;
-
-            // The only requirement for timestamps for the transaction blocks is that, these timestamps are monotonically increasing.
-            // So, let's increase the value of txnBlock's timestamp monotonically, in a way that is does not exceed current block.timestamp
-            ++txnBlockTimestamp;
-        }
 
         // txLengths is defined as: Array of lengths of each encoded tx in txBatch
         // txBatch is defined as: Batch of RLP-encoded transactions
-        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
+        bytes memory txBatch = _helper_sequencerInbox_appendTx(numTxns);
 
         // Pranking as the sequencer and calling appendTxBatch
         vm.prank(sequencerAddress);
         vm.expectRevert("Pausable: paused");
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
-    }
-
-    /////////////////////////////////////////////////////////////////////////////////////////
-    // TENTATIVE CODE CHANGE. TEST SUBJECT TO CHANGE BASED ON CHANGE IN CODE
-    // Probable change: `appendTxBatch` passes even with malformed `contexts` array
-    /////////////////////////////////////////////////////////////////////////////////////////
-    function test_appendTxBatch_incompleteDataInContextsArray_succeeds(uint256 numTxnsPerBlock) public {
-        // Since we are assuming that we will have two transaction blocks and we have a total of 300 sample transactions right now.
-        numTxnsPerBlock = bound(numTxnsPerBlock, 1, 150);
-        uint256 inboxSizeInitial = seqIn.getInboxSize();
-
-        uint256 firstL2BlockNumber = block.timestamp / 20;
-
-        // Each context corresponds to a single "L2 block"
-        // `contexts` is represented with uint256 3-tuple: (numTxs, l2BlockNumber, l2Timestamp)
-        // Let's create an array of contexts
-        uint256 numTxns = numTxnsPerBlock * 2;
-        uint256 timeStamp1 = block.timestamp / 10;
-
-        uint256[] memory contexts = new uint256[](3);
-
-        // Let's assume that we had 2 blocks and each had 3 transactions, but we fail to pass the block.timestamp and block.number of the 2nd transaction block.
-        contexts[0] = (numTxnsPerBlock);
-        contexts[1] = (timeStamp1);
-        contexts[2] = (numTxnsPerBlock);
-
-        // txLengths is defined as: Array of lengths of each encoded tx in txBatch
-        // txBatch is defined as: Batch of RLP-encoded transactions
-        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTxns);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-
-        // Pranking as the sequencer and calling appendTxBatch
-        vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, firstL2BlockNumber, txBatchVersion, txBatch);
-
-        uint256 inboxSizeFinal = seqIn.getInboxSize();
-
-        assertGt(inboxSizeFinal, inboxSizeInitial);
-        assertEq(inboxSizeFinal, numTxnsPerBlock); // Since the timestamp and block.number were not included for the 2nd block, only 1st block's 3 txns are included.
-    }
-
-    //////////////////////////////
-    // verifyTxInclusion
-    // commit a batch and verify the Nth transaction
-    //////////////////////////////
-    function test_verifyTxInclusion_succeeds(uint256 numTxPerBlock, uint256 numBlocks, uint256 txToVerify) public {
-        numTxPerBlock = bound(numTxPerBlock, 1, 30);
-        numBlocks = bound(numBlocks, 1, 5);
-        uint256 numTx = numTxPerBlock * numBlocks;
-
-        // append a batch of transactions to the sequencer
-        assertEq(seqIn.getInboxSize(), 0);
-        vm.warp(block.timestamp + (4 * numBlocks));
-
-        uint256[] memory contexts = generateContexts(numBlocks, numTxPerBlock);
-
-        (bytes memory txBatch, uint256[] memory txLengths) = _helper_sequencerInbox_appendTx(numTx);
-        uint256 txBatchVersion = _helper_sequencerInbox_appendTx_Version();
-
-        vm.prank(sequencerAddress);
-        seqIn.appendTxBatch(contexts, txLengths, 0, txBatchVersion, txBatch);
-        assertEq(seqIn.getInboxSize(), numTx);
-
-        // randomly choose a transaction to verify and prepare the proof
-        txToVerify = bound(txToVerify, 0, numTx - 1);
-
-        bytes memory txAfterData = generateTxAfterData(txToVerify, numTx, numTxPerBlock, contexts);
-
-        // prepare the encoded transaction we want to verify and its context hash
-        bytes memory encodedTx = rlpEncodedTransactions[txToVerify % 10];
-
-        bytes32 proofContextHash = generateProofContextHash(txToVerify, numTxPerBlock, contexts);
-
-        // prepare the accumulator hash of the preceding transactions in the batch
-        bytes32 accBefore = generateAccumulator(txToVerify, numTxPerBlock, contexts);
-
-        {
-            uint256 batchNum = 0;
-            uint256 numTxBefore = txToVerify;
-            uint256 numTxAfter = numTx - txToVerify - 1;
-
-            bytes memory batchInfo = abi.encodePacked(batchNum, numTxBefore, numTxAfter, accBefore);
-
-            bytes memory proof = abi.encodePacked(proofContextHash, batchInfo, txAfterData);
-
-            seqIn.verifyTxInclusion(encodedTx, proof);
-        }
+        seqIn.appendTxBatch(txBatch);
     }
 
     /////////////////////////
