@@ -42,7 +42,7 @@ contract L1Oracle_Initializer is CommonTest {
         vm.label(l1OracleAddress, "L1Oracle");
 
         oracle = L1Oracle(l1OracleAddress);
-        oracle.initialize(sequencerAddress);
+        oracle.initialize();
     }
 }
 

@@ -4,8 +4,8 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { deployUUPSProxiedContract } from "../utils";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { sequencer, deployer } = await hre.getNamedAccounts();
-  await deployUUPSProxiedContract(hre, deployer, "L1Oracle", [sequencer]);
+  const { deployer } = await hre.getNamedAccounts();
+  await deployUUPSProxiedContract(hre, deployer, "L1Oracle", []);
 };
 
 export default func;
