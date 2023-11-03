@@ -29,11 +29,10 @@ services:
       - --rollup.rollup-stake-amount=100
       - --rollup.l1-rollup-genesis-block=0
 
-  backend:
+  blockscout:
     extends:
       file: ../blockscout/docker-compose/docker-compose.yml
       service: blockscout
-    container_name: 'blockscout'
     depends_on:
       - db
       - smart-contract-verifier
@@ -48,15 +47,9 @@ services:
     environment:
       ETHEREUM_JSONRPC_VARIANT: geth
       ETHEREUM_JSONRPC_HTTP_URL: http://indexer:8545/
-      INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER: 'true'
       INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: "true"
       DATABASE_URL: postgresql://postgres:@database:5432/blockscout
       ECTO_USE_SSL: "false"
-      CHAIN_ID: '13527'
-      API_V2_ENABLED: 'true'
-      MIX_ENV: 'prod'
-    ports:
-      - 4000:4000
 
   redis_db:
     image: 'redis:alpine'
@@ -84,35 +77,3 @@ services:
     extends:
       file: ../blockscout/docker-compose/docker-compose.yml
       service: sig-provider
-
-  frontend:
-    env_file:
-      -  ./envs/frontend.env
-    depends_on:
-      - backend
-    extends:
-      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
-      service: frontend
-
-  stats-db:
-    depends_on:
-      - backend
-    extends:
-      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
-      service: stats-db
-
-  stats:
-    depends_on:
-      - stats-db
-    extends:
-      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
-      service: stats
-
-  proxy:
-    depends_on:
-      - backend
-      - frontend
-      - stats
-    extends:
-      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
-      service: proxy
