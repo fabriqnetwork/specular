@@ -27,6 +27,19 @@ git submodule update --init --recursive
 pnpm install && make
 ```
 
+### Running a local devnet using docker
+
+The simplest way to run a local devent is using docker compose.
+Note: the commands that follow below assume you are in the project root directory.
+
+```sh
+mkdir workspace
+cp -a config/local_docker/. workspace/ # copy all config files
+
+docker compose -f docker/docker-compose-test.yml build
+docker compose -f docker/docker-compose-test.yml up
+```
+
 ### Running a local devnet
 
 This section will walk you through how to set up a local devnet containing an L2 sequencer running over a local L1 network.
