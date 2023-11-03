@@ -27,6 +27,12 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
 
     steps:
+      - name: Cache git folder
+        uses: actions/cache@v3
+        with:
+          path: ./.git
+          key: git-folder
+          
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
