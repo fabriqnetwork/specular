@@ -11,14 +11,14 @@ const CLIENT_SBIN_DIR = `${__dirname}/../../../sbin`;
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
   const execPromise = util.promisify(exec);
-  const cmd = `bash ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")} | tail -1`;
+  let initialVMHash = "";
   let stdout = "";
+  const cmd = `sh ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`;
   try {
       ({ stdout } = await execPromise(cmd));
   } catch (error) {
-    throw Error(`could not export genesis hash: ${err}`);
+    throw Error(`could not export genesis hash: ${error}`);
   }
-  let initialVMHash = "";
   try {
     initialVMHash = (JSON.parse(stdout).hash || "") as string;
   } catch (err) {
