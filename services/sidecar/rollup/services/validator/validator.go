@@ -136,9 +136,20 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 // If the first unresolved assertion is eligible for confirmation, trigger its confirmation. Otherwise, wait.
 // TODO: reject or challenge, depending on circumstances.
 func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
+	// TODO: so maybe us as a validator we are probably staked... shall we maybe
+	//       run some checks first before we spend all this money on gas if we're properly staked?
+	//		Or maybe we check this upfront when we run this? Just food for thought.
+
+	// TODO: For security we should check what assertion are we dealing with and keep this in memory
+	//       assertionID = GetLastConfirmedAssertionID()
+	// FIXME: All IRollup methods should deal with the assertionID as an argument
+	//        to assure we operate only on the right assertion
+
 	// Simulate a confirmation attempt.
 	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
+	// err -> "No"
 	if err != nil {
+		// "No"
 		errStr := err.Error()
 		if errStr == bridge.NoUnresolvedAssertionErr {
 			log.Trace("No unresolved assertion to resolve.")
@@ -147,10 +158,87 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 		} else {
 			return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
 		}
-		return nil
+
+		// if not confirmable could still be rejectable
+		// from IRollup call RequireFirstUnresolvedAssertionIsRejectable(
+		//    stakerAddress ??? where from??
+		//                      - putting crap in there (e.g. staker address) just for now
+		//                      - until found where to get this from, I assume that comes from v.cfg.GetAccountAddr()
+		// ), via v.l1BridgeClient.<Implement>
+		//
+		// if err != nil {
+		// 	 // It's not Rejectable
+		// 	 errStr := err.Error()
+		// 	 if errStr == bridge.<Implement> (should cmp with IRollup "requireFirstUnresolvedAssertionIsRejectable")
+		// 	 	log.Trace("No unresolved assertion to be rejected.")
+		// 	 }
+		//   return nil
+		// }
+
+		// It's not confirmable, but it's rejectable so let's reject
+		// v.l1BridgeClient.<Implement> call via IRollup RejectFirstUnresolvedAssertion(stakerAddress as before)
+
+		// it should be rejectable, but it failed to reject, so it must be a bigger problem
+		return err
 	}
+
+	// At this point we know it's confirmable
+	// But first we need to validate
+	// TODO: this is not implemented properly, fill-in with a stub/mock
+
+	// We take the parent block number, we take it is hash, we reply what's in the assertion
+	// and then check the value with the one in the assertion.
+	// (Tip from Simon: Specular uses VMRoot hash from go-ethereum)
+
+	// calling IRollup with GetAssertion, <Implement> whatever is missing on the interfaces
+	// assertion = GetAssertion(assertionID)
+	// parentAssertion = GetAssertion(assertion.Parent)
+	//
+	// number, err := v.l2Client.BlockNumber()
+	// if err != nil {
+	// 	return err
+	// }
+	// v.l2Client.<Implement> from go-ethereum Client GetHead()->Header
+	// if header.Hash == parentAssertion.Hash {
+	// TODO: indicates we are out of sync
+	// FIXME: that requires going back to a state of the last confirmed assertion, idea to handle:
+	//        - wait for sync of the execution node (?)
+	// Timeout, return sth... TBD
+	// }
+	// At this point confirmed we are in sync
+
+	// TODO: Read appendTxBatch(bytes calldata txBatchData) from <Implement> or maybe L1Bridge client...
+	// 	     anyway is to get the:
+	//	     - calldata content
+	//	     - parse
+	//	     - get full transactions data
+	//	     - apply to the parent state of the assertion (i.e. recompute the entire tree from the transaction hashes)
+	// TODO: compare the state hash we end up with with the assertion hash
+	// TODO: Significant optimization could be done here IMHO, sth around the partial proof (TBD)
+	// 		 - the call data could include partial-proof
+
+	// if assertionHash != parentHash {
+	// TODO: Research if there is maybe some more work to be done before we challenge the assertion
+	// TODO: Challenge assertion
+	// err := IRollup challengeAssertion(
+	//	players{
+	//		us <- stakerAddress,
+	//		who's them? <- probably the staker who submitted the assertion, right?
+	//				This can come from:
+	//				- IRollupStaker.AssertionID, so reversing this we can identify the Staker
+	//				- IRollup.CreateAssertion releases an event which logs the Staker address
+	//	}
+	//	)
+	//  if err != nil { // TODO: sth fundamental has gone wrong ... }
+	//  return nil
+	// }
+
+	// We could confirm after all the checks
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
+
+	// FIXME: the last assertion may have changed in the mean-time,
+	//        we should include a param to confirm specific assertion ID only (assertionID)
 	_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(cCtx)
 	if err != nil {
 		return fmt.Errorf("failed to confirm assertion: %w", err)
