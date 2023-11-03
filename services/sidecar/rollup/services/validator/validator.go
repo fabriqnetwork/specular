@@ -175,12 +175,11 @@ func (v *Validator) rollback(ctx context.Context) error {
 // Gets the next assertion's attributes.
 // We can relax this to get the next safe assertion's attributes but need to handle reorgs.
 func (v *Validator) getNextAssertionAttrs(ctx context.Context) (assertionAttributes, error) {
-	// TODO: use safe/finalized.
-	header, err := v.l2Client.HeaderByTag(ctx, eth.Latest)
+	header, err := v.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return assertionAttributes{}, fmt.Errorf("failed to get finalized assertion attrs: %w", err)
 	}
-	return assertionAttributes{header.Number.Uint64(), header.Root}, nil
+	return assertionAttributes{header.Number.Uint64(), computeVmHash(header)}, nil
 }
 
 func (v *Validator) ensureStaked(ctx context.Context) error {
@@ -214,10 +213,16 @@ func (v *Validator) validateGenesis(ctx context.Context) error {
 	vmHash := common.BytesToHash(assertion.StateHash[:])
 	genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
 	if err != nil {
-		return fmt.Errorf("failed to get L2 genesis root: %w", err)
+		return fmt.Errorf("failed to get L2 genesis block: %w", err)
 	}
-	if vmHash != genesisBlock.Root() {
-		return fmt.Errorf("mismatching genesis on L1=%s vs local=%s", vmHash, genesisBlock.Hash().String())
+	l2VmHash := computeVmHash(genesisBlock.Header())
+	if vmHash != l2VmHash {
+		return fmt.Errorf("mismatching genesis on L1=%s vs L2=%s", vmHash, l2VmHash)
 	}
 	return nil
+}
+
+// TODO: add versioning
+func computeVmHash(header *types.Header) common.Hash {
+	return header.Hash()
 }

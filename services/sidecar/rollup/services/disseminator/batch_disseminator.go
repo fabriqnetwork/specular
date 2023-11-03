@@ -92,10 +92,9 @@ func (d *BatchDisseminator) step(ctx context.Context) error {
 
 // Rolls back the disseminator state to the last safe L2 header.
 func (d *BatchDisseminator) rollback() error {
-	// TODO: use eth.Safe once Engine API is enabled.
-	head, err := d.l2Client.HeaderByTag(context.Background(), eth.Latest)
+	head, err := d.l2Client.HeaderByTag(context.Background(), eth.Safe)
 	if err != nil {
-		return fmt.Errorf("failed to get last finalized header: %w", err)
+		return fmt.Errorf("failed to get last safe header: %w", err)
 	}
 	log.Info("Rolling back disseminator to checkpoint", "l2Block#", head.Number)
 	d.batchBuilder.Reset(types.NewBlockIDFromHeader(head))
@@ -142,19 +141,18 @@ func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 		lastAppended = d.batchBuilder.LastAppended()
 		start        = lastAppended.GetNumber() + 1 // TODO: fix assumption
 	)
-	// TODO: uncomment the following cases after enabling Engine API.
-	// safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
-	// if err != nil {
-	// 	return 0, 0, fmt.Errorf("failed to get l2 safe header: %w", err)
-	// }
-	// log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash)
-	// if lastAppended == types.EmptyBlockID {
-	// 	// First time running; use safe (assumes local chain fork choice is in sync...)
-	// 	start = safe.Number.Uint64() + 1
-	// } else if safe.Number.Uint64() > lastAppended.GetNumber() {
-	// 	// This should currently not be possible (single sequencer). TODO: handle restart case?
-	// 	return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
-	// }
+	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to get l2 safe header: %w", err)
+	}
+	log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash)
+	if lastAppended == types.EmptyBlockID {
+		// First time running; use safe (assumes local chain fork-choice is in sync...)
+		start = safe.Number.Uint64() + 1
+	} else if safe.Number.Uint64() > lastAppended.GetNumber() {
+		// This should currently not be possible (single sequencer). TODO: handle restart case?
+		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
+	}
 	end, err := d.l2Client.BlockNumber(ctx)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get most recent l2 block number: %w", err)
