@@ -159,27 +159,24 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 			return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
 		}
 
-		// if not confirmable could still be rejectable
-		// from IRollup call RequireFirstUnresolvedAssertionIsRejectable(
-		//    stakerAddress ??? where from??
-		//                      - putting crap in there (e.g. staker address) just for now
-		//                      - until found where to get this from, I assume that comes from v.cfg.GetAccountAddr()
-		// ), via v.l1BridgeClient.<Implement>
-		//
-		// if err != nil {
-		// 	 // It's not Rejectable
-		// 	 errStr := err.Error()
-		// 	 if errStr == bridge.<Implement> (should cmp with IRollup "requireFirstUnresolvedAssertionIsRejectable")
-		// 	 	log.Trace("No unresolved assertion to be rejected.")
-		// 	 }
-		//   return nil
-		// }
+		// If not confirmable could still be rejectable
+		// TODO: confirm that the stakerAddress should come from configuration
+		err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsRejectable(ctx, v.cfg.GetAccountAddr())
+		if err != nil {
+			// It is not rejectable
+			// TODO: confirm there is no need to do errStr := err.Error() and cmp with IRollup "requireFirstUnresolvedAssertionIsRejectable"
+			log.Trace("No unresolved assertion to be rejected.")
+			// TODO: confirm exit with nil below
+			return nil
+		}
 
-		// It's not confirmable, but it's rejectable so let's reject
-		// v.l1BridgeClient.<Implement> call via IRollup RejectFirstUnresolvedAssertion(stakerAddress as before)
-
-		// it should be rejectable, but it failed to reject, so it must be a bigger problem
-		return err
+		// It is not confirmable, but it is rejectable so let's reject
+		_, err = v.l1BridgeClient.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
+		if err != nil {
+			// It should be rejectable, but it failed to reject, so it must be a bigger problem
+			// TODO: confirm solution
+			return err
+		}
 	}
 
 	// At this point we know it's confirmable

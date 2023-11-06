@@ -25,11 +25,13 @@ type TxManager interface {
 }
 
 type BridgeClient interface {
-	GetRequiredStakeAmount(ctx context.Context) (*big.Int, error)
-	GetStaker(ctx context.Context, addr common.Address) (bindings.IRollupStaker, error)
-	GetAssertion(ctx context.Context, assertionID *big.Int) (bindings.IRollupAssertion, error)
-	GetLastConfirmedAssertionID(ctx context.Context) (*big.Int, error)
-	RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) error
+	GetRequiredStakeAmount(context.Context) (*big.Int, error)
+	GetStaker(context.Context, common.Address) (bindings.IRollupStaker, error)
+	GetAssertion(context.Context, *big.Int) (bindings.IRollupAssertion, error)
+	GetLastConfirmedAssertionID(context.Context) (*big.Int, error)
+	RequireFirstUnresolvedAssertionIsConfirmable(context.Context) error
+	RequireFirstUnresolvedAssertionIsRejectable(context.Context, common.Address) error
+	RejectFirstUnresolvedAssertion(ctx context.Context, address common.Address) (*ethTypes.Transaction, error)
 }
 
 type EthState interface {
