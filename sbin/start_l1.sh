@@ -2,7 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 # Parse args.
-optspec=":dh:"
+optspec="cdh"
 while getopts "$optspec" optchar; do
     case "${optchar}" in
         c)
@@ -66,7 +66,7 @@ if [ "$L1_STACK" = "geth" ]; then
     $L1_GETH_BIN attach --exec \
       "eth.sendTransaction({ from: eth.coinbase, to: '"$VALIDATOR_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
       $L1_ENDPOINT
-     $L1_GETH_BIN attach --exec \
+    $L1_GETH_BIN attach --exec \
       "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
       $L1_ENDPOINT
 elif [ "$L1_STACK" = "hardhat" ]; then

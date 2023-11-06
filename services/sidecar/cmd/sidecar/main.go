@@ -59,7 +59,7 @@ func startService(cliCtx *cli.Context) error {
 		validator    *validator.Validator
 		eg, ctx      = errgroup.WithContext(context.Background())
 	)
-	if cfg.Sequencer().GetIsEnabled() {
+	if cfg.Disseminator().GetIsEnabled() {
 		disseminator, err = createDisseminator(context.Background(), cfg)
 		if err != nil {
 			return fmt.Errorf("failed to create disseminator: %w", err)
@@ -89,15 +89,15 @@ func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 ) (*disseminator.BatchDisseminator, error) {
-	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer())
+	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Disseminator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
 	var (
-		batchBuilder = derivation.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
+		batchBuilder = derivation.NewBatchBuilder(, math.MaxInt64) // TODO: configure max batch size
 		l2Client     = eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	)
-	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
+	return disseminator.NewBatchDisseminator(cfg.Disseminator(), batchBuilder, l1TxMgr, l2Client), nil
 }
 
 func createValidator(

@@ -2,7 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 # Parse args.
-optspec=":ch:"
+optspec="ch"
 while getopts "$optspec" optchar; do
     case "${optchar}" in
         c)
