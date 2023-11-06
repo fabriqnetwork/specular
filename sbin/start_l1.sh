@@ -58,7 +58,6 @@ fi
 # Optionally deploy the contracts
 if [ "$L1_DEPLOY" = "true" ]; then
     echo "deploying contracts..."
-    #npx hardhat deploy --network localhost
     bash $SBIN/deploy_l1_contracts.sh
 fi
 

@@ -6,6 +6,9 @@ services:
     build:
       context: ..
       dockerfile: ./services/sidecar/Dockerfile
+    depends_on:
+      l1-geth:
+        condition: service_healthy
     volumes:
       - ../sbin:/sbin
       - ../workspace:/workspace
@@ -28,6 +31,9 @@ services:
     image: ${L2_DOCKER_TAG:-specularl2/sp-magi:latest}
     build:
       context: ../services/cl_clients/magi
+    depends_on:
+      l1-geth:
+        condition: service_healthy
     volumes:
       - ../sbin:/sbin
       - ../workspace:/workspace
@@ -39,6 +45,11 @@ services:
     build:
       context: ..
       dockerfile: ./docker/l1.Dockerfile
+    healthcheck:
+      test: ["CMD", "test", "-s", "/workspace/sp_local_devnet.json"]
+      retries: 0
+      interval: 1s
+      start_period: 40s
     volumes:
       - ../sbin:/sbin
       - ../workspace:/workspace
