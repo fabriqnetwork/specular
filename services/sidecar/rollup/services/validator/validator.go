@@ -61,6 +61,7 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 
 // Advances validator step-by-step.
 func (v *Validator) start(ctx context.Context) error {
+	// TODO: Maybe we should change this to be event-based and listen for head advances on the chain
 	var ticker = time.NewTicker(v.cfg.GetValidationInterval())
 	defer ticker.Stop()
 	// TODO: do this in the L2 consensus client, not here.
@@ -98,6 +99,10 @@ func (v *Validator) step(ctx context.Context) error {
 	}
 	// TODO: validate assertions locally.
 	// Resolve the first unresolved assertion.
+	// FIXME: THIS IS NOT NECESSARILY THE ASSERTION THAT IS CREATED ABOVE,
+	//        probably we should put that as a separate running services (loops), async
+	// TODO: maybe there is more then one to resolve, so we should maybe try to resolve all available
+	// 		 (take a look at the rollup contract).
 	if err := v.resolveFirstUnresolvedAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to resolve assertion: %w", err)
 	}
@@ -139,10 +144,12 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	// TODO: so maybe us as a validator we are probably staked... shall we maybe
 	//       run some checks first before we spend all this money on gas if we're properly staked?
 	//		Or maybe we check this upfront when we run this? Just food for thought.
+	// Zhe: So create assertion operation quarantees we are properly staked, so this is non-required!
 
 	// TODO: For security we should check what assertion are we dealing with and keep ID in memory
 	//       same with its parent to assure we have a proper relation in the validation phase.
 	//	     This is used later on
+
 	// assertionID = v.lastCreatedAssertionAttrs.<ID> (? field not implemented, where to get ID from ?)
 	// parentAssertionID, err := v.l1BridgeClient.GetLastConfirmedAssertionID(ctx)
 	// FIXME: remove faking below
@@ -151,12 +158,13 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 
 	// FIXME: All IRollup methods should deal with the assertionID as an argument
 	//        to assure we operate only on the right assertion
+	// Zhe: we should probably add the assertionID to IRollup and Rollup implementation.
 
 	// Simulate a confirmation attempt.
 	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
-	// err -> "No"
 	if err != nil {
-		// "No"
+		// It is not confirmable.
+		// Let's explore the reasons.
 		errStr := err.Error()
 		if errStr == bridge.NoUnresolvedAssertionErr {
 			log.Trace("No unresolved assertion to resolve.")
@@ -168,13 +176,14 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 
 		// If not confirmable could still be rejectable
 		// TODO: confirm that the stakerAddress should come from configuration
+		// Zhe: Yes
 		err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsRejectable(ctx, v.cfg.GetAccountAddr())
 		if err != nil {
 			// It is not rejectable
 			// TODO: confirm there is no need to do errStr := err.Error() and cmp with IRollup "requireFirstUnresolvedAssertionIsRejectable"
 			log.Trace("No unresolved assertion to be rejected.")
-			// TODO: confirm exit with nil below
-			return nil
+			// TODO: confirm exit with err below
+			return err
 		}
 
 		// It is not confirmable, but it is rejectable so let's reject
@@ -212,7 +221,7 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	if parentAssertion.StateHash != assertion.StateHash {
 		return fmt.Errorf("state hash does not match with the parent assertion")
 	}
-	
+
 	// number, err := v.l2Client.BlockNumber()
 	// if err != nil {
 	// 	return err
@@ -226,14 +235,16 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	// }
 	// At this point confirmed we are in sync
 
-	// TODO: Read appendTxBatch(bytes calldata txBatchData) from <Implement> or maybe L1Bridge client...
+	// (inaccurate!) TODO: Read appendTxBatch(bytes calldata txBatchData) from <Implement> or maybe L1Bridge client...
 	// 	     anyway is to get the:
 	//	     - calldata content
 	//	     - parse
 	//	     - get full transactions data
 	//	     - apply to the parent state of the assertion (i.e. recompute the entire tree from the transaction hashes)
+
+	// TODO: get the hash from the execution node and compare with the assertion block hash
 	// TODO: compare the state hash we end up with with the assertion hash
-	// TODO: Significant optimization could be done here IMHO, sth around the partial proof (TBD)
+	// (inaccurate!) TODO: Significant optimization could be done here IMHO, sth around the partial proof (TBD)
 	// 		 - the call data could include partial-proof
 
 	// if assertionHash != parentHash {
@@ -246,10 +257,13 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	//				This can come from:
 	//				- IRollupStaker.AssertionID, so reversing this we can identify the Staker
 	//				- IRollup.CreateAssertion releases an event which logs the Staker address
+	// TODO: Zhe: Ask Ujval:
+	//       - maybe the interface should be adjusted to receive the assertionID not the staker address?
+	//       - or maybe there is some other smart way to get the address?
 	//	}
 	//	)
 	//  if err != nil { // TODO: sth fundamental has gone wrong ... }
-	//  return nil
+	//  return err
 	// }
 
 	// We could confirm after all the checks
