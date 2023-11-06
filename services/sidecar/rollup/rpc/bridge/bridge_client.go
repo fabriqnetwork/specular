@@ -2,13 +2,11 @@ package bridge
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/specularL2/specular/services/sidecar/bindings"
-	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 )
 
 type BridgeClient struct {
@@ -16,13 +14,12 @@ type BridgeClient struct {
 	*bindings.IRollup
 }
 
-type L1Config interface {
-	GetEndpoint() string
+type ProtocolConfig interface {
 	GetSequencerInboxAddr() common.Address
 	GetRollupAddr() common.Address
 }
 
-func NewBridgeClient(backend bind.ContractBackend, cfg L1Config) (*BridgeClient, error) {
+func NewBridgeClient(backend bind.ContractBackend, cfg ProtocolConfig) (*BridgeClient, error) {
 	inbox, err := bindings.NewISequencerInbox(cfg.GetSequencerInboxAddr(), backend)
 	if err != nil {
 		return nil, err
@@ -32,14 +29,6 @@ func NewBridgeClient(backend bind.ContractBackend, cfg L1Config) (*BridgeClient,
 		return nil, err
 	}
 	return &BridgeClient{ISequencerInbox: inbox, IRollup: rollup}, nil
-}
-
-func DialWithRetry(ctx context.Context, cfg L1Config) (*BridgeClient, error) {
-	l1Client, err := eth.DialWithRetry(ctx, cfg.GetEndpoint(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to dial L1 client: %v", err)
-	}
-	return NewBridgeClient(l1Client, cfg)
 }
 
 func (c *BridgeClient) RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) error {

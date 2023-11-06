@@ -29,7 +29,7 @@ import (
 
 type serviceCfg interface {
 	GetAccountAddr() common.Address
-	GetSecretKey() *ecdsa.PrivateKey
+	GetPrivateKey() *ecdsa.PrivateKey
 	GetClefEndpoint() string
 	GetTxMgrCfg() txmgr.Config
 }
@@ -38,7 +38,7 @@ func main() {
 	app := &cli.App{
 		Name:   "sidecar",
 		Usage:  "launch a validator and/or disseminator",
-		Action: startService,
+		Action: startServices,
 	}
 	app.Flags = services.CLIFlags()
 	if err := app.Run(os.Args); err != nil {
@@ -47,7 +47,8 @@ func main() {
 	}
 }
 
-func startService(cliCtx *cli.Context) error {
+// Starts the CLI-specified services (blocking).
+func startServices(cliCtx *cli.Context) error {
 	log.Info("Reading configuration")
 	cfg, err := services.ParseSystemConfig(cliCtx)
 	if err != nil {
@@ -89,12 +90,12 @@ func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 ) (*disseminator.BatchDisseminator, error) {
-	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Disseminator())
+	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
 	var (
-		batchBuilder = derivation.NewBatchBuilder(, math.MaxInt64) // TODO: configure max batch size
+		batchBuilder = derivation.NewBatchBuilder(0, math.MaxInt64) // TODO: configure max batch size
 		l2Client     = eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	)
 	return disseminator.NewBatchDisseminator(cfg.Disseminator(), batchBuilder, l1TxMgr, l2Client), nil
@@ -104,7 +105,7 @@ func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
 ) (*validator.Validator, error) {
-	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator())
+	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Validator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -112,7 +113,7 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
-	l1BridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.L1())
+	l1BridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.Protocol())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
 	}
@@ -126,23 +127,24 @@ func createValidator(
 func createTxManager(
 	ctx context.Context,
 	name string,
-	l1Cfg services.L1Config,
+	l1RpcUrl string,
+	protocolCfg services.ProtocolConfig,
 	serCfg serviceCfg,
 ) (*bridge.TxManager, error) {
 	transactor, err := createTransactor(
-		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetSecretKey(), l1Cfg.GetChainID(),
+		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetPrivateKey(), protocolCfg.GetL1ChainID(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
 	}
-	l1Client, err := eth.DialWithRetry(ctx, l1Cfg.GetEndpoint())
+	l1Client, err := eth.DialWithRetry(ctx, l1RpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
 	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
-	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
+	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), protocolCfg)
 }
 
 // Creates a transactor for the given account address, either using a clef endpoint (preferred) or secret key.

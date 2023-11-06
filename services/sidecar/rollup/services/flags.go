@@ -8,10 +8,11 @@ import (
 // Returns all supported flags.
 func CLIFlags() []cli.Flag {
 	return mergeFlagGroups(
+		protocolFlags,
 		l1Flags,
 		l2Flags,
-		sequencerCLIFlags,
-		txmgr.CLIFlags(sequencerTxMgrNamespace),
+		disseminatorCLIFlags,
+		txmgr.CLIFlags(disseminatorTxMgrNamespace),
 		validatorCLIFlags,
 		txmgr.CLIFlags(validatorTxMgrNamespace),
 	)
@@ -26,154 +27,101 @@ func mergeFlagGroups(groups ...[]cli.Flag) []cli.Flag {
 	return flags
 }
 
-// TODO: remove `rollup.` namespace/prefixing
 const (
-	CmdlineFlagName = "rollup.l1.endpoint"
 	// txmgr flag namespaces
-	sequencerTxMgrNamespace = "rollup.sequencer.txmgr"
-	validatorTxMgrNamespace = "rollup.validator.txmgr"
+	disseminatorTxMgrNamespace = "disseminator.txmgr"
+	validatorTxMgrNamespace    = "validator.txmgr"
 )
 
 // These are all the command line flags we support.
 // If you add to this list, please remember to include the
 // flag in the appropriate command definition.
 var (
+	// L1 config flags
 	l1EndpointFlag = &cli.StringFlag{
-		Name:  "rollup.l1.endpoint",
+		Name:  "l1.endpoint",
 		Usage: "The L1 API endpoint",
-	}
-	l1ChainIDFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1.chainid",
-		Usage: "The L1 chain ID",
-		Value: 31337,
-	}
-	l1RollupGenesisBlockFlag = &cli.Uint64Flag{
-		Name:  "rollup.l1.rollup-genesis-block",
-		Usage: "The block number of the L1 block containing the rollup genesis",
-		Value: 0,
-	}
-	l1SequencerInboxAddrFlag = &cli.StringFlag{
-		Name:  "rollup.l1.sequencer-inbox-addr",
-		Usage: "The contract address of L1 sequencer inbox",
-	}
-	l1RollupAddrFlag = &cli.StringFlag{
-		Name:  "rollup.l1.rollup-addr",
-		Usage: "The contract address of L1 rollup",
 	}
 	// L2 config flags
 	l2EndpointFlag = &cli.StringFlag{
-		Name:  "rollup.l2.endpoint",
+		Name:  "l2.endpoint",
 		Usage: "The L2 API endpoint",
-		Value: "ws://0.0.0.0:4012", // TODO: read this from http params?
 	}
-	l2ChainIDFlag = &cli.Uint64Flag{
-		Name:  "rollup.l2.chainid",
-		Usage: "The L2 chain ID",
+	// Chain config protocol flags.
+	protocolRollupCfgPathFlag = &cli.StringFlag{
+		Name:  "protocol.rollup-cfg-path",
+		Usage: "The path to the L2 rollup config file",
 	}
-	l2L1FeeOverheadFlag = &cli.Int64Flag{
-		Name:  "rollup.l2.l1-fee-overhead",
-		Usage: "Gas cost of sequencing a Tx",
-		Value: 0,
+	protocolRollupAddrFlag = &cli.StringFlag{
+		Name:  "protocol.rollup-addr",
+		Usage: "The contract address of L1 rollup",
 	}
-	l2L1FeeMultiplierFlag = &cli.Float64Flag{
-		Name:  "rollup.l2.l1-fee-multiplier",
-		Usage: "Scalar value to increase the L1 Fee",
-		Value: 1.0,
-	}
-	l2L1OracleAddressFlag = &cli.StringFlag{
-		Name:  "rollup.l2.l1-oracle-address",
+	protocolL1OracleAddressFlag = &cli.StringFlag{
+		Name:  "protocol.l1-oracle-address",
 		Usage: "The address of the L1Oracle contract",
 		Value: "0xff00000000000000000000000000000000000002",
 	}
-	l2L1OracleBaseFeeSlotFlag = &cli.StringFlag{
-		Name:  "rollup.l2.l1-oracle-base-fee-slot",
-		Usage: "The address of the L1Oracle contract",
-		Value: "0x18b94da8c18f49ac05520153402a0591c3c917271b9d13711fd6fdb213ded168", // keccak256("specular.basefee")
+	// Disseminator config flags
+	disseminatorEnableFlag = &cli.BoolFlag{
+		Name:  "disseminator",
+		Usage: "Whether this node is a disseminator",
 	}
-	// Sequencer config flags
-	sequencerEnableSequencerFlag = &cli.BoolFlag{
-		Name:  "rollup.sequencer",
-		Usage: "Whether this node is a sequencer",
+	disseminatorPrivateKeyFlag = &cli.StringFlag{
+		Name:  "disseminator.private-key",
+		Usage: "The private key for rollup_cfg['system_config']['batcherAddr']]",
 	}
-	sequencerAddrFlag = &cli.StringFlag{
-		Name:  "rollup.sequencer.addr",
-		Usage: "The sequencer address",
+	disseminatorClefEndpointFlag = &cli.StringFlag{
+		Name:  "disseminator.clef-endpoint",
+		Usage: "The endpoint of the Clef instance that should be used as a disseminator signer",
 	}
-	sequencerSecretKeyFlag = &cli.StringFlag{
-		Name:  "sequencer.secret-key",
-		Usage: "The secret key for sequencer.addr",
-	}
-	sequencerClefEndpointFlag = &cli.StringFlag{
-		Name:  "rollup.sequencer.clef-endpoint",
-		Usage: "The endpoint of the Clef instance that should be used as a sequencer signer",
-	}
-	sequencerPassphraseFlag = &cli.StringFlag{
-		Name:  "rollup.sequencer.passphrase",
-		Usage: "The passphrase of the sequencer account",
-	}
-	sequencerSequencingIntervalFlag = &cli.UintFlag{
-		Name:  "rollup.sequencer.sequencing-interval",
-		Usage: "Time between batch sequencing steps (seconds)",
+	disseminatorIntervalFlag = &cli.UintFlag{
+		Name:  "disseminator.interval",
+		Usage: "Time between batch dissemination steps (seconds)",
 		Value: 8,
 	}
 	// Validator config flags
-	validatorEnableValidatorFlag = &cli.BoolFlag{
-		Name:  "rollup.validator",
+	validatorEnableFlag = &cli.BoolFlag{
+		Name:  "validator",
 		Usage: "Whether this node is a validator",
 	}
 	validatorAddrFlag = &cli.StringFlag{
-		Name:  "rollup.validator.addr",
+		Name:  "validator.addr",
 		Usage: "The validator address",
 	}
-	validatorSecretKeyFlag = &cli.StringFlag{
-		Name:  "validator.secret-key",
+	validatorPrivateKeyFlag = &cli.StringFlag{
+		Name:  "validator.private-key",
 		Usage: "The private key for validator.addr",
 	}
 	validatorClefEndpointFlag = &cli.StringFlag{
-		Name:  "rollup.validator.clef-endpoint",
+		Name:  "validator.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a validator signer",
 	}
-	validatorPassphraseFlag = &cli.StringFlag{
-		Name:  "rollup.validator.passphrase",
-		Usage: "The passphrase of the validator account",
-	}
 	validatorValidationIntervalFlag = &cli.UintFlag{
-		Name:  "rollup.validator.validation-interval",
+		Name:  "validator.validation-interval",
 		Usage: "Time between batch validation steps (seconds)",
 		Value: 10,
 	}
 )
 
 var (
-	l1Flags = []cli.Flag{
-		l1EndpointFlag,
-		l1ChainIDFlag,
-		l1RollupGenesisBlockFlag,
-		l1SequencerInboxAddrFlag,
-		l1RollupAddrFlag,
+	l1Flags       = []cli.Flag{l1EndpointFlag}
+	l2Flags       = []cli.Flag{l2EndpointFlag}
+	protocolFlags = []cli.Flag{
+		protocolRollupCfgPathFlag,
+		protocolRollupAddrFlag,
+		protocolL1OracleAddressFlag,
 	}
-	l2Flags = []cli.Flag{
-		l2EndpointFlag,
-		l2ChainIDFlag,
-		l2L1FeeOverheadFlag,
-		l2L1FeeMultiplierFlag,
-		l2L1OracleAddressFlag,
-		l2L1OracleBaseFeeSlotFlag,
-	}
-	sequencerCLIFlags = []cli.Flag{
-		sequencerEnableSequencerFlag,
-		sequencerAddrFlag,
-		sequencerSecretKeyFlag,
-		sequencerClefEndpointFlag,
-		sequencerPassphraseFlag,
-		sequencerSequencingIntervalFlag,
+	disseminatorCLIFlags = []cli.Flag{
+		disseminatorEnableFlag,
+		disseminatorPrivateKeyFlag,
+		disseminatorClefEndpointFlag,
+		disseminatorIntervalFlag,
 	}
 	validatorCLIFlags = []cli.Flag{
-		validatorEnableValidatorFlag,
+		validatorEnableFlag,
 		validatorAddrFlag,
-		validatorSecretKeyFlag,
+		validatorPrivateKeyFlag,
 		validatorClefEndpointFlag,
-		validatorPassphraseFlag,
 		validatorValidationIntervalFlag,
 	}
 )
