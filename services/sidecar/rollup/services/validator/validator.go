@@ -140,8 +140,15 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	//       run some checks first before we spend all this money on gas if we're properly staked?
 	//		Or maybe we check this upfront when we run this? Just food for thought.
 
-	// TODO: For security we should check what assertion are we dealing with and keep this in memory
-	//       assertionID = GetLastConfirmedAssertionID()
+	// TODO: For security we should check what assertion are we dealing with and keep ID in memory
+	//       same with its parent to assure we have a proper relation in the validation phase.
+	//	     This is used later on
+	// assertionID = v.lastCreatedAssertionAttrs.<ID> (? field not implemented, where to get ID from ?)
+	// parentAssertionID, err := v.l1BridgeClient.GetLastConfirmedAssertionID(ctx)
+	// FIXME: remove faking below
+	assertionID := big.NewInt(0)
+	parentAssertionID := big.NewInt(1)
+
 	// FIXME: All IRollup methods should deal with the assertionID as an argument
 	//        to assure we operate only on the right assertion
 
@@ -183,14 +190,29 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 	// But first we need to validate
 	// TODO: this is not implemented properly, fill-in with a stub/mock
 
-	// We take the parent block number, we take it is hash, we reply what's in the assertion
+	// We take the parent block number, we take its hash, we reply what's in the assertion
 	// and then check the value with the one in the assertion.
 	// (Tip from Simon: Specular uses VMRoot hash from go-ethereum)
 
-	// calling IRollup with GetAssertion, <Implement> whatever is missing on the interfaces
-	// assertion = GetAssertion(assertionID)
-	// parentAssertion = GetAssertion(assertion.Parent)
-	//
+	assertion, err := v.l1BridgeClient.GetAssertion(ctx, assertionID)
+	if err != nil {
+		return err
+	}
+	parentAssertion, err := v.l1BridgeClient.GetAssertion(ctx, parentAssertionID)
+	if err != nil {
+		return err
+	}
+
+	// Validate block number
+	nextBlockNumb := big.NewInt(0)
+	if nextBlockNumb.Add(parentAssertion.BlockNum, big.NewInt(1)).Cmp(assertion.BlockNum) == 0 {
+		return fmt.Errorf("block number does not match with the parent assertion")
+	}
+	// Validate parent hash
+	if parentAssertion.StateHash != assertion.StateHash {
+		return fmt.Errorf("state hash does not match with the parent assertion")
+	}
+	
 	// number, err := v.l2Client.BlockNumber()
 	// if err != nil {
 	// 	return err
