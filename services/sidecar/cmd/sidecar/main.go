@@ -93,11 +93,10 @@ func createDisseminator(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
-	batchBuilder, err := derivation.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize batch builder: %w", err)
-	}
-	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
+	var (
+		batchBuilder = derivation.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
+		l2Client     = eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
+	)
 	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
 }
 

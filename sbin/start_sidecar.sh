@@ -31,9 +31,6 @@ ARGS="
     --validator.secret-key $VALIDATOR_SECRET_KEY \
 "
 
-
-sleep 15
-
 echo "starting sidecar with the following flags:"
 echo $ARGS
 

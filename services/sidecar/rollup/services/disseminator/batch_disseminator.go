@@ -1,14 +1,12 @@
 package disseminator
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"io"
 	"math/big"
 	"time"
 
-	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
@@ -117,19 +115,13 @@ func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to get block: %w", err)
 		}
-		txs, err := encodeRLP(block.Transactions())
-		if err != nil {
-			return fmt.Errorf("failed to encode txs: %w", err)
-		}
-		dBlock := derivation.NewDerivationBlock(block.NumberU64(), block.Time(), txs)
-		err = d.batchBuilder.Append(dBlock, types.NewBlockRefFromHeader(block.Header()))
-		log.Info("Appended block to builder", "block", block.NumberU64(), "#txs", len(txs))
-		if err != nil {
+		if err := d.batchBuilder.Append(block); err != nil {
 			if errors.As(err, &derivation.InvalidBlockError{}) {
 				return L2ReorgDetectedError{err}
 			}
 			return fmt.Errorf("failed to append block (num=%d): %w", i, err)
 		}
+		log.Info("Appended block to builder", "block#", block.NumberU64(), "#txs", len(block.Transactions()))
 	}
 	return nil
 }
@@ -184,27 +176,15 @@ func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
 // Note: this does not guarantee safety (re-org resistance) but should make re-orgs less likely.
 func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	// Construct tx data.
-	txBatchData, err := d.batchBuilder.Build()
+	data, err := d.batchBuilder.Build()
 	if err != nil {
 		return fmt.Errorf("failed to build batch: %w", err)
 	}
-	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, txBatchData)
+	receipt, err := d.l1TxMgr.AppendTxBatch(ctx, data)
 	if err != nil {
 		return fmt.Errorf("failed to send batch transaction: %w", err)
 	}
 	log.Info("Sequenced batch to L1", "tx_hash", receipt.TxHash, "l1Block#", receipt.BlockNumber)
 	d.batchBuilder.Advance()
 	return nil
-}
-
-func encodeRLP(txs ethTypes.Transactions) ([][]byte, error) {
-	var encodedTxs [][]byte
-	for _, tx := range txs {
-		var txBuf bytes.Buffer
-		if err := tx.EncodeRLP(&txBuf); err != nil {
-			return nil, err
-		}
-		encodedTxs = append(encodedTxs, txBuf.Bytes())
-	}
-	return encodedTxs, nil
 }

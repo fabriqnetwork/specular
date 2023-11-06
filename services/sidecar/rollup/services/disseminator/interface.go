@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 )
@@ -19,7 +18,7 @@ type ForkChoiceResponse = engine.ForkChoiceResponse
 type BuildPayloadResponse = engine.ForkChoiceResponse
 
 type BatchBuilder interface {
-	Append(block derivation.DerivationBlock, header derivation.HeaderRef) error
+	Append(block *ethTypes.Block) error
 	LastAppended() types.BlockID
 	Build() ([]byte, error)
 	Advance()
@@ -27,10 +26,7 @@ type BatchBuilder interface {
 }
 
 type TxManager interface {
-	AppendTxBatch(
-		ctx context.Context,
-		txBatchData []byte,
-	) (*ethTypes.Receipt, error)
+	AppendTxBatch(ctx context.Context, batch []byte) (*ethTypes.Receipt, error)
 }
 
 type L2Client interface {

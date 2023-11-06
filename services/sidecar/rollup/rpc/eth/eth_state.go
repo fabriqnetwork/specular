@@ -2,11 +2,11 @@ package eth
 
 import (
 	"context"
-	"fmt"
 
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
