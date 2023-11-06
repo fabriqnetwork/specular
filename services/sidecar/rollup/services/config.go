@@ -85,6 +85,7 @@ func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
 	}, nil
 }
 
+func (c ProtocolConfig) GetSeqWindowSize() uint64              { return c.Rollup.SeqWindowSize }
 func (c ProtocolConfig) GetSequencerInboxAddr() common.Address { return c.Rollup.BatchInboxAddress }
 func (c ProtocolConfig) GetRollup() RollupConfig               { return c.Rollup }
 func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
@@ -127,6 +128,10 @@ type DisseminatorConfig struct {
 	ClefEndpoint string `toml:"clef_endpoint,omitempty"`
 	// Time between batch dissemination (DA) steps
 	DisseminationInterval time.Duration `toml:"dissemination_interval,omitempty"`
+	// The safety margin for batch tx submission (in # of L1 blocks)
+	SubSafetyMargin uint64 `toml:"sub_safety_margin,omitempty"`
+	// The target size of a batch tx submitted to L1 (bytes).
+	TargetBatchSize uint64 `toml:"max_l1_tx_size,omitempty"`
 	// Transaction manager configuration
 	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
@@ -136,6 +141,8 @@ func (c DisseminatorConfig) GetAccountAddr() common.Address          { return c.
 func (c DisseminatorConfig) GetPrivateKey() *ecdsa.PrivateKey        { return c.PrivateKey }
 func (c DisseminatorConfig) GetClefEndpoint() string                 { return c.ClefEndpoint }
 func (c DisseminatorConfig) GetDisseminationInterval() time.Duration { return c.DisseminationInterval }
+func (c DisseminatorConfig) GetSubSafetyMargin() uint64              { return c.SubSafetyMargin }
+func (c DisseminatorConfig) GetTargetBatchSize() uint64              { return c.TargetBatchSize }
 func (c DisseminatorConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
 
 // Validates the configuration.

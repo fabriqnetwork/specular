@@ -8,15 +8,18 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
+	spTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 const v0 = 0x0
 
+var errBatchFull = errors.New("batch full")
+var errBatchTooSmall = errors.New("batch too small")
+
 type Config interface {
-	GetMinSize() uint64
-	GetMaxSize() uint64
+	GetTargetBatchSize() uint64
 	GetSeqWindowSize() uint64
 	GetSubSafetyMargin() uint64
 }
@@ -29,12 +32,17 @@ type BatchV0Encoder struct {
 }
 
 func NewBatchV0Encoder(cfg Config) *BatchV0Encoder {
-	return &BatchV0Encoder{cfg, 0, nil, newSubBatch()}
+	return &BatchV0Encoder{cfg, 0, &bytes.Buffer{}, newSubBatch()}
 }
 
-func (e *BatchV0Encoder) GetBatch() ([]byte, error) {
-	if e.currBuf.Len() < int(e.cfg.GetMinSize()) {
-		return nil, errors.New("insufficient data to form batch")
+func (e *BatchV0Encoder) GetBatch(l1Head spTypes.BlockID) ([]byte, error) {
+	if e.timeout != 0 && l1Head.GetNumber() >= e.timeout {
+		data := e.currBuf.Bytes()
+		e.currBuf.Reset()
+		return data, nil
+	}
+	if e.currBuf.Len() < int(e.cfg.GetTargetBatchSize()) {
+		return nil, errBatchTooSmall
 	}
 	data := e.currBuf.Bytes()
 	e.currBuf.Reset()
@@ -46,6 +54,8 @@ func (e *BatchV0Encoder) Reset() {
 	e.subBatch = newSubBatch()
 }
 
+// Processes a block. If the block is non-empty and fits, add it to the current sub-batch.
+// If the block would cause the batch to exceed the target size, close the entire batch (by writing to `currBuf“).
 // Returns an error if the block could not be processed.
 func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 	// Initialize buffer with version byte if it hasn't been already.
@@ -55,8 +65,10 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 		}
 	}
 	var (
-		shouldSkipBlock     = len(block.Transactions()) == 0
-		shouldCloseBatch    = uint64(e.currBuf.Len())+e.subBatch.size() > e.cfg.GetMaxSize()
+		// Block is empty
+		shouldSkipBlock = len(block.Transactions()) == 0
+		// Block would cause the batch to exceed the target size
+		shouldCloseBatch    = uint64(e.currBuf.Len())+e.subBatch.size() > e.cfg.GetTargetBatchSize()
 		shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && e.subBatch.size() > 0)
 	)
 	if shouldCloseSubBatch {
@@ -66,8 +78,7 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 	}
 	// Enforce soft cap on batch size.
 	if shouldCloseBatch {
-		log.Info("Closing batch")
-		return errors.New("full batch")
+		return errBatchFull
 	}
 	// Skip intrinsically-derivable blocks.
 	if shouldSkipBlock {
@@ -91,6 +102,7 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 func (e *BatchV0Encoder) getVersion() byte { return v0 }
 
 // Updates the batch timeout if the given L1 epoch is earlier than the current timeout.
+// Note: the timeout won't be updated more than once assuming the L1 epoch is monotonically increasing.
 func (e *BatchV0Encoder) updateTimeout(l1Epoch uint64) {
 	timeout := l1Epoch + e.cfg.GetSeqWindowSize() - e.cfg.GetSubSafetyMargin()
 	if e.timeout == 0 || e.timeout > timeout {
@@ -104,7 +116,7 @@ func (e *BatchV0Encoder) closeSubBatch() error {
 	if err := rlp.Encode(e.currBuf, e.subBatch); err != nil {
 		return fmt.Errorf("could not encode sub-batch: %w", err)
 	}
-	e.Reset()
+	e.subBatch = newSubBatch()
 	return nil
 }
 
@@ -120,10 +132,12 @@ func newSubBatch() *subBatch     { return &subBatch{contentSize: 0} }
 func (s *subBatch) size() uint64 { return rlp.ListSize(s.contentSize) }
 
 func (s *subBatch) appendTxBlock(blockNum uint64, txs types.Transactions) error {
+	// Set the first L2 block number if it hasn't been set yet.
 	if len(s.txBlocks) == 0 {
 		s.firstL2BlockNum = blockNum
 		s.contentSize += uint64(rlp.IntSize(blockNum))
 	}
+	// Append the block of txs to the sub-batch.
 	marshalled, numBytes, err := marshallTxs(txs)
 	if err != nil {
 		return fmt.Errorf("could not marshall txs: %w", err)

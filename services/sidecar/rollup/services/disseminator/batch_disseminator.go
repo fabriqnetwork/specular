@@ -20,6 +20,7 @@ type BatchDisseminator struct {
 	cfg          Config
 	batchBuilder BatchBuilder
 	l1TxMgr      TxManager
+	l1State      *eth.EthState
 	l2Client     L2Client
 }
 
@@ -37,9 +38,10 @@ func NewBatchDisseminator(
 	cfg Config,
 	batchBuilder BatchBuilder,
 	l1TxMgr TxManager,
+	l1State *eth.EthState,
 	l2Client L2Client,
 ) *BatchDisseminator {
-	return &BatchDisseminator{cfg: cfg, batchBuilder: batchBuilder, l1TxMgr: l1TxMgr, l2Client: l2Client}
+	return &BatchDisseminator{cfg, batchBuilder, l1TxMgr, l1State, l2Client}
 }
 
 func (s *BatchDisseminator) Start(ctx context.Context, eg api.ErrGroup) error {
@@ -176,7 +178,7 @@ func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
 // Note: this does not guarantee safety (re-org resistance) but should make re-orgs less likely.
 func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	// Construct tx data.
-	data, err := d.batchBuilder.Build()
+	data, err := d.batchBuilder.Build(d.l1State.Head())
 	if err != nil {
 		return fmt.Errorf("failed to build batch: %w", err)
 	}

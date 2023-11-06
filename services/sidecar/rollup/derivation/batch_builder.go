@@ -21,7 +21,7 @@ type InvalidBlockError struct{ Msg string }
 func (e InvalidBlockError) Error() string { return e.Msg }
 
 type VersionedDataEncoder interface {
-	GetBatch() ([]byte, error)
+	GetBatch(l1Head types.BlockID) ([]byte, error)
 	Reset()
 	ProcessBlock(block *ethTypes.Block) error
 }
@@ -37,10 +37,8 @@ type batchBuilder struct {
 	lastBuilt     []byte
 }
 
-// maxBatchSize is a soft cap on the size of the batch (# of bytes).
-func NewBatchBuilder(minBatchSize, maxBatchSize uint64) *batchBuilder {
-	// TODO: abstract out encoder creation.
-	return &batchBuilder{encoder: NewBatchV0Encoder(minBatchSize, maxBatchSize)}
+func NewBatchBuilder(encoder VersionedDataEncoder) *batchBuilder {
+	return &batchBuilder{encoder, nil, types.BlockID{}, nil}
 }
 
 func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
@@ -67,17 +65,24 @@ func (b *batchBuilder) Reset(lastEnqueued types.BlockID) {
 
 // This short-circuits the build process if a batch is
 // already built and `Advance` hasn't been called.
-func (b *batchBuilder) Build() ([]byte, error) {
+func (b *batchBuilder) Build(l1Head types.BlockID) ([]byte, error) {
 	if b.lastBuilt != nil {
 		return b.lastBuilt, nil
 	}
+	// Process pending blocks.
 	if err := b.encodePending(); err != nil {
 		return nil, fmt.Errorf("failed to encode pending blocks into a new batch: %w", err)
 	}
-	batch, err := b.encoder.GetBatch()
+	// Try to get a batch from encoder.
+	batch, err := b.encoder.GetBatch(l1Head)
 	if err != nil {
-		// process
+		if errors.Is(err, errBatchTooSmall) {
+			log.Warn("Batch too small, waiting for more blocks")
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to get batch: %w", err)
 	}
+	// Cache last built batch.
 	b.lastBuilt = batch
 	return b.lastBuilt, nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"math"
 	"math/big"
 	"os"
 
@@ -60,8 +59,12 @@ func startServices(cliCtx *cli.Context) error {
 		validator    *validator.Validator
 		eg, ctx      = errgroup.WithContext(context.Background())
 	)
+	l1State, err := createL1State(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to start syncing l1 state: %w", err)
+	}
 	if cfg.Disseminator().GetIsEnabled() {
-		disseminator, err = createDisseminator(context.Background(), cfg)
+		disseminator, err = createDisseminator(context.Background(), cfg, l1State)
 		if err != nil {
 			return fmt.Errorf("failed to create disseminator: %w", err)
 		}
@@ -70,7 +73,7 @@ func startServices(cliCtx *cli.Context) error {
 		}
 	}
 	if cfg.Validator().GetIsEnabled() {
-		validator, err = createValidator(context.Background(), cfg)
+		validator, err = createValidator(context.Background(), cfg, l1State)
 		if err != nil {
 			return fmt.Errorf("failed to create validator: %w", err)
 		}
@@ -89,21 +92,24 @@ func startServices(cliCtx *cli.Context) error {
 func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
+	l1State *eth.EthState,
 ) (*disseminator.BatchDisseminator, error) {
 	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
 	var (
-		batchBuilder = derivation.NewBatchBuilder(0, math.MaxInt64) // TODO: configure max batch size
+		encoder      = derivation.NewBatchV0Encoder(cfg)
+		batchBuilder = derivation.NewBatchBuilder(encoder)
 		l2Client     = eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	)
-	return disseminator.NewBatchDisseminator(cfg.Disseminator(), batchBuilder, l1TxMgr, l2Client), nil
+	return disseminator.NewBatchDisseminator(cfg.Disseminator(), batchBuilder, l1TxMgr, l1State, l2Client), nil
 }
 
 func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
+	l1State *eth.EthState,
 ) (*validator.Validator, error) {
 	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Validator())
 	if err != nil {
@@ -117,9 +123,6 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
 	}
-	l1State := eth.NewEthState()
-	l1Syncer := eth.NewEthSyncer(l1State)
-	l1Syncer.Start(ctx, l1Client)
 	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	return validator.NewValidator(cfg.Validator(), l1TxMgr, l1BridgeClient, l1State, l2Client), nil
 }
@@ -163,4 +166,15 @@ func createTransactor(
 	}
 	log.Warn("No external signer specified, using geth signer")
 	return bind.NewKeyedTransactorWithChainID(secretKey, new(big.Int).SetUint64(chainID))
+}
+
+func createL1State(ctx context.Context, cfg *services.SystemConfig) (*eth.EthState, error) {
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
+	}
+	l1State := eth.NewEthState()
+	l1Syncer := eth.NewEthSyncer(l1State)
+	l1Syncer.Start(ctx, l1Client)
+	return l1State, nil
 }
