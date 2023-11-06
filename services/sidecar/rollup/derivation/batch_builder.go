@@ -1,7 +1,7 @@
 package derivation
 
 import (
-	"bytes"
+	"errors"
 	"io"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -22,39 +22,47 @@ func (e InvalidBlockError) Error() string { return e.Msg }
 
 type VersionedDataEncoder interface {
 	GetVersion() byte
-	WriteData(b *bytes.Buffer) (int, error)
+	GetBatch() ([]byte, error)
+	Reset()
+	ProcessBlock(block *ethTypes.Block) error
+}
+
+type ProtocolConfig interface {
+	GetSeqWindowSize() uint64
 }
 
 type batchBuilder struct {
-	maxBatchSize  uint64
+	encoder       VersionedDataEncoder
 	pendingBlocks []ethTypes.Block
-	lastAppended  types.BlockID
+	lastEnqueued  types.BlockID
 	lastBuilt     []byte
 }
 
 // maxBatchSize is a soft cap on the size of the batch (# of bytes).
-func NewBatchBuilder(maxBatchSize uint64) *batchBuilder {
-	return &batchBuilder{maxBatchSize: maxBatchSize}
+func NewBatchBuilder(minBatchSize, maxBatchSize uint64) *batchBuilder {
+	// TODO: abstract out encoder creation.
+	return &batchBuilder{encoder: NewBatchV0Encoder(minBatchSize, maxBatchSize)}
 }
 
-func (b *batchBuilder) LastAppended() types.BlockID { return b.lastAppended }
+func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
 
-// Appends a block, to be processed and batched.
-// Returns a `InvalidBlockError` if the block is not a child of the last appended block.
-func (b *batchBuilder) Append(block *ethTypes.Block) error {
+// Enqueues a block, to be processed and batched.
+// Returns a `InvalidBlockError` if the block is not a child of the last enqueued block.
+func (b *batchBuilder) Enqueue(block *ethTypes.Block) error {
 	// Ensure block is a child of the last appended block. Not enforced when no prior blocks.
-	if (b.lastAppended.GetHash() != common.Hash{}) && (block.ParentHash() != b.lastAppended.GetHash()) {
+	if (b.lastEnqueued.GetHash() != common.Hash{}) && (block.ParentHash() != b.lastEnqueued.GetHash()) {
 		return InvalidBlockError{Msg: "Appended block is not a child of the last appended block"}
 	}
 	b.pendingBlocks = append(b.pendingBlocks, *block)
-	b.lastAppended = types.NewBlockID(block.NumberU64(), block.Hash())
+	b.lastEnqueued = types.NewBlockID(block.NumberU64(), block.Hash())
 	return nil
 }
 
 // Resets the builder, discarding all pending blocks.
-func (b *batchBuilder) Reset(lastAppended types.BlockID) {
+func (b *batchBuilder) Reset(lastEnqueued types.BlockID) {
+	b.encoder.Reset()
 	b.pendingBlocks = []ethTypes.Block{}
-	b.lastAppended = lastAppended
+	b.lastEnqueued = lastEnqueued
 	b.lastBuilt = nil
 }
 
@@ -64,11 +72,14 @@ func (b *batchBuilder) Build() ([]byte, error) {
 	if b.lastBuilt != nil {
 		return b.lastBuilt, nil
 	}
-	encodedData, err := b.encodePending()
-	if err != nil {
+	if err := b.encodePending(); err != nil {
 		return nil, fmt.Errorf("failed to encode pending blocks into a new batch: %w", err)
 	}
-	b.lastBuilt = encodedData
+	batch, err := b.encoder.GetBatch()
+	if err != nil {
+		// process
+	}
+	b.lastBuilt = batch
 	return b.lastBuilt, nil
 }
 
@@ -79,34 +90,25 @@ func (b *batchBuilder) Advance() {
 
 // Encodes pending blocks into a new batch, constrained by `maxBatchSize`.
 // Returns an `io.EOF` error if there are no pending blocks.
-func (b *batchBuilder) encodePending() ([]byte, error) {
+func (b *batchBuilder) encodePending() error {
 	if len(b.pendingBlocks) == 0 {
-		return nil, io.EOF
+		return io.EOF
 	}
-	// Encode data. TODO: abstract encoder creation out.
-	batcherDataV0, numProcessed, err := encodeVersionedData(NewBatchV0Encoder(b.pendingBlocks, b.maxBatchSize))
-	if err != nil {
-		return nil, err
+	// Process pending blocks.
+	numProcessed := 0
+	for _, block := range b.pendingBlocks {
+		if err := b.encoder.ProcessBlock(&block); err != nil {
+			if errors.Is(err, errors.New("full batch")) {
+				break
+			}
+		}
+		numProcessed += 1
 	}
 	log.Info("Encoded l2 blocks", "num_processed", numProcessed)
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[numProcessed:]
 	log.Trace("Advanced pending blocks", "len", len(b.pendingBlocks))
-	return batcherDataV0, nil
-}
-
-// Encodes a versioned batch.
-// Returns the encoded data and the number of blocks processed.
-func encodeVersionedData(e VersionedDataEncoder) ([]byte, int, error) {
-	var buf bytes.Buffer
-	if err := buf.WriteByte(e.GetVersion()); err != nil {
-		return nil, 0, fmt.Errorf("failed to encode version: %w", err)
-	}
-	numProcessed, err := e.WriteData(&buf)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to encode data: %w", err)
-	}
-	return buf.Bytes(), numProcessed, nil
+	return nil
 }
 
 type DecodeTxBatchError struct{ msg string }

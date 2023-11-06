@@ -18,11 +18,11 @@ type ForkChoiceResponse = engine.ForkChoiceResponse
 type BuildPayloadResponse = engine.ForkChoiceResponse
 
 type BatchBuilder interface {
-	Append(block *ethTypes.Block) error
-	LastAppended() types.BlockID
+	Enqueue(block *ethTypes.Block) error
+	LastEnqueued() types.BlockID
 	Build() ([]byte, error)
 	Advance()
-	Reset(lastAppended types.BlockID)
+	Reset(lastEnqueued types.BlockID)
 }
 
 type TxManager interface {

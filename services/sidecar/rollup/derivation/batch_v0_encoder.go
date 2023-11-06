@@ -2,6 +2,7 @@ package derivation
 
 import (
 	"bytes"
+	"errors"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -13,65 +14,76 @@ import (
 const v0 = 0x0
 
 type BatchV0Encoder struct {
-	blocks  []types.Block
-	maxSize uint64
+	minSize  uint64
+	maxSize  uint64
+	currBuf  *bytes.Buffer
+	subBatch *subBatch
 }
 
-func NewBatchV0Encoder(blocks []types.Block, maxSize uint64) *BatchV0Encoder {
-	return &BatchV0Encoder{blocks, maxSize}
+func NewBatchV0Encoder(minSize uint64, maxSize uint64) *BatchV0Encoder {
+	return &BatchV0Encoder{minSize, maxSize, nil, newSubBatch()}
 }
 
 // Returns the data format version (v0, i.e. 0x0).
 func (b *BatchV0Encoder) GetVersion() byte { return v0 }
 
-// Writes the batch data in the v0-specified format.
-func (b *BatchV0Encoder) WriteData(buf *bytes.Buffer) (int, error) {
+func (b *BatchV0Encoder) GetBatch() ([]byte, error) {
+	if b.currBuf.Len() < int(b.minSize) {
+		return nil, errors.New("insufficient data to form batch")
+	}
+	data := b.currBuf.Bytes()
+	b.currBuf.Reset()
+	return data, nil
+}
+
+func (b *BatchV0Encoder) Reset() {
+	b.currBuf.Reset()
+	b.subBatch = newSubBatch()
+}
+
+// Returns an error if the block could not be processed.
+func (b *BatchV0Encoder) ProcessBlock(block *types.Block) error {
+	// Initialize buffer with version byte if it hasn't been already.
+	if b.currBuf.Len() == 0 {
+		if err := b.currBuf.WriteByte(b.GetVersion()); err != nil {
+			return fmt.Errorf("failed to encode version: %w", err)
+		}
+	}
 	var (
-		idx      int
-		block    types.Block
-		numBytes uint64
-		subBatch = newSubBatch()
+		shouldSkipBlock     = len(block.Transactions()) == 0
+		shouldCloseBatch    = uint64(b.currBuf.Len())+b.subBatch.size() > b.maxSize
+		shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && b.subBatch.size() > 0)
 	)
-	// Iterate block-by-block, enforcing a soft cap on the total batch size.
-	for idx, block = range b.blocks {
-		var (
-			shouldSkipBlock     = len(block.Transactions()) == 0
-			shouldCloseBatch    = numBytes+subBatch.size() > b.maxSize
-			shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && subBatch.size() > 0)
-		)
-		if shouldCloseSubBatch {
-			log.Info("Closing sub-batch...")
-			// Write encoded sub-batch.
-			if err := rlp.Encode(buf, subBatch); err != nil {
-				return 0, fmt.Errorf("could not encode sub-batch: %w", err)
-			}
-			numBytes += subBatch.size()
-			// Initialize a new sub-batch.
-			subBatch = newSubBatch()
-		}
-		// Enforce soft cap on batch size.
-		if shouldCloseBatch {
-			log.Info("Closing batch")
-			break
-		}
-		// Skip intrinsically-derivable blocks.
-		if shouldSkipBlock {
-			log.Info("Skipping intrinsically-derivable block", "block#", block.NumberU64())
-			continue
-		}
-		// Append a block's txs to the current sub-batch.
-		if err := subBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
-			return 0, fmt.Errorf("could not append block of txs: %w", err)
+	if shouldCloseSubBatch {
+		if err := b.closeSubBatch(); err != nil {
+			return fmt.Errorf("could not close sub-batch: %w", err)
 		}
 	}
-	// Handle the case where the last sub-batch is non-empty.
-	if subBatch.size() > 0 {
-		if err := rlp.Encode(buf, subBatch); err != nil {
-			return 0, fmt.Errorf("could not encode last sub-batch: %w", err)
-		}
-		idx += 1
+	// Enforce soft cap on batch size.
+	if shouldCloseBatch {
+		log.Info("Closing batch")
+		return errors.New("full batch")
 	}
-	return idx, nil
+	// Skip intrinsically-derivable blocks.
+	if shouldSkipBlock {
+		log.Info("Skipping intrinsically-derivable block", "block#", block.NumberU64())
+		return nil
+	}
+	// Append a block's txs to the current sub-batch.
+	if err := b.subBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
+		return fmt.Errorf("could not append block of txs: %w", err)
+	}
+	return nil
+}
+
+// Writes encoded sub-batch out to the buffer.
+func (b *BatchV0Encoder) closeSubBatch() error {
+	log.Info("Closing sub-batch...")
+	if err := rlp.Encode(b.currBuf, b.subBatch); err != nil {
+		return fmt.Errorf("could not encode sub-batch: %w", err)
+	}
+	b.Reset()
+	return nil
 }
 
 type subBatch struct {

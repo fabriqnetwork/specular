@@ -115,11 +115,11 @@ func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to get block: %w", err)
 		}
-		if err := d.batchBuilder.Append(block); err != nil {
+		if err := d.batchBuilder.Enqueue(block); err != nil {
 			if errors.As(err, &derivation.InvalidBlockError{}) {
 				return L2ReorgDetectedError{err}
 			}
-			return fmt.Errorf("failed to append block (num=%d): %w", i, err)
+			return fmt.Errorf("failed to enqueue block (num=%d): %w", i, err)
 		}
 		log.Info("Appended block to builder", "block#", block.NumberU64(), "#txs", len(block.Transactions()))
 	}
@@ -130,18 +130,18 @@ func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 // Typically, we start from the last appended block number + 1, and end at the current unsafe head.
 func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, uint64, error) {
 	var (
-		lastAppended = d.batchBuilder.LastAppended()
-		start        = lastAppended.GetNumber() + 1 // TODO: fix assumption
+		LastEnqueued = d.batchBuilder.LastEnqueued()
+		start        = LastEnqueued.GetNumber() + 1 // TODO: fix assumption
 	)
 	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get l2 safe header: %w", err)
 	}
 	log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash)
-	if lastAppended == types.EmptyBlockID {
+	if LastEnqueued == types.EmptyBlockID {
 		// First time running; use safe (assumes local chain fork-choice is in sync...)
 		start = safe.Number.Uint64() + 1
-	} else if safe.Number.Uint64() > lastAppended.GetNumber() {
+	} else if safe.Number.Uint64() > LastEnqueued.GetNumber() {
 		// This should currently not be possible (single sequencer). TODO: handle restart case?
 		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
 	}
