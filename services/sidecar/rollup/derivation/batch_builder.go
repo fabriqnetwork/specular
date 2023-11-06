@@ -21,7 +21,6 @@ type InvalidBlockError struct{ Msg string }
 func (e InvalidBlockError) Error() string { return e.Msg }
 
 type VersionedDataEncoder interface {
-	GetVersion() byte
 	GetBatch() ([]byte, error)
 	Reset()
 	ProcessBlock(block *ethTypes.Block) error

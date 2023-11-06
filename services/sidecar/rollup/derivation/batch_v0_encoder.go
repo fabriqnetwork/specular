@@ -7,55 +7,60 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 const v0 = 0x0
 
+type Config interface {
+	GetMinSize() uint64
+	GetMaxSize() uint64
+	GetSeqWindowSize() uint64
+	GetSubSafetyMargin() uint64
+}
+
 type BatchV0Encoder struct {
-	minSize  uint64
-	maxSize  uint64
+	cfg      Config
+	timeout  uint64
 	currBuf  *bytes.Buffer
 	subBatch *subBatch
 }
 
-func NewBatchV0Encoder(minSize uint64, maxSize uint64) *BatchV0Encoder {
-	return &BatchV0Encoder{minSize, maxSize, nil, newSubBatch()}
+func NewBatchV0Encoder(cfg Config) *BatchV0Encoder {
+	return &BatchV0Encoder{cfg, 0, nil, newSubBatch()}
 }
 
-// Returns the data format version (v0, i.e. 0x0).
-func (b *BatchV0Encoder) GetVersion() byte { return v0 }
-
-func (b *BatchV0Encoder) GetBatch() ([]byte, error) {
-	if b.currBuf.Len() < int(b.minSize) {
+func (e *BatchV0Encoder) GetBatch() ([]byte, error) {
+	if e.currBuf.Len() < int(e.cfg.GetMinSize()) {
 		return nil, errors.New("insufficient data to form batch")
 	}
-	data := b.currBuf.Bytes()
-	b.currBuf.Reset()
+	data := e.currBuf.Bytes()
+	e.currBuf.Reset()
 	return data, nil
 }
 
-func (b *BatchV0Encoder) Reset() {
-	b.currBuf.Reset()
-	b.subBatch = newSubBatch()
+func (e *BatchV0Encoder) Reset() {
+	e.currBuf.Reset()
+	e.subBatch = newSubBatch()
 }
 
 // Returns an error if the block could not be processed.
-func (b *BatchV0Encoder) ProcessBlock(block *types.Block) error {
+func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 	// Initialize buffer with version byte if it hasn't been already.
-	if b.currBuf.Len() == 0 {
-		if err := b.currBuf.WriteByte(b.GetVersion()); err != nil {
+	if e.currBuf.Len() == 0 {
+		if err := e.currBuf.WriteByte(e.getVersion()); err != nil {
 			return fmt.Errorf("failed to encode version: %w", err)
 		}
 	}
 	var (
 		shouldSkipBlock     = len(block.Transactions()) == 0
-		shouldCloseBatch    = uint64(b.currBuf.Len())+b.subBatch.size() > b.maxSize
-		shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && b.subBatch.size() > 0)
+		shouldCloseBatch    = uint64(e.currBuf.Len())+e.subBatch.size() > e.cfg.GetMaxSize()
+		shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && e.subBatch.size() > 0)
 	)
 	if shouldCloseSubBatch {
-		if err := b.closeSubBatch(); err != nil {
+		if err := e.closeSubBatch(); err != nil {
 			return fmt.Errorf("could not close sub-batch: %w", err)
 		}
 	}
@@ -69,20 +74,37 @@ func (b *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 		log.Info("Skipping intrinsically-derivable block", "block#", block.NumberU64())
 		return nil
 	}
+	// Decode oracle tx.
+	l1Epoch, _, _, _, _, err := bridge.UnpackL1OracleInput(block.Transactions()[0])
+	if err != nil {
+		return fmt.Errorf("could not unpack oracle tx: %w", err)
+	}
+	e.updateTimeout(l1Epoch.Uint64())
 	// Append a block's txs to the current sub-batch.
-	if err := b.subBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
+	if err := e.subBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
 		return fmt.Errorf("could not append block of txs: %w", err)
 	}
 	return nil
 }
 
+// Returns the data format version (v0, i.e. 0x0).
+func (e *BatchV0Encoder) getVersion() byte { return v0 }
+
+// Updates the batch timeout if the given L1 epoch is earlier than the current timeout.
+func (e *BatchV0Encoder) updateTimeout(l1Epoch uint64) {
+	timeout := l1Epoch + e.cfg.GetSeqWindowSize() - e.cfg.GetSubSafetyMargin()
+	if e.timeout == 0 || e.timeout > timeout {
+		e.timeout = timeout
+	}
+}
+
 // Writes encoded sub-batch out to the buffer.
-func (b *BatchV0Encoder) closeSubBatch() error {
+func (e *BatchV0Encoder) closeSubBatch() error {
 	log.Info("Closing sub-batch...")
-	if err := rlp.Encode(b.currBuf, b.subBatch); err != nil {
+	if err := rlp.Encode(e.currBuf, e.subBatch); err != nil {
 		return fmt.Errorf("could not encode sub-batch: %w", err)
 	}
-	b.Reset()
+	e.Reset()
 	return nil
 }
 

@@ -43,6 +43,13 @@ func RollupABIMethods() map[string]abi.Method    { return serializationUtil.roll
 func ChallengeABIMethods() map[string]abi.Method { return serializationUtil.challengeAbi.Methods }
 func TxMethodID(tx *types.Transaction) string    { return string(tx.Data()[:MethodNumBytes]) }
 
+// L1Oracle.sol
+
+// TODO
+func UnpackL1OracleInput(tx *types.Transaction) (*big.Int, *big.Int, *big.Int, common.Hash, common.Hash, error) {
+	return common.Big0, common.Big0, common.Big0, common.Hash{}, common.Hash{}, nil
+}
+
 // ISequencerInbox.sol
 
 func InboxEvent(name string) abi.Event { return serializationUtil.inboxAbi.Events[name] }
