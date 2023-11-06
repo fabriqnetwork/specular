@@ -1,4 +1,32 @@
 #!/bin/sh
+SBIN=`dirname $0`
+SBIN="`cd "$SBIN"; pwd`"
+# Parse args.
+optspec=":dh:"
+while getopts "$optspec" optchar; do
+    case "${optchar}" in
+        c)
+	    echo "Cleaning..."
+	    $SBIN/clean_deployment.sh
+	    ;;
+	d)
+	    L1_DEPLOY=true
+	    ;;
+        h)
+            echo "usage: $0 [-c][-d][-h]"
+	    echo "-c : clean before running"
+	    echo "-d : deploy contracts"
+            exit
+            ;;
+        *)
+            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+                echo "Unknown option: '-${OPTARG}'"
+		exit 1
+            fi
+            ;;
+    esac
+done
+
 # Check that the dotenv exists.
 ENV=".genesis.env"
 if ! test -f $ENV; then
@@ -7,9 +35,6 @@ if ! test -f $ENV; then
 fi
 echo "Using dotenv: $ENV"
 . $ENV
-
-echo "Removing localhost deployment artifacts..."
-rm -rf $CONTRACTS_DIR/deployments/localhost
 
 L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
@@ -57,14 +82,13 @@ fi
 
 # Optionally deploy the contracts
 if [ "$L1_DEPLOY" = "true" ]; then
-    echo "deploying contracts..."
-    #npx hardhat deploy --network localhost
+    echo "Deploying contracts..."
     bash $SBIN/deploy_l1_contracts.sh
 fi
 
 # Follow output
 if [ "$L1_STACK" = "geth" ]; then
-    tail -f $PID
+    tail -f $L1_PID
 elif [ "$L1_STACK" = "hardhat" ]; then
-    tail -f $PID
+    tail -f $L1_PID
 fi

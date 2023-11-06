@@ -81,7 +81,7 @@ $SBIN/create_genesis.sh
 # Deploy contracts
 cd $CONTRACTS_DIR
 echo "Deploying l1 contracts..."
-npx hardhat deploy --network localhost
+npx hardhat deploy --network $NETWORK
 
 # Generate rollup config
 echo "Generating rollup config..."

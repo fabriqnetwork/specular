@@ -44,4 +44,4 @@ services:
       - ../workspace:/workspace
       - ../config:/config
     working_dir: /workspace
-    entrypoint: sh ../sbin/start_l1.sh
+    entrypoint: sh ../sbin/start_l1.sh -d
