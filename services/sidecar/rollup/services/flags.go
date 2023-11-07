@@ -74,6 +74,14 @@ var (
 		Name:  "disseminator.clef-endpoint",
 		Usage: "The endpoint of the Clef instance that should be used as a disseminator signer",
 	}
+	disseminatorSubSafetyMarginFlag = &cli.Uint64Flag{
+		Name:  "disseminator.sub-safety-margin",
+		Usage: "The safety margin for batch tx submission (in # of L1 blocks)",
+	}
+	disseminatorTargetBatchSizeFlag = &cli.Uint64Flag{
+		Name:  "disseminator.target-batch-size",
+		Usage: "The target size of a batch tx submitted to L1 (bytes)",
+	}
 	disseminatorIntervalFlag = &cli.UintFlag{
 		Name:  "disseminator.interval",
 		Usage: "Time between batch dissemination steps (seconds)",

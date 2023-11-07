@@ -28,13 +28,20 @@ while getopts "$optspec" optchar; do
 done
 
 # Check that the dotenv exists.
-ENV=".genesis.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
+GENESIS_ENV=".genesis.env"
+if ! test -f $GENESIS_ENV; then
+    echo "Expected dotenv at $GENESIS_ENV (does not exist)."
     exit
 fi
-echo "Using dotenv: $ENV"
-. $ENV
+echo "Using genesis dotenv: $GENESIS_ENV"
+. $GENESIS_ENV
+CONTRACTS_ENV=".contracts.env"
+if ! test -f $CONTRACTS_ENV; then
+    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
+    exit
+fi
+echo "Using contracts dotenv: $CONTRACTS_ENV"
+. $CONTRACTS_ENV
 
 L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`

@@ -22,7 +22,10 @@ ARGS="
     --protocol.rollup-cfg-path $ROLLUP_CFG_PATH \
     --protocol.rollup-addr $ROLLUP_ADDR \
     --disseminator \
+    --disseminator.addr \
     --disseminator.private-key $DISSEMINATOR_PRIVATE_KEY \
+    --disseminator.sub-safety-margin $DISSEMINATOR_SUB_SAFETY_MARGIN \
+    --disseminator.target-batch-size $DISSEMINATOR_TARGET_BATCH_SIZE \
     --validator \
     --validator.private-key $VALIDATOR_PRIVATE_KEY
 "

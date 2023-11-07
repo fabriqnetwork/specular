@@ -67,6 +67,7 @@ func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
 }
 
 // Protocol configuration
+// Basically: fields from `rollup.json` + additional protocol fields
 type ProtocolConfig struct {
 	Rollup          RollupConfig   `toml:"rollup,omitempty"`
 	RollupAddr      common.Address `toml:"rollup_addr,omitempty"`       // L1 Rollup contract address
@@ -166,6 +167,8 @@ func newDisseminatorConfigFromCLI(
 		PrivateKey:            toPrivateKey(cliCtx.String(disseminatorPrivateKeyFlag.Name)),
 		ClefEndpoint:          cliCtx.String(disseminatorClefEndpointFlag.Name),
 		DisseminationInterval: time.Duration(cliCtx.Uint(disseminatorIntervalFlag.Name)) * time.Second,
+		SubSafetyMargin:       cliCtx.Uint64(disseminatorSubSafetyMarginFlag.Name),
+		TargetBatchSize:       cliCtx.Uint64(disseminatorTargetBatchSizeFlag.Name),
 		TxMgrCfg:              txMgrCfg,
 	}
 }
