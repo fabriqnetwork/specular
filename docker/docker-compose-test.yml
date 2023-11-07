@@ -8,7 +8,7 @@ services:
       dockerfile: ./services/sidecar/Dockerfile
     volumes:
       - ../sbin:/sbin
-      - ../workspace:/workspace
+      - ../docker-workspace:/workspace
     working_dir: /workspace
     entrypoint: sh ../sbin/start_sidecar.sh
 
@@ -17,10 +17,10 @@ services:
     build:
       context: ../services/el_clients/go-ethereum
     env_file:
-      ../workspace/.sp_geth.env
+      ./../docker-workspace/.sp_geth.env
     volumes:
       - ../sbin:/sbin
-      - ../workspace:/workspace
+      - ../docker-workspace:/workspace
     working_dir: /workspace
     entrypoint: sh ../sbin/start_sp_geth.sh
 
@@ -30,7 +30,7 @@ services:
       context: ../services/cl_clients/magi
     volumes:
       - ../sbin:/sbin
-      - ../workspace:/workspace
+      - ../docker-workspace:/workspace
     working_dir: /workspace
     entrypoint: sh ../sbin/start_sp_magi.sh
 
@@ -41,7 +41,7 @@ services:
       dockerfile: ./docker/l1.Dockerfile
     volumes:
       - ../sbin:/sbin
-      - ../workspace:/workspace
+      - ../docker-workspace:/workspace
       - ../config:/config
     working_dir: /workspace
     entrypoint: sh ../sbin/start_l1.sh
