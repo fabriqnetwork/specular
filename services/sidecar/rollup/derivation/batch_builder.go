@@ -3,7 +3,6 @@ package derivation
 import (
 	"errors"
 	"io"
-	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
@@ -137,8 +136,8 @@ func (b *batchBuilder) encodePending() error {
 
 // Processes a block, adding its data to the current batch.
 func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
-	// Decode oracle tx.
-	var epoch *big.Int
+	var epoch uint64
+	// Decode oracle tx to update timeout.
 	if block.Transactions().Len() > 0 {
 		// Process oracle tx, if it exists.
 		var firstTx = block.Transactions()[0]
@@ -147,15 +146,13 @@ func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
 			if err != nil {
 				return fmt.Errorf("could not unpack oracle tx: %w", err)
 			}
+			// Note: it may make sense to move this to after processing the block.
+			b.updateTimeout(epoch)
 		}
 	}
 	// Process block.
-	if err := b.encoder.ProcessBlock(block, epoch != nil); err != nil {
+	if err := b.encoder.ProcessBlock(block, epoch != 0); err != nil {
 		return err
-	}
-	// Update timeout.
-	if epoch != nil {
-		b.updateTimeout(epoch.Uint64())
 	}
 	return err
 }
