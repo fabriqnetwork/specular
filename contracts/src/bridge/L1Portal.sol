@@ -147,7 +147,7 @@ contract L1Portal is
         IRollup.Assertion memory assertion = rollup.getAssertion(assertionID);
 
         // Ensure that the assertion is confirmed.
-        require(_isAssertionConfirmed(assertionID, assertion.stateHash), "L1Portal: assertion not confirmed");
+        require(_isAssertionConfirmed(assertionID, assertion.stateCommitment), "L1Portal: assertion not confirmed");
 
         // All withdrawals have a unique hash, we'll use this as the identifier for the withdrawal
         // and to prevent replay attacks.
@@ -165,7 +165,7 @@ contract L1Portal is
 
             // Verify the account proof.
             bytes32 storageRoot =
-                _verifyAccountInclusion(Predeploys.L2_PORTAL, assertion.stateHash, withdrawalAccountProof);
+                _verifyAccountInclusion(Predeploys.L2_PORTAL, assertion.stateCommitment, withdrawalAccountProof);
 
             // Verify that the hash of this withdrawal was stored in the L2Portal contract on L2.
             // If this is true, then we know that this withdrawal was actually triggered on L2
@@ -206,7 +206,7 @@ contract L1Portal is
     /// @inheritdoc IL1Portal
     function isAssertionConfirmed(uint256 assertionID) public view override returns (bool) {
         IRollup.Assertion memory assertion = rollup.getAssertion(assertionID);
-        return _isAssertionConfirmed(assertionID, assertion.stateHash);
+        return _isAssertionConfirmed(assertionID, assertion.stateCommitment);
     }
 
     /// @inheritdoc IL1Portal
@@ -248,16 +248,16 @@ contract L1Portal is
      * @notice Determine if a given assertion is finalized and confirmed.
      *
      * @param assertionID The ID of the assertion.
-     * @param stateHash   The stateHash field of the assertion.
+     * @param stateCommitment The state commitment field of the assertion.
      */
-    function _isAssertionConfirmed(uint256 assertionID, bytes32 stateHash) internal view returns (bool) {
+    function _isAssertionConfirmed(uint256 assertionID, bytes32 stateCommitment) internal view returns (bool) {
         // Must be finalized.
         if (assertionID > rollup.getLastConfirmedAssertionID()) {
             return false;
         }
 
         // Must be confirmed.
-        if (stateHash == bytes32(0)) {
+        if (stateCommitment == bytes32(0)) {
             return false;
         }
 

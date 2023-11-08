@@ -11,6 +11,7 @@ import (
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
+	specularTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
@@ -34,8 +35,8 @@ type Validator struct {
 }
 
 type assertionAttributes struct {
-	l2BlockNum uint64
-	l2VMHash   common.Hash
+	l2BlockNum      uint64
+	stateCommitment specularTypes.Bytes32
 }
 
 func NewValidator(
@@ -118,7 +119,7 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
 	// TOOD: GasLimit: 0 ...?
-	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2VMHash, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
+	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.stateCommitment, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
 	if err != nil {
 		return err
 	}
@@ -168,7 +169,7 @@ func (v *Validator) rollback(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get assertion: %w", err)
 	}
-	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.BlockNum.Uint64(), assertion.StateHash}
+	v.lastCreatedAssertionAttrs = assertionAttributes{assertion.BlockNum.Uint64(), assertion.StateCommitment}
 	return nil
 }
 
@@ -179,7 +180,7 @@ func (v *Validator) getNextAssertionAttrs(ctx context.Context) (assertionAttribu
 	if err != nil {
 		return assertionAttributes{}, fmt.Errorf("failed to get finalized assertion attrs: %w", err)
 	}
-	return assertionAttributes{header.Number.Uint64(), computeVmHash(header)}, nil
+	return assertionAttributes{header.Number.Uint64(), StateCommitment(&StateCommitmentV0{header.Hash()})}, nil
 }
 
 func (v *Validator) ensureStaked(ctx context.Context) error {
@@ -209,20 +210,15 @@ func (v *Validator) validateGenesis(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get genesis assertion: %w", err)
 	}
+	stateCommitment := assertion.StateCommitment
 	// Check that the genesis assertion is correct.
-	vmHash := common.BytesToHash(assertion.StateHash[:])
 	genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
 	if err != nil {
 		return fmt.Errorf("failed to get L2 genesis block: %w", err)
 	}
-	l2VmHash := computeVmHash(genesisBlock.Header())
-	if vmHash != l2VmHash {
-		return fmt.Errorf("mismatching genesis on L1=%s vs L2=%s", vmHash, l2VmHash)
+	genesisStateCommitment := StateCommitment(&StateCommitmentV0{genesisBlock.Header().Hash()})
+	if stateCommitment != genesisStateCommitment {
+		return fmt.Errorf("mismatching genesis on L1=%s vs L2=%s", &stateCommitment, &genesisStateCommitment)
 	}
 	return nil
-}
-
-// TODO: add versioning
-func computeVmHash(header *types.Header) common.Hash {
-	return header.Hash()
 }

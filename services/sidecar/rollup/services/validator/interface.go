@@ -20,7 +20,7 @@ type Config interface {
 type TxManager interface {
 	Stake(ctx context.Context, stakeAmount *big.Int) (*ethTypes.Receipt, error)
 	AdvanceStake(ctx context.Context, assertionID *big.Int) (*ethTypes.Receipt, error)
-	CreateAssertion(ctx context.Context, vmHash common.Hash, inboxSize *big.Int) (*ethTypes.Receipt, error)
+	CreateAssertion(ctx context.Context, stateCommitment types.Bytes32, blockNum *big.Int) (*ethTypes.Receipt, error)
 	ConfirmFirstUnresolvedAssertion(ctx context.Context) (*ethTypes.Receipt, error)
 }
 
