@@ -19,13 +19,14 @@ type V0Config interface {
 }
 
 type BatchV0Encoder struct {
-	cfg      V0Config
-	currBuf  *bytes.Buffer
-	subBatch *subBatch
+	cfg        V0Config
+	currBuf    *bytes.Buffer
+	subBatches []*subBatch
+	runningLen uint64
 }
 
 func NewBatchV0Encoder(cfg V0Config) *BatchV0Encoder {
-	return &BatchV0Encoder{cfg, &bytes.Buffer{}, newSubBatch()}
+	return &BatchV0Encoder{cfg, &bytes.Buffer{}, []*subBatch{newSubBatch()}, 0}
 }
 
 func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
@@ -36,12 +37,15 @@ func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
 	}
 	// Close the sub-batch if the batch can fit it.
 	if e.shouldCloseBatch() {
-		if err := e.closeSubBatch(); err != nil {
-			return nil, fmt.Errorf("could not close sub-batch: %w", err)
-		}
+		e.closeSubBatch()
 	}
-	var data = e.currBuf.Bytes()
+	// Encode all sub-batches (except the last).
+	data, err := rlp.EncodeToBytes(e.subBatches[len(e.subBatches)-1])
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode batch: %w", err)
+	}
 	// Reset the buffer. Note: we don't reset the sub-batch in case it wasn't closed.
+	// In this case, it'll be used in the next batch.
 	e.currBuf.Reset()
 	return data, nil
 }
@@ -65,9 +69,7 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 		shouldCloseSubBatch = shouldCloseBatch || shouldSkipBlock || isNewEpoch
 	)
 	if shouldCloseSubBatch {
-		if err := e.closeSubBatch(); err != nil {
-			return fmt.Errorf("could not close sub-batch: %w", err)
-		}
+		e.closeSubBatch()
 	}
 	// Enforce soft cap on batch size.
 	if shouldCloseBatch {
@@ -79,7 +81,8 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 		return nil
 	}
 	// Append a block's txs to the current sub-batch.
-	if err := e.subBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
+	var currSubBatch = e.subBatches[len(e.subBatches)-1]
+	if err := currSubBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
 		return fmt.Errorf("could not append block of txs: %w", err)
 	}
 	return nil
@@ -87,26 +90,27 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 
 func (e *BatchV0Encoder) Reset() {
 	e.currBuf.Reset()
-	e.subBatch = newSubBatch()
+	e.subBatches = []*subBatch{newSubBatch()}
+	e.runningLen = 0
 }
 
 // Returns the data format version (v0).
 func (e *BatchV0Encoder) getVersion() BatchEncoderVersion { return V0 }
 func (e *BatchV0Encoder) shouldCloseBatch() bool {
-	return uint64(e.currBuf.Len())+e.subBatch.size() > e.cfg.GetTargetBatchSize()
+	var currSubBatch = e.subBatches[len(e.subBatches)-1]
+	return e.runningLen+currSubBatch.size() > e.cfg.GetTargetBatchSize()
 }
 
-// Writes encoded sub-batch out to the buffer.
-func (e *BatchV0Encoder) closeSubBatch() error {
-	if e.subBatch.size() == 0 {
-		return nil
+// Closes the current sub-batch.
+func (e *BatchV0Encoder) closeSubBatch() {
+	var currSubBatch = e.subBatches[len(e.subBatches)-1]
+	// No need to close if it's empty.
+	if currSubBatch.size() == 0 {
+		return
 	}
 	log.Info("Closing sub-batch...")
-	if err := rlp.Encode(e.currBuf, e.subBatch); err != nil {
-		return fmt.Errorf("could not encode sub-batch: %w", err)
-	}
-	e.subBatch = newSubBatch()
-	return nil
+	e.runningLen += currSubBatch.size()
+	e.subBatches = append(e.subBatches, newSubBatch())
 }
 
 type subBatch struct {
