@@ -3,42 +3,51 @@ package derivation
 import (
 	"errors"
 	"io"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
-type HeaderRef interface {
-	GetHash() common.Hash
-	GetParentHash() common.Hash
+type BatchEncoderVersion = byte
+
+const V0 BatchEncoderVersion = 0x0
+
+type Config interface {
+	GetSeqWindowSize() uint64
+	GetSubSafetyMargin() uint64
+}
+
+type VersionedDataEncoder interface {
+	// Returns an encoded batch if one is ready (or if forced).
+	// If not forced an error is returned if one cannot yet be built.
+	GetBatch(force bool) ([]byte, error)
+	// Resets the encoder, discarding all buffered data.
+	Reset()
+	// Processes a block, adding its data to the current batch.
+	ProcessBlock(block *ethTypes.Block, isNewEpoch bool) error
 }
 
 type InvalidBlockError struct{ Msg string }
 
 func (e InvalidBlockError) Error() string { return e.Msg }
 
-type VersionedDataEncoder interface {
-	GetBatch(l1Head types.BlockID) ([]byte, error)
-	Reset()
-	ProcessBlock(block *ethTypes.Block) error
-}
-
-type ProtocolConfig interface {
-	GetSeqWindowSize() uint64
-}
-
 type batchBuilder struct {
+	cfg           Config
 	encoder       VersionedDataEncoder
-	pendingBlocks []ethTypes.Block
+	pendingBlocks []*ethTypes.Block
 	lastEnqueued  types.BlockID
 	lastBuilt     []byte
+
+	timeout uint64
 }
 
-func NewBatchBuilder(encoder VersionedDataEncoder) *batchBuilder {
-	return &batchBuilder{encoder, nil, types.BlockID{}, nil}
+func NewBatchBuilder(cfg Config, encoder VersionedDataEncoder) *batchBuilder {
+	return &batchBuilder{cfg, encoder, nil, types.BlockID{}, nil, 0}
 }
 
 func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
@@ -50,7 +59,7 @@ func (b *batchBuilder) Enqueue(block *ethTypes.Block) error {
 	if (b.lastEnqueued.GetHash() != common.Hash{}) && (block.ParentHash() != b.lastEnqueued.GetHash()) {
 		return InvalidBlockError{Msg: "Appended block is not a child of the last appended block"}
 	}
-	b.pendingBlocks = append(b.pendingBlocks, *block)
+	b.pendingBlocks = append(b.pendingBlocks, block)
 	b.lastEnqueued = types.NewBlockID(block.NumberU64(), block.Hash())
 	return nil
 }
@@ -58,23 +67,34 @@ func (b *batchBuilder) Enqueue(block *ethTypes.Block) error {
 // Resets the builder, discarding all pending blocks.
 func (b *batchBuilder) Reset(lastEnqueued types.BlockID) {
 	b.encoder.Reset()
-	b.pendingBlocks = []ethTypes.Block{}
+	b.pendingBlocks = []*ethTypes.Block{}
 	b.lastEnqueued = lastEnqueued
 	b.lastBuilt = nil
 }
 
 // This short-circuits the build process if a batch is
 // already built and `Advance` hasn't been called.
+// An l1Head must be provided to allow the encoder to determine if the batch is ready.
 func (b *batchBuilder) Build(l1Head types.BlockID) ([]byte, error) {
 	if b.lastBuilt != nil {
 		return b.lastBuilt, nil
 	}
-	// Process pending blocks.
 	if err := b.encodePending(); err != nil {
 		return nil, fmt.Errorf("failed to encode pending blocks into a new batch: %w", err)
 	}
-	// Try to get a batch from encoder.
-	batch, err := b.encoder.GetBatch(l1Head)
+	return b.getBatch(l1Head)
+}
+
+// Advances the builder, clearing the last built batch.
+func (b *batchBuilder) Advance() {
+	b.lastBuilt = nil
+}
+
+// Tries to get the current batch.
+func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
+	// Force-build batch if necessary (timeout exceeded).
+	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
+	batch, err := b.encoder.GetBatch(force)
 	if err != nil {
 		if errors.Is(err, errBatchTooSmall) {
 			log.Warn("Batch too small, waiting for more blocks")
@@ -84,12 +104,7 @@ func (b *batchBuilder) Build(l1Head types.BlockID) ([]byte, error) {
 	}
 	// Cache last built batch.
 	b.lastBuilt = batch
-	return b.lastBuilt, nil
-}
-
-// Advances the builder, clearing the last built batch.
-func (b *batchBuilder) Advance() {
-	b.lastBuilt = nil
+	return batch, nil
 }
 
 // Encodes pending blocks into a new batch, constrained by `maxBatchSize`.
@@ -98,21 +113,54 @@ func (b *batchBuilder) encodePending() error {
 	if len(b.pendingBlocks) == 0 {
 		return io.EOF
 	}
-	// Process pending blocks.
+	// Process all pending blocks (until the batch is full).
 	numProcessed := 0
 	for _, block := range b.pendingBlocks {
-		if err := b.encoder.ProcessBlock(&block); err != nil {
-			if errors.Is(err, errors.New("full batch")) {
+		if err := b.processBlock(block); err != nil {
+			if errors.Is(err, errBatchFull) {
+				log.Info("Batch is full, stopping processing")
 				break
 			}
+			return fmt.Errorf("failed to process block: %w", err)
 		}
 		numProcessed += 1
 	}
 	log.Info("Encoded l2 blocks", "num_processed", numProcessed)
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[numProcessed:]
-	log.Trace("Advanced pending blocks", "len", len(b.pendingBlocks))
+	log.Trace("Advanced pending blocks", "pending left", len(b.pendingBlocks))
 	return nil
+}
+
+// Processes a block, adding its data to the current batch.
+func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
+	// Decode oracle tx.
+	var epoch *big.Int
+	if block.Transactions().Len() > 0 {
+		// TODO: only if it's actually an oracle tx (check To address vs config.GetL1OracleAddress()).
+		epoch, _, _, _, _, err = bridge.UnpackL1OracleInput(block.Transactions()[0])
+		if err != nil {
+			return fmt.Errorf("could not unpack oracle tx: %w", err)
+		}
+	}
+	// Process block.
+	if err := b.encoder.ProcessBlock(block, epoch != nil); err != nil {
+		return err
+	}
+	// Update timeout.
+	if epoch != nil {
+		b.updateTimeout(epoch.Uint64())
+	}
+	return err
+}
+
+// Updates the batch timeout if the given L1 epoch is earlier than the current timeout.
+// Note: the timeout won't be updated more than once assuming the L1 epoch is monotonically increasing.
+func (b *batchBuilder) updateTimeout(l1Epoch uint64) {
+	timeout := l1Epoch + b.cfg.GetSeqWindowSize() - b.cfg.GetSubSafetyMargin()
+	if b.timeout == 0 || b.timeout > timeout {
+		b.timeout = timeout
+	}
 }
 
 type DecodeTxBatchError struct{ msg string }
@@ -126,11 +174,11 @@ func DecodeBatch(data []byte) (interface{}, error) {
 	if len(data) == 0 {
 		return nil, &DecodeTxBatchError{"empty batch data"}
 	}
-	version := data[0]
-	switch version {
-	case 0:
+	// TODO: use map.
+	switch data[0] {
+	case V0:
 		return decodeV0(data[1:])
 	default:
-		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid batch version: {%d}", version)}
+		return nil, &DecodeTxBatchError{fmt.Sprintf("invalid batch version: %d", data[0])}
 	}
 }

@@ -132,18 +132,18 @@ func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 // Typically, we start from the last appended block number + 1, and end at the current unsafe head.
 func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, uint64, error) {
 	var (
-		LastEnqueued = d.batchBuilder.LastEnqueued()
-		start        = LastEnqueued.GetNumber() + 1 // TODO: fix assumption
+		lastEnqueued = d.batchBuilder.LastEnqueued()
+		start        = lastEnqueued.GetNumber() + 1 // TODO: fix assumption
 	)
 	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return 0, 0, fmt.Errorf("failed to get l2 safe header: %w", err)
 	}
 	log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash)
-	if LastEnqueued == types.EmptyBlockID {
+	if lastEnqueued == types.EmptyBlockID {
 		// First time running; use safe (assumes local chain fork-choice is in sync...)
 		start = safe.Number.Uint64() + 1
-	} else if safe.Number.Uint64() > LastEnqueued.GetNumber() {
+	} else if safe.Number.Uint64() > lastEnqueued.GetNumber() {
 		// This should currently not be possible (single sequencer). TODO: handle restart case?
 		return 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
 	}

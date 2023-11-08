@@ -100,7 +100,7 @@ func createDisseminator(
 	}
 	var (
 		encoder      = derivation.NewBatchV0Encoder(cfg)
-		batchBuilder = derivation.NewBatchBuilder(encoder)
+		batchBuilder = derivation.NewBatchBuilder(cfg, encoder)
 		l2Client     = eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	)
 	return disseminator.NewBatchDisseminator(cfg.Disseminator(), batchBuilder, l1TxMgr, l1State, l2Client), nil

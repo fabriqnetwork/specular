@@ -7,48 +7,39 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
-	spTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
-const v0 = 0x0
-
 var errBatchFull = errors.New("batch full")
 var errBatchTooSmall = errors.New("batch too small")
 
-type Config interface {
+type V0Config interface {
 	GetTargetBatchSize() uint64
-	GetSeqWindowSize() uint64
-	GetSubSafetyMargin() uint64
 }
 
 type BatchV0Encoder struct {
-	cfg      Config
-	timeout  uint64
+	cfg      V0Config
 	currBuf  *bytes.Buffer
 	subBatch *subBatch
 }
 
-func NewBatchV0Encoder(cfg Config) *BatchV0Encoder {
-	return &BatchV0Encoder{cfg, 0, &bytes.Buffer{}, newSubBatch()}
+func NewBatchV0Encoder(cfg V0Config) *BatchV0Encoder {
+	return &BatchV0Encoder{cfg, &bytes.Buffer{}, newSubBatch()}
 }
 
-func (e *BatchV0Encoder) GetBatch(l1Head spTypes.BlockID) ([]byte, error) {
-	if e.timeout != 0 && l1Head.GetNumber() >= e.timeout {
-		data := e.currBuf.Bytes()
-		e.currBuf.Reset()
-		return data, nil
-	}
-	if e.currBuf.Len() < int(e.cfg.GetTargetBatchSize()) {
+func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
+	// Return error if the batch is too small and the timeout hasn't been reached.
+	// If the timeout has been reached, the batch will be closed regardless of its current size.
+	if !force && e.currBuf.Len() < int(e.cfg.GetTargetBatchSize()) {
 		return nil, errBatchTooSmall
 	}
-	data := e.currBuf.Bytes()
+	var data = e.currBuf.Bytes()
 	e.currBuf.Reset()
 	return data, nil
 }
 
+func (e *BatchV0Encoder) Len() int { return e.currBuf.Len() }
 func (e *BatchV0Encoder) Reset() {
 	e.currBuf.Reset()
 	e.subBatch = newSubBatch()
@@ -57,7 +48,7 @@ func (e *BatchV0Encoder) Reset() {
 // Processes a block. If the block is non-empty and fits, add it to the current sub-batch.
 // If the block would cause the batch to exceed the target size, close the entire batch (by writing to `currBuf“).
 // Returns an error if the block could not be processed.
-func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
+func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error {
 	// Initialize buffer with version byte if it hasn't been already.
 	if e.currBuf.Len() == 0 {
 		if err := e.currBuf.WriteByte(e.getVersion()); err != nil {
@@ -67,8 +58,9 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 	var (
 		// Block is empty
 		shouldSkipBlock = len(block.Transactions()) == 0
-		// Block would cause the batch to exceed the target size
-		shouldCloseBatch    = uint64(e.currBuf.Len())+e.subBatch.size() > e.cfg.GetTargetBatchSize()
+		// Batch would exceed the target size with the current sub-batch.
+		shouldCloseBatch = e.shouldCloseBatch()
+		// Should close batch entirely, or block is empty.
 		shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && e.subBatch.size() > 0)
 	)
 	if shouldCloseSubBatch {
@@ -85,12 +77,6 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 		log.Info("Skipping intrinsically-derivable block", "block#", block.NumberU64())
 		return nil
 	}
-	// Decode oracle tx.
-	l1Epoch, _, _, _, _, err := bridge.UnpackL1OracleInput(block.Transactions()[0])
-	if err != nil {
-		return fmt.Errorf("could not unpack oracle tx: %w", err)
-	}
-	e.updateTimeout(l1Epoch.Uint64())
 	// Append a block's txs to the current sub-batch.
 	if err := e.subBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
 		return fmt.Errorf("could not append block of txs: %w", err)
@@ -98,16 +84,10 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block) error {
 	return nil
 }
 
-// Returns the data format version (v0, i.e. 0x0).
-func (e *BatchV0Encoder) getVersion() byte { return v0 }
-
-// Updates the batch timeout if the given L1 epoch is earlier than the current timeout.
-// Note: the timeout won't be updated more than once assuming the L1 epoch is monotonically increasing.
-func (e *BatchV0Encoder) updateTimeout(l1Epoch uint64) {
-	timeout := l1Epoch + e.cfg.GetSeqWindowSize() - e.cfg.GetSubSafetyMargin()
-	if e.timeout == 0 || e.timeout > timeout {
-		e.timeout = timeout
-	}
+// Returns the data format version (v0).
+func (e *BatchV0Encoder) getVersion() BatchEncoderVersion { return V0 }
+func (e *BatchV0Encoder) shouldCloseBatch() bool {
+	return uint64(e.currBuf.Len())+e.subBatch.size() > e.cfg.GetTargetBatchSize()
 }
 
 // Writes encoded sub-batch out to the buffer.
