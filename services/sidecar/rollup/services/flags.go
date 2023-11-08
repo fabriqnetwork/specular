@@ -57,7 +57,7 @@ var (
 		Usage: "The contract address of L1 rollup",
 	}
 	protocolL1OracleAddrFlag = &cli.StringFlag{
-		Name:  "protocol.l1-oracle-address",
+		Name:  "protocol.l1-oracle-addr",
 		Usage: "The address of the L1Oracle contract",
 		Value: "0xff00000000000000000000000000000000000002",
 	}

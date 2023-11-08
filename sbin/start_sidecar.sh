@@ -40,6 +40,7 @@ fi
 FLAGS="
     --protocol.rollup-cfg-path $ROLLUP_CFG_PATH \
     --protocol.rollup-addr $ROLLUP_ADDR \
+    --protocol.l1-oracle-addr $L1_ORACLE_ADDR \
     --l1.endpoint $L1_ENDPOINT \
     --l2.endpoint $L2_ENDPOINT \
     $DISSEMINATOR_FLAGS \
