@@ -20,7 +20,7 @@ type BatchDisseminator struct {
 	cfg          Config
 	batchBuilder BatchBuilder
 	l1TxMgr      TxManager
-	l1State      *eth.EthState
+	l1State      *eth.EthState // Expected to generally be kept in sync with L1 chain.
 	l2Client     L2Client
 }
 

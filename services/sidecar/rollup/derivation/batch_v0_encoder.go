@@ -34,6 +34,12 @@ func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
 	if !force && e.currBuf.Len() < int(e.cfg.GetTargetBatchSize()) {
 		return nil, errBatchTooSmall
 	}
+	// Close the sub-batch if the batch can fit it.
+	if e.shouldCloseBatch() {
+		if err := e.closeSubBatch(); err != nil {
+			return nil, fmt.Errorf("could not close sub-batch: %w", err)
+		}
+	}
 	var data = e.currBuf.Bytes()
 	e.currBuf.Reset()
 	return data, nil
@@ -46,7 +52,7 @@ func (e *BatchV0Encoder) Reset() {
 }
 
 // Processes a block. If the block is non-empty and fits, add it to the current sub-batch.
-// If the block would cause the batch to exceed the target size, close the entire batch (by writing to `currBuf“).
+// Returns an `errBatchFull` if the block would cause the batch to exceed the target size.
 // Returns an error if the block could not be processed.
 func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error {
 	// Initialize buffer with version byte if it hasn't been already.
