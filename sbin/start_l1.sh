@@ -47,6 +47,31 @@ L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
 echo "Parsed endpoint ($L1_HOST) and port: $L1_WS_PORT from $L1_ENDPOINT"
 
+###### PID handling ######
+trap ctrl_c INT
+
+# Active PIDs
+PIDS=()
+
+function cleanup() {
+    echo "Cleaning up..."
+    for pid in "${PIDS[@]}"; do
+        echo "Killing $pid"
+	disown $pid
+        kill $pid
+    done
+    # For good measure...
+    if [ -n "$L1_WS_PORT" ]; then
+	echo "Killing proc on $L1_WS_PORT"
+	lsof -i tcp:${L1_WS_PORT} | awk 'NR!=1 {print $2}' | xargs kill
+    fi
+}
+
+function ctrl_c() {
+    cleanup
+}
+##########################
+
 # Start L1 network.
 echo "Starting L1..."
 if [ "$L1_STACK" = "geth" ]; then
@@ -77,6 +102,10 @@ if [ "$L1_STACK" = "geth" ]; then
       "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
       $L1_ENDPOINT
 elif [ "$L1_STACK" = "hardhat" ]; then
+    if [ -z $CONTRACTS_DIR ]; then
+	. $SBIN/configure.sh
+    fi
+    echo "Using $CONTRACTS_DIR as HH proj"
     cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_WS_PORT &
     L1_PID=$!
     PIDS+=$L1_PID
@@ -94,8 +123,5 @@ if [ "$L1_DEPLOY" = "true" ]; then
 fi
 
 # Follow output
-if [ "$L1_STACK" = "geth" ]; then
-    tail -f $L1_PID
-elif [ "$L1_STACK" = "hardhat" ]; then
-    tail -f $L1_PID
-fi
+# tail -f $L1_PID
+wait $L1_PID
