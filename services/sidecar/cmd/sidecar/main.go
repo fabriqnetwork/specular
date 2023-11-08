@@ -48,7 +48,7 @@ func main() {
 
 // Starts the CLI-specified services (blocking).
 func startServices(cliCtx *cli.Context) error {
-	log.Info("Reading configuration")
+	log.Info("Parsing configuration")
 	cfg, err := services.ParseSystemConfig(cliCtx)
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)

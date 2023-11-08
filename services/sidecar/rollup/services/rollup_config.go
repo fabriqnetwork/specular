@@ -7,8 +7,10 @@ import (
 	"errors"
 	"math/big"
 	"os"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	spTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
@@ -36,6 +38,26 @@ var (
 )
 
 type Bytes32 [32]byte
+
+func (b *Bytes32) UnmarshalJSON(text []byte) error {
+	return hexutil.UnmarshalFixedJSON(reflect.TypeOf(b), text, b[:])
+}
+
+func (b *Bytes32) UnmarshalText(text []byte) error {
+	return hexutil.UnmarshalFixedText("Bytes32", text, b[:])
+}
+
+func (b Bytes32) MarshalText() ([]byte, error) {
+	return hexutil.Bytes(b[:]).MarshalText()
+}
+
+func (b Bytes32) String() string {
+	return hexutil.Encode(b[:])
+}
+
+func (b Bytes32) TerminalString() string {
+	return fmt.Sprintf("%x..%x", b[:3], b[29:])
+}
 
 type RollupConfig struct {
 	// Genesis anchor point of the rollup

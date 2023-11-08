@@ -124,6 +124,8 @@ var (
 		disseminatorPrivateKeyFlag,
 		disseminatorClefEndpointFlag,
 		disseminatorIntervalFlag,
+		disseminatorSubSafetyMarginFlag,
+		disseminatorTargetBatchSizeFlag,
 	}
 	validatorCLIFlags = []cli.Flag{
 		validatorEnableFlag,

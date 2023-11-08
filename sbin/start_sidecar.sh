@@ -49,4 +49,4 @@ FLAGS="
 
 echo "starting sidecar with the following flags:"
 echo $FLAGS
-$SIDECAR $FLAGS
+$SIDECAR_BIN $FLAGS
