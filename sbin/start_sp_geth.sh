@@ -48,18 +48,18 @@ FLAGS="
     --datadir $DATA_DIR \
     --networkid $NETWORK_ID \
     --http \
-    --http.addr $ADDR \
+    --http.addr $ADDRESS \
     --http.port $HTTP_PORT \
     --http.api 'engine,personal,eth,net,web3,txpool,miner,debug' \
     --http.corsdomain=* \
     --http.vhosts=* \
     --ws \
-    --ws.addr $ADDR \
+    --ws.addr $ADDRESS \
     --ws.port $WS_PORT \
     --ws.api 'engine,personal,eth,net,web3,txpool,miner,debug' \
     --ws.origins=* \
     --authrpc.vhosts=* \
-    --authrpc.addr $ADDR \
+    --authrpc.addr $ADDRESS \
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
     --miner.recommit 0
