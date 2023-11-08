@@ -56,7 +56,7 @@ var (
 		Name:  "protocol.rollup-addr",
 		Usage: "The contract address of L1 rollup",
 	}
-	protocolL1OracleAddressFlag = &cli.StringFlag{
+	protocolL1OracleAddrFlag = &cli.StringFlag{
 		Name:  "protocol.l1-oracle-address",
 		Usage: "The address of the L1Oracle contract",
 		Value: "0xff00000000000000000000000000000000000002",
@@ -117,7 +117,7 @@ var (
 	protocolFlags = []cli.Flag{
 		protocolRollupCfgPathFlag,
 		protocolRollupAddrFlag,
-		protocolL1OracleAddressFlag,
+		protocolL1OracleAddrFlag,
 	}
 	disseminatorCLIFlags = []cli.Flag{
 		disseminatorEnableFlag,

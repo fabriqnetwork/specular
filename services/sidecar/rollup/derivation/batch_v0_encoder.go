@@ -41,19 +41,13 @@ func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
 		}
 	}
 	var data = e.currBuf.Bytes()
+	// Reset the buffer. Note: we don't reset the sub-batch in case it wasn't closed.
 	e.currBuf.Reset()
 	return data, nil
 }
 
-func (e *BatchV0Encoder) Len() int { return e.currBuf.Len() }
-func (e *BatchV0Encoder) Reset() {
-	e.currBuf.Reset()
-	e.subBatch = newSubBatch()
-}
-
 // Processes a block. If the block is non-empty and fits, add it to the current sub-batch.
-// Returns an `errBatchFull` if the block would cause the batch to exceed the target size.
-// Returns an error if the block could not be processed.
+// If the block belongs to a new epoch, close the current sub-batch and start a new one.
 func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error {
 	// Initialize buffer with version byte if it hasn't been already.
 	if e.currBuf.Len() == 0 {
@@ -66,8 +60,9 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 		shouldSkipBlock = len(block.Transactions()) == 0
 		// Batch would exceed the target size with the current sub-batch.
 		shouldCloseBatch = e.shouldCloseBatch()
-		// Should close batch entirely, or block is empty.
-		shouldCloseSubBatch = shouldCloseBatch || (shouldSkipBlock && e.subBatch.size() > 0)
+		// Should close sub-batch if we're closing the batch entirely, OR...
+		// the block is empty, OR... the block belongs to a new epoch.
+		shouldCloseSubBatch = shouldCloseBatch || shouldSkipBlock || isNewEpoch
 	)
 	if shouldCloseSubBatch {
 		if err := e.closeSubBatch(); err != nil {
@@ -90,6 +85,11 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 	return nil
 }
 
+func (e *BatchV0Encoder) Reset() {
+	e.currBuf.Reset()
+	e.subBatch = newSubBatch()
+}
+
 // Returns the data format version (v0).
 func (e *BatchV0Encoder) getVersion() BatchEncoderVersion { return V0 }
 func (e *BatchV0Encoder) shouldCloseBatch() bool {
@@ -98,6 +98,9 @@ func (e *BatchV0Encoder) shouldCloseBatch() bool {
 
 // Writes encoded sub-batch out to the buffer.
 func (e *BatchV0Encoder) closeSubBatch() error {
+	if e.subBatch.size() == 0 {
+		return nil
+	}
 	log.Info("Closing sub-batch...")
 	if err := rlp.Encode(e.currBuf, e.subBatch); err != nil {
 		return fmt.Errorf("could not encode sub-batch: %w", err)

@@ -18,18 +18,21 @@ type BatchEncoderVersion = byte
 const V0 BatchEncoderVersion = 0x0
 
 type Config interface {
+	GetL1OracleAddr() common.Address
 	GetSeqWindowSize() uint64
 	GetSubSafetyMargin() uint64
 }
 
 type VersionedDataEncoder interface {
 	// Returns an encoded batch if one is ready (or if forced).
-	// If not forced an error is returned if one cannot yet be built.
+	// If not forced, an error is returned if one cannot yet be built.
 	GetBatch(force bool) ([]byte, error)
+	// Processes a block, adding its data to the current batch.
+	// Returns an `errBatchFull` if the block would cause the batch to exceed the target size.
+	// Returns an error if the block could not be processed.
+	ProcessBlock(block *ethTypes.Block, isNewEpoch bool) error
 	// Resets the encoder, discarding all buffered data.
 	Reset()
-	// Processes a block, adding its data to the current batch.
-	ProcessBlock(block *ethTypes.Block, isNewEpoch bool) error
 }
 
 type InvalidBlockError struct{ Msg string }
@@ -137,10 +140,13 @@ func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
 	// Decode oracle tx.
 	var epoch *big.Int
 	if block.Transactions().Len() > 0 {
-		// TODO: only if it's actually an oracle tx (check To address vs config.GetL1OracleAddress()).
-		epoch, _, _, _, _, err = bridge.UnpackL1OracleInput(block.Transactions()[0])
-		if err != nil {
-			return fmt.Errorf("could not unpack oracle tx: %w", err)
+		// Process oracle tx, if it exists.
+		var firstTx = block.Transactions()[0]
+		if *firstTx.To() == b.cfg.GetL1OracleAddr() {
+			epoch, _, _, _, _, err = bridge.UnpackL1OracleInput(firstTx)
+			if err != nil {
+				return fmt.Errorf("could not unpack oracle tx: %w", err)
+			}
 		}
 	}
 	// Process block.

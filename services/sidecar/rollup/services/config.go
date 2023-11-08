@@ -69,9 +69,9 @@ func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
 // Protocol configuration
 // Basically: fields from `rollup.json` + additional protocol fields
 type ProtocolConfig struct {
-	Rollup          RollupConfig   `toml:"rollup,omitempty"`
-	RollupAddr      common.Address `toml:"rollup_addr,omitempty"`       // L1 Rollup contract address
-	L1OracleAddress common.Address `toml:"l1_oracle_address,omitempty"` // L2 Address of the L1Oracle
+	Rollup       RollupConfig   `toml:"rollup,omitempty"`
+	RollupAddr   common.Address `toml:"rollup_addr,omitempty"`    // L1 Rollup contract address
+	L1OracleAddr common.Address `toml:"l1_oracle_addr,omitempty"` // L2 Address of the L1Oracle
 }
 
 func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
@@ -80,19 +80,20 @@ func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
 		return ProtocolConfig{}, err
 	}
 	return ProtocolConfig{
-		Rollup:          *rollupCfg,
-		RollupAddr:      common.HexToAddress(cliCtx.String(protocolRollupAddrFlag.Name)),
-		L1OracleAddress: common.HexToAddress(protocolL1OracleAddressFlag.Value),
+		Rollup:       *rollupCfg,
+		RollupAddr:   common.HexToAddress(cliCtx.String(protocolRollupAddrFlag.Name)),
+		L1OracleAddr: common.HexToAddress(protocolL1OracleAddrFlag.Value),
 	}, nil
 }
 
+// TODO: cleanup (consider: exposing parameters via getters in `c.Rollup` directly).
 func (c ProtocolConfig) GetSeqWindowSize() uint64              { return c.Rollup.SeqWindowSize }
 func (c ProtocolConfig) GetSequencerInboxAddr() common.Address { return c.Rollup.BatchInboxAddress }
 func (c ProtocolConfig) GetRollup() RollupConfig               { return c.Rollup }
-func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
 func (c ProtocolConfig) GetL1ChainID() uint64                  { return c.Rollup.L2ChainID.Uint64() }
 func (c ProtocolConfig) GetL2ChainID() uint64                  { return c.Rollup.L1ChainID.Uint64() }
-func (c ProtocolConfig) GetL1OracleAddress() common.Address    { return c.L1OracleAddress }
+func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
+func (c ProtocolConfig) GetL1OracleAddr() common.Address       { return c.L1OracleAddr }
 
 // L1 configuration
 type L1Config struct {
