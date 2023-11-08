@@ -16,21 +16,36 @@ if [ -z $SIDECAR_BIN ]; then
     . $SBIN/configure.sh
 fi
 
-ARGS="
-    --l1.endpoint $L1_ENDPOINT \
-    --l2.endpoint $L2_ENDPOINT \
+# Set disseminator flags.
+DISSEMINATOR_FLAGS=""
+if [ "$DISSEMINATOR" = true ] ; then
+    echo "Enabling disseminator."
+    DISSEMINATOR_FLAGS="
+	--disseminator \
+	--disseminator.private-key $DISSEMINATOR_PRIVATE_KEY \
+	--disseminator.sub-safety-margin $DISSEMINATOR_SUB_SAFETY_MARGIN \
+	--disseminator.target-batch-size $DISSEMINATOR_TARGET_BATCH_SIZE
+    "
+fi
+# Set validator flags.
+VALIDATOR_FLAGS=""
+if [ "$VALIDATOR" = true ] ; then
+    echo "Enabling validator."
+    VALIDATOR_FLAGS="
+	--validator \
+	--validator.private-key $VALIDATOR_PRIVATE_KEY
+    "
+fi
+
+FLAGS="
     --protocol.rollup-cfg-path $ROLLUP_CFG_PATH \
     --protocol.rollup-addr $ROLLUP_ADDR \
-    --disseminator \
-    --disseminator.addr \
-    --disseminator.private-key $DISSEMINATOR_PRIVATE_KEY \
-    --disseminator.sub-safety-margin $DISSEMINATOR_SUB_SAFETY_MARGIN \
-    --disseminator.target-batch-size $DISSEMINATOR_TARGET_BATCH_SIZE \
-    --validator \
-    --validator.private-key $VALIDATOR_PRIVATE_KEY
+    --l1.endpoint $L1_ENDPOINT \
+    --l2.endpoint $L2_ENDPOINT \
+    $DISSEMINATOR_FLAGS \
+    $VALIDATOR_FLAGS
 "
 
 echo "starting sidecar with the following flags:"
-echo $ARGS
-
-$SIDECAR $ARGS
+echo $FLAGS
+$SIDECAR $FLAGS

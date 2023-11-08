@@ -39,7 +39,7 @@ if [ "$SEQUENCER" = true ] ; then
     SEQUENCER_FLAGS="--sequencer --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG"
 fi
 
-CMD="$SP_MAGI_BIN \
+FLAGS="
     --network $NETWORK \
     --l1-rpc-url $L1_RPC_URL \
     --l2-rpc-url $L2_RPC_URL \
@@ -51,5 +51,6 @@ CMD="$SP_MAGI_BIN \
     $DEVNET_FLAGS \
     $SEQUENCER_FLAGS"
 
-echo "Executing: $CMD"
-exec $CMD
+echo "starting sp-magi with the following flags:"
+echo "$FLAGS"
+$SP_MAGI_BIN $FLAGS

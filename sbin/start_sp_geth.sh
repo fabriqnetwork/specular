@@ -44,7 +44,7 @@ if [ ! -d $DATA_DIR ]; then
 fi
 
 # Start sp-geth.
-args="
+FLAGS="
     --datadir $DATA_DIR \
     --networkid $NETWORK_ID \
     --http \
@@ -62,10 +62,9 @@ args="
     --authrpc.addr $ADDR \
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
-    --miner.recommit 0 \
+    --miner.recommit 0
 "
 
 echo "Starting sp-geth with the following aruments:"
-echo $args
-
-$SP_GETH_BIN $args
+echo $FLAGS
+$SP_GETH_BIN $FLAGS
