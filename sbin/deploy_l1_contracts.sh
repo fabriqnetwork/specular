@@ -51,10 +51,6 @@ relpath () {
 # Define a function that requests a user to confirm
 # that overwriting file ($1) is okay, if it exists.
 guard_overwrite () {
-  if [ -z "$PS1" ]; then
-    echo "no interactive shell, ignoring guard..."
-    return 0
-  fi
   if test -f $1; then
     read -r -p "Overwrite $1 with a new file? [y/N] " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then

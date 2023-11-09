@@ -20,45 +20,40 @@ type V0Config interface {
 
 type BatchV0Encoder struct {
 	cfg        V0Config
-	currBuf    *bytes.Buffer
 	subBatches []*subBatch
 	runningLen uint64
 }
 
 func NewBatchV0Encoder(cfg V0Config) *BatchV0Encoder {
-	return &BatchV0Encoder{cfg, &bytes.Buffer{}, []*subBatch{newSubBatch()}, 0}
+	return &BatchV0Encoder{cfg, []*subBatch{newSubBatch()}, 0}
 }
 
 func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
 	// Return error if the batch is too small and the timeout hasn't been reached.
 	// If the timeout has been reached, the batch will be closed regardless of its current size.
-	if !force && e.currBuf.Len() < int(e.cfg.GetTargetBatchSize()) {
+	totalLen := e.runningLen + e.subBatches[len(e.subBatches)-1].contentSize
+	if !force && totalLen < e.cfg.GetTargetBatchSize() {
 		return nil, errBatchTooSmall
 	}
 	// Close the sub-batch if the batch can fit it.
 	if e.shouldCloseBatch() {
 		e.closeSubBatch()
 	}
+	// Encode version.
+	buf := bytes.NewBuffer(nil)
+	if err := buf.WriteByte(e.getVersion()); err != nil {
+		return nil, fmt.Errorf("failed to encode version: %w", err)
+	}
 	// Encode all sub-batches (except the last).
-	data, err := rlp.EncodeToBytes(e.subBatches[len(e.subBatches)-1])
-	if err != nil {
+	if err := rlp.Encode(buf, e.subBatches[len(e.subBatches)-1]); err != nil {
 		return nil, fmt.Errorf("failed to encode batch: %w", err)
 	}
-	// Reset the buffer. Note: we don't reset the sub-batch in case it wasn't closed.
-	// In this case, it'll be used in the next batch.
-	e.currBuf.Reset()
-	return data, nil
+	return buf.Bytes(), nil
 }
 
 // Processes a block. If the block is non-empty and fits, add it to the current sub-batch.
 // If the block belongs to a new epoch, close the current sub-batch and start a new one.
 func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error {
-	// Initialize buffer with version byte if it hasn't been already.
-	if e.currBuf.Len() == 0 {
-		if err := e.currBuf.WriteByte(e.getVersion()); err != nil {
-			return fmt.Errorf("failed to encode version: %w", err)
-		}
-	}
 	var (
 		// Block is empty
 		shouldSkipBlock = len(block.Transactions()) == 0
@@ -89,7 +84,6 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 }
 
 func (e *BatchV0Encoder) Reset() {
-	e.currBuf.Reset()
 	e.subBatches = []*subBatch{newSubBatch()}
 	e.runningLen = 0
 }
