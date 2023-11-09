@@ -45,7 +45,7 @@ func (e *BatchV0Encoder) GetBatch(force bool) ([]byte, error) {
 		return nil, fmt.Errorf("failed to encode version: %w", err)
 	}
 	// Encode all sub-batches (except the last).
-	if err := rlp.Encode(buf, e.subBatches[len(e.subBatches)-1]); err != nil {
+	if err := rlp.Encode(buf, e.subBatches[:len(e.subBatches)-1]); err != nil {
 		return nil, fmt.Errorf("failed to encode batch: %w", err)
 	}
 	return buf.Bytes(), nil
