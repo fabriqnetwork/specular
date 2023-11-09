@@ -50,13 +50,13 @@ FLAGS="
     --http \
     --http.addr $ADDRESS \
     --http.port $HTTP_PORT \
-    --http.api 'engine,personal,eth,net,web3,txpool,miner,debug' \
+    --http.api engine,personal,eth,net,web3,txpool,miner,debug \
     --http.corsdomain=* \
     --http.vhosts=* \
     --ws \
     --ws.addr $ADDRESS \
     --ws.port $WS_PORT \
-    --ws.api 'engine,personal,eth,net,web3,txpool,miner,debug' \
+    --ws.api engine,personal,eth,net,web3,txpool,miner,debug \
     --ws.origins=* \
     --authrpc.vhosts=* \
     --authrpc.addr $ADDRESS \

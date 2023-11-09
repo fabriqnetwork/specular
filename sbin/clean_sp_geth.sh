@@ -8,3 +8,5 @@ fi
 . $GETH_ENV
 echo "Removing sp-geth data dir $DATA_DIR"
 rm -rf $DATA_DIR
+echo "Removing $JWT_SECRET_PATH"
+rm $JWT_SECRET_PATH

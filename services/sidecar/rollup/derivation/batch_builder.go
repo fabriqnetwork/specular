@@ -137,17 +137,17 @@ func (b *batchBuilder) encodePending() error {
 // Processes a block, adding its data to the current batch.
 func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
 	var epoch uint64
-	// Decode oracle tx to update timeout.
+	// Process oracle tx, if it exists (to update timeout).
 	if block.Transactions().Len() > 0 {
-		// Process oracle tx, if it exists.
 		var firstTx = block.Transactions()[0]
 		if *firstTx.To() == b.cfg.GetL1OracleAddr() {
 			epoch, _, _, _, _, err = bridge.UnpackL1OracleInput(firstTx)
 			if err != nil {
 				return fmt.Errorf("could not unpack oracle tx: %w", err)
 			}
-			// Note: it may make sense to move this to after processing the block.
 			b.updateTimeout(epoch)
+		} else {
+			log.Trace("No oracle tx in block", "block#", block.NumberU64())
 		}
 	}
 	// Process block.
@@ -159,9 +159,10 @@ func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
 
 // Updates the batch timeout if the given L1 epoch is earlier than the current timeout.
 // Note: the timeout won't be updated more than once assuming the L1 epoch is monotonically increasing.
-func (b *batchBuilder) updateTimeout(l1Epoch uint64) {
-	timeout := l1Epoch + b.cfg.GetSeqWindowSize() - b.cfg.GetSubSafetyMargin()
+func (b *batchBuilder) updateTimeout(epoch uint64) {
+	timeout := epoch + b.cfg.GetSeqWindowSize() - b.cfg.GetSubSafetyMargin()
 	if b.timeout == 0 || b.timeout > timeout {
+		log.Info("Updating batch timeout", "epoch", epoch)
 		b.timeout = timeout
 	}
 }
