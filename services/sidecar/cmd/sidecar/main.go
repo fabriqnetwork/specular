@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"crypto/ecdsa"
-	"math"
 	"math/big"
 	"os"
 
@@ -29,7 +28,7 @@ import (
 
 type serviceCfg interface {
 	GetAccountAddr() common.Address
-	GetSecretKey() *ecdsa.PrivateKey
+	GetPrivateKey() *ecdsa.PrivateKey
 	GetClefEndpoint() string
 	GetTxMgrCfg() txmgr.Config
 }
@@ -38,7 +37,7 @@ func main() {
 	app := &cli.App{
 		Name:   "sidecar",
 		Usage:  "launch a validator and/or disseminator",
-		Action: startService,
+		Action: startServices,
 	}
 	app.Flags = services.CLIFlags()
 	if err := app.Run(os.Args); err != nil {
@@ -47,8 +46,13 @@ func main() {
 	}
 }
 
-func startService(cliCtx *cli.Context) error {
-	log.Info("Reading configuration")
+// Starts the CLI-specified services (blocking).
+func startServices(cliCtx *cli.Context) error {
+	// Configure logger.
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	glogger.Verbosity(log.Lvl(cliCtx.Int(services.VerbosityFlag.Name)))
+	log.Root().SetHandler(glogger)
+	log.Info("Parsing configuration")
 	cfg, err := services.ParseSystemConfig(cliCtx)
 	if err != nil {
 		return fmt.Errorf("failed to parse config: %w", err)
@@ -59,8 +63,14 @@ func startService(cliCtx *cli.Context) error {
 		validator    *validator.Validator
 		eg, ctx      = errgroup.WithContext(context.Background())
 	)
-	if cfg.Sequencer().GetIsEnabled() {
-		disseminator, err = createDisseminator(context.Background(), cfg)
+	log.Info("Starting l1 state sync...")
+	l1State, err := createL1State(ctx, cfg)
+	if err != nil {
+		return fmt.Errorf("failed to start syncing l1 state: %w", err)
+	}
+	if cfg.Disseminator().GetIsEnabled() {
+		log.Info("Starting disseminator...")
+		disseminator, err = createDisseminator(context.Background(), cfg, l1State)
 		if err != nil {
 			return fmt.Errorf("failed to create disseminator: %w", err)
 		}
@@ -69,7 +79,8 @@ func startService(cliCtx *cli.Context) error {
 		}
 	}
 	if cfg.Validator().GetIsEnabled() {
-		validator, err = createValidator(context.Background(), cfg)
+		log.Info("Starting validator...")
+		validator, err = createValidator(context.Background(), cfg, l1State)
 		if err != nil {
 			return fmt.Errorf("failed to create validator: %w", err)
 		}
@@ -88,24 +99,26 @@ func startService(cliCtx *cli.Context) error {
 func createDisseminator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
+	l1State *eth.EthState,
 ) (*disseminator.BatchDisseminator, error) {
-	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1(), cfg.Sequencer())
+	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
-	batchBuilder, err := derivation.NewBatchBuilder(math.MaxInt64) // TODO: configure max batch size
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize batch builder: %w", err)
-	}
-	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
-	return disseminator.NewBatchDisseminator(cfg.Sequencer(), batchBuilder, l1TxMgr, l2Client), nil
+	var (
+		encoder      = derivation.NewBatchV0Encoder(cfg)
+		batchBuilder = derivation.NewBatchBuilder(cfg, encoder)
+		l2Client     = eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
+	)
+	return disseminator.NewBatchDisseminator(cfg.Disseminator(), batchBuilder, l1TxMgr, l1State, l2Client), nil
 }
 
 func createValidator(
 	ctx context.Context,
 	cfg *services.SystemConfig,
+	l1State *eth.EthState,
 ) (*validator.Validator, error) {
-	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1(), cfg.Validator())
+	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Validator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -113,13 +126,10 @@ func createValidator(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
-	l1BridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.L1())
+	l1BridgeClient, err := bridge.NewBridgeClient(l1Client, cfg.Protocol())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 bridge client: %w", err)
 	}
-	l1State := eth.NewEthState()
-	l1Syncer := eth.NewEthSyncer(l1State)
-	l1Syncer.Start(ctx, l1Client)
 	l2Client := eth.NewLazilyDialedEthClient(cfg.L2().GetEndpoint())
 	return validator.NewValidator(cfg.Validator(), l1TxMgr, l1BridgeClient, l1State, l2Client), nil
 }
@@ -127,23 +137,24 @@ func createValidator(
 func createTxManager(
 	ctx context.Context,
 	name string,
-	l1Cfg services.L1Config,
+	l1RpcUrl string,
+	protocolCfg services.ProtocolConfig,
 	serCfg serviceCfg,
 ) (*bridge.TxManager, error) {
 	transactor, err := createTransactor(
-		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetSecretKey(), l1Cfg.GetChainID(),
+		serCfg.GetAccountAddr(), serCfg.GetClefEndpoint(), serCfg.GetPrivateKey(), protocolCfg.GetL1ChainID(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
 	}
-	l1Client, err := eth.DialWithRetry(ctx, l1Cfg.GetEndpoint())
+	l1Client, err := eth.DialWithRetry(ctx, l1RpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
 	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
 		return transactor.Signer(address, tx)
 	}
-	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), l1Cfg)
+	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), protocolCfg)
 }
 
 // Creates a transactor for the given account address, either using a clef endpoint (preferred) or secret key.
@@ -162,4 +173,15 @@ func createTransactor(
 	}
 	log.Warn("No external signer specified, using geth signer")
 	return bind.NewKeyedTransactorWithChainID(secretKey, new(big.Int).SetUint64(chainID))
+}
+
+func createL1State(ctx context.Context, cfg *services.SystemConfig) (*eth.EthState, error) {
+	l1Client, err := eth.DialWithRetry(ctx, cfg.L1().GetEndpoint())
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
+	}
+	l1State := eth.NewEthState()
+	l1Syncer := eth.NewEthSyncer(l1State)
+	l1Syncer.Start(ctx, l1Client)
+	return l1State, nil
 }

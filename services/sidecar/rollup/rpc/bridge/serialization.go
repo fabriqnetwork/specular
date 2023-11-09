@@ -25,6 +25,8 @@ const (
 	// IRollup.sol errors (TODO: figure out a work-around to hardcoding)
 	NoUnresolvedAssertionErr     = "Error: VM Exception while processing transaction: reverted with custom error 'NoUnresolvedAssertion()'"
 	ConfirmationPeriodPendingErr = "Error: VM Exception while processing transaction: reverted with custom error 'ConfirmationPeriodPending()'"
+	// L1Oracle.sol functions
+	SetL1OracleValues = "setL1OracleValues"
 
 	MethodNumBytes = 4
 )
@@ -36,12 +38,8 @@ type bridgeSerializationUtil struct {
 	inboxAbi     *abi.ABI
 	rollupAbi    *abi.ABI
 	challengeAbi *abi.ABI
+	l1OracleAbi  *abi.ABI
 }
-
-func InboxABIMethods() map[string]abi.Method     { return serializationUtil.inboxAbi.Methods }
-func RollupABIMethods() map[string]abi.Method    { return serializationUtil.rollupAbi.Methods }
-func ChallengeABIMethods() map[string]abi.Method { return serializationUtil.challengeAbi.Methods }
-func TxMethodID(tx *types.Transaction) string    { return string(tx.Data()[:MethodNumBytes]) }
 
 // ISequencerInbox.sol
 
@@ -51,8 +49,8 @@ func UnpackAppendTxBatchInput(tx *types.Transaction) ([]any, error) {
 	return serializationUtil.inboxAbi.Methods[AppendTxBatchFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
-func packAppendTxBatchInput(txBatchData []byte) ([]byte, error) {
-	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, txBatchData)
+func packAppendTxBatchInput(batch []byte) ([]byte, error) {
+	return serializationUtil.inboxAbi.Pack(AppendTxBatchFnName, batch)
 }
 
 // IRollup.sol
@@ -91,6 +89,21 @@ func packRejectFirstUnresolvedAssertionInput(stakerAddress common.Address) ([]by
 	return serializationUtil.rollupAbi.Pack(RejectFirstUnresolvedAssertionFnName, stakerAddress)
 }
 
+// L1Oracle.sol
+
+func UnpackL1OracleInput(tx *types.Transaction) (uint64, uint64, uint64, common.Hash, common.Hash, error) {
+	in, err := serializationUtil.l1OracleAbi.Unpack(SetL1OracleValues, tx.Data()[MethodNumBytes:])
+	if err != nil {
+		return 0, 0, 0, common.Hash{}, common.Hash{}, err
+	}
+	number := in[0].(*big.Int).Uint64()
+	timestamp := in[1].(*big.Int).Uint64()
+	baseFee := in[2].(*big.Int).Uint64()
+	hash := in[3].(common.Hash)
+	stateRoot := in[4].(common.Hash)
+	return number, timestamp, baseFee, hash, stateRoot, nil
+}
+
 // Ensures serializationUtil is initialized. Must be called prior to the methods above.
 func ensureUtilInit() error {
 	if serializationUtil == nil {
@@ -106,10 +119,15 @@ func ensureUtilInit() error {
 		if err != nil {
 			return fmt.Errorf("failed to get ISymChallenge ABI: %w", err)
 		}
+		l1OracleAbi, err := bindings.L1OracleMetaData.GetAbi()
+		if err != nil {
+			return fmt.Errorf("failed to get IL1Oracle ABI: %w", err)
+		}
 		serializationUtil = &bridgeSerializationUtil{
 			inboxAbi:     inboxAbi,
 			rollupAbi:    rollupAbi,
 			challengeAbi: challengeAbi,
+			l1OracleAbi:  l1OracleAbi,
 		}
 	}
 	return nil
