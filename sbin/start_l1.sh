@@ -1,6 +1,9 @@
 #!/bin/sh
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
+if [ -z $CONTRACTS_DIR ] | [ -z $L1_GETH_BIN ]; then
+    . $SBIN/configure.sh
+fi
 # Parse args.
 optspec="cdh"
 while getopts "$optspec" optchar; do
@@ -102,9 +105,6 @@ if [ "$L1_STACK" = "geth" ]; then
       "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
       $L1_ENDPOINT
 elif [ "$L1_STACK" = "hardhat" ]; then
-    if [ -z $CONTRACTS_DIR ]; then
-	. $SBIN/configure.sh
-    fi
     echo "Using $CONTRACTS_DIR as HH proj"
     cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_WS_PORT &
     L1_PID=$!

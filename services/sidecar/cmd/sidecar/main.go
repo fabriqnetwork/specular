@@ -48,6 +48,10 @@ func main() {
 
 // Starts the CLI-specified services (blocking).
 func startServices(cliCtx *cli.Context) error {
+	// Configure logger.
+	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
+	glogger.Verbosity(log.Lvl(cliCtx.Int(services.VerbosityFlag.Name)))
+	log.Root().SetHandler(glogger)
 	log.Info("Parsing configuration")
 	cfg, err := services.ParseSystemConfig(cliCtx)
 	if err != nil {
@@ -59,11 +63,13 @@ func startServices(cliCtx *cli.Context) error {
 		validator    *validator.Validator
 		eg, ctx      = errgroup.WithContext(context.Background())
 	)
+	log.Info("Starting l1 state sync...")
 	l1State, err := createL1State(ctx, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to start syncing l1 state: %w", err)
 	}
 	if cfg.Disseminator().GetIsEnabled() {
+		log.Info("Starting disseminator...")
 		disseminator, err = createDisseminator(context.Background(), cfg, l1State)
 		if err != nil {
 			return fmt.Errorf("failed to create disseminator: %w", err)
@@ -73,6 +79,7 @@ func startServices(cliCtx *cli.Context) error {
 		}
 	}
 	if cfg.Validator().GetIsEnabled() {
+		log.Info("Starting validator...")
 		validator, err = createValidator(context.Background(), cfg, l1State)
 		if err != nil {
 			return fmt.Errorf("failed to create validator: %w", err)

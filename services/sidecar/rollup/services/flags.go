@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	"github.com/urfave/cli/v2"
 )
@@ -8,9 +9,8 @@ import (
 // Returns all supported flags.
 func CLIFlags() []cli.Flag {
 	return mergeFlagGroups(
+		generalFlags,
 		protocolFlags,
-		l1Flags,
-		l2Flags,
 		disseminatorCLIFlags,
 		txmgr.CLIFlags(disseminatorTxMgrNamespace),
 		validatorCLIFlags,
@@ -37,6 +37,11 @@ const (
 // If you add to this list, please remember to include the
 // flag in the appropriate command definition.
 var (
+	VerbosityFlag = &cli.IntFlag{
+		Name:  "verbosity",
+		Usage: "Set the log verbosity level. 0 = silent, 1 = error, 2 = warn, 3 = info, 4 = debug, 5 = trace",
+		Value: int(log.LvlInfo),
+	}
 	// L1 config flags
 	l1EndpointFlag = &cli.StringFlag{
 		Name:  "l1.endpoint",
@@ -112,8 +117,7 @@ var (
 )
 
 var (
-	l1Flags       = []cli.Flag{l1EndpointFlag}
-	l2Flags       = []cli.Flag{l2EndpointFlag}
+	generalFlags  = []cli.Flag{VerbosityFlag, l1EndpointFlag, l2EndpointFlag}
 	protocolFlags = []cli.Flag{
 		protocolRollupCfgPathFlag,
 		protocolRollupAddrFlag,
