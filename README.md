@@ -21,17 +21,15 @@ Then to build, run:
 ```sh
 # Fetch the repository and its submodules.
 git clone https://github.com/specularl2/specular
-cd specular
-git submodule update --init --recursive
+cd specular && git submodule update --init --recursive
 # Install dependencies and build binaries
 pnpm install && make
 ```
-
-### Running a local devnet using docker
-
-The simplest way to run a local devent is using docker compose.
 Note: the commands that follow below assume you are in the project root directory.
 
+### Running a devnet with Docker
+
+The simplest way to run a local devent is using the provided docker-compose.
 ```sh
 mkdir workspace
 cp -a config/local_docker/. workspace/ # copy all config files
@@ -43,7 +41,6 @@ docker compose -f docker/docker-compose-test.yml up
 ### Running a local devnet
 
 This section will walk you through how to set up a local devnet containing an L2 sequencer running over a local L1 network.
-Note: the commands that follow below assume you are in the project root directory.
 
 **Configure network**
 
@@ -57,15 +54,15 @@ cp -a config/local_devnet/. workspace/ # copy all config files
 Run the below script to initialize a new local L1 chain.
 ```sh
 cd workspace
-../sbin/start_l1.sh # Terminal #1
+../sbin/start_l1.sh -d # Terminal 1
 ```
 
 **Start an L2 node**
 Deploy the L1 contracts on the newly started chain, and spin up all services required to run an L2 node.
 ```sh
-../sbin/deploy_l1_contracts.sh && ../sbin/start_sp_geth.sh # Terminal #2
-../sbin/start_sp_magi.sh # Terminal #3
-../sbin/start_sidecar.sh # Terminal #4
+../sbin/start_sp_geth.sh # Terminal 2
+../sbin/start_sp_magi.sh # Terminal 3
+../sbin/start_sidecar.sh # Terminal 4
 ```
 
 At this point, you'll have two chains started with the following parameters

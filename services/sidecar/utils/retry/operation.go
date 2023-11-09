@@ -2,8 +2,9 @@ package retry
 
 import (
 	"context"
-	"fmt"
 	"time"
+
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 
 // ErrFailedPermanently is an error raised by Do when the

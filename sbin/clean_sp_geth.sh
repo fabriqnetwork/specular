@@ -1,7 +1,7 @@
 #!/bin/bash
 # Check that a dotenv exists.
 GETH_ENV=".sp_geth.env"
-if ! test -f $GETH_ENV; then
+if ! test -f "$GETH_ENV"; then
     echo "expected dotenv at ./$GETH_ENV (does not exist); could not clean cwd."
     exit
 fi

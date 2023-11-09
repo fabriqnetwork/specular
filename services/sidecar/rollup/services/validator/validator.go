@@ -3,7 +3,6 @@ package validator
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math/big"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 

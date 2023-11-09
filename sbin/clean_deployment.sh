@@ -4,11 +4,11 @@ if test -f $GENESIS_ENV; then
     . $GENESIS_ENV
 fi
 
-if test -f $GENESIS_PATH; then
+if test -f "$GENESIS_PATH"; then
     echo "Removing $GENESIS_PATH"
     rm $GENESIS_PATH
 fi
-if test -f $ROLLUP_CFG_PATH; then
+if test -f "$ROLLUP_CFG_PATH"; then
     echo "Removing $ROLLUP_CFG_PATH"
     rm $ROLLUP_CFG_PATH
 fi

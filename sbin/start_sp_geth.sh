@@ -2,7 +2,7 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 # Parse args.
-optspec=":ch:"
+optspec="ch"
 while getopts "$optspec" optchar; do
     case "${optchar}" in
         c)
@@ -23,42 +23,48 @@ while getopts "$optspec" optchar; do
     esac
 done
 
-if [ -z $SP_GETH ]; then
-    echo "no binary specified"
+# Check that the dotenv exists.
+ENV=".sp_geth.env"
+if ! test -f $ENV; then
+    echo "Expected dotenv at $ENV (does not exist)."
+    exit
+fi
+echo "Using dotenv: $ENV"
+. $ENV
+
+if [ -z $SP_GETH_BIN ]; then
     # If no binary specified, assume repo directory structure.
     . $SBIN/configure.sh
-    SP_GETH=$GETH_BIN
 fi
-echo "Using bin: $SP_GETH"
+echo "Using bin: $SP_GETH_BIN"
 
 if [ ! -d $DATA_DIR ]; then
     echo "Initializing sp-geth..."
-    $SP_GETH --datadir $DATA_DIR --networkid $NETWORK_ID init $GENESIS_PATH
+    $SP_GETH_BIN --datadir $DATA_DIR --networkid $NETWORK_ID init $GENESIS_PATH
 fi
 
 # Start sp-geth.
-args="
+FLAGS="
     --datadir $DATA_DIR \
     --networkid $NETWORK_ID \
     --http \
-    --http.addr $ADDR \
+    --http.addr $ADDRESS \
     --http.port $HTTP_PORT \
-    --http.api 'engine,personal,eth,net,web3,txpool,miner,debug' \
+    --http.api engine,personal,eth,net,web3,txpool,miner,debug \
     --http.corsdomain=* \
     --http.vhosts=* \
     --ws \
-    --ws.addr $ADDR \
+    --ws.addr $ADDRESS \
     --ws.port $WS_PORT \
-    --ws.api 'engine,personal,eth,net,web3,txpool,miner,debug' \
+    --ws.api engine,personal,eth,net,web3,txpool,miner,debug \
     --ws.origins=* \
     --authrpc.vhosts=* \
-    --authrpc.addr $ADDR \
+    --authrpc.addr $ADDRESS \
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
-    --miner.recommit 0 \
+    --miner.recommit 0
 "
 
 echo "Starting sp-geth with the following aruments:"
-echo $args
-
-$SP_GETH $args
+echo $FLAGS
+$SP_GETH_BIN $FLAGS
