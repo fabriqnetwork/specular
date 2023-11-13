@@ -18,21 +18,6 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "./PredeployUUPSUpgradeable.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
-contract UUPSPlaceholder is PredeployUUPSUpgradeable, OwnableUpgradeable {
-    /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
-        _disableInitializers();
-    }
-
-    function initialize(address _owner) public initializer {
-        __UUPSUpgradeable_init();
-        
-        _transferOwnership(_owner);
-    }
-
-    function _authorizeUpgrade(address) internal override onlyOwner {}
-}
+// This file is for exporting the ERC1967Proxy contract ABI only

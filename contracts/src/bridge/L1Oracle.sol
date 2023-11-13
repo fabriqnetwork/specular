@@ -6,6 +6,12 @@ import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 
+/**
+ * @custom:proxied
+ * @title L1Oracle
+ * @notice The L1Oracle stores latests known L1 block values.
+ *         Should be updated by the sequencer only.
+ */
 contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     /**
      * @notice The latest L1 block number known by the L2 system.
@@ -39,11 +45,13 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
 
     /**
      * @notice Initializer;
+     * @param _owner The owner of the contract.
      */
-    function initialize() public initializer {
-        __Ownable_init();
+    function initialize(address _owner) public initializer {
         __Pausable_init();
         __UUPSUpgradeable_init();
+
+        _transferOwnership(_owner);
     }
 
     function pause() public onlyOwner {

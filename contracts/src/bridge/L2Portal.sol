@@ -11,6 +11,7 @@ import {Hashing} from "../libraries/Hashing.sol";
 import {Encoding} from "../libraries/Hashing.sol";
 import {MerkleTrie} from "../libraries/trie/MerkleTrie.sol";
 import {SecureMerkleTrie} from "../libraries/trie/SecureMerkleTrie.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 import {IL2Portal} from "./IL2Portal.sol";
 import {L1Oracle} from "./L1Oracle.sol";
@@ -49,7 +50,7 @@ contract L2Portal is
     /**
      * @notice Address of the L1Oracle deployed on L2.
      */
-    L1Oracle public l1Oracle;
+    L1Oracle internal constant l1Oracle = L1Oracle(Predeploys.L1_ORACLE);
 
     /**
      * @notice Address of the L2Portal deployed on L1.
@@ -81,17 +82,17 @@ contract L2Portal is
     /**
      * @notice Initializer;
      */
-    function initialize(address _l1Oracle, address _l1PortalAddress) public initializer {
-        if (_l1Oracle == address(0) || _l1PortalAddress == address(0)) {
+    function initialize(address _owner, address _l1PortalAddress) public initializer {
+        if (_l1PortalAddress == address(0)) {
             revert ZeroAddress();
         }
 
-        l1Oracle = L1Oracle(_l1Oracle);
         l1PortalAddress = _l1PortalAddress;
         l1Sender = DEFAULT_L1_SENDER;
 
-        __Ownable_init();
         __UUPSUpgradeable_init();
+
+        _transferOwnership(_owner);
     }
 
     function pause() public onlyOwner {
