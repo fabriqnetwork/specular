@@ -2,19 +2,28 @@
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 
-# Check that the sidecar dotenv exists.
-ENV=".sidecar.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
+# TODO: can we get rid of this somehow?
+# currently the local sbin paths are relative to the project root
+SBIN=$(dirname "$(readlink -f "$0")")
+SBIN="`cd "$SBIN"; pwd`"
+ROOT_DIR=$SBIN/..
+
+# Check that the all required dotenv files exists.
+CONFIGURE_ENV=".configure.env"
+if ! test -f $CONFIGURE_ENV; then
+    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
     exit
 fi
-echo "Using sidecar dotenv: $ENV"
-. $ENV
+echo "Using configure dotenv: $CONFIGURE_ENV"
+. $CONFIGURE_ENV
 
-if [ -z $SIDECAR_BIN ]; then
-    # If no binary specified, assume repo directory structure.
-    . $SBIN/configure.sh
+SIDECAR_ENV=".sidecar.env"
+if ! test -f $SIDECAR_ENV; then
+    echo "Expected dotenv at $SIDECAR_ENV (does not exist)."
+    exit
 fi
+echo "Using sidecar dotenv: $SIDECAR_ENV"
+. $SIDECAR_ENV
 
 FLAGS=(
     "--l1.endpoint $L1_ENDPOINT"

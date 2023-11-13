@@ -1,10 +1,15 @@
 #!/bin/bash
-SBIN=`dirname $0`
 
-# Enforce that the dotenv exists.
-ENV=".sp_magi.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
+# TODO: can we get rid of this somehow?
+# currently the local sbin paths are relative to the project root
+SBIN=$(dirname "$(readlink -f "$0")")
+SBIN="`cd "$SBIN"; pwd`"
+ROOT_DIR=$SBIN/..
+
+# Check that the all required dotenv files exists.
+CONFIGURE_ENV=".configure.env"
+if ! test -f $CONFIGURE_ENV; then
+    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
     exit
 fi
 echo "Using dotenv: $ENV"
@@ -14,7 +19,8 @@ if [ -z $SP_MAGI_BIN ]; then
     # If no binary specified, assume repo directory structure.
     . $SBIN/configure.sh
 fi
-echo "Using bin: $SP_MAGI_BIN"
+echo "Using configure dotenv: $SP_MAGI_ENV"
+. $SP_MAGI_ENV
 
 # Set sync flags.
 SYNC_FLAGS=""

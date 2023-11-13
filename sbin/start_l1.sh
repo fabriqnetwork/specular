@@ -7,44 +7,28 @@ fi
 # Parse args.
 optspec="cdh"
 while getopts "$optspec" optchar; do
-    case "${optchar}" in
-        c)
-	    echo "Cleaning..."
-	    $SBIN/clean_deployment.sh
-	    ;;
-	d)
-	    L1_DEPLOY=true
-	    ;;
-        h)
-            echo "usage: $0 [-c][-d][-h]"
-	    echo "-c : clean before running"
-	    echo "-d : deploy contracts"
-            exit
-            ;;
-        *)
-            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-                echo "Unknown option: '-${OPTARG}'"
-		exit 1
-            fi
-            ;;
-    esac
+  case "${optchar}" in
+    c)
+      echo "Cleaning..."
+      $SBIN/clean_deployment.sh
+      ;;
+    d)
+      L1_DEPLOY=true
+      ;;
+    h)
+      echo "usage: $0 [-c][-d][-h]"
+      echo "-c : clean before running"
+      echo "-d : deploy contracts"
+      exit
+      ;;
+    *)
+      if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+        echo "Unknown option: '-${OPTARG}'"
+        exit 1
+      fi
+      ;;
+  esac
 done
-
-# Check that the dotenv exists.
-GENESIS_ENV=".genesis.env"
-if ! test -f $GENESIS_ENV; then
-    echo "Expected dotenv at $GENESIS_ENV (does not exist)."
-    exit
-fi
-echo "Using genesis dotenv: $GENESIS_ENV"
-. $GENESIS_ENV
-CONTRACTS_ENV=".contracts.env"
-if ! test -f $CONTRACTS_ENV; then
-    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
-    exit
-fi
-echo "Using contracts dotenv: $CONTRACTS_ENV"
-. $CONTRACTS_ENV
 
 L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`

@@ -1,6 +1,28 @@
 #!/bin/bash
-SBIN=`dirname $0`
+
+# TODO: can we get rid of this somehow?
+# currently the local sbin paths are relative to the project root
+SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="`cd "$SBIN"; pwd`"
+ROOT_DIR=$SBIN/..
+
+# Check that the all required dotenv files exists.
+CONFIGURE_ENV=".configure.env"
+if ! test -f $CONFIGURE_ENV; then
+    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
+    exit
+fi
+echo "Using configure dotenv: $CONFIGURE_ENV"
+. $CONFIGURE_ENV
+
+SP_GETH_ENV=".sp_geth.env"
+if ! test -f $SP_GETH_ENV; then
+    echo "Expected dotenv at $SP_GETH_ENV (does not exist)."
+    exit
+fi
+echo "Using dotenv: $SP_GETH_ENV"
+. $SP_GETH_ENV
+
 # Parse args.
 optspec="ch"
 while getopts "$optspec" optchar; do
@@ -22,21 +44,6 @@ while getopts "$optspec" optchar; do
             ;;
     esac
 done
-
-# Check that the dotenv exists.
-ENV=".sp_geth.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
-    exit
-fi
-echo "Using dotenv: $ENV"
-. $ENV
-
-if [ -z $SP_GETH_BIN ]; then
-    # If no binary specified, assume repo directory structure.
-    . $SBIN/configure.sh
-fi
-echo "Using bin: $SP_GETH_BIN"
 
 if [ ! -d $DATA_DIR ]; then
     echo "Initializing sp-geth..."
