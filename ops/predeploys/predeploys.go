@@ -92,6 +92,9 @@ func BuildPredeployImpls(ctx context.Context, backend *backends.SimulatedBackend
 		{
 			Name: "L2StandardBridge",
 		},
+		{
+			Name: "L2BaseFeeVault",
+		},
 	}
 	deployments, err := deployer.Deploy(backend, implConstructors, l2Deployer)
 	if err != nil {
@@ -139,6 +142,9 @@ func BuildPredeployProxies(ctx context.Context, backend *backends.SimulatedBacke
 		"L2StandardBridge": {
 			metaData: bindings.L2StandardBridgeMetaData,
 			argOrder: []string{"_otherBridge"},
+		},
+		"L2BaseFeeVault": {
+			metaData: bindings.L2BaseFeeVaultMetaData,
 		},
 	}
 	proxyConstructors := make([]deployer.Constructor, 0)
@@ -197,6 +203,8 @@ func l2Deployer(backend *backends.SimulatedBackend, opts *bind.TransactOpts, dep
 		_, tx, _, err = bindings.DeployL2Portal(opts, backend)
 	case "L2StandardBridge":
 		_, tx, _, err = bindings.DeployL2StandardBridge(opts, backend)
+	case "L2BaseFeeVault":
+		_, tx, _, err = bindings.DeployL2BaseFeeVault(opts, backend)
 	default:
 		return tx, fmt.Errorf("unknown contract: %s", deployment.Name)
 	}

@@ -5,7 +5,7 @@
     "l2GenesisBlockDifficulty": "0x0",
     "l2GenesisBlockNumber": "0x0",
     "l2GenesisBlockGasUsed": "0x0",
-    "l2GenesisBlockBaseFeePerGas": "0x0",
+    "l2GenesisBlockBaseFeePerGas": "1000000000",
     "l2GenesisBlockExtraData": "0x",
     "l2PredeployOwner": "0x000000000000000000000000000000000000dEaD",
     "l1PortalAddress": "0x000000000000000000000000000000000000dEaD",
