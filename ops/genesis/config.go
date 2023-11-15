@@ -94,6 +94,17 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"PORTAL_ADDRESS": {ProxyValue: *predeploys.Predeploys["L2Portal"]},
 			},
 		},
+		"L2BaseFeeVault": {
+			Proxied:     true,
+			Initializer: "initialize",
+			Storages: map[string]predeploys.StorageConfig{
+				"_initialized":        {ProxyValue: InitializedValue, ImplValue: MaxInitializedValue},
+				"_initializing":       {ProxyValue: false, ImplValue: false},
+				"_owner":              {ProxyValue: config.L2PredeployOwner},
+				"withdrawalAddress":   {ProxyValue: config.L2PredeployOwner},
+				"minWithdrawalAmount": {ProxyValue: "1000000000000000000"},
+			},
+		},
 	}
 	return predeployConfigs
 }
