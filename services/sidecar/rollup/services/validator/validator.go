@@ -2,6 +2,7 @@ package validator
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"math/big"
 	"time"
@@ -263,7 +264,8 @@ func (v *Validator) validateGenesis(ctx context.Context) error {
 		stateCommitment        = assertion.StateCommitment
 	)
 	if stateCommitment != genesisStateCommitment {
-		return fmt.Errorf("mismatching genesis on L1=%s vs L2=%s", &stateCommitment, &genesisStateCommitment)
+		return fmt.Errorf("mismatching initial state commitment on L1=%s vs L2=%s",
+			hex.EncodeToString(stateCommitment[:]), hex.EncodeToString(genesisStateCommitment[:]))
 	}
 	return nil
 }
