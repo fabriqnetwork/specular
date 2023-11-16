@@ -27,6 +27,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/specularL2/specular/ops/bindings/ast"
 	"github.com/specularL2/specular/ops/bindings/gen/hardhat"
 )
 
@@ -40,9 +41,10 @@ type flags struct {
 }
 
 type data struct {
-	Name        string
-	DeployedBin string
-	Package     string
+	Name          string
+	StorageLayout string
+	DeployedBin   string
+	Package       string
 }
 
 func main() {
@@ -89,9 +91,9 @@ func main() {
 	defer os.RemoveAll(dir)
 	log.Printf("created temp dir %s\n", dir)
 
-	_, err = hardhat.ReadStorageLayoutFromCacheValidations(filepath.Join(f.ContractDir, "cache", "validations.json"))
+	buildInfos, err := hardhat.ReadBuildInfos(filepath.Join(f.ContractDir, "artifacts"))
 	if err != nil {
-		log.Fatalf("error reading storage layout: %v\n", err)
+		log.Fatalf("error reading build infos: %v\n", err)
 	}
 
 	for _, contract := range contracts {
@@ -134,10 +136,22 @@ func main() {
 			log.Fatalf("error running abigen: %v\n", err)
 		}
 
+		storageLayout, err := hardhat.GetStorageLayout(name, buildInfos[name])
+		if err != nil {
+			log.Fatalf("error getting storage layout: %v\n", err)
+		}
+		canonicalStorage := ast.CanonicalizeASTIDs(storageLayout, filepath.Join(f.ContractDir, ".."))
+		ser, err := json.Marshal(canonicalStorage)
+		if err != nil {
+			log.Fatalf("error marshaling storage: %v\n", err)
+		}
+		serStr := strings.Replace(string(ser), "\"", "\\\"", -1)
+
 		d := data{
-			Name:        name,
-			DeployedBin: artifact.DeployedBytecode.String(),
-			Package:     f.Package,
+			Name:          name,
+			StorageLayout: serStr,
+			DeployedBin:   artifact.DeployedBytecode.String(),
+			Package:       f.Package,
 		}
 
 		fname := filepath.Join(f.OutDir, name+"_more.go")
@@ -163,5 +177,23 @@ var tmpl = `// Code generated - DO NOT EDIT.
 
 package {{.Package}}
 
+import (
+	"encoding/json"
+
+	"github.com/specularL2/specular/ops/bindings/solc"
+)
+
+const {{.Name}}StorageLayoutJSON = "{{.StorageLayout}}"
+
+var {{.Name}}StorageLayout = new(solc.StorageLayout)
+
 var {{.Name}}DeployedBin = "{{.DeployedBin}}"
+func init() {
+	if err := json.Unmarshal([]byte({{.Name}}StorageLayoutJSON), {{.Name}}StorageLayout); err != nil {
+		panic(err)
+	}
+
+	layouts["{{.Name}}"] = {{.Name}}StorageLayout
+	deployedBytecodes["{{.Name}}"] = {{.Name}}DeployedBin
+}
 `
