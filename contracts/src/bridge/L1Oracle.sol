@@ -78,6 +78,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
         onlyCoinbase
         whenNotPaused
     {
+        require(number < _number, "Block number must be greater than the current block number.");
         number = _number;
         timestamp = _timestamp;
         baseFee = _baseFee;
