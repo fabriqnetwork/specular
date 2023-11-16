@@ -12,6 +12,7 @@ import {L1Portal} from "../../src/bridge/L1Portal.sol";
 import {L2Portal} from "../../src/bridge/L2Portal.sol";
 import {L1StandardBridge} from "../../src/bridge/L1StandardBridge.sol";
 import {L2StandardBridge} from "../../src/bridge/L2StandardBridge.sol";
+import {Predeploys} from "../../src/libraries/Predeploys.sol";
 import {MintableERC20} from "../../src/bridge/mintable/MintableERC20.sol";
 import {MintableERC20Factory} from "../../src/bridge/mintable/MintableERC20Factory.sol";
 
@@ -31,7 +32,7 @@ contract CommonTest is Test {
 
 contract L1Oracle_Initializer is CommonTest {
     address sequencerAddress = address(8);
-    address l1OracleAddress = address(16);
+    address l1OracleAddress = Predeploys.L1_ORACLE;
 
     L1Oracle oracle;
 
@@ -89,19 +90,17 @@ contract Portal_Initializer is L1Oracle_Initializer {
         // dummy rollup address
         l1Portal.initialize(address(42));
 
-        l2PortalProxy = new UUPSProxy(address(new L2Portal()), "");
-        l2PortalAddress = payable(address(l2PortalProxy));
+        l2PortalAddress = payable(Predeploys.L2_PORTAL);
+        vm.etch(l2PortalAddress, address(new L2Portal()).code);
         vm.label(l2PortalAddress, "L2Portal");
         l2Portal = L2Portal(l2PortalAddress);
-
-        l1Portal.setL2PortalAddress(l2PortalAddress);
-        l2Portal.initialize(l1OracleAddress, l1PortalAddress);
+        l2Portal.initialize(l1PortalAddress);
     }
 }
 
 contract StandardBridge_Initializer is Portal_Initializer {
     address payable l1StandardBridgeAddress = payable(address(128));
-    address payable l2StandardBridgeAddress = payable(address(256));
+    address payable l2StandardBridgeAddress = payable(Predeploys.L2_STANDARD_BRIDGE);
 
     L1StandardBridge l1StandardBridge;
     L2StandardBridge l2StandardBridge;
@@ -145,13 +144,13 @@ contract StandardBridge_Initializer is Portal_Initializer {
         vm.label(l1StandardBridgeAddress, "L1StandardBridge");
 
         l1StandardBridge = L1StandardBridge(payable(l1StandardBridgeAddress));
-        l1StandardBridge.initialize(l1PortalAddress, l2StandardBridgeAddress);
+        l1StandardBridge.initialize(l1PortalAddress);
 
         vm.etch(l2StandardBridgeAddress, address(new L2StandardBridge()).code);
         vm.label(l2StandardBridgeAddress, "L2StandardBridge");
 
         l2StandardBridge = L2StandardBridge(l2StandardBridgeAddress);
-        l2StandardBridge.initialize(l2PortalAddress, l1StandardBridgeAddress);
+        l2StandardBridge.initialize(l1StandardBridgeAddress);
 
         // depoly ERC20 tokens for testing
         l2TokenFactory = new MintableERC20Factory(

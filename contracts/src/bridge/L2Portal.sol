@@ -48,11 +48,6 @@ contract L2Portal is
     uint256 internal constant FINALIZE_GAS_BUFFER = 20_000;
 
     /**
-     * @notice Address of the L1Oracle deployed on L2.
-     */
-    L1Oracle internal constant l1Oracle = L1Oracle(Predeploys.L1_ORACLE);
-
-    /**
      * @notice Address of the L2Portal deployed on L1.
      */
     address public l1PortalAddress; // TODO: store the hash instead
@@ -173,7 +168,7 @@ contract L2Portal is
         // Check that this deposit has not already been finalized, this is replay protection.
         require(finalizedDeposits[depositHash] == false, "L2Portal: deposit has already been finalized");
 
-        bytes32 stateRoot = l1Oracle.stateRoot();
+        bytes32 stateRoot = L1Oracle(Predeploys.L1_ORACLE).stateRoot();
 
         // Verify the account proof.
         bytes32 storageRoot = _verifyAccountInclusion(l1PortalAddress, stateRoot, depositAccountProof);

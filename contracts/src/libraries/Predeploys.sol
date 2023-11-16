@@ -21,10 +21,10 @@ pragma solidity ^0.8.0;
 library Predeploys {
     // @notice Address of the L1Oracle predeploy.
     address internal constant L1_ORACLE = 0x2a00000000000000000000000000000000000010;
-    
+
     // @notice Address of the L2Portal predeploy.
     address internal constant L2_PORTAL = 0x2A00000000000000000000000000000000000011;
-    
+
     // @notice Address of the L2StandardBridge predeploy.
     address internal constant L2_STANDARD_BRIDGE = 0x2a00000000000000000000000000000000000012;
 }

@@ -13,8 +13,6 @@ import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 contract L2StandardBridge is StandardBridge {
     using SafeERC20 for IERC20;
 
-    L2Portal internal constant l2Portal = L2Portal(payable(Predeploys.L2_PORTAL));
-
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -22,7 +20,7 @@ contract L2StandardBridge is StandardBridge {
 
     /// @inheritdoc StandardBridge
     modifier onlyOtherBridge() override {
-        address origSender = AddressAliasHelper.undoL1ToL2Alias(l2Portal.l1Sender());
+        address origSender = AddressAliasHelper.undoL1ToL2Alias(L2Portal(payable(Predeploys.L2_PORTAL)).l1Sender());
         require(
             msg.sender == address(PORTAL_ADDRESS) && origSender == address(OTHER_BRIDGE),
             "StandardBridge: function can only be called from the other bridge"
@@ -53,7 +51,7 @@ contract L2StandardBridge is StandardBridge {
     ) internal override {
         emit ETHBridgeInitiated(_from, _to, _amount, _extraData);
 
-        l2Portal.initiateWithdrawal{value: _amount}(
+        L2Portal(payable(Predeploys.L2_PORTAL)).initiateWithdrawal{value: _amount}(
             address(OTHER_BRIDGE),
             _minGasLimit,
             abi.encodeWithSelector(this.finalizeBridgeETH.selector, _from, _to, _amount, _extraData)
@@ -79,7 +77,7 @@ contract L2StandardBridge is StandardBridge {
 
         emit ERC20BridgeInitiated(_localToken, _remoteToken, _from, _to, _amount, _extraData);
 
-        l2Portal.initiateWithdrawal(
+        L2Portal(payable(Predeploys.L2_PORTAL)).initiateWithdrawal(
             address(OTHER_BRIDGE),
             _minGasLimit,
             abi.encodeWithSelector(

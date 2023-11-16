@@ -7,6 +7,7 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {StandardBridge} from "./StandardBridge.sol";
 import {L1Portal} from "./L1Portal.sol";
 import {IMintableERC20} from "./mintable/IMintableERC20.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
 contract L1StandardBridge is StandardBridge {
@@ -31,9 +32,9 @@ contract L1StandardBridge is StandardBridge {
     }
 
     /// @notice Initializer;
-    function initialize(address payable _l1Portal, address payable _otherBridge) public initializer {
+    function initialize(address payable _l1Portal) public initializer {
         L1_PORTAL = L1Portal(_l1Portal);
-        __StandardBridge_init(_l1Portal, _otherBridge);
+        __StandardBridge_init(_l1Portal, payable(Predeploys.L2_STANDARD_BRIDGE));
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
