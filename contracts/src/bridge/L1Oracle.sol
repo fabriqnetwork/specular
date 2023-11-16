@@ -45,13 +45,11 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
 
     /**
      * @notice Initializer;
-     * @param _owner The owner of the contract.
      */
-    function initialize(address _owner) public initializer {
+    function initialize() public initializer {
         __Pausable_init();
+        __Ownable_init();
         __UUPSUpgradeable_init();
-
-        _transferOwnership(_owner);
     }
 
     function pause() public onlyOwner {

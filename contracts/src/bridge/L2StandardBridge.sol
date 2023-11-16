@@ -32,10 +32,8 @@ contract L2StandardBridge is StandardBridge {
     }
 
     /// @notice Initializer;
-    function initialize(address _owner, address payable _otherBridge) public initializer {
+    function initialize(address payable _otherBridge) public initializer {
         __StandardBridge_init(payable(Predeploys.L2_PORTAL), _otherBridge);
-
-        _transferOwnership(_owner);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}

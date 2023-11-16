@@ -82,7 +82,7 @@ contract L2Portal is
     /**
      * @notice Initializer;
      */
-    function initialize(address _owner, address _l1PortalAddress) public initializer {
+    function initialize(address _l1PortalAddress) public initializer {
         if (_l1PortalAddress == address(0)) {
             revert ZeroAddress();
         }
@@ -90,9 +90,8 @@ contract L2Portal is
         l1PortalAddress = _l1PortalAddress;
         l1Sender = DEFAULT_L1_SENDER;
 
+        __Ownable_init();
         __UUPSUpgradeable_init();
-
-        _transferOwnership(_owner);
     }
 
     function pause() public onlyOwner {

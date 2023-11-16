@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/consensus/beacon"
-	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -30,12 +29,6 @@ var thousandETH = new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(1000))
 type Constructor struct {
 	Name string
 	Args []interface{}
-}
-
-type Initializer struct {
-	Name        string
-	Initializer string
-	Args        []interface{}
 }
 
 type Deployment struct {
@@ -70,6 +63,8 @@ func NewBackendWithGenesisTimestamp(ts uint64, shanghai bool) *backends.Simulate
 		LondonBlock:         big.NewInt(0),
 		ArrowGlacierBlock:   big.NewInt(0),
 		GrayGlacierBlock:    big.NewInt(0),
+		ShanghaiTime:        nil,
+		CancunTime:          nil,
 		// Activated proof of stake. We manually build/commit blocks in the simulator anyway,
 		// and the timestamp verification of PoS is not against the wallclock,
 		// preventing blocks from getting stuck temporarily in the future-blocks queue, decreasing setup time a lot.
@@ -95,7 +90,7 @@ func NewBackendWithGenesisTimestamp(ts uint64, shanghai bool) *backends.Simulate
 			},
 			GasLimit: 15000000,
 		}),
-		backends.WithConsensus(beacon.New(ethash.NewFaker())),
+		backends.WithConsensus(beacon.NewFaker()),
 	)
 }
 
