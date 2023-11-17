@@ -1,4 +1,4 @@
-.PHONY: install sidecar clean geth-docker contracts
+.PHONY: install sidecar clean geth-docker contracts ops
 
 SIDECAR_DIR = services/sidecar
 SIDECAR_BIN_SRC = ./cmd/sidecar
@@ -16,12 +16,15 @@ GETH_BIN_TARGET = ./build/bin/geth
 MAGI_DIR = services/cl_clients/magi
 MAGI_BIN_TARGET = services/cl_clients/magi/target/debug/magi
 
+OPS_DIR = ops
+OPS_BINDINGS_DIR = $(OPS_DIR)/bindings
+
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 #CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
 #CLEF_TARGET = $(SIDECAR_BIN)/clef
 # install: sidecar $(GETH_TARGET) $(CLEF_TARGET)
 
-install: geth magi sidecar
+install: geth magi sidecar ops
 geth: $(GETH_BIN_TARGET)
 magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
@@ -32,6 +35,11 @@ sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 bindings: $(CONTRACTS_TARGET)
 	cd $(SIDECAR_DIR) && go generate ./...
 	touch $(SIDECAR_BINDINGS_TARGET)
+
+ops: ops-bindings
+
+ops-bindings: $(CONTRACTS_TARGET)
+	GOFLAGS="-buildvcs=false" make -C $(OPS_BINDINGS_DIR)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
 

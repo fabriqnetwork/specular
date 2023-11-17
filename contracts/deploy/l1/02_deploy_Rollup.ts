@@ -13,7 +13,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const execPromise = util.promisify(exec);
   let initialVMHash = "";
   let stdout = "";
-  const cmd = `sh ${path.join(CLIENT_SBIN_DIR, "export_genesis.sh")}`;
+  // TODO: read genesis hash file directly
+  const cmd = `sh ${path.join(CLIENT_SBIN_DIR, "read_genesis_hash.sh")}`;
   try {
       ({ stdout } = await execPromise(cmd));
   } catch (error) {
