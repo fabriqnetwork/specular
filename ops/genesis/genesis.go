@@ -45,7 +45,7 @@ func NewL2EmptyGenesis(config *GenesisConfig, block *types.Block) (*core.Genesis
 		MergeNetsplitBlock:            big.NewInt(0),
 		TerminalTotalDifficulty:       big.NewInt(0),
 		TerminalTotalDifficultyPassed: true,
-		CancunTime:                    nil, // no Dencun on L2 yet.
+		EnableL2GasLimitApi:           true,
 	}
 
 	gasLimit := config.L2GenesisBlockGasLimit
