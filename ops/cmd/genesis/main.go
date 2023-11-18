@@ -16,6 +16,8 @@ import (
 )
 
 func main() {
+	log.Root().SetHandler(log.LvlFilterHandler(log.LvlInfo, log.StreamHandler(os.Stderr, log.TerminalFormat(true))))
+
 	app := cli.NewApp()
 	app.Name = "spgenesis"
 	app.Usage = "Generate specular genesis file"
@@ -24,7 +26,6 @@ func main() {
 
 	err := app.Run(os.Args)
 	if err != nil {
-		fmt.Printf("Application failed: %v\n", err)
 		log.Crit("Application failed", "message", err)
 	}
 }
