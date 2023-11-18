@@ -14,11 +14,11 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   let initialVMHash = "";
   let stdout = "";
   // TODO: read genesis hash file directly
-  const cmd = `sh ${path.join(CLIENT_SBIN_DIR, "read_genesis_hash.sh")}`;
+  const cmd = `bash ${path.join(CLIENT_SBIN_DIR, "read_genesis_hash.sh")}`;
   try {
       ({ stdout } = await execPromise(cmd));
   } catch (error) {
-    throw Error(`could not export genesis hash: ${error}`);
+    throw Error(`could not export genesis hash: ${error.stdout}`);
   }
   try {
     initialVMHash = (JSON.parse(stdout).hash || "") as string;

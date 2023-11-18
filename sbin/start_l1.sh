@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 SBIN=`dirname $0`
 SBIN="`cd "$SBIN"; pwd`"
 if [ -z $CONTRACTS_DIR ] | [ -z $L1_GETH_BIN ]; then
@@ -47,8 +47,8 @@ echo "Using contracts dotenv: $CONTRACTS_ENV"
 . $CONTRACTS_ENV
 
 L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
-L1_WS_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
-echo "Parsed endpoint ($L1_HOST) and port: $L1_WS_PORT from $L1_ENDPOINT"
+L1_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
+echo "Parsed endpoint ($L1_HOST) and port: $L1_PORT from $L1_ENDPOINT"
 
 ###### PID handling ######
 trap ctrl_c INT
@@ -60,13 +60,16 @@ function cleanup() {
     echo "Cleaning up..."
     for pid in "${PIDS[@]}"; do
         echo "Killing $pid"
-	disown $pid
+	    disown $pid
         kill $pid
     done
     # For good measure...
-    if [ -n "$L1_WS_PORT" ]; then
-	echo "Killing proc on $L1_WS_PORT"
-	lsof -i tcp:${L1_WS_PORT} | awk 'NR!=1 {print $2}' | xargs kill
+    if [ -n "$L1_PORT" ]; then
+        L1_WS_PID=`lsof -i tcp:${L1_PORT} | awk 'NR!=1 {print $2}'`
+        if [ -n "$L1_WS_PID" ]; then
+	        echo "Killing proc on $L1_PORT"
+            kill $L1_WS_PID
+        fi
     fi
 }
 
@@ -78,7 +81,7 @@ function ctrl_c() {
 # Start L1 network.
 echo "Starting L1..."
 if [ "$L1_STACK" = "geth" ]; then
-  $L1_GETH_BIN \
+    $L1_GETH_BIN \
       --dev \
       --verbosity 0 \
       --http \
@@ -87,7 +90,7 @@ if [ "$L1_STACK" = "geth" ]; then
       --ws \
       --ws.api eth,net,web3 \
       --ws.addr 0.0.0.0 \
-      --ws.port $L1_WS_PORT &
+      --ws.port $L1_PORT &
 
     L1_PID=$!
     echo "L1 PID: $L1_PID"
@@ -106,7 +109,7 @@ if [ "$L1_STACK" = "geth" ]; then
       $L1_ENDPOINT
 elif [ "$L1_STACK" = "hardhat" ]; then
     echo "Using $CONTRACTS_DIR as HH proj"
-    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_WS_PORT &
+    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &
     L1_PID=$!
     PIDS+=$L1_PID
     echo "L1 PID: $L1_PID"
@@ -124,4 +127,5 @@ fi
 
 # Follow output
 # tail -f $L1_PID
+echo "L1 started... (Use ctrl-c to stop)"
 wait $L1_PID

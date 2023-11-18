@@ -52,8 +52,8 @@ export async function generateConfigFile(
   baseConfig.genesis.l2.hash = l2Hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
   // TODO: why is the timestamp not being generated ed?
-  baseConfig.genesis.l2_time = genesis.timestamp || 0;
-  console.log({ genesis })
+  baseConfig.genesis.l2_time = ethers.BigNumber.from(genesis.timestamp).toNumber() || 0;
+  // console.log({ genesis })
 
   fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
   console.log(`successfully wrote config to: ${configPath}`)

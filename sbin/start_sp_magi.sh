@@ -36,7 +36,10 @@ fi
 SEQUENCER_FLAGS=""
 if [ "$SEQUENCER" = true ] ; then
     echo "Enabling local sequencer."
-    SEQUENCER_FLAGS="--sequencer --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG"
+    SEQUENCER_FLAGS="
+        --sequencer \
+        --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG \
+        --sequencer-pk-file $SEQUENCER_PK_FILE"
 fi
 
 FLAGS="

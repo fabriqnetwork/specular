@@ -90,8 +90,8 @@ func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
 func (c ProtocolConfig) GetSeqWindowSize() uint64              { return c.Rollup.SeqWindowSize }
 func (c ProtocolConfig) GetSequencerInboxAddr() common.Address { return c.Rollup.BatchInboxAddress }
 func (c ProtocolConfig) GetRollup() RollupConfig               { return c.Rollup }
-func (c ProtocolConfig) GetL1ChainID() uint64                  { return c.Rollup.L2ChainID.Uint64() }
-func (c ProtocolConfig) GetL2ChainID() uint64                  { return c.Rollup.L1ChainID.Uint64() }
+func (c ProtocolConfig) GetL1ChainID() uint64                  { return c.Rollup.L1ChainID.Uint64() }
+func (c ProtocolConfig) GetL2ChainID() uint64                  { return c.Rollup.L2ChainID.Uint64() }
 func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
 func (c ProtocolConfig) GetL1OracleAddr() common.Address       { return c.L1OracleAddr }
 

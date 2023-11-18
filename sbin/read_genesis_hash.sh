@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Check that the dotenv exists
 ENV=".genesis.env"
@@ -13,4 +13,4 @@ if ! test -f "$GENESIS_EXPORTED_HASH_PATH" ; then
     exit 1
 fi
 
-echo "(cat $GENESIS_EXPORTED_HASH_PATH)"
+echo "$(cat $GENESIS_EXPORTED_HASH_PATH)"
