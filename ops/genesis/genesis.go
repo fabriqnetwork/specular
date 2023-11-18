@@ -119,7 +119,10 @@ func BuildL2Genesis(ctx context.Context, config *GenesisConfig, l1StartBlock *ty
 		}
 	}
 
-	return db.Genesis(), nil
+	genesisWithPredeploy := db.Genesis()
+	setupAllocs(genesisWithPredeploy, config.Alloc)
+
+	return genesisWithPredeploy, nil
 }
 
 func setupPredeploy(ctx context.Context, db vm.StateDB, name string, config predeploys.PredeployConfig, implDep predeploys.DeploymentResult) error {
@@ -139,7 +142,7 @@ func setupPredeploy(ctx context.Context, db vm.StateDB, name string, config pred
 			implStorageValues[label] = value.ImplValue
 		}
 	}
-	log.Info("Setting impl storage", "name", name, "address", implAddr)
+	log.Debug("Setting impl storage", "name", name, "address", implAddr)
 	if err := state.SetStorage(name, implAddr, implStorageValues, db); err != nil {
 		return err
 	}
@@ -164,7 +167,7 @@ func setupProxy(ctx context.Context, db vm.StateDB, name string, config predeplo
 			proxyStorageValues[label] = value.ProxyValue
 		}
 	}
-	log.Info("Setting proxy storage", "name", name, "address", proxyAddr)
+	log.Debug("Setting proxy storage", "name", name, "address", proxyAddr)
 	if err := state.SetStorage(name, proxyAddr, proxyStorageValues, db); err != nil {
 		return err
 	}
@@ -185,9 +188,32 @@ func setupEmptyProxy(ctx context.Context, db vm.StateDB, addr common.Address, pl
 			proxyStorageValues[label] = value.ProxyValue
 		}
 	}
-	log.Info("Setting empty proxy storage", "address", addr)
+	log.Debug("Setting empty proxy storage", "address", addr)
 	if err := state.SetStorage("UUPSPlaceholder", addr, proxyStorageValues, db); err != nil {
 		return err
 	}
 	return nil
+}
+
+func setupAllocs(genesis *core.Genesis, allocs map[common.Address]core.GenesisAccount) {
+	for addr, account := range allocs {
+		if existAccount, ok := genesis.Alloc[addr]; ok {
+			log.Warn("Overwriting existing genesis account", "address", addr)
+			if account.Balance != nil || account.Balance.Cmp(common.Big0) > 0 {
+				existAccount.Balance = account.Balance
+			}
+			if len(account.Code) > 0 {
+				existAccount.Code = account.Code
+			}
+			if len(account.Storage) > 0 {
+				existAccount.Storage = account.Storage
+			}
+			if account.Nonce != 0 {
+				existAccount.Nonce = account.Nonce
+			}
+			genesis.Alloc[addr] = existAccount
+		} else {
+			genesis.Alloc[addr] = account
+		}
+	}
 }

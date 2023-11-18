@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularL2/specular/ops/predeploys"
 )
@@ -36,6 +37,8 @@ type GenesisConfig struct {
 	L2PredeployOwner        common.Address `json:"l2PredeployOwner"`
 	L1PortalAddress         common.Address `json:"l1PortalAddress"`
 	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress"`
+
+	Alloc core.GenesisAlloc `json:"alloc"`
 }
 
 func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeploys.PredeployConfigs {
