@@ -36,11 +36,12 @@ guard_overwrite () {
 
 # Get relative paths
 GENESIS_PATH=`relpath $GENESIS_PATH $OPS_DIR`
+GENESIS_EXPORTED_HASH_PATH=`relpath $GENESIS_EXPORTED_HASH_PATH $OPS_DIR`
 
 # Create genesis.json file.
 echo "Generating new genesis file at $GENESIS_PATH"
 cd $OPS_DIR
-guard_overwrite $GENESIS_PATH\
+guard_overwrite $GENESIS_PATH
 go run ./cmd/genesis/main.go \
     --genesis-config $GENESIS_CFG_PATH \
     --out $GENESIS_PATH \
