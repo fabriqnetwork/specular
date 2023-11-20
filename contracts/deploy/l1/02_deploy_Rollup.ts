@@ -12,10 +12,9 @@ const GENESIS_JSON = require(path.join(CONTRACTS_DIR, process.env.GENESIS_EXPORT
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
-  const execPromise = util.promisify(exec);
   let initialVMHash = (GENESIS_JSON.hash || "") as string;
   if (!initialVMHash) {
-     throw Error(`hash not found\n${stdout}`);
+     throw Error(`hash not found\n$`);
   }
   console.log("initial VM hash:", initialVMHash);
 
