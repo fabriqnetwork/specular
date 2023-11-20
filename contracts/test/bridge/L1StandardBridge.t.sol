@@ -189,7 +189,6 @@ contract L1StandardBridge_DepositERC20_Test is StandardBridge_Initializer {
         uint256 value = 100;
         uint256 gasLimit = 10000;
 
-
         // Deal Alice's ERC20 State
         deal(address(l1Token), alice, gasLimit, true);
         vm.prank(alice);

@@ -89,13 +89,7 @@ contract PreBridgeETH is StandardBridge_Initializer {
 
         vm.expectEmit(true, true, true, true, l2PortalAddress);
         emit WithdrawalInitiated(
-            nonce,
-            l2StandardBridgeAddress,
-            l1StandardBridgeAddress,
-            value,
-            gasLimit,
-            message,
-            depositHash
+            nonce, l2StandardBridgeAddress, l1StandardBridgeAddress, value, gasLimit, message, depositHash
         );
 
         vm.prank(alice, alice);
@@ -154,13 +148,7 @@ contract PreBridgeETHTo is StandardBridge_Initializer {
 
         vm.expectEmit(true, true, true, true, l2PortalAddress);
         emit WithdrawalInitiated(
-            nonce,
-            l2StandardBridgeAddress,
-            l1StandardBridgeAddress,
-            value,
-            gasLimit,
-            message,
-            depositHash
+            nonce, l2StandardBridgeAddress, l1StandardBridgeAddress, value, gasLimit, message, depositHash
         );
 
         vm.prank(alice, alice);
@@ -227,13 +215,7 @@ contract L2StandardBridge_DepositERC20_Test is StandardBridge_Initializer {
 
         vm.expectEmit(true, true, true, true, l2PortalAddress);
         emit WithdrawalInitiated(
-            nonce,
-            l2StandardBridgeAddress,
-            l1StandardBridgeAddress,
-            0,
-            gasLimit,
-            message,
-            depositHash
+            nonce, l2StandardBridgeAddress, l1StandardBridgeAddress, 0, gasLimit, message, depositHash
         );
 
         vm.prank(alice);
@@ -293,13 +275,7 @@ contract L2StandardBridge_DepositERC20To_Test is StandardBridge_Initializer {
 
         vm.expectEmit(true, true, true, true, l2PortalAddress);
         emit WithdrawalInitiated(
-            nonce,
-            l2StandardBridgeAddress,
-            l1StandardBridgeAddress,
-            0,
-            gasLimit,
-            message,
-            depositHash
+            nonce, l2StandardBridgeAddress, l1StandardBridgeAddress, 0, gasLimit, message, depositHash
         );
 
         vm.prank(alice);
