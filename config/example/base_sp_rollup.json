@@ -18,7 +18,7 @@
     "block_time": 2,
     "max_sequencer_drift": 600,
     "seq_window_size": 3600,
-    "l1_chain_id": 31337,
+    "l1_chain_id": 1337,
     "l2_chain_id": 13527,
     "batch_inbox_address": "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1"
 }
