@@ -167,6 +167,10 @@ func (c DisseminatorConfig) validate() error {
 	if c.PrivateKey != nil && c.AccountAddr != crypto.PubkeyToAddress(c.PrivateKey.PublicKey) {
 		return fmt.Errorf("private key does not correspond to account address")
 	}
+	// Enforce sensible values.
+	if c.TargetBatchSize < 128 {
+		return fmt.Errorf("target batch size must be at least 128B")
+	}
 	return c.TxMgrCfg.Validate()
 }
 

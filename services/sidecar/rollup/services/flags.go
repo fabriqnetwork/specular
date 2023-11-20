@@ -14,7 +14,6 @@ func CLIFlags() []cli.Flag {
 		disseminatorCLIFlags,
 		txmgr.CLIFlags(disseminatorTxMgrNamespace, txmgr.DefaultDisseminatorFlagValues),
 		validatorCLIFlags,
-		// TODO: use validator defaults
 		txmgr.CLIFlags(validatorTxMgrNamespace, txmgr.DefaultValidatorFlagValues),
 	)
 }
