@@ -1,4 +1,15 @@
 #!/bin/bash
+SBIN=$(dirname "$(readlink -f "$0")")
+ROOT_DIR=$SBIN/..
+
+CONFIGURE_ENV=".configure.env"
+if ! test -f $CONFIGURE_ENV; then
+    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
+    exit
+fi
+echo "Using dotenv: $CONFIGURE_ENV"
+. $CONFIGURE_ENV
+
 GENESIS_ENV=".genesis.env"
 if test -f $GENESIS_ENV; then
     . $GENESIS_ENV
@@ -17,11 +28,5 @@ if test -f "$ROLLUP_CFG_PATH"; then
     rm $ROLLUP_CFG_PATH
 fi
 
-if [ ! -d "$CONTRACTS_DIR" ]; then
-    SBIN=`dirname $0`
-    SBIN="`cd "$SBIN"; pwd`"
-    . $SBIN/configure.sh
-    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
-fi
 echo "Removing deployment files in $CONTRACTS_DIR"
 rm -rf $CONTRACTS_DIR/deployments/*

@@ -12,12 +12,13 @@ if ! test -f $CONFIGURE_ENV; then
     echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
     exit
 fi
-echo "Using dotenv: $ENV"
-. $ENV
+echo "Using dotenv: $CONFIGURE_ENV"
+. $CONFIGURE_ENV
 
-if [ -z $SP_MAGI_BIN ]; then
-    # If no binary specified, assume repo directory structure.
-    . $SBIN/configure.sh
+SP_MAGI_ENV=".sp_magi.env"
+if ! test -f $SP_MAGI_ENV; then
+    echo "Expected dotenv at $SP_MAGI_ENV (does not exist)."
+    exit
 fi
 echo "Using configure dotenv: $SP_MAGI_ENV"
 . $SP_MAGI_ENV
