@@ -44,22 +44,26 @@ var (
 	}
 	// L1 config flags
 	l1EndpointFlag = &cli.StringFlag{
-		Name:  "l1.endpoint",
-		Usage: "The L1 API endpoint",
+		Name:     "l1.endpoint",
+		Usage:    "The L1 API endpoint",
+		Required: true,
 	}
 	// L2 config flags
 	l2EndpointFlag = &cli.StringFlag{
-		Name:  "l2.endpoint",
-		Usage: "The L2 API endpoint",
+		Name:     "l2.endpoint",
+		Usage:    "The L2 API endpoint",
+		Required: true,
 	}
 	// Chain config protocol flags.
 	protocolRollupCfgPathFlag = &cli.StringFlag{
-		Name:  "protocol.rollup-cfg-path",
-		Usage: "The path to the L2 rollup config file",
+		Name:     "protocol.rollup-cfg-path",
+		Usage:    "The path to the L2 rollup config file",
+		Required: true,
 	}
 	protocolRollupAddrFlag = &cli.StringFlag{
-		Name:  "protocol.rollup-addr",
-		Usage: "The contract address of L1 rollup",
+		Name:     "protocol.rollup-addr",
+		Usage:    "The contract address of L1 rollup",
+		Required: true,
 	}
 	protocolL1OracleAddrFlag = &cli.StringFlag{
 		Name:  "protocol.l1-oracle-addr",

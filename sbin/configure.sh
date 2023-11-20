@@ -7,6 +7,7 @@ ROOT_DIR=$SBIN/..
 
 CONTRACTS_DIR=$ROOT_DIR/contracts
 CONFIG_DIR=$ROOT_DIR/config
+OPS_DIR=$ROOT_DIR/ops
 GETH_DIR=$ROOT_DIR/services/el_clients/go-ethereum
 MAGI_DIR=$ROOT_DIR/services/cl_clients/magi
 SIDECAR_DIR=$ROOT_DIR/services/sidecar

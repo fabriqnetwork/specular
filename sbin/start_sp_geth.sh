@@ -62,7 +62,8 @@ FLAGS="
     --authrpc.addr $ADDRESS \
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
-    --miner.recommit 0
+    --miner.recommit 0 \
+    --syncmode full
 "
 
 echo "Starting sp-geth with the following aruments:"

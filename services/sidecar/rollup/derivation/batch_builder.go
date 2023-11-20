@@ -100,7 +100,7 @@ func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	if err != nil {
 		if errors.Is(err, errBatchTooSmall) {
 			log.Warn("Batch too small, waiting for more blocks")
-			return nil, nil
+			return nil, io.EOF
 		}
 		return nil, fmt.Errorf("failed to get batch: %w", err)
 	}

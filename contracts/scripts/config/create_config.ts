@@ -44,16 +44,14 @@ export async function generateConfigFile(
     .map(l => l.args["vmHash"])
     .pop()
 
-  // write out new file
+  // Write out new file
   // TODO: use on-chain data-only or genesis-only
   const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"))
   baseConfig.genesis.l1.hash = l1Hash;
   baseConfig.genesis.l1.number = l1Number;
   baseConfig.genesis.l2.hash = l2Hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
-  // TODO: why is the timestamp not being generated ed?
-  baseConfig.genesis.l2_time = genesis.timestamp || 0;
-  console.log({ genesis })
+  baseConfig.genesis.l2_time = ethers.BigNumber.from(genesis.timestamp).toNumber() || 0;
 
   fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
   console.log(`successfully wrote config to: ${configPath}`)

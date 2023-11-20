@@ -8,6 +8,10 @@ if test -f "$GENESIS_PATH"; then
     echo "Removing $GENESIS_PATH"
     rm $GENESIS_PATH
 fi
+if test -f "$GENESIS_EXPORTED_HASH_PATH"; then
+    echo "Removing $GENESIS_EXPORTED_HASH_PATH"
+    rm $GENESIS_EXPORTED_HASH_PATH
+fi
 if test -f "$ROLLUP_CFG_PATH"; then
     echo "Removing $ROLLUP_CFG_PATH"
     rm $ROLLUP_CFG_PATH

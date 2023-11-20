@@ -18,7 +18,6 @@ import {MintableERC20} from "../../src/bridge/mintable/MintableERC20.sol";
 contract L2StandardBridge_Getter_Test is StandardBridge_Initializer {
     /// @dev Test that the accessors return the correct initialized values.
     function test_getters_succeeds() external view {
-        assert(l2StandardBridge.L2_PORTAL() == l2Portal);
         assert(l2StandardBridge.PORTAL_ADDRESS() == l2PortalAddress);
         assert(l2StandardBridge.OTHER_BRIDGE() == l1StandardBridge);
     }

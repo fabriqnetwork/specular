@@ -8,13 +8,13 @@ fi
 echo "Using dotenv: $ENV"
 . $ENV
 
-if [ ! -d "$CONTRACTS_DIR" ]; then
+if [ ! -d "$OPS_DIR" ]; then
     SBIN=`dirname $0`
     SBIN="`cd "$SBIN"; pwd`"
     . $SBIN/configure.sh
-    CONTRACTS_DIR="`cd "$CONTRACTS_DIR"; pwd`"
+    OPS_DIR="`cd "$OPS_DIR"; pwd`"
 fi
-echo "Using $CONTRACTS_DIR as HH proj"
+echo "Using $OPS_DIR as ops directory."
 
 # Define a function to convert a path to be relative to another directory.
 relpath () {
@@ -34,18 +34,19 @@ guard_overwrite () {
     fi
 }
 
-# Get relative paths, since we have to run `create_genesis.ts` from the HH proj.
-BASE_GENESIS_PATH=`relpath $BASE_GENESIS_PATH $CONTRACTS_DIR`
-GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
-
-# Create genesis.json file.
-echo "Generating new genesis file at $GENESIS_PATH"
-cd $CONTRACTS_DIR
+# Get relative paths for $OPS_DIR
+GENESIS_CFG_PATH=`relpath $GENESIS_CFG_PATH $OPS_DIR`
+GENESIS_PATH=`relpath $GENESIS_PATH $OPS_DIR`
+GENESIS_EXPORTED_HASH_PATH=`relpath $GENESIS_EXPORTED_HASH_PATH $OPS_DIR`
+echo "Generating new genesis file at $GENESIS_PATH and exporting hash to $GENESIS_EXPORTED_HASH_PATH"
+cd $OPS_DIR
 guard_overwrite $GENESIS_PATH
-npx ts-node scripts/config/create_genesis.ts \
-    --in $BASE_GENESIS_PATH \
+# Create genesis.json file.
+go run ./cmd/genesis/main.go \
+    --genesis-config $GENESIS_CFG_PATH \
     --out $GENESIS_PATH \
-    --l1-rpc-url $L1_ENDPOINT
+    --l1-rpc-url $L1_ENDPOINT \
+    --export-hash $GENESIS_EXPORTED_HASH_PATH
 
 # Initialize a reference to the genesis file at
 # "contracts/.genesis" (using relative paths as appropriate).
@@ -54,4 +55,6 @@ guard_overwrite $CONTRACTS_ENV
 # Write file, using relative paths.
 echo "Initializing $CONTRACTS_ENV"
 GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
+GENESIS_EXPORTED_HASH_PATH=`relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR`
 echo GENESIS_PATH=$GENESIS_PATH >> $CONTRACTS_ENV
+echo GENESIS_EXPORTED_HASH_PATH=$GENESIS_EXPORTED_HASH_PATH >> $CONTRACTS_ENV

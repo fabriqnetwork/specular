@@ -7,11 +7,8 @@ if ! test -f $ENV; then
     echo "Expected dotenv at $ENV (does not exist)."
     exit
 fi
-
 echo "Using dotenv: $ENV"
-# TODO: why does this not work
-#. $ENV
-. $(pwd)/$ENV
+. $ENV
 
 if [ -z $SP_MAGI_BIN ]; then
     # If no binary specified, assume repo directory structure.
@@ -36,7 +33,10 @@ fi
 SEQUENCER_FLAGS=""
 if [ "$SEQUENCER" = true ] ; then
     echo "Enabling local sequencer."
-    SEQUENCER_FLAGS="--sequencer --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG"
+    SEQUENCER_FLAGS="
+        --sequencer \
+        --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG \
+        --sequencer-pk-file $SEQUENCER_PK_FILE"
 fi
 
 FLAGS="

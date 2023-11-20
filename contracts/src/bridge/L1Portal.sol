@@ -10,6 +10,7 @@ import {SafeCall} from "../libraries/SafeCall.sol";
 import {Types} from "../libraries/Types.sol";
 import {Hashing} from "../libraries/Hashing.sol";
 import {Encoding} from "../libraries/Hashing.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 import {MerkleTrie} from "../libraries/trie/MerkleTrie.sol";
 import {SecureMerkleTrie} from "../libraries/trie/SecureMerkleTrie.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
@@ -61,11 +62,6 @@ contract L1Portal is
     IRollup public rollup;
 
     /**
-     * @notice Address of the L2Portal deployed on L2.
-     */
-    address public l2PortalAddress; // TODO: store the hash instead
-
-    /**
      * @notice Address of the L2 account which initiated a withdrawal in this transaction. If the
      *         of this variable is the default L2 sender address, then we are NOT inside of a call
      *         to finalizeWithdrawalTransaction.
@@ -103,10 +99,6 @@ contract L1Portal is
         __UUPSUpgradeable_init();
     }
 
-    function setL2PortalAddress(address _l2PortalAddress) external onlyOwner {
-        l2PortalAddress = _l2PortalAddress;
-    }
-
     function pause() public onlyOwner {
         _pause();
     }
@@ -141,7 +133,7 @@ contract L1Portal is
         // bytes calldata encodedBlockHeader,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
-    ) external override L2Deployed onlyProxy whenNotPaused {
+    ) external override onlyProxy whenNotPaused {
         // Prevent nested withdrawals within withdrawals.
         require(l2Sender == DEFAULT_L2_SENDER, "L1Portal: can only trigger one withdrawal per transaction");
 
@@ -172,7 +164,8 @@ contract L1Portal is
             // require(blockHash == assertion.stateHash, "L1Portal: invalid block");
 
             // Verify the account proof.
-            bytes32 storageRoot = _verifyAccountInclusion(l2PortalAddress, assertion.stateHash, withdrawalAccountProof);
+            bytes32 storageRoot =
+                _verifyAccountInclusion(Predeploys.L2_PORTAL, assertion.stateHash, withdrawalAccountProof);
 
             // Verify that the hash of this withdrawal was stored in the L2Portal contract on L2.
             // If this is true, then we know that this withdrawal was actually triggered on L2
@@ -221,7 +214,6 @@ contract L1Portal is
         public
         payable
         override
-        L2Deployed
         onlyProxy
         whenNotPaused
     {
@@ -312,14 +304,5 @@ contract L1Portal is
         );
 
         return SecureMerkleTrie.verifyInclusionProof(abi.encode(storageKey), hex"01", proof, storageRoot);
-    }
-
-    /**
-     * Modifiers
-     */
-
-    modifier L2Deployed() {
-        require(l2PortalAddress != address(0), "L1Portal: L2 Portal not deployed");
-        _;
     }
 }
