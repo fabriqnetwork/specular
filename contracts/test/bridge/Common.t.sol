@@ -103,7 +103,7 @@ contract Portal_Initializer is L1Oracle_Initializer {
         vm.etch(l2PortalAddress, address(l2PortalProxy).code);
         vm.label(l2PortalAddress, "L2Portal");
 
-        // store implemntation address at the correct storage slot
+        // store implementation address at the correct storage slot
         bytes32 implSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
         vm.store(l2PortalAddress, implSlot, bytes32(uint256(uint160(l2PortalImplAddress))));
 
