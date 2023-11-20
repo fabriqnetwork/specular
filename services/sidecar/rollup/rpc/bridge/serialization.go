@@ -56,17 +56,15 @@ func packAppendTxBatchInput(batch []byte) ([]byte, error) {
 // IRollup.sol
 
 func UnpackCreateAssertionInput(tx *types.Transaction) (common.Hash, *big.Int, error) {
-	in, err := serializationUtil.rollupAbi.Unpack(CreateAssertionFnName, tx.Data()[MethodNumBytes:])
+	in, err := serializationUtil.rollupAbi.Methods[CreateAssertionFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 	if err != nil {
 		return common.Hash{}, nil, err
 	}
-	vmHash := in[0].(common.Hash)
-	inboxSize := in[1].(*big.Int)
+	var (
+		vmHash    = in[0].(common.Hash)
+		inboxSize = in[1].(*big.Int)
+	)
 	return vmHash, inboxSize, err
-}
-
-func UnpackBisectExecutionInput(tx *types.Transaction) ([]any, error) {
-	return serializationUtil.challengeAbi.Methods[bisectExecutionFn].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 }
 
 func packStakeInput() ([]byte, error) {
@@ -92,15 +90,19 @@ func packRejectFirstUnresolvedAssertionInput(stakerAddress common.Address) ([]by
 // L1Oracle.sol
 
 func UnpackL1OracleInput(tx *types.Transaction) (uint64, uint64, uint64, common.Hash, common.Hash, error) {
-	in, err := serializationUtil.l1OracleAbi.Unpack(SetL1OracleValues, tx.Data()[MethodNumBytes:])
+	in, err := serializationUtil.l1OracleAbi.Methods[SetL1OracleValues].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 	if err != nil {
 		return 0, 0, 0, common.Hash{}, common.Hash{}, err
 	}
-	number := in[0].(*big.Int).Uint64()
-	timestamp := in[1].(*big.Int).Uint64()
-	baseFee := in[2].(*big.Int).Uint64()
-	hash := in[3].(common.Hash)
-	stateRoot := in[4].(common.Hash)
+	var (
+		number       = in[0].(*big.Int).Uint64()
+		timestamp    = in[1].(*big.Int).Uint64()
+		baseFee      = in[2].(*big.Int).Uint64()
+		hashRaw      = in[3].([32]byte)
+		hash         = common.BytesToHash(hashRaw[:])
+		stateRootRaw = in[4].([32]byte)
+		stateRoot    = common.BytesToHash(stateRootRaw[:])
+	)
 	return number, timestamp, baseFee, hash, stateRoot, nil
 }
 

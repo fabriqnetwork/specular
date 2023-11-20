@@ -12,9 +12,10 @@ func CLIFlags() []cli.Flag {
 		generalFlags,
 		protocolFlags,
 		disseminatorCLIFlags,
-		txmgr.CLIFlags(disseminatorTxMgrNamespace),
+		txmgr.CLIFlags(disseminatorTxMgrNamespace, txmgr.DefaultDisseminatorFlagValues),
 		validatorCLIFlags,
-		txmgr.CLIFlags(validatorTxMgrNamespace),
+		// TODO: use validator defaults
+		txmgr.CLIFlags(validatorTxMgrNamespace, txmgr.DefaultValidatorFlagValues),
 	)
 }
 
