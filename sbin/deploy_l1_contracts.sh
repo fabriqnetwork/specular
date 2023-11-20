@@ -82,6 +82,7 @@ cp $CONTRACTS_ENV $CONTRACTS_DIR/.env
 BASE_ROLLUP_CFG_PATH=`relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR`
 ROLLUP_CFG_PATH=`relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR`
 GENESIS_PATH=`relpath $GENESIS_PATH $CONTRACTS_DIR`
+GENESIS_HASH_PATH=`relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR`
 
 # Generate genesis file
 $SBIN/create_genesis.sh
@@ -89,7 +90,8 @@ $SBIN/create_genesis.sh
 # Deploy contracts
 cd $CONTRACTS_DIR
 echo "Deploying l1 contracts..."
-npx hardhat deploy --network $L1_NETWORK
+echo $GENESIS_EXPORTED_HASH_PATH
+GENESIS_EXPORTED_HASH_PATH=$GENESIS_HASH_PATH npx hardhat deploy --network $L1_NETWORK
 
 # Generate rollup config
 echo "Generating rollup config..."

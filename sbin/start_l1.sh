@@ -1,9 +1,34 @@
 #!/bin/bash
-SBIN=`dirname $0`
-SBIN="`cd "$SBIN"; pwd`"
-if [ -z $CONTRACTS_DIR ] | [ -z $L1_GETH_BIN ]; then
-    . $SBIN/configure.sh
+SBIN=$(dirname "$(readlink -f "$0")")
+ROOT_DIR=$SBIN/..
+
+# Check that the all required dotenv files exists.
+CONFIGURE_ENV=".configure.env"
+if ! test -f $CONFIGURE_ENV; then
+    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
+    exit
 fi
+echo "Using dotenv: $CONFIGURE_ENV"
+. $CONFIGURE_ENV
+
+GENESIS_ENV=".genesis.env"
+if ! test -f $GENESIS_ENV; then
+    echo "Expected dotenv at $GENESIS_ENV (does not exist)."
+    exit
+fi
+echo "Using dotenv: $GENESIS_ENV"
+. $GENESIS_ENV
+
+if [ "$L1_STACK" = "geth" ]; then
+CONTRACTS_ENV=".contracts.env"
+if ! test -f $CONTRACTS_ENV; then
+    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
+    exit
+fi
+echo "Using dotenv: $CONTRACTS_ENV"
+. $CONTRACTS_ENV
+fi
+
 # Parse args.
 optspec="cdh"
 while getopts "$optspec" optchar; do

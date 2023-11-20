@@ -15,12 +15,14 @@ fi
 echo "Using configure dotenv: $CONFIGURE_ENV"
 . $CONFIGURE_ENV
 
-if [ ! -d "$OPS_DIR" ]; then
-    SBIN=`dirname $0`
-    SBIN="`cd "$SBIN"; pwd`"
-    . $SBIN/configure.sh
-    OPS_DIR="`cd "$OPS_DIR"; pwd`"
+GENESIS_ENV=".genesis.env"
+if ! test -f $GENESIS_ENV; then
+    echo "Expected dotenv at $GENESIS_ENV (does not exist)."
+    exit
 fi
+echo "Using dotenv: $GENESIS_ENV"
+. $GENESIS_ENV
+
 echo "Using $OPS_DIR as ops directory."
 
 # Define a function to convert a path to be relative to another directory.
@@ -49,11 +51,15 @@ echo "Generating new genesis file at $GENESIS_PATH and exporting hash to $GENESI
 cd $OPS_DIR
 guard_overwrite $GENESIS_PATH
 # Create genesis.json file.
+CMD="""
 go run ./cmd/genesis/main.go \
     --genesis-config $GENESIS_CFG_PATH \
     --out $GENESIS_PATH \
     --l1-rpc-url $L1_ENDPOINT \
     --export-hash $GENESIS_EXPORTED_HASH_PATH
+"""
+echo "Running $CMD"
+exec $CMD
 
 # Initialize a reference to the genesis file at
 # "contracts/.genesis" (using relative paths as appropriate).

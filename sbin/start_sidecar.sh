@@ -1,6 +1,4 @@
 #!/bin/bash
-SBIN=`dirname $0`
-SBIN="`cd "$SBIN"; pwd`"
 
 # TODO: can we get rid of this somehow?
 # currently the local sbin paths are relative to the project root
