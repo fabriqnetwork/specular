@@ -54,24 +54,49 @@ contract PreBridgeETH is StandardBridge_Initializer {
     function _preBridgeETH() internal {
         assertEq(l1StandardBridgeAddress.balance, 0);
 
+        uint256 nonce = l1Portal.nonce();
+        uint256 value = 500;
+        uint256 gasLimit = 50000;
+        bytes memory data = hex"dead";
+
         bytes memory message =
-            abi.encodeWithSelector(StandardBridge.finalizeBridgeETH.selector, alice, alice, 500, hex"dead");
+            abi.encodeWithSelector(StandardBridge.finalizeBridgeETH.selector, alice, alice, value, data);
+
+        bytes32 depositHash = Hashing.hashCrossDomainMessage(
+            Types.CrossDomainMessage({
+                version: 0,
+                nonce: nonce,
+                sender: AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+                target: l2StandardBridgeAddress,
+                value: value,
+                gasLimit: gasLimit,
+                data: message
+            })
+        );
 
         vm.expectCall(
-            l1StandardBridgeAddress, 500, abi.encodeWithSelector(StandardBridge.bridgeETH.selector, 50000, hex"dead")
+            l1StandardBridgeAddress, value, abi.encodeWithSelector(StandardBridge.bridgeETH.selector, gasLimit, data)
         );
 
         vm.expectCall(
             l1PortalAddress,
-            500,
-            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, 50000, message)
+            value,
+            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, gasLimit, message)
         );
 
         vm.expectEmit(true, true, true, true, l1StandardBridgeAddress);
-        emit ETHBridgeInitiated(alice, alice, 500, hex"dead");
+        emit ETHBridgeInitiated(alice, alice, value, data);
 
-        uint256 nonce = l1Portal.nonce();
-        emit DepositInitiated(nonce, alice, alice, 500, 5000, hex"dead", "");
+        vm.expectEmit(true, true, true, true, l1PortalAddress);
+        emit DepositInitiated(
+            nonce,
+            AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+            l2StandardBridgeAddress,
+            value,
+            gasLimit,
+            message,
+            depositHash
+        );
 
         vm.prank(alice, alice);
     }
