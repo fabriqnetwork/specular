@@ -95,7 +95,7 @@ contract Portal_Initializer is L1Oracle_Initializer {
         // deploy implementation contract
         address l2PortalImplAddress = address(new L2Portal());
 
-        // depoly Proxy at random address
+        // deploy Proxy at random address
         l2PortalProxy = new UUPSProxy(l2PortalImplAddress, "");
 
         // etch proxy to the predeploy address
