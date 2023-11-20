@@ -186,7 +186,7 @@ func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to send batch transaction: %w", err)
 	}
-	log.Info("Sequenced batch to L1", "tx_hash", receipt.TxHash, "l1Block#", receipt.BlockNumber)
+	log.Info("Sequenced batch to L1", "size", len(data), "tx_hash", receipt.TxHash, "l1Block#", receipt.BlockNumber)
 	d.batchBuilder.Advance()
 	return nil
 }
