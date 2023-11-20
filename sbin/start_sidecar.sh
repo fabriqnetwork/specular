@@ -26,9 +26,10 @@ FLAGS=(
 # Set disseminator flags.
 if [ "$DISSEMINATOR" = true ] ; then
     echo "Enabling disseminator."
+    DISSEMINATOR_PRIV_KEY=`cat "$DISSEMINATOR_PK_PATH"`
     FLAGS+=(
         "--disseminator"
-        "--disseminator.private-key `cat $DISSEMINATOR_PK_PATH`"
+        "--disseminator.private-key $DISSEMINATOR_PRIV_KEY"
         "--disseminator.sub-safety-margin $DISSEMINATOR_SUB_SAFETY_MARGIN"
         "--disseminator.target-batch-size $DISSEMINATOR_TARGET_BATCH_SIZE"
     )
@@ -36,9 +37,10 @@ fi
 # Set validator flags.
 if [ "$VALIDATOR" = true ] ; then
     echo "Enabling validator."
+    VALIDATOR_PRIV_KEY=`cat "$VALIDATOR_PK_PATH"`
     FLAGS+=(
         "--validator"
-        "--validator.private-key `cat $VALIDATOR_PK_PATH`"
+        "--validator.private-key $VALIDATOR_PRIV_KEY"
     )
 fi
 
