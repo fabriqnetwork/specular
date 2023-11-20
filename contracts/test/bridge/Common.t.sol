@@ -3,6 +3,7 @@ pragma solidity 0.8.15;
 
 // Testing utilities
 import {Test, StdUtils} from "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -90,9 +91,24 @@ contract Portal_Initializer is L1Oracle_Initializer {
         // dummy rollup address
         l1Portal.initialize(address(42));
 
+        // the L2Portal needs to be deployed at the correct predeploy address
+        // deploy implementation contract
+        address l2PortalImplAddress = address(new L2Portal());
+
+        // deploy Proxy at random address
+        l2PortalProxy = new UUPSProxy(l2PortalImplAddress, "");
+
+        // etch proxy to the predeploy address
         l2PortalAddress = payable(Predeploys.L2_PORTAL);
-        vm.etch(l2PortalAddress, address(new L2Portal()).code);
+        vm.etch(l2PortalAddress, address(l2PortalProxy).code);
         vm.label(l2PortalAddress, "L2Portal");
+
+        // store implementation address at the correct storage slot
+        // the slot is defined in https://eips.ethereum.org/EIPS/eip-1967
+        // bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
+        bytes32 implSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        vm.store(l2PortalAddress, implSlot, bytes32(uint256(uint160(l2PortalImplAddress))));
+
         l2Portal = L2Portal(l2PortalAddress);
         l2Portal.initialize(l1PortalAddress);
     }

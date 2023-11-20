@@ -8,6 +8,7 @@ import {StandardBridge_Initializer} from "./Common.t.sol";
 
 // Target contract dependencies
 import {Types} from "../../src/libraries/Types.sol";
+import {Hashing} from "../../src/libraries/Hashing.sol";
 import {StandardBridge} from "../../src/bridge/StandardBridge.sol";
 import {L1StandardBridge} from "../../src/bridge/L1StandardBridge.sol";
 import {L2StandardBridge} from "../../src/bridge/L2StandardBridge.sol";
@@ -53,24 +54,49 @@ contract PreBridgeETH is StandardBridge_Initializer {
     function _preBridgeETH() internal {
         assertEq(l1StandardBridgeAddress.balance, 0);
 
+        uint256 nonce = l1Portal.nonce();
+        uint256 value = 500;
+        uint256 gasLimit = 50000;
+        bytes memory data = hex"dead";
+
         bytes memory message =
-            abi.encodeWithSelector(StandardBridge.finalizeBridgeETH.selector, alice, alice, 500, hex"dead");
+            abi.encodeWithSelector(StandardBridge.finalizeBridgeETH.selector, alice, alice, value, data);
+
+        bytes32 depositHash = Hashing.hashCrossDomainMessage(
+            Types.CrossDomainMessage({
+                version: 0,
+                nonce: nonce,
+                sender: AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+                target: l2StandardBridgeAddress,
+                value: value,
+                gasLimit: gasLimit,
+                data: message
+            })
+        );
 
         vm.expectCall(
-            l1StandardBridgeAddress, 500, abi.encodeWithSelector(StandardBridge.bridgeETH.selector, 50000, hex"dead")
+            l1StandardBridgeAddress, value, abi.encodeWithSelector(StandardBridge.bridgeETH.selector, gasLimit, data)
         );
 
         vm.expectCall(
             l1PortalAddress,
-            500,
-            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, 50000, message)
+            value,
+            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, gasLimit, message)
         );
 
         vm.expectEmit(true, true, true, true, l1StandardBridgeAddress);
-        emit ETHBridgeInitiated(alice, alice, 500, hex"dead");
+        emit ETHBridgeInitiated(alice, alice, value, data);
 
-        uint256 nonce = l1Portal.nonce();
-        emit DepositInitiated(nonce, alice, alice, 500, 5000, hex"dead", "");
+        vm.expectEmit(true, true, true, true, l1PortalAddress);
+        emit DepositInitiated(
+            nonce,
+            AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+            l2StandardBridgeAddress,
+            value,
+            gasLimit,
+            message,
+            depositHash
+        );
 
         vm.prank(alice, alice);
     }
@@ -91,34 +117,51 @@ contract PreBridgeETHTo is StandardBridge_Initializer {
     function _preBridgeETHTo() internal {
         assertEq(l1StandardBridgeAddress.balance, 0);
 
+        uint256 nonce = l1Portal.nonce();
+        uint256 value = 600;
+        uint256 gasLimit = 60000;
+        bytes memory data = hex"dead";
+
         bytes memory message =
-            abi.encodeWithSelector(StandardBridge.finalizeBridgeETH.selector, alice, bob, 600, hex"dead");
+            abi.encodeWithSelector(StandardBridge.finalizeBridgeETH.selector, alice, bob, value, data);
+
+        bytes32 depositHash = Hashing.hashCrossDomainMessage(
+            Types.CrossDomainMessage({
+                version: 0,
+                nonce: nonce,
+                sender: AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+                target: l2StandardBridgeAddress,
+                value: value,
+                gasLimit: gasLimit,
+                data: message
+            })
+        );
 
         vm.expectCall(
             l1StandardBridgeAddress,
-            600,
-            abi.encodeWithSelector(StandardBridge.bridgeETHTo.selector, bob, 60000, hex"dead")
+            value,
+            abi.encodeWithSelector(StandardBridge.bridgeETHTo.selector, bob, gasLimit, data)
         );
 
         vm.expectCall(
             l1PortalAddress,
-            600,
-            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, 60000, message)
+            value,
+            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, gasLimit, message)
         );
 
         vm.expectEmit(true, true, true, true, l1StandardBridgeAddress);
-        emit ETHBridgeInitiated(alice, bob, 600, hex"dead");
+        emit ETHBridgeInitiated(alice, bob, value, data);
 
-        uint256 nonce = l1Portal.nonce();
+        // not testing the if the tx hash is correct
         vm.expectEmit(true, true, true, true, l1PortalAddress);
         emit DepositInitiated(
             nonce,
             AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
             l2StandardBridgeAddress,
-            600,
-            60000,
+            value,
+            gasLimit,
             message,
-            hex"efdfee2f5058687ebc6d0c1f711885c5cf1f24aa32933d67b97e8c49bccabd00"
+            depositHash
         );
 
         vm.prank(alice, alice);
@@ -143,43 +186,57 @@ contract L1StandardBridge_DepositERC20_Test is StandardBridge_Initializer {
     ///      Emits ERC20DepositInitiated event.
     function test_depositERC20_succeeds() external {
         uint256 nonce = l1Portal.nonce();
+        uint256 value = 100;
+        uint256 gasLimit = 10000;
 
         // Deal Alice's ERC20 State
-        deal(address(l1Token), alice, 100000, true);
+        deal(address(l1Token), alice, gasLimit, true);
         vm.prank(alice);
         l1Token.approve(l1StandardBridgeAddress, type(uint256).max);
 
         // The L1Bridge should transfer alice's tokens to itself
         vm.expectCall(
-            address(l1Token), abi.encodeWithSelector(ERC20.transferFrom.selector, alice, l1StandardBridgeAddress, 100)
+            address(l1Token), abi.encodeWithSelector(ERC20.transferFrom.selector, alice, l1StandardBridgeAddress, value)
         );
 
         bytes memory message = abi.encodeWithSelector(
-            StandardBridge.finalizeBridgeERC20.selector, address(l2Token), address(l1Token), alice, alice, 100, hex""
+            StandardBridge.finalizeBridgeERC20.selector, address(l2Token), address(l1Token), alice, alice, value, hex""
+        );
+
+        bytes32 depositHash = Hashing.hashCrossDomainMessage(
+            Types.CrossDomainMessage({
+                version: 0,
+                nonce: nonce,
+                sender: AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+                target: l2StandardBridgeAddress,
+                value: 0,
+                gasLimit: gasLimit,
+                data: message
+            })
         );
 
         // the L1 bridge should call L1Portal.initiateDeposit
         vm.expectCall(
             l1PortalAddress,
-            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, 10000, message)
+            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, gasLimit, message)
         );
 
         vm.expectEmit(true, true, true, true, l1StandardBridgeAddress);
-        emit ERC20BridgeInitiated(address(l1Token), address(l2Token), alice, alice, 100, hex"");
+        emit ERC20BridgeInitiated(address(l1Token), address(l2Token), alice, alice, value, hex"");
         vm.expectEmit(true, true, true, true, l1PortalAddress);
         emit DepositInitiated(
             nonce,
             AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
             l2StandardBridgeAddress,
             0,
-            10000,
+            gasLimit,
             message,
-            hex"eff2698675bc67cd2fec9b070280d12442b0156ae58f133f242b550c81b0c946"
+            depositHash
         );
 
         vm.prank(alice);
-        l1StandardBridge.bridgeERC20(address(l1Token), address(l2Token), 100, 10000, hex"");
-        assertEq(l1StandardBridge.deposits(address(l1Token), address(l2Token)), 100);
+        l1StandardBridge.bridgeERC20(address(l1Token), address(l2Token), value, uint32(gasLimit), hex"");
+        assertEq(l1StandardBridge.deposits(address(l1Token), address(l2Token)), value);
     }
 }
 
@@ -190,43 +247,57 @@ contract L1StandardBridge_DepositERC20To_Test is StandardBridge_Initializer {
     ///      Emits ERC20DepositInitiated event.
     function test_depositERC20To_succeeds() external {
         uint256 nonce = l1Portal.nonce();
+        uint256 value = 100;
+        uint256 gasLimit = 10000;
 
         // Deal Alice's ERC20 State
-        deal(address(l1Token), alice, 100000, true);
+        deal(address(l1Token), alice, gasLimit, true);
         vm.prank(alice);
         l1Token.approve(l1StandardBridgeAddress, type(uint256).max);
 
         // The L1Bridge should transfer alice's tokens to itself
         vm.expectCall(
-            address(l1Token), abi.encodeWithSelector(ERC20.transferFrom.selector, alice, l1StandardBridgeAddress, 100)
+            address(l1Token), abi.encodeWithSelector(ERC20.transferFrom.selector, alice, l1StandardBridgeAddress, value)
         );
 
         bytes memory message = abi.encodeWithSelector(
-            StandardBridge.finalizeBridgeERC20.selector, address(l2Token), address(l1Token), alice, bob, 100, hex""
+            StandardBridge.finalizeBridgeERC20.selector, address(l2Token), address(l1Token), alice, bob, value, hex""
+        );
+
+        bytes32 depositHash = Hashing.hashCrossDomainMessage(
+            Types.CrossDomainMessage({
+                version: 0,
+                nonce: nonce,
+                sender: AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
+                target: l2StandardBridgeAddress,
+                value: 0,
+                gasLimit: gasLimit,
+                data: message
+            })
         );
 
         // the L1 bridge should call L1Portal.initiateDeposit
         vm.expectCall(
             l1PortalAddress,
-            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, 10000, message)
+            abi.encodeWithSelector(L1Portal.initiateDeposit.selector, l2StandardBridgeAddress, gasLimit, message)
         );
 
         vm.expectEmit(true, true, true, true, l1StandardBridgeAddress);
-        emit ERC20BridgeInitiated(address(l1Token), address(l2Token), alice, bob, 100, hex"");
+        emit ERC20BridgeInitiated(address(l1Token), address(l2Token), alice, bob, value, hex"");
         vm.expectEmit(true, true, true, true, l1PortalAddress);
         emit DepositInitiated(
             nonce,
             AddressAliasHelper.applyL1ToL2Alias(l1StandardBridgeAddress),
             l2StandardBridgeAddress,
             0,
-            10000,
+            gasLimit,
             message,
-            hex"e4b2e5e4417057999367136a09bb17ce400dd06984e78bb926776419fd15cfb3"
+            depositHash
         );
 
         vm.prank(alice);
-        l1StandardBridge.bridgeERC20To(address(l1Token), address(l2Token), bob, 100, 10000, hex"");
-        assertEq(l1StandardBridge.deposits(address(l1Token), address(l2Token)), 100);
+        l1StandardBridge.bridgeERC20To(address(l1Token), address(l2Token), bob, value, uint32(gasLimit), hex"");
+        assertEq(l1StandardBridge.deposits(address(l1Token), address(l2Token)), value);
     }
 }
 
