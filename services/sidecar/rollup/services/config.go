@@ -26,12 +26,21 @@ func (c *SystemConfig) L2() L2Config                     { return c.L2Config }
 func (c *SystemConfig) Disseminator() DisseminatorConfig { return c.DisseminatorConfig }
 func (c *SystemConfig) Validator() ValidatorConfig       { return c.ValidatorConfig }
 
-// Parses all CLI flags and returns a full system config.
-func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
-	return parseFlags(cliCtx)
+func (c *SystemConfig) validate() error {
+	if !(c.DisseminatorConfig.IsEnabled || c.ValidatorConfig.IsEnabled) {
+		return fmt.Errorf("at least one of disseminator and validator must be enabled")
+	}
+	if err := c.DisseminatorConfig.validate(); err != nil {
+		return fmt.Errorf("disseminator config invalid: %w", err)
+	}
+	if err := c.ValidatorConfig.validate(); err != nil {
+		return fmt.Errorf("validator config invalid: %w", err)
+	}
+	return nil
 }
 
-func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
+// Parses all CLI flags and returns a full system config.
+func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
 	protocolCfg, err := newProtocolConfigFromCLI(cliCtx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse protocol config: %w", err)
@@ -57,11 +66,8 @@ func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
 		ValidatorConfig:    newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
 	}
 	// Validate.
-	if err := cfg.DisseminatorConfig.validate(); err != nil {
-		return nil, fmt.Errorf("disseminator config invalid: %w", err)
-	}
-	if err := cfg.ValidatorConfig.validate(); err != nil {
-		return nil, fmt.Errorf("validator config invalid: %w", err)
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("failed to validate config: %w", err)
 	}
 	return cfg, nil
 }
@@ -69,9 +75,8 @@ func parseFlags(cliCtx *cli.Context) (*SystemConfig, error) {
 // Protocol configuration
 // Basically: fields from `rollup.json` + additional protocol fields
 type ProtocolConfig struct {
-	Rollup       RollupConfig   `toml:"rollup,omitempty"`
-	RollupAddr   common.Address `toml:"rollup_addr,omitempty"`    // L1 Rollup contract address
-	L1OracleAddr common.Address `toml:"l1_oracle_addr,omitempty"` // L2 Address of the L1Oracle
+	Rollup     RollupConfig   `toml:"rollup,omitempty"`
+	RollupAddr common.Address `toml:"rollup_addr,omitempty"` // L1 Rollup contract address
 }
 
 func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
@@ -80,20 +85,22 @@ func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
 		return ProtocolConfig{}, err
 	}
 	return ProtocolConfig{
-		Rollup:       *rollupCfg,
-		RollupAddr:   common.HexToAddress(cliCtx.String(protocolRollupAddrFlag.Name)),
-		L1OracleAddr: common.HexToAddress(protocolL1OracleAddrFlag.Value),
+		Rollup:     *rollupCfg,
+		RollupAddr: common.HexToAddress(cliCtx.String(protocolRollupAddrFlag.Name)),
 	}, nil
 }
 
 // TODO: cleanup (consider: exposing parameters via getters in `c.Rollup` directly).
+func (c ProtocolConfig) GetRollup() RollupConfig               { return c.Rollup }
+func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
 func (c ProtocolConfig) GetSeqWindowSize() uint64              { return c.Rollup.SeqWindowSize }
 func (c ProtocolConfig) GetSequencerInboxAddr() common.Address { return c.Rollup.BatchInboxAddress }
-func (c ProtocolConfig) GetRollup() RollupConfig               { return c.Rollup }
 func (c ProtocolConfig) GetL1ChainID() uint64                  { return c.Rollup.L1ChainID.Uint64() }
 func (c ProtocolConfig) GetL2ChainID() uint64                  { return c.Rollup.L2ChainID.Uint64() }
-func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
-func (c ProtocolConfig) GetL1OracleAddr() common.Address       { return c.L1OracleAddr }
+func (c ProtocolConfig) GetL1OracleAddr() common.Address {
+	// TODO: import from package or config
+	return common.HexToAddress("0x2A00000000000000000000000000000000000010")
+}
 
 // L1 configuration
 type L1Config struct {

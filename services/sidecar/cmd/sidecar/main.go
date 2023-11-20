@@ -159,7 +159,7 @@ func createTxManager(
 		return transactor.Signer(address, tx)
 	}
 
-	txMgrCfg :=  serCfg.GetTxMgrCfg()
+	txMgrCfg := serCfg.GetTxMgrCfg()
 	txMgrCfg.From = transactor.From
 
 	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), txMgrCfg, l1Client, signer), protocolCfg)

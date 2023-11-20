@@ -50,6 +50,8 @@ L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`
 echo "Parsed endpoint ($L1_HOST) and port: $L1_PORT from $L1_ENDPOINT"
 
+LOG_FILE="l1.log"
+
 ###### PID handling ######
 trap ctrl_c INT
 
@@ -58,6 +60,7 @@ PIDS=()
 
 function cleanup() {
     echo "Cleaning up..."
+    rm -f $LOG_FILE
     for pid in "${PIDS[@]}"; do
         echo "Killing $pid"
 	    disown $pid
@@ -83,14 +86,13 @@ echo "Starting L1..."
 if [ "$L1_STACK" = "geth" ]; then
     $L1_GETH_BIN \
       --dev \
-      --verbosity 0 \
       --http \
       --http.api eth,web3,net \
       --http.addr 0.0.0.0 \
       --ws \
       --ws.api eth,net,web3 \
       --ws.addr 0.0.0.0 \
-      --ws.port $L1_PORT &
+      --ws.port $L1_PORT &>$LOG_FILE &
 
     L1_PID=$!
     echo "L1 PID: $L1_PID"
@@ -109,7 +111,7 @@ if [ "$L1_STACK" = "geth" ]; then
       $L1_ENDPOINT
 elif [ "$L1_STACK" = "hardhat" ]; then
     echo "Using $CONTRACTS_DIR as HH proj"
-    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &
+    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT > $LOG_FILE &
     L1_PID=$!
     PIDS+=$L1_PID
     echo "L1 PID: $L1_PID"
@@ -126,6 +128,6 @@ if [ "$L1_DEPLOY" = "true" ]; then
 fi
 
 # Follow output
-# tail -f $L1_PID
 echo "L1 started... (Use ctrl-c to stop)"
+tail -f $LOG_FILE
 wait $L1_PID
