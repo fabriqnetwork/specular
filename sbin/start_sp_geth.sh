@@ -63,8 +63,7 @@ FLAGS="
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
     --miner.recommit 0 \
-    --syncmode full \
-    --enable-l2-engine-api
+    --syncmode full
 "
 
 echo "Starting sp-geth with the following aruments:"

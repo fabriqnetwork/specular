@@ -45,7 +45,7 @@ func NewL2EmptyGenesis(config *GenesisConfig, block *types.Block) (*core.Genesis
 		MergeNetsplitBlock:            big.NewInt(0),
 		TerminalTotalDifficulty:       big.NewInt(0),
 		TerminalTotalDifficultyPassed: true,
-		EnableL2GasLimitApi:           true,
+		EnableL2EngineApi:             true,
 	}
 
 	gasLimit := config.L2GenesisBlockGasLimit

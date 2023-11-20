@@ -111,7 +111,7 @@ if [ "$L1_STACK" = "geth" ]; then
       $L1_ENDPOINT
 elif [ "$L1_STACK" = "hardhat" ]; then
     echo "Using $CONTRACTS_DIR as HH proj"
-    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT > $LOG_FILE &
+    cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &> $LOG_FILE &
     L1_PID=$!
     PIDS+=$L1_PID
     echo "L1 PID: $L1_PID"
@@ -124,7 +124,7 @@ fi
 # Optionally deploy the contracts
 if [ "$L1_DEPLOY" = "true" ]; then
     echo "Deploying contracts..."
-    bash $SBIN/deploy_l1_contracts.sh
+    $SBIN/deploy_l1_contracts.sh
 fi
 
 # Follow output

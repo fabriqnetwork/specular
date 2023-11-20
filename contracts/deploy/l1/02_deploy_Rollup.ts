@@ -6,25 +6,14 @@ import { DeployFunction } from "hardhat-deploy/types";
 
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
 
-const CLIENT_SBIN_DIR = `${__dirname}/../../../sbin`;
+const CONTRACTS_DIR = path.join(__dirname, "/../../")
+require("dotenv").config({ path: path.join(CONTRACTS_DIR, ".genesis.env")});
+const GENESIS_JSON = require(path.join(CONTRACTS_DIR, process.env.GENESIS_EXPORTED_HASH_PATH));
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   // Calculate initial VM hash
   const execPromise = util.promisify(exec);
-  let initialVMHash = "";
-  let stdout = "";
-  // TODO: read genesis hash file directly
-  const cmd = `bash ${path.join(CLIENT_SBIN_DIR, "read_genesis_hash.sh")}`;
-  try {
-      ({ stdout } = await execPromise(cmd));
-  } catch (error) {
-    throw Error(`could not export genesis hash: ${error.stdout}`);
-  }
-  try {
-    initialVMHash = (JSON.parse(stdout).hash || "") as string;
-  } catch (err) {
-    throw Error(`could not parse ${stdout}: ${err}`);
-  }
+  let initialVMHash = (GENESIS_JSON.hash || "") as string;
   if (!initialVMHash) {
      throw Error(`hash not found\n${stdout}`);
   }
