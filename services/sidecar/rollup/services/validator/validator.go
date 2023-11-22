@@ -35,8 +35,8 @@ type Validator struct {
 }
 
 type assertionAttributes struct {
-	l2BlockNum      uint64
-	stateCommitment specularTypes.Bytes32
+	l2BlockNum        uint64
+	l2StateCommitment specularTypes.Bytes32
 }
 
 func NewValidator(
@@ -119,7 +119,7 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
 	// TOOD: GasLimit: 0 ...?
-	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.stateCommitment, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
+	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2StateCommitment, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
 	if err != nil {
 		return err
 	}
