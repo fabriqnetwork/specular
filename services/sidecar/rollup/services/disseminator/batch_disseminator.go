@@ -111,7 +111,7 @@ func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 		log.Info("No pending blocks to append", "start", start, "end", end)
 		return nil
 	}
-	log.Info("Appending blocks to builder", "start", start, "end", end)
+	log.Info("Enqueuing blocks to builder", "start", start, "end", end)
 	for i := start; i <= end; i++ {
 		block, err := d.l2Client.BlockByNumber(ctx, big.NewInt(0).SetUint64(i))
 		if err != nil {
@@ -123,7 +123,7 @@ func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
 			}
 			return fmt.Errorf("failed to enqueue block (num=%d): %w", i, err)
 		}
-		log.Info("Appended block to builder", "block#", block.NumberU64(), "#txs", len(block.Transactions()))
+		log.Info("Enqueued block at builder", "block#", block.NumberU64(), "#txs", len(block.Transactions()))
 	}
 	return nil
 }
@@ -186,7 +186,7 @@ func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to send batch transaction: %w", err)
 	}
-	log.Info("Sequenced batch to L1", "tx_hash", receipt.TxHash, "l1Block#", receipt.BlockNumber)
+	log.Info("Sequenced batch to L1", "size", len(data), "tx_hash", receipt.TxHash, "l1Block#", receipt.BlockNumber)
 	d.batchBuilder.Advance()
 	return nil
 }

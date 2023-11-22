@@ -86,6 +86,7 @@ echo "Starting L1..."
 if [ "$L1_STACK" = "geth" ]; then
     $L1_GETH_BIN \
       --dev \
+      --dev.period 4 \
       --http \
       --http.api eth,web3,net \
       --http.addr 0.0.0.0 \
@@ -94,10 +95,12 @@ if [ "$L1_STACK" = "geth" ]; then
       --ws.addr 0.0.0.0 \
       --ws.port $L1_PORT &>$LOG_FILE &
 
+    # Wait for 1 block
+    echo "Waiting for chain progression..."
+    sleep 4
+
     L1_PID=$!
     echo "L1 PID: $L1_PID"
-
-    sleep 3
 
     echo "Funding addresses..."
     $L1_GETH_BIN attach --exec \
@@ -109,6 +112,10 @@ if [ "$L1_STACK" = "geth" ]; then
     $L1_GETH_BIN attach --exec \
       "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
       $L1_ENDPOINT
+
+    # Wait for 1 block
+    echo "Waiting for chain progression..."
+    sleep 4
 elif [ "$L1_STACK" = "hardhat" ]; then
     echo "Using $CONTRACTS_DIR as HH proj"
     cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &> $LOG_FILE &

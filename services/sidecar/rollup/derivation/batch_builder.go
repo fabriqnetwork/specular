@@ -59,7 +59,7 @@ func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
 func (b *batchBuilder) Enqueue(block *ethTypes.Block) error {
 	// Ensure block is a child of the last appended block. Not enforced when no prior blocks.
 	if (b.lastEnqueued.GetHash() != common.Hash{}) && (block.ParentHash() != b.lastEnqueued.GetHash()) {
-		return InvalidBlockError{Msg: "Appended block is not a child of the last appended block"}
+		return InvalidBlockError{Msg: "Enqueued block is not a child of the last appended block"}
 	}
 	b.pendingBlocks = append(b.pendingBlocks, block)
 	b.lastEnqueued = types.NewBlockID(block.NumberU64(), block.Hash())
@@ -96,6 +96,7 @@ func (b *batchBuilder) Advance() {
 func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	// Force-build batch if necessary (timeout exceeded).
 	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
+	log.Info("Trying to get batch", "force?", force)
 	batch, err := b.encoder.GetBatch(force)
 	if err != nil {
 		if errors.Is(err, errBatchTooSmall) {
@@ -127,10 +128,9 @@ func (b *batchBuilder) encodePending() error {
 		}
 		numProcessed += 1
 	}
-	log.Info("Encoded l2 blocks", "num_processed", numProcessed)
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[numProcessed:]
-	log.Trace("Advanced pending blocks", "pending left", len(b.pendingBlocks))
+	log.Info("Encoded l2 blocks", "num_processed", numProcessed, "num_pending", len(b.pendingBlocks))
 	return nil
 }
 

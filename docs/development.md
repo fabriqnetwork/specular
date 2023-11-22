@@ -34,7 +34,7 @@ slither .
 To use the local deployment scripts in `sbin`, you'll need the following dotenv files.
 ```sh
 .genesis.env   # Expected by `start_l1.sh` & `deploy_l1_contracts.sh` (not necessary for existing chains)
-.contracts.env # Expected by `deploy_l1_contracts.sh`
+.contracts.env # Expected by `deploy_l1_contracts.sh` (not necessary for existing chains)
 .sp_geth.env   # Expected by `start_sp_geth.sh`
 .sp_magi.env   # Expected by `start_sp_magi.sh`
 .sidecar.env   # Expected by `start_sidecar.sh`
@@ -45,20 +45,23 @@ Some of these env files also reference the `genesis.json` and `rollup.json` used
 See `e2e.md` for running E2E tests.
 
 ### Test system manually
-Given a running local devnet, you can transact with your wallet (e.g. MetaMask) to send transactions to the sequencer.
+Given a running local devnet, you can transact with your wallet (e.g. using `cast` or MetaMask) to send transactions to the sequencer. For example:
+```bash
+cast send \
+    --rpc-url http://localhost:4011 \
+    --chain 13527 \
+    --private-key `cat validator_pk.txt` \
+    --value 0.01ether \
+    0x0000000000000000000000000000000000000000 # to-address
+```
 
-**Configure wallet**
-1. Go to `.sidecar.env` and copy the validator key to MetaMask. The account is pre-funded on L2, so you can use it to transact.
-2. In `Settings -> Networks`, create a new network called `L2`, which connects to the sequencer.
-Enter `http://localhost:4011` for the RPC URL, `13527` for the chain ID and `ETH` for currency symbol.
+After an L2 transaction, in the L1 node console, observe the resulting L1 transactions:
+- disseminator calls `appendTxBatch` to sequence transaction
+- validator calls `createAssertion` to commit to a new disputable state assertion
+- validator calls `confirmFirstUnresolvedAssertion` to confirm the assertion after every staker has attested to it.
 
-**Transact**
-You can now use the pre-funded account to send transactions.
-After an L2 transaction, in the Hardhat node console, observe the resulting L1 transactions:
-- sequencer calls `appendTxBatch` to sequence transaction
-- sequencer calls `createAssertion` to commit to a new disputable state assertion
-- sequencer calls `confirmFirstUnresolvedAssertion` to confirm the assertion after every staker has attested to it.
+### Troubleshooting
 
-If you restart the network after having transacted with MetaMask, don't forget to reset your MetaMask account.
-Select the appropriate account, go to `Setting -> Advanced`, and click `Reset Account`.
-This ensures the account nonce cache in MetaMask is cleared.
+If you see a message like`Forkchoice requested unknown head` logged by `sp-geth`, it may be because it's using stale data, while the CL client is using the correct genesis hash.
+- This can happen due to re-running geth without cleaning. You can use `start_sp_geth.sh -c` to do so.
+- This may also happen if you called `start_sp_geth.sh` without waiting for `start_l1.sh` to finish creating the new deployment configs. Make sure you wait a couple seconds—you should see `L1 started... (Use ctrl-c to stop)`.
