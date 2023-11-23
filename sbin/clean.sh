@@ -9,6 +9,7 @@ rm -f .genesis.env
 rm -f .sp_geth.env
 rm -f .sp_magi.env
 rm -f .sidecar.env
+rm -f .paths.env
 echo "Done."
 
 echo "Removing $JWT_SECRET_PATH"

@@ -2,16 +2,16 @@
 SBIN=$(dirname "$(readlink -f "$0")")
 ROOT_DIR=$SBIN/..
 
-CONFIGURE_ENV=".configure.env"
-if ! test -f $CONFIGURE_ENV; then
-    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
     exit
 fi
-echo "Using dotenv: $CONFIGURE_ENV"
-. $CONFIGURE_ENV
+echo "Using dotenv: $PATHS_ENV"
+. $PATHS_ENV
 
 GENESIS_ENV=".genesis.env"
-if test -f $GENESIS_ENV; then
+if test -f "$GENESIS_ENV"; then
     . $GENESIS_ENV
 fi
 

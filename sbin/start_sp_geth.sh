@@ -1,22 +1,21 @@
 #!/bin/bash
 
-# TODO: can we get rid of this somehow?
 # currently the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="`cd "$SBIN"; pwd`"
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-CONFIGURE_ENV=".configure.env"
-if ! test -f $CONFIGURE_ENV; then
-    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
     exit
 fi
-echo "Using configure dotenv: $CONFIGURE_ENV"
-. $CONFIGURE_ENV
+echo "Using paths dotenv: $PATHS_ENV"
+. $PATHS_ENV
 
 SP_GETH_ENV=".sp_geth.env"
-if ! test -f $SP_GETH_ENV; then
+if ! test -f "$SP_GETH_ENV"; then
     echo "Expected dotenv at $SP_GETH_ENV (does not exist)."
     exit
 fi

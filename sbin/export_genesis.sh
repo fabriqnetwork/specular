@@ -5,12 +5,12 @@ ROOT_DIR=$SBIN/..
 cd $ROOT_DIR/workspace
 
 # Check that the all required dotenv files exists.
-CONFIGURE_ENV=".configure.env"
-if ! test -f $CONFIGURE_ENV; then
-    echo "Expected dotenv at $CONFIGURE_ENV (does not exist)."
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
     exit
 fi
-. $CONFIGURE_ENV
+. $PATHS_ENV
 
 # Check that the dotenv exists, or GENESIS_PATH is set.
 ENV=".genesis.env"
