@@ -7,10 +7,10 @@ import (
 )
 
 func NewCli(cfg *config.Config) (*cli.App, error) {
-	cli := &cli.App{
-		Name:  "sidecar",
-		Usage: "launch a validator and/or disseminator",
+	cliApp := &cli.App{
+		Name:  cfg.ServiceName,
+		Usage: cfg.UsageDesc,
 	}
-	cli.Flags = services.CLIFlags()
-	return cli, nil
+	cliApp.Flags = services.CLIFlags()
+	return cliApp, nil
 }

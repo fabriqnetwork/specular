@@ -10,7 +10,7 @@ func NewLogger(cfg *Config) *logrus.Logger {
 	log := logrus.New()
 	log.SetLevel(level)
 	log.SetOutput(os.Stdout)
-	log.WithField("name", serviceName).Info("service is starting")
+	log.WithField("name", cfg.ServiceName).Info("service is starting")
 
 	return log
 }

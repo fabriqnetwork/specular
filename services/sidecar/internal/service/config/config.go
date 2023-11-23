@@ -10,17 +10,14 @@ import (
 
 const (
 	defaultLogLevel = logrus.InfoLevel
-	serviceName     = "sidecar"
 )
 
 type Config struct {
-	Name  string "sidecar"
-	Usage string "launch a validator and/or disseminator"
-	// Action: startServices,
-
 	ServiceName    string `mapstructure:"SERVICE_NAME"`
 	ServiceVersion string `mapstructure:"SERVICE_VERSION"`
-	LogLevel       string `mapstructure:"LOG_LEVEL"`
+
+	UsageDesc string `mapstructure:"USAGE_DESC"`
+	LogLevel  string `mapstructure:"LOG_LEVEL"`
 }
 
 func (c *Config) GetLogLevel(defaultLevel logrus.Level) logrus.Level {
@@ -32,11 +29,24 @@ func (c *Config) GetLogLevel(defaultLevel logrus.Level) logrus.Level {
 	return level
 }
 
+func (c *Config) IsValid() error {
+	if len(c.ServiceName) == 0 {
+		return errors.New("invalid config: SERVICE_NAME cannot be empty")
+	}
+
+	if len(c.UsageDesc) == 0 {
+		return errors.New("invalid config: USAGE_DESC cannot be empty")
+	}
+
+	return nil
+}
+
 func LoadConfig(log *logrus.Logger, configObject *Config, fileNames ...string) (*viper.Viper, error) {
 	mainConfig := viper.New()
-	fileNames = append([]string{"default.yaml", "config/default.yaml"}, fileNames...)
+	fileNames = append([]string{"config/default.yaml"}, fileNames...)
 
 	for _, fileName := range fileNames {
+		log.Infof("Loading config from: %s", fileName)
 		viperConfig := viper.New()
 		viperConfig.SetConfigFile(fileName)
 
@@ -74,19 +84,19 @@ func newConfig(configFiles []string) (*Config, error) {
 		return nil, err
 	}
 
-	//err = cfg.IsValid()
-	//if err != nil {
-	//	return nil, err
-	//}
+	err = cfg.IsValid()
+	if err != nil {
+		return nil, err
+	}
 
 	return &cfg, nil
 }
 
 func NewConfig() (*Config, error) {
 	configFiles := []string{
-		"default.yaml",
-		"config/default.yaml",
-		"/config/config.yaml",
+		// "default.yaml",
+		// "config/default.yaml",
+		// "/config/config.yaml",
 		// ".env",
 	}
 

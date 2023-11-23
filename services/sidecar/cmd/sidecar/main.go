@@ -4,14 +4,14 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/specularL2/specular/services/sidecar/internal/service/di"
 	"github.com/specularL2/specular/services/sidecar/rollup/services"
-	"log"
 	"os"
 )
 
 func main() {
 	app, _, err := di.SetupApplication()
 	if err != nil {
-		log.Fatalf("failed to setup application #{err}")
+		logrus.Fatalf("failed to setup application: %s", err)
+		os.Exit(1)
 	}
 
 	app.GetCli().Flags = services.CLIFlags()
