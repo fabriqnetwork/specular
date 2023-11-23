@@ -8,6 +8,7 @@ package di
 
 import (
 	"github.com/specularL2/specular/services/sidecar/internal/service/config"
+	"github.com/specularL2/specular/services/sidecar/internal/sidecar/api"
 )
 
 // Injectors from inject.go:
@@ -17,10 +18,15 @@ func SetupApplication() (*Application, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
+	app, err := api.NewCli(configConfig)
+	if err != nil {
+		return nil, nil, err
+	}
 	logger := config.NewLogger(configConfig)
 	cancelChannel := config.NewCancelChannel()
 	context := config.NewContext(logger, cancelChannel)
 	application := &Application{
+		cli:    app,
 		ctx:    context,
 		log:    logger,
 		config: configConfig,
@@ -30,10 +36,15 @@ func SetupApplication() (*Application, func(), error) {
 }
 
 func SetupApplicationForIntegrationTests(cfg *config.Config) (*TestApplication, func(), error) {
+	app, err := api.NewCli(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
 	logger := config.NewLogger(cfg)
 	cancelChannel := config.NewCancelChannel()
 	context := config.NewContext(logger, cancelChannel)
 	application := &Application{
+		cli:    app,
 		ctx:    context,
 		log:    logger,
 		config: cfg,

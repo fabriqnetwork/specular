@@ -3,6 +3,7 @@ package di
 import (
 	"context"
 	"github.com/specularL2/specular/services/sidecar/internal/service/config"
+	"github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
@@ -17,13 +18,16 @@ type WaitGroup interface {
 }
 
 type Application struct {
+	cli    *cli.App
 	ctx    context.Context
 	log    *logrus.Logger
 	config *config.Config
 }
 
-func (app *Application) Run() error {
+func (app *Application) Run(ctx *cli.Context) error {
 	var _, cancel = context.WithCancel(app.ctx)
+
+	app.log.Info(ctx.String(""))
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -55,6 +59,10 @@ func (app *Application) GetContext() context.Context {
 
 func (app *Application) GetConfig() *config.Config {
 	return app.config
+}
+
+func (app *Application) GetCli() *cli.App {
+	return app.cli
 }
 
 type TestApplication struct {

@@ -14,6 +14,10 @@ const (
 )
 
 type Config struct {
+	Name  string "sidecar"
+	Usage string "launch a validator and/or disseminator"
+	// Action: startServices,
+
 	ServiceName    string `mapstructure:"SERVICE_NAME"`
 	ServiceVersion string `mapstructure:"SERVICE_VERSION"`
 	LogLevel       string `mapstructure:"LOG_LEVEL"`
@@ -83,8 +87,7 @@ func NewConfig() (*Config, error) {
 		"default.yaml",
 		"config/default.yaml",
 		"/config/config.yaml",
-		"/vault/secrets/config.yaml",
-		".env",
+		// ".env",
 	}
 
 	return newConfig(configFiles)
