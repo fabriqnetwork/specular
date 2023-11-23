@@ -14,6 +14,7 @@ func SetupApplication() (*Application, func(), error) {
 		CommonProvider,
 		ConfigProvider,
 		CliProvider,
+		SystemConfigProvider,
 		wire.Struct(new(Application), "*"))),
 	)
 }
@@ -22,6 +23,7 @@ func SetupApplicationForIntegrationTests(cfg *config.Config) (*TestApplication, 
 	panic(wire.Build(wire.NewSet(
 		CommonProvider,
 		CliProvider,
+		SystemConfigProvider,
 		wire.Struct(new(Application), "*"),
 		wire.Struct(new(TestApplication), "*"))),
 	)
