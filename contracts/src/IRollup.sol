@@ -134,7 +134,7 @@ interface IRollup {
     }
 
     struct Assertion {
-        bytes32 stateHash; // Hash of execution state associated with assertion. Currently equiv to `vmHash`.
+        bytes32 stateCommitment; // Versioned execution state associated with assertion. Currently equiv to `keccak256(version || vmHash)`.
         uint256 blockNum; // Block number this assertion advanced to
         uint256 parent; // Parent assertion ID
         uint256 deadline; // Dispute deadline (L1 block number)
@@ -308,10 +308,10 @@ interface IRollup {
      *
      * Emits: `AssertionCreated` and `StakerStaked` events.
      *
-     * @param vmHash New VM hash.
-     * @param inboxSize Size of inbox corresponding to assertion (number of transactions).
+     * @param stateCommitment Currently keccak256(version || vmHash)
+     * @param blockNum Block number this assertion advances to.
      */
-    function createAssertion(bytes32 vmHash, uint256 inboxSize) external;
+    function createAssertion(bytes32 stateCommitment, uint256 blockNum) external;
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.
