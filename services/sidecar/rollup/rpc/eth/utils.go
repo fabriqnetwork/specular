@@ -7,6 +7,7 @@ import (
 	"github.com/avast/retry-go/v4"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
@@ -37,11 +38,17 @@ func SubscribeNewHeadByPolling(
 			headCh <- header
 			return nil
 		}
-		poll()
+		err := poll()
+		if err != nil {
+			return err
+		}
 		for {
 			select {
 			case <-ticker.C:
-				poll()
+				err := poll()
+				if err != nil {
+					return err
+				}
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-unsub:

@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularL2/specular/services/sidecar/utils"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/specularL2/specular/services/sidecar/utils"
 )
 
 // TODO: move to config
@@ -49,10 +50,14 @@ func (s *EthSyncer) Start(ctx context.Context, client SyncerEthClient) {
 	s.subscribeNewHead(ctx, client, Finalized, s.FinalizedHeaderBroker, s.OnFinalized, EthEpochInterval)
 }
 
-func (s *EthSyncer) Stop(ctx context.Context) {
+func (s *EthSyncer) Stop(ctx context.Context) error {
 	s.LatestHeaderBroker.Stop()
 	s.FinalizedHeaderBroker.Stop()
-	s.eg.Wait()
+	err := s.eg.Wait()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Starts polling for new headers and publishes them to the broker.

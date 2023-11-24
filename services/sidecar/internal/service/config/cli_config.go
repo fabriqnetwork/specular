@@ -1,10 +1,12 @@
 package config
 
 import (
-	"github.com/sirupsen/logrus"
-	"github.com/specularL2/specular/services/sidecar/rollup/services"
-	"github.com/urfave/cli/v2"
 	"os"
+
+	"github.com/sirupsen/logrus"
+	"github.com/urfave/cli/v2"
+
+	"github.com/specularL2/specular/services/sidecar/rollup/services"
 )
 
 type CLIExtractor struct {

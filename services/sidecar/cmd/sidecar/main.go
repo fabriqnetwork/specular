@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/sirupsen/logrus"
-	"github.com/specularL2/specular/services/sidecar/internal/service/di"
 	"log"
 	"os"
+
+	"github.com/sirupsen/logrus"
+
+	"github.com/specularL2/specular/services/sidecar/internal/service/di"
 )
 
 func main() {

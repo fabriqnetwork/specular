@@ -2,15 +2,17 @@ package di
 
 import (
 	"context"
+	"os"
+	"os/signal"
+
 	"github.com/cockroachdb/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/specularL2/specular/services/sidecar/internal/service/config"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/disseminator"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/validator"
-	"golang.org/x/sync/errgroup"
-	"os"
-	"os/signal"
 
 	"github.com/sirupsen/logrus"
 )

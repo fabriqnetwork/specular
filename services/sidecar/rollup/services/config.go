@@ -6,9 +6,10 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/urfave/cli/v2"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
-	"github.com/urfave/cli/v2"
 )
 
 // TODO: rename due to naming conflict

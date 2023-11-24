@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	specularTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 )

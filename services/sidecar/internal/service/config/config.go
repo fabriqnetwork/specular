@@ -1,11 +1,12 @@
 package config
 
 import (
+	"os"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
 )
 
 const (

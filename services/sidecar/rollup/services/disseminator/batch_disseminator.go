@@ -56,7 +56,10 @@ func (s *BatchDisseminator) Start(ctx context.Context, eg api.ErrGroup) error {
 
 func (d *BatchDisseminator) start(ctx context.Context) error {
 	// Start with latest safe state.
-	d.rollback()
+	err := d.rollback()
+	if err != nil {
+		return err
+	}
 	var ticker = time.NewTicker(d.cfg.GetDisseminationInterval())
 	defer ticker.Stop()
 	for {
@@ -80,7 +83,10 @@ func (d *BatchDisseminator) step(ctx context.Context) error {
 	if err := d.appendToBuilder(ctx); err != nil {
 		if errors.As(err, &L2ReorgDetectedError{}) {
 			log.Error("Reorg detected, reverting to safe state.", "error", err)
-			d.rollback()
+			err := d.rollback()
+			if err != nil {
+				return err
+			}
 		}
 		return fmt.Errorf("failed to append to batch builder: %w", err)
 	}

@@ -1,8 +1,9 @@
 package config
 
 import (
-	"github.com/sirupsen/logrus"
 	"os"
+
+	"github.com/sirupsen/logrus"
 )
 
 func NewLogger(cfg *Config) *logrus.Logger {

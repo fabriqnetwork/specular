@@ -15,3 +15,14 @@ help:
 wire-generate:
 	cd internal/service/di ;\
 	wire
+
+.PHONY: lint-test # Run lint-tests
+lint-test:
+	go mod tidy
+	goimports -local github.com/specularL2/specular/services/sidecar -w .
+	go fmt ./...
+	@golangci-lint -v run ./...
+	@test -z "$$(golangci-lint run ./...)"
+
+.PHONY: lint # Run lint-tests (alias)
+lint: lint-test
