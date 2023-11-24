@@ -4,8 +4,10 @@ import (
 	"context"
 	"github.com/cockroachdb/errors"
 	"github.com/specularL2/specular/services/sidecar/internal/service/config"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services"
-	"github.com/urfave/cli/v2"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/disseminator"
+	"github.com/specularL2/specular/services/sidecar/rollup/services/validator"
 	"golang.org/x/sync/errgroup"
 	"os"
 	"os/signal"
@@ -20,18 +22,16 @@ type WaitGroup interface {
 }
 
 type Application struct {
-	cli    *cli.App
-	ctx    context.Context
-	log    *logrus.Logger
-	config *config.Config
-
-	// TODO: extract providers for
-	// systemConfig *services.SystemConfig
-	// disseminator *disseminator.BatchDisseminator
-	// validator    *validator.Validator
+	ctx               context.Context
+	log               *logrus.Logger
+	config            *config.Config
+	systemConfig      *services.SystemConfig
+	l1State           *eth.EthState
+	batchDisseminator *disseminator.BatchDisseminator
+	validator         *validator.Validator
 }
 
-func (app *Application) Run(ctx *cli.Context) error {
+func (app *Application) Run() error {
 	var _, cancel = context.WithCancel(app.ctx)
 	var err error
 
@@ -45,26 +45,20 @@ func (app *Application) Run(ctx *cli.Context) error {
 
 	errGroup, _ := errgroup.WithContext(app.ctx)
 
-	systemConfig, err := services.ParseSystemConfig(ctx)
-	// TODO: use further on
-	_ = systemConfig
-	if err != nil {
-		return errors.Newf("failed to parse config: %w", err)
-	}
-
-	app.log.Info("Starting L1 sync...")
-	// TODO: refactor main_old.createL1State() function into a infra/service with a provider
-
-	if systemConfig.Disseminator().GetIsEnabled() {
+	if app.systemConfig.Disseminator().GetIsEnabled() {
 		app.log.Info("Starting disseminator...")
-		// TODO: refactor main_old.createDisseminator() and start() functions into a infra/service with a provider
-		//		 incl. dependencies
+		err := app.batchDisseminator.Start(app.ctx, errGroup)
+		if err != nil {
+			return err
+		}
 	}
 
-	if systemConfig.Validator().GetIsEnabled() {
+	if app.systemConfig.Validator().GetIsEnabled() {
 		app.log.Info("Starting validator...")
-		// TODO: refactor main_old.createValidator() and start() functions into a infra/service with a provider
-		//		 incl. dependencies
+		err := app.validator.Start(app.ctx, errGroup)
+		if err != nil {
+			return err
+		}
 	}
 
 	if err := errGroup.Wait(); err != nil {
@@ -89,10 +83,6 @@ func (app *Application) GetContext() context.Context {
 
 func (app *Application) GetConfig() *config.Config {
 	return app.config
-}
-
-func (app *Application) GetCli() *cli.App {
-	return app.cli
 }
 
 type TestApplication struct {

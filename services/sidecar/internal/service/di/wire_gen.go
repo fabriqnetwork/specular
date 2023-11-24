@@ -8,7 +8,7 @@ package di
 
 import (
 	"github.com/specularL2/specular/services/sidecar/internal/service/config"
-	"github.com/specularL2/specular/services/sidecar/internal/sidecar/api"
+	"github.com/specularL2/specular/services/sidecar/internal/sidecar/infra/services"
 )
 
 // Injectors from inject.go:
@@ -18,36 +18,66 @@ func SetupApplication() (*Application, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	app, err := api.NewCli(configConfig)
-	if err != nil {
-		return nil, nil, err
-	}
 	logger := config.NewLogger(configConfig)
 	cancelChannel := config.NewCancelChannel()
 	context := config.NewContext(logger, cancelChannel)
+	systemConfig, err := config.NewSystemConfig(logger, configConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	ethState, err := services.NewL1State(context, logger, systemConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	batchDisseminator, err := services.NewDisseminator(context, systemConfig, ethState)
+	if err != nil {
+		return nil, nil, err
+	}
+	validator, err := services.NewValidator(context, systemConfig, ethState)
+	if err != nil {
+		return nil, nil, err
+	}
 	application := &Application{
-		cli:    app,
-		ctx:    context,
-		log:    logger,
-		config: configConfig,
+		ctx:               context,
+		log:               logger,
+		config:            configConfig,
+		systemConfig:      systemConfig,
+		l1State:           ethState,
+		batchDisseminator: batchDisseminator,
+		validator:         validator,
 	}
 	return application, func() {
 	}, nil
 }
 
 func SetupApplicationForIntegrationTests(cfg *config.Config) (*TestApplication, func(), error) {
-	app, err := api.NewCli(cfg)
-	if err != nil {
-		return nil, nil, err
-	}
 	logger := config.NewLogger(cfg)
 	cancelChannel := config.NewCancelChannel()
 	context := config.NewContext(logger, cancelChannel)
+	systemConfig, err := config.NewSystemConfig(logger, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	ethState, err := services.NewL1State(context, logger, systemConfig)
+	if err != nil {
+		return nil, nil, err
+	}
+	batchDisseminator, err := services.NewDisseminator(context, systemConfig, ethState)
+	if err != nil {
+		return nil, nil, err
+	}
+	validator, err := services.NewValidator(context, systemConfig, ethState)
+	if err != nil {
+		return nil, nil, err
+	}
 	application := &Application{
-		cli:    app,
-		ctx:    context,
-		log:    logger,
-		config: cfg,
+		ctx:               context,
+		log:               logger,
+		config:            cfg,
+		systemConfig:      systemConfig,
+		l1State:           ethState,
+		batchDisseminator: batchDisseminator,
+		validator:         validator,
 	}
 	testApplication := &TestApplication{
 		Application: application,

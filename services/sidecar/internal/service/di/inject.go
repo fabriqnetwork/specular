@@ -13,8 +13,10 @@ func SetupApplication() (*Application, func(), error) {
 	panic(wire.Build(wire.NewSet(
 		CommonProvider,
 		ConfigProvider,
-		CliProvider,
 		SystemConfigProvider,
+		L1StateProvider,
+		DisseminatorProvider,
+		ValidatorProvider,
 		wire.Struct(new(Application), "*"))),
 	)
 }
@@ -22,8 +24,10 @@ func SetupApplication() (*Application, func(), error) {
 func SetupApplicationForIntegrationTests(cfg *config.Config) (*TestApplication, func(), error) {
 	panic(wire.Build(wire.NewSet(
 		CommonProvider,
-		CliProvider,
 		SystemConfigProvider,
+		L1StateProvider,
+		DisseminatorProvider,
+		ValidatorProvider,
 		wire.Struct(new(Application), "*"),
 		wire.Struct(new(TestApplication), "*"))),
 	)

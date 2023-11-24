@@ -1,24 +1,34 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"github.com/sirupsen/logrus"
 	"github.com/specularL2/specular/services/sidecar/internal/service/di"
-	"github.com/specularL2/specular/services/sidecar/rollup/services"
+	"log"
 	"os"
 )
 
 func main() {
-	app, _, err := di.SetupApplication()
+	application, _, err := di.SetupApplication()
 	if err != nil {
-		logrus.Fatalf("failed to setup application: %s", err)
-		os.Exit(1)
+		log.Fatalf("failed to setup application #{err}")
 	}
 
-	app.GetCli().Flags = services.CLIFlags()
-	app.GetCli().Action = app.Run
+	exitCode := 0
+	defer func() { os.Exit(exitCode) }()
 
-	if err := app.GetCli().Run(os.Args); err != nil {
-		app.GetLogger().WithError(err).Log(logrus.FatalLevel, "application failed")
-		os.Exit(1)
+	go func() {
+		<-application.GetContext().Done()
+
+		application.GetLogger().Info("application context canceled, cleaning up")
+		application.ShutdownAndCleanup()
+	}()
+
+	if err := application.Run(); err != nil {
+		if !errors.Is(err, context.Canceled) {
+			application.GetLogger().WithError(err).Log(logrus.FatalLevel, "application failed")
+			exitCode = 1
+		}
 	}
 }
