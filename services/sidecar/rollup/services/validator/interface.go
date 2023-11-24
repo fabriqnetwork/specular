@@ -33,6 +33,8 @@ type BridgeClient interface {
 	RequireFirstUnresolvedAssertionIsConfirmable(context.Context) error
 	RequireFirstUnresolvedAssertionIsRejectable(context.Context, common.Address) error
 	RejectFirstUnresolvedAssertion(context.Context, common.Address) (*ethTypes.Transaction, error)
+	IsStakedOnAssertion(context.Context, *big.Int, common.Address) (bool, error)
+	RemoveStake(context.Context, common.Address) (*ethTypes.Transaction, error)
 }
 
 type EthState interface {

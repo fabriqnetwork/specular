@@ -62,6 +62,14 @@ func (c *BridgeClient) RejectFirstUnresolvedAssertion(ctx context.Context, addre
 	return c.IRollup.RejectFirstUnresolvedAssertion(&bind.TransactOpts{Context: ctx}, address)
 }
 
+func (c *BridgeClient) IsStakedOnAssertion(ctx context.Context, assertionID *big.Int, address common.Address) (bool, error) {
+	return c.IRollup.IsStakedOnAssertion(&bind.CallOpts{Pending: false, Context: ctx}, assertionID, address)
+}
+
+func (c *BridgeClient) RemoveStake(ctx context.Context, address common.Address) (*types.Transaction, error) {
+	return c.IRollup.RemoveStake(&bind.TransactOpts{Context: ctx}, address)
+}
+
 // Returns the last assertion ID that was validated *by us*.
 // func (c *BridgeClient) GetLastValidatedAssertionID(opts *bind.FilterOpts) (*big.Int, error) {
 // 	iter, err := c.IRollup.FilterStakerStaked(opts)

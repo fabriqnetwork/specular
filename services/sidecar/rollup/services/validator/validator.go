@@ -93,19 +93,35 @@ func (v *Validator) start(ctx context.Context) error {
 
 // Attempts to create a new assertion and confirm an existing assertion.
 func (v *Validator) step(ctx context.Context) error {
+	// Flush validators staked on confirmed prior assertion
+	if err := v.flushValidator(ctx); err != nil {
+		return fmt.Errorf("failed to flush validators: %w", err)
+	}
 	// Try to create a new assertion.
 	// TODO: do this only if configured to be an active validator.
 	if err := v.createAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to create assertion: %w", err)
 	}
-	// TODO: validate assertions locally.
-	// Resolve the first unresolved assertion.
-	// FIXME: THIS IS NOT NECESSARILY THE ASSERTION THAT IS CREATED ABOVE,
-	//        probably we should put that as a separate running services (loops), async
-	// TODO: maybe there is more then one to resolve, so we should maybe try to resolve all available
-	// 		 (take a look at the rollup contract).
 	if err := v.resolveFirstUnresolvedAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to resolve assertion: %w", err)
+	}
+	return nil
+}
+
+func (v *Validator) flushValidator(ctx context.Context) error {
+	id, err := v.l1BridgeClient.GetLastConfirmedAssertionID(ctx)
+	if err != nil {
+		return err
+	}
+	stakedOnLast, err := v.l1BridgeClient.IsStakedOnAssertion(ctx, id, v.cfg.GetAccountAddr())
+	if err != nil {
+		return err
+	}
+	if !stakedOnLast {
+		_, err = v.l1BridgeClient.RemoveStake(ctx, v.cfg.GetAccountAddr())
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -141,7 +157,6 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 
 // If the first unresolved assertion is eligible for confirmation, trigger its confirmation. Otherwise, wait.
 func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
-	// Simulate a confirmation attempt.
 	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
 	if err != nil {
 		// It is not confirmable.
