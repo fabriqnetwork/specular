@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"crypto/ecdsa"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr/metrics"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts"
@@ -81,14 +82,20 @@ func createTxManager(
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize transactor: %w", err)
 	}
+	log.Info("created transactor for", "addr", transactor.From)
+
 	l1Client, err := eth.DialWithRetry(ctx, l1RpcUrl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 client: %w", err)
 	}
-	signer := func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
-		return transactor.Signer(address, tx)
-	}
-	return bridge.NewTxManager(txmgr.NewTxManager(log.New("service", name), serCfg.GetTxMgrCfg(), l1Client, signer), protocolCfg)
+	var (
+		signer = func(ctx context.Context, address common.Address, tx *ethTypes.Transaction) (*ethTypes.Transaction, error) {
+			return transactor.Signer(address, tx)
+		}
+		txMgrCfg = serCfg.GetTxMgrCfg()
+		inner    = txmgr.NewTxManager(log.New("service", name), txMgrCfg, l1Client, signer, &metrics.NoopTxMetrics{})
+	)
+	return bridge.NewTxManager(inner, protocolCfg)
 }
 
 // Creates a transactor for the given account address, either using a clef endpoint (preferred) or secret key.

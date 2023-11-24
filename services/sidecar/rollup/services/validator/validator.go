@@ -219,9 +219,9 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 		return fmt.Errorf("block number does not match with the parent assertion")
 	}
 	// Validate parent hash
-	if parentAssertion.StateHash != assertion.StateHash {
-		return fmt.Errorf("state hash does not match with the parent assertion")
-	}
+	//if parentAssertion.StateHash != assertion.StateHash {
+	//	return fmt.Errorf("state hash does not match with the parent assertion")
+	//}
 
 	// number, err := v.l2Client.BlockNumber()
 	// if err != nil {
