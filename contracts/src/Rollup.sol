@@ -59,7 +59,7 @@ abstract contract RollupBase is
 
     struct AssertionState {
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
-        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
+        mapping(bytes32 => bool) childStateCommitments; // child state commitments
     }
 
     struct Zombie {
@@ -136,14 +136,17 @@ contract Rollup is RollupBase {
             grantRole(VALIDATOR_ROLE, _validators[i]);
         }
 
+        // Create initial versioned state commitment
+        bytes32 initialStateCommitment = createStateCommitmentV0(_initialVMhash);
+
         createAssertionHelper(
             _initialAssertionID, // assertionID
-            _initialVMhash,
+            initialStateCommitment,
             _initialBlockNum, // blockNum (genesis)
             _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash);
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, initialStateCommitment);
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -415,7 +418,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 vmHash, uint256 blockNum)
+    function createAssertion(bytes32 stateCommitment, uint256 blockNum)
         external
         override
         stakedOnly
@@ -435,8 +438,8 @@ contract Rollup is RollupBase {
 
         // Initialize assertion.
         lastCreatedAssertionID++;
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash);
-        createAssertionHelper(lastCreatedAssertionID, vmHash, blockNum, parentID, newAssertionDeadline());
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, stateCommitment);
+        createAssertionHelper(lastCreatedAssertionID, stateCommitment, blockNum, parentID, newAssertionDeadline());
 
         // Update stake.
         stakeOnAssertion(msg.sender, lastCreatedAssertionID);
@@ -478,9 +481,9 @@ contract Rollup is RollupBase {
         // Initialize challenge.
         SymChallenge challenge = new SymChallenge();
         address challengeAddr = address(challenge);
-        bytes32 startStateHash = assertions[parentID].stateHash;
-        bytes32 endStateDefenderHash = assertions[defenderAssertionID].stateHash;
-        bytes32 endStateChallengerHash = assertions[challengerAssertionID].stateHash;
+        bytes32 startStateCommitment = assertions[parentID].stateCommitment;
+        bytes32 endStateDefenderCommitment = assertions[defenderAssertionID].stateCommitment;
+        bytes32 endStateChallengerCommitment = assertions[challengerAssertionID].stateCommitment;
         stakers[challenger].currentChallenge = challengeAddr;
         stakers[defender].currentChallenge = challengeAddr;
         emit AssertionChallenged(defenderAssertionID, challengeAddr);
@@ -490,9 +493,9 @@ contract Rollup is RollupBase {
             verifier,
             daProvider,
             IChallengeResultReceiver(address(this)),
-            startStateHash,
-            endStateDefenderHash,
-            endStateChallengerHash,
+            startStateCommitment,
+            endStateDefenderCommitment,
+            endStateChallengerCommitment,
             challengePeriod
         );
         return challengeAddr;
@@ -567,7 +570,7 @@ contract Rollup is RollupBase {
      */
     function createAssertionHelper(
         uint256 assertionID,
-        bytes32 stateHash,
+        bytes32 stateCommitment,
         uint256 blockNum,
         uint256 parentID,
         uint256 deadline
@@ -580,12 +583,12 @@ contract Rollup is RollupBase {
             parentAssertion.blockNum = blockNum;
         } else if (blockNum != parentBlockNum) {
             revert InvalidInboxSize();
-        } else if (parentAssertionState.childStateHashes[stateHash]) {
+        } else if (parentAssertionState.childStateCommitments[stateCommitment]) {
             revert DuplicateAssertion();
         }
-        parentAssertionState.childStateHashes[stateHash] = true;
+        parentAssertionState.childStateCommitments[stateCommitment] = true;
         assertions[assertionID] = Assertion(
-            stateHash,
+            stateCommitment,
             blockNum,
             parentID,
             deadline,
@@ -673,5 +676,12 @@ contract Rollup is RollupBase {
         if (stakers[stakerAddress].currentChallenge != address(0)) {
             revert ChallengedStaker();
         }
+    }
+
+    function createStateCommitmentV0(bytes32 vmHash) private pure returns (bytes32) {
+        // output v0 format is keccak256(version || vmHash)
+        bytes memory stateCommitment = new bytes(32); // version 0 is a zero bytes32
+        stateCommitment = bytes.concat(stateCommitment, vmHash);
+        return keccak256(stateCommitment);
     }
 }

@@ -11,8 +11,10 @@ import (
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
-var errBatchFull = errors.New("batch full")
-var errBatchTooSmall = errors.New("batch too small")
+var (
+	errBatchFull     = errors.New("batch full")
+	errBatchTooSmall = errors.New("batch too small")
+)
 
 type V0Config interface {
 	GetTargetBatchSize() uint64
@@ -99,11 +101,11 @@ func (e *BatchV0Encoder) shouldCloseBatch() bool {
 func (e *BatchV0Encoder) closeSubBatch() {
 	var currSubBatch = e.subBatches[len(e.subBatches)-1]
 	// No need to close if it's empty.
-	if currSubBatch.size() == 0 {
+	if currSubBatch.contentSize == 0 {
 		return
 	}
-	log.Info("Closing sub-batch...")
 	e.runningLen += currSubBatch.size()
+	log.Info("Closing sub-batch...", "running_len", e.runningLen)
 	e.subBatches = append(e.subBatches, newSubBatch())
 }
 

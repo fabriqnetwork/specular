@@ -7,6 +7,7 @@ replace github.com/ethereum/go-ethereum => ../el_clients/go-ethereum
 require (
 	github.com/avast/retry-go/v4 v4.3.3
 	github.com/ethereum/go-ethereum v1.12.2
+	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.25.7
 	golang.org/x/sync v0.3.0
 )
@@ -70,6 +71,7 @@ require (
 	github.com/opentracing/opentracing-go v1.1.0 // indirect
 	github.com/peterh/liner v1.1.1-0.20190123174540-a2c9a5303de7 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_golang v1.14.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.39.0 // indirect
@@ -96,5 +98,6 @@ require (
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )

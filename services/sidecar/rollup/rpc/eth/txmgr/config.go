@@ -1,6 +1,7 @@
 package txmgr
 
 import (
+	"errors"
 	"math/big"
 	"time"
 
@@ -14,6 +15,9 @@ type Config struct {
 	// price will be published. Only one publication at MaxGasPrice will be
 	// attempted.
 	ResubmissionTimeout time.Duration
+
+	// The multiplier applied to fee suggestions to put a hard limit on fee increases.
+	FeeLimitMultiplier uint64
 
 	// ChainID is the chain ID of the L1 chain.
 	ChainID *big.Int
@@ -47,8 +51,37 @@ type Config struct {
 	From common.Address
 }
 
+func (m Config) Validate() error {
+	if m.NumConfirmations == 0 {
+		return errors.New("NumConfirmations must not be 0")
+	}
+	if m.NetworkTimeout == 0 {
+		return errors.New("must provide NetworkTimeout")
+	}
+	if m.FeeLimitMultiplier == 0 {
+		return errors.New("must provide FeeLimitMultiplier")
+	}
+	if m.ResubmissionTimeout == 0 {
+		return errors.New("must provide ResubmissionTimeout")
+	}
+	if m.ReceiptQueryInterval == 0 {
+		return errors.New("must provide ReceiptQueryInterval")
+	}
+	if m.TxNotInMempoolTimeout == 0 {
+		return errors.New("must provide TxNotInMempoolTimeout")
+	}
+	if m.SafeAbortNonceTooLowCount == 0 {
+		return errors.New("SafeAbortNonceTooLowCount must not be 0")
+	}
+	if m.ChainID == nil {
+		return errors.New("must provide the ChainID")
+	}
+	return nil
+}
+
 const (
 	ResubmissionTimeoutFlagName       = "resubmission-timeout"
+	FeeLimitMultiplierFlagName        = "fee-limit-multiplier"
 	TxSendTimeoutFlagName             = "send-timeout"
 	TxNotInMempoolTimeoutFlagName     = "not-in-mempool-timeout"
 	NetworkTimeoutFlagName            = "network-timeout"
@@ -57,42 +90,82 @@ const (
 	SafeAbortNonceTooLowCountFlagName = "safe-abort-nonce-too-low-count"
 )
 
-func CLIFlags(namespace string) []cli.Flag {
+type DefaultFlagValues struct {
+	NumConfirmations          uint64
+	SafeAbortNonceTooLowCount uint64
+	FeeLimitMultiplier        uint64
+	ResubmissionTimeout       time.Duration
+	NetworkTimeout            time.Duration
+	TxSendTimeout             time.Duration
+	TxNotInMempoolTimeout     time.Duration
+	ReceiptQueryInterval      time.Duration
+}
+
+var (
+	DefaultDisseminatorFlagValues = DefaultFlagValues{
+		NumConfirmations:          uint64(10),
+		SafeAbortNonceTooLowCount: uint64(3),
+		FeeLimitMultiplier:        uint64(5),
+		ResubmissionTimeout:       48 * time.Second,
+		NetworkTimeout:            10 * time.Second,
+		TxSendTimeout:             0 * time.Second,
+		TxNotInMempoolTimeout:     2 * time.Minute,
+		ReceiptQueryInterval:      12 * time.Second,
+	}
+	// TODO: tweak these values.
+	DefaultValidatorFlagValues = DefaultFlagValues{
+		NumConfirmations:          uint64(10),
+		SafeAbortNonceTooLowCount: uint64(3),
+		FeeLimitMultiplier:        uint64(5),
+		ResubmissionTimeout:       48 * time.Second,
+		NetworkTimeout:            10 * time.Second,
+		TxSendTimeout:             0 * time.Second,
+		TxNotInMempoolTimeout:     2 * time.Minute,
+		ReceiptQueryInterval:      12 * time.Second,
+	}
+)
+
+func CLIFlags(namespace string, defaults DefaultFlagValues) []cli.Flag {
 	return []cli.Flag{
 		&cli.Uint64Flag{
 			Name:  namespace + "." + NumConfirmationsFlagName,
 			Usage: "Number of confirmations which we will wait after sending a transaction",
-			Value: 10,
+			Value: defaults.NumConfirmations,
 		},
 		&cli.Uint64Flag{
 			Name:  namespace + "." + SafeAbortNonceTooLowCountFlagName,
 			Usage: "Number of ErrNonceTooLow observations required to give up on a tx at a particular nonce without receiving confirmation",
-			Value: 3,
+			Value: defaults.SafeAbortNonceTooLowCount,
+		},
+		&cli.Uint64Flag{
+			Name:  namespace + "." + FeeLimitMultiplierFlagName,
+			Usage: "The multiplier applied to fee suggestions to put a hard limit on fee increases",
+			Value: defaults.FeeLimitMultiplier,
 		},
 		&cli.DurationFlag{
 			Name:  namespace + "." + ResubmissionTimeoutFlagName,
 			Usage: "Duration we will wait before resubmitting a transaction to L1",
-			Value: 48 * time.Second,
+			Value: defaults.ResubmissionTimeout,
 		},
 		&cli.DurationFlag{
 			Name:  namespace + "." + NetworkTimeoutFlagName,
 			Usage: "Timeout for all network operations",
-			Value: 2 * time.Second,
+			Value: defaults.NetworkTimeout,
 		},
 		&cli.DurationFlag{
 			Name:  namespace + "." + TxSendTimeoutFlagName,
 			Usage: "Timeout for sending transactions. If 0 it is disabled.",
-			Value: 0,
+			Value: defaults.TxSendTimeout,
 		},
 		&cli.DurationFlag{
 			Name:  namespace + "." + TxNotInMempoolTimeoutFlagName,
 			Usage: "Timeout for aborting a tx send if the tx does not make it to the mempool.",
-			Value: 2 * time.Minute,
+			Value: defaults.TxNotInMempoolTimeout,
 		},
 		&cli.DurationFlag{
 			Name:  namespace + "." + ReceiptQueryIntervalFlagName,
 			Usage: "Frequency to poll for receipts",
-			Value: 12 * time.Second,
+			Value: defaults.ReceiptQueryInterval,
 		},
 	}
 }
@@ -105,6 +178,7 @@ func NewConfigFromCLI(
 ) Config {
 	return Config{
 		ResubmissionTimeout:       cliCtx.Duration(namespace + "." + ResubmissionTimeoutFlagName),
+		FeeLimitMultiplier:        cliCtx.Uint64(namespace + "." + FeeLimitMultiplierFlagName),
 		ChainID:                   chainID,
 		TxSendTimeout:             cliCtx.Duration(namespace + "." + TxSendTimeoutFlagName),
 		TxNotInMempoolTimeout:     cliCtx.Duration(namespace + "." + TxNotInMempoolTimeoutFlagName),

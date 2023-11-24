@@ -57,14 +57,16 @@ func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
 		l1ChainID            = protocolCfg.GetRollup().L1ChainID
 		disseminatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, disseminatorTxMgrNamespace, l1ChainID, disseminatorAddr)
 		validatorTxMgrCfg    = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
+		cfg                  = &SystemConfig{
+			ProtocolConfig:     protocolCfg,
+			L1Config:           newL1ConfigFromCLI(cliCtx),
+			L2Config:           newL2ConfigFromCLI(cliCtx),
+			DisseminatorConfig: newDisseminatorConfigFromCLI(cliCtx, disseminatorTxMgrCfg),
+			ValidatorConfig:    newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
+		}
 	)
-	cfg := &SystemConfig{
-		ProtocolConfig:     protocolCfg,
-		L1Config:           newL1ConfigFromCLI(cliCtx),
-		L2Config:           newL2ConfigFromCLI(cliCtx),
-		DisseminatorConfig: newDisseminatorConfigFromCLI(cliCtx, disseminatorTxMgrCfg),
-		ValidatorConfig:    newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
-	}
+	disseminatorTxMgrCfg.From = cfg.DisseminatorConfig.AccountAddr
+	validatorTxMgrCfg.From = cfg.ValidatorConfig.AccountAddr
 	// Validate.
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate config: %w", err)
@@ -162,7 +164,14 @@ func (c DisseminatorConfig) validate() error {
 	if c.PrivateKey == nil && c.ClefEndpoint == "" {
 		return fmt.Errorf("missing both private key and clef endpoint (require at least one)")
 	}
-	return nil
+	if c.PrivateKey != nil && c.AccountAddr != crypto.PubkeyToAddress(c.PrivateKey.PublicKey) {
+		return fmt.Errorf("private key does not correspond to account address")
+	}
+	// Enforce sensible values.
+	if c.TargetBatchSize < 128 {
+		return fmt.Errorf("target batch size must be at least 128B")
+	}
+	return c.TxMgrCfg.Validate()
 }
 
 func newDisseminatorConfigFromCLI(
@@ -211,7 +220,10 @@ func (c ValidatorConfig) validate() error {
 	if c.PrivateKey == nil && c.ClefEndpoint == "" {
 		return fmt.Errorf("missing both private key and clef endpoint (require at least one)")
 	}
-	return nil
+	if c.PrivateKey != nil && c.AccountAddr != crypto.PubkeyToAddress(c.PrivateKey.PublicKey) {
+		return fmt.Errorf("private key does not correspond to account address")
+	}
+	return c.TxMgrCfg.Validate()
 }
 
 func newValidatorConfigFromCLI(
