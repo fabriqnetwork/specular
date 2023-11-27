@@ -12,7 +12,7 @@ async function main() {
   const baseConfigPath = parseFlag("--in");
   const configPath = parseFlag("--out");
   const genesisPath = parseFlag("--genesis");
-  const genesisHashPath = parseFlag("--genesis-hash");
+  const genesisHashPath = parseFlag("--genesis-hash-path");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
   await generateConfigFile(baseConfigPath, configPath, genesisPath, genesisHashPath, deploymentsPath);
 }
