@@ -169,9 +169,7 @@ contract StandardBridge_Initializer is Portal_Initializer {
         l2StandardBridge.initialize(l1StandardBridgeAddress);
 
         // depoly ERC20 tokens for testing
-        l2TokenFactory = new MintableERC20Factory(
-            l2StandardBridgeAddress
-        );
+        l2TokenFactory = new MintableERC20Factory(l2StandardBridgeAddress);
 
         l1Token = new ERC20("Native L1 Token", "L1T");
 
