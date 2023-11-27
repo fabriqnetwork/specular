@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -19,13 +20,17 @@ const (
 	txSignatureOverhead = 68
 )
 
+var (
+	BaseFeeSlot  = crypto.Keccak256([]byte("specular.basefee"))
+	OverheadSlot = crypto.Keccak256([]byte("specular.overhead"))
+	ScalarSlot   = crypto.Keccak256([]byte("specular.scalar"))
+)
+
+var L1OracleAddress = common.HexToAddress("0x2A00000000000000000000000000000000000010")
+
 type RollupConfig interface {
-	GetCoinbase() common.Address         // recipient of the L1 Fee
-	GetL2ChainID() uint64                // chain ID of the specular rollup
-	GetL1FeeOverhead() int64             // fixed cost of submitting a tx to L1
-	GetL1FeeMultiplier() float64         // value to scale the L1 Fee
-	GetL1OracleAddress() common.Address  // contract providing the L1 basefee
-	GetL1OracleBaseFeeSlot() common.Hash // L1 basefee storage slot
+	GetL1FeeRecipient() common.Address // recipient of the L1 Fee
+	GetL2ChainID() uint64              // chain ID of the specular rollup
 }
 
 // MakeSpecularEVMPreTransferHook creates specular's vm.EVMHook function
@@ -33,7 +38,8 @@ type RollupConfig interface {
 // currently this is only used to calculate & charge the L1 Fee
 func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
-	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
+	log.Info("L1Oracle config", "address", L1OracleAddress, "baseFeeSlot", BaseFeeSlot, "overheadSlot", OverheadSlot, "scalarSlot", ScalarSlot)
+
 	return func(msg vm.MessageInterface, db vm.StateDB) error {
 		tx := transactionFromMessage(msg, cfg)
 		fee, err := calculateL1Fee(tx, db, cfg)
@@ -50,7 +56,7 @@ func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
 // This is a read only method and does not change the state.
 func MakeSpecularL1FeeReader(cfg RollupConfig) vm.EVMReader {
 	log.Info("Injected Specular EVM reader")
-	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
+	log.Info("L1Oracle config", "address", L1OracleAddress, "baseFeeSlot", BaseFeeSlot, "overheadSlot", OverheadSlot, "scalarSlot", ScalarSlot)
 	return func(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 		return calculateL1Fee(tx, db, cfg)
 	}
@@ -115,26 +121,27 @@ func calculateL1Fee(tx *types.Transaction, db vm.StateDB, cfg RollupConfig) (*bi
 	rlp := bytes[:len(bytes)-3]
 
 	var (
-		zeroes, ones = zeroesAndOnes(rlp)
+		zeroes, ones  = zeroesAndOnes(rlp)
+		rollupDataGas = zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne
 
-		txDataGas    = big.NewInt(zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne + cfg.GetL1FeeOverhead())
-		basefee      = readStorageSlot(db, cfg.GetL1OracleAddress(), cfg.GetL1OracleBaseFeeSlot())
-		feeMutiplier = cfg.GetL1FeeMultiplier()
-
-		l1Fee       = new(big.Int).Mul(txDataGas, basefee)
-		scaledL1Fee = ScaleBigInt(l1Fee, feeMutiplier)
+		overhead = readStorageSlot(db, L1OracleAddress, common.Hash(OverheadSlot))
+		basefee  = readStorageSlot(db, L1OracleAddress, common.Hash(BaseFeeSlot))
+		scalar   = readStorageSlot(db, L1OracleAddress, common.Hash(ScalarSlot))
 	)
 
 	log.Trace(
 		"calculated l1 fee",
-		"txDataGas", txDataGas,
+		"rollupDataGas", rollupDataGas,
+		"overhead", overhead,
 		"basefee", basefee,
-		"l1Fee", l1Fee,
-		"feeMutiplier", feeMutiplier,
-		"scaledL1Fee", scaledL1Fee,
+		"scalar", scalar,
 	)
 
-	return scaledL1Fee, nil
+	l1GasUsed := new(big.Int).SetUint64(rollupDataGas)
+	l1GasUsed = l1GasUsed.Add(l1GasUsed, overhead)
+	l1Cost := l1GasUsed.Mul(l1GasUsed, basefee)
+	l1Cost = l1Cost.Mul(l1Cost, scalar)
+	return l1Cost.Div(l1Cost, big.NewInt(1_000_000)), nil
 }
 
 // multiply a big.Int with a float
@@ -164,7 +171,7 @@ func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, cfg Rol
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	db.AddBalance(cfg.GetCoinbase(), l1Fee)
+	db.AddBalance(cfg.GetL1FeeRecipient(), l1Fee)
 	db.SubBalance(msg.GetFrom(), l1Fee)
 
 	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
@@ -177,8 +184,8 @@ func readStorageSlot(db vm.StateDB, address common.Address, slot common.Hash) *b
 }
 
 // zeroesAndOnes counts the number of 0 bytes and non 0 bytes in a byte slice
-func zeroesAndOnes(data []byte) (int64, int64) {
-	var zeroes, ones int64
+func zeroesAndOnes(data []byte) (uint64, uint64) {
+	var zeroes, ones uint64
 	for _, b := range data {
 		if b == 0 {
 			zeroes++
