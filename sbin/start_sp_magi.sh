@@ -5,7 +5,7 @@ SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="`cd "$SBIN"; pwd`"
 ROOT_DIR=$SBIN/..
 
-# Check that the all required dotenv files exists.
+# Check that all required dotenv files exists.
 PATHS_ENV=".paths.env"
 if ! test -f "$PATHS_ENV"; then
     echo "Expected dotenv at $PATHS_ENV (does not exist)."
