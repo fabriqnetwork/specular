@@ -12,7 +12,7 @@ if ! test -f "$PATHS_ENV"; then
     echo "Expected dotenv at $PATHS_ENV (does not exist)."
     exit
 fi
-echo "Using configure dotenv: $PATHS_ENV"
+echo "Using paths dotenv: $PATHS_ENV"
 . $PATHS_ENV
 
 GENESIS_ENV=".genesis.env"
