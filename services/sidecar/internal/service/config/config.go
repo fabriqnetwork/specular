@@ -10,7 +10,10 @@ import (
 )
 
 const (
-	defaultLogLevel = logrus.InfoLevel
+	defaultLogLevel    = logrus.InfoLevel
+	defaultServiceName = "sidecar"
+	defaultVersion     = "unknown"
+	defaultUsageDesc   = "launch a validator and/or disseminator"
 )
 
 type Config struct {
@@ -44,7 +47,7 @@ func (c *Config) IsValid() error {
 
 func LoadConfig(log *logrus.Logger, configObject *Config, fileNames ...string) (*viper.Viper, error) {
 	mainConfig := viper.New()
-	fileNames = append([]string{"config/default.yaml"}, fileNames...)
+	fileNames = append([]string{"default.yaml", "config/default.yaml"}, fileNames...)
 
 	for _, fileName := range fileNames {
 		log.Infof("Loading config from: %s", fileName)
@@ -72,6 +75,20 @@ func LoadConfig(log *logrus.Logger, configObject *Config, fileNames ...string) (
 	return mainConfig, nil
 }
 
+func (c *Config) LoadDefaults() {
+	if len(c.ServiceName) == 0 {
+		c.ServiceName = defaultServiceName
+	}
+
+	if len(c.UsageDesc) == 0 {
+		c.UsageDesc = defaultUsageDesc
+	}
+
+	if len(c.ServiceVersion) == 0 {
+		c.ServiceVersion = defaultVersion
+	}
+}
+
 func newConfig(configFiles []string) (*Config, error) {
 	var (
 		tmpLog = logrus.New()
@@ -79,6 +96,8 @@ func newConfig(configFiles []string) (*Config, error) {
 	)
 	tmpLog.SetOutput(os.Stdout)
 	tmpLog.SetLevel(defaultLogLevel)
+
+	cfg.LoadDefaults()
 
 	_, err := LoadConfig(tmpLog, &cfg, configFiles...)
 	if err != nil {
@@ -95,8 +114,8 @@ func newConfig(configFiles []string) (*Config, error) {
 
 func NewConfig() (*Config, error) {
 	configFiles := []string{
-		// "default.yaml",
-		// "config/default.yaml",
+		"default.yaml",
+		"config/default.yaml",
 		// "/config/config.yaml",
 		// ".env",
 	}

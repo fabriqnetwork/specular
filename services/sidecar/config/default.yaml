@@ -1,5 +1,2 @@
 ---
-SERVICE_NAME: "sidecar"
-USAGE_DESC: "launch a validator and/or disseminator"
-SERVICE_VERSION: "unknown"
 LOG_LEVEL: "DEBUG"
