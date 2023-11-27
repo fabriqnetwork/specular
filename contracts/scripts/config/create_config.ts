@@ -12,8 +12,9 @@ async function main() {
   const baseConfigPath = parseFlag("--in");
   const configPath = parseFlag("--out");
   const genesisPath = parseFlag("--genesis");
+  const genesisHashPath = parseFlag("--genesis-hash");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
-  await generateConfigFile(baseConfigPath, configPath, genesisPath, deploymentsPath);
+  await generateConfigFile(baseConfigPath, configPath, genesisPath, genesisHashPath, deploymentsPath);
 }
 
 /**
@@ -24,6 +25,7 @@ export async function generateConfigFile(
   baseConfigPath: string,
   configPath: string,
   genesisPath: string,
+  genesisHashPath: string,
   deploymentsPath: string
 ) {
   // check the deployments dir - error out if it is not there
@@ -32,21 +34,14 @@ export async function generateConfigFile(
 
   // exctract L1 block hash and L1 block number from receipt
   const l1Number = deployment.receipt.blockNumber;
-  const l1Hash= deployment.receipt.blockHash;
+  const l1Hash = deployment.receipt.blockHash;
 
-  // parse receipt logs to get L2 vm hash
-  const txLogs: RawLog[] = deployment.receipt.logs;
-  const artifacts = await hre.artifacts.readArtifact("Rollup")
-  const iface = new ethers.utils.Interface(artifacts.abi);
-  const l2Hash = txLogs
-    .map(l => iface.parseLog(l))
-    .filter(l => l.name === 'AssertionCreated')
-    .map(l => l.args["vmHash"])
-    .pop()
+  // Parse genesis hash file to get L2 genesis hash
+  const l2Hash = JSON.parse(fs.readFileSync(genesisHashPath, "utf-8")).hash;
 
   // Write out new file
   // TODO: use on-chain data-only or genesis-only
-  const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"))
+  const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"));
   baseConfig.genesis.l1.hash = l1Hash;
   baseConfig.genesis.l1.number = l1Number;
   baseConfig.genesis.l2.hash = l2Hash;

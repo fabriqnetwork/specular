@@ -63,6 +63,8 @@ FLAGS="
     --authrpc.port $AUTH_PORT \
     --authrpc.jwtsecret $JWT_SECRET_PATH \
     --miner.recommit 0 \
+    --nodiscover \
+    --maxpeers 0 \
     --syncmode full
 "
 

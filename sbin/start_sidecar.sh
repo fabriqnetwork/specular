@@ -40,6 +40,7 @@ if [ "$VALIDATOR" = true ] ; then
     VALIDATOR_PRIV_KEY=`cat "$VALIDATOR_PK_PATH"`
     FLAGS+=(
         "--validator"
+        "--validator.addr $VALIDATOR_ADDR"
         "--validator.private-key $VALIDATOR_PRIV_KEY"
     )
 fi
