@@ -56,8 +56,7 @@ func (s *BatchDisseminator) Start(ctx context.Context, eg api.ErrGroup) error {
 
 func (d *BatchDisseminator) start(ctx context.Context) error {
 	// Start with latest safe state.
-	err := d.rollback()
-	if err != nil {
+	if err := d.rollback(); err != nil {
 		return err
 	}
 	var ticker = time.NewTicker(d.cfg.GetDisseminationInterval())
