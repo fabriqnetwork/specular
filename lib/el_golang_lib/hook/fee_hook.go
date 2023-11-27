@@ -9,7 +9,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -21,9 +20,9 @@ const (
 )
 
 var (
-	BaseFeeSlot  = crypto.Keccak256([]byte("specular.basefee"))
-	OverheadSlot = crypto.Keccak256([]byte("specular.overhead"))
-	ScalarSlot   = crypto.Keccak256([]byte("specular.scalar"))
+	BaseFeeSlot  = common.BigToHash(big.NewInt(253))
+	OverheadSlot = common.BigToHash(big.NewInt(256))
+	ScalarSlot   = common.BigToHash(big.NewInt(257))
 )
 
 var L1OracleAddress = common.HexToAddress("0x2A00000000000000000000000000000000000010")
