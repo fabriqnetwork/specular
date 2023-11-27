@@ -110,8 +110,8 @@ func (e *BatchV0Encoder) closeSubBatch() {
 }
 
 type subBatch struct {
-	firstL2BlockNum uint64
-	txBlocks        []rawTxBlock
+	FirstL2BlockNum uint64
+	TxBlocks        []rawTxBlock
 	contentSize     uint64 `rlp:"-"` // size of sub-batch content (# of bytes)
 }
 
@@ -122,8 +122,8 @@ func (s *subBatch) size() uint64 { return rlp.ListSize(s.contentSize) }
 
 func (s *subBatch) appendTxBlock(blockNum uint64, txs types.Transactions) error {
 	// Set the first L2 block number if it hasn't been set yet.
-	if len(s.txBlocks) == 0 {
-		s.firstL2BlockNum = blockNum
+	if len(s.TxBlocks) == 0 {
+		s.FirstL2BlockNum = blockNum
 		s.contentSize += uint64(rlp.IntSize(blockNum))
 	}
 	// Append the block of txs to the sub-batch.
@@ -131,7 +131,7 @@ func (s *subBatch) appendTxBlock(blockNum uint64, txs types.Transactions) error 
 	if err != nil {
 		return fmt.Errorf("could not marshall txs: %w", err)
 	}
-	s.txBlocks = append(s.txBlocks, marshalled)
+	s.TxBlocks = append(s.TxBlocks, marshalled)
 	s.contentSize += uint64(numBytes)
 	return nil
 }
