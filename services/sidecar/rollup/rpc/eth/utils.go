@@ -38,8 +38,7 @@ func SubscribeNewHeadByPolling(
 			headCh <- header
 			return nil
 		}
-		err := poll()
-		if err != nil {
+		if err := poll(); err != nil {
 			return err
 		}
 		for {
