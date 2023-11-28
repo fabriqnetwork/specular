@@ -23,6 +23,8 @@ type TxManager interface {
 	AdvanceStake(ctx context.Context, assertionID *big.Int) (*ethTypes.Receipt, error)
 	CreateAssertion(ctx context.Context, stateCommitment types.Bytes32, blockNum *big.Int) (*ethTypes.Receipt, error)
 	ConfirmFirstUnresolvedAssertion(ctx context.Context) (*ethTypes.Receipt, error)
+	RejectFirstUnresolvedAssertion(context.Context, common.Address) (*ethTypes.Receipt, error)
+	RemoveStake(context.Context, common.Address) (*ethTypes.Receipt, error)
 }
 
 type BridgeClient interface {
@@ -32,9 +34,7 @@ type BridgeClient interface {
 	GetLastConfirmedAssertionID(context.Context) (*big.Int, error)
 	RequireFirstUnresolvedAssertionIsConfirmable(context.Context) error
 	RequireFirstUnresolvedAssertionIsRejectable(context.Context, common.Address) error
-	RejectFirstUnresolvedAssertion(context.Context, common.Address) (*ethTypes.Transaction, error)
 	IsStakedOnAssertion(context.Context, *big.Int, common.Address) (bool, error)
-	RemoveStake(context.Context, common.Address) (*ethTypes.Transaction, error)
 }
 
 type EthState interface {

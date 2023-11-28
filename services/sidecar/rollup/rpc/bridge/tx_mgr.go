@@ -87,6 +87,14 @@ func (m *TxManager) RejectFirstUnresolvedAssertion(ctx context.Context, stakerAd
 	return m.sendRollupTx(ctx, data, 0)
 }
 
+func (m *TxManager) RemoveStake(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error) {
+	data, err := packRemoveStakeInput(stakerAddress)
+	if err != nil {
+		return nil, err
+	}
+	return m.sendRollupTx(ctx, data, 0)
+}
+
 func (m *TxManager) sendRollupTx(ctx context.Context, data []byte, value uint64) (*types.Receipt, error) {
 	addr := m.cfg.GetRollupAddr()
 	return m.Send(ctx, txmgr.TxCandidate{TxData: data, To: &addr, Value: big.NewInt(0).SetUint64(value)})

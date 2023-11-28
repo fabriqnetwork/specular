@@ -118,7 +118,7 @@ func (v *Validator) flushValidator(ctx context.Context) error {
 		return err
 	}
 	if !stakedOnLast {
-		_, err = v.l1BridgeClient.RemoveStake(ctx, v.cfg.GetAccountAddr())
+		_, err = v.l1TxMgr.RemoveStake(ctx, v.cfg.GetAccountAddr())
 		if err != nil {
 			return err
 		}
@@ -177,7 +177,7 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 			log.Trace("No unresolved assertion to be rejected.")
 		} else {
 			// It is not confirmable, but it is rejectable so let's try to reject
-			_, err = v.l1BridgeClient.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
+			_, err = v.l1TxMgr.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
 			if err != nil {
 				// It should be rejectable, but it failed to reject
 				log.Warn("rejectable assertion failed to reject")

@@ -22,6 +22,7 @@ const (
 	CreateAssertionFnName                 = "createAssertion"
 	ConfirmFirstUnresolvedAssertionFnName = "confirmFirstUnresolvedAssertion"
 	RejectFirstUnresolvedAssertionFnName  = "rejectFirstUnresolvedAssertion"
+	packRemoveStakeFnName                 = "removeStake"
 	// IChallenge.sol functions
 	// bisectExecutionFn = "bisectExecution"
 	// IRollup.sol errors (TODO: figure out a work-around to hardcoding)
@@ -85,6 +86,10 @@ func packConfirmFirstUnresolvedAssertionInput() ([]byte, error) {
 
 func packRejectFirstUnresolvedAssertionInput(stakerAddress common.Address) ([]byte, error) {
 	return serializationUtil.rollupAbi.Pack(RejectFirstUnresolvedAssertionFnName, stakerAddress)
+}
+
+func packRemoveStakeInput(stakerAddress common.Address) ([]byte, error) {
+	return serializationUtil.rollupAbi.Pack(packRemoveStakeFnName, stakerAddress)
 }
 
 // L1Oracle.sol
