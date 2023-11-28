@@ -99,6 +99,7 @@ npx ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
   --genesis $GENESIS_PATH \
+  --genesis-hash-path $GENESIS_EXPORTED_HASH_PATH \
   --l1-network $L1_ENDPOINT
 
 echo "Done."
