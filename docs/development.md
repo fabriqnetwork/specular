@@ -33,6 +33,7 @@ slither .
 
 To use the local deployment scripts in `sbin`, you'll need the following dotenv files.
 ```sh
+.paths.env     # Expected by all scripts
 .genesis.env   # Expected by `start_l1.sh` & `deploy_l1_contracts.sh` (not necessary for existing chains)
 .contracts.env # Expected by `deploy_l1_contracts.sh` (not necessary for existing chains)
 .sp_geth.env   # Expected by `start_sp_geth.sh`

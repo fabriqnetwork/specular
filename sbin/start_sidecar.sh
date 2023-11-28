@@ -1,20 +1,26 @@
 #!/bin/bash
-SBIN=`dirname $0`
-SBIN="`cd "$SBIN"; pwd`"
 
-# Check that the sidecar dotenv exists.
-ENV=".sidecar.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
+# the local sbin paths are relative to the project root
+SBIN=$(dirname "$(readlink -f "$0")")
+SBIN="`cd "$SBIN"; pwd`"
+ROOT_DIR=$SBIN/..
+
+# Check that all required dotenv files exists.
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
     exit
 fi
-echo "Using sidecar dotenv: $ENV"
-. $ENV
+echo "Using paths dotenv: $PATHS_ENV"
+. $PATHS_ENV
 
-if [ -z $SIDECAR_BIN ]; then
-    # If no binary specified, assume repo directory structure.
-    . $SBIN/configure.sh
+SIDECAR_ENV=".sidecar.env"
+if ! test -f "$SIDECAR_ENV"; then
+    echo "Expected dotenv at $SIDECAR_ENV (does not exist)."
+    exit
 fi
+echo "Using sidecar dotenv: $SIDECAR_ENV"
+. $SIDECAR_ENV
 
 FLAGS=(
     "--l1.endpoint $L1_ENDPOINT"

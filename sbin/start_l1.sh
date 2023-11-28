@@ -1,50 +1,60 @@
 #!/bin/bash
-SBIN=`dirname $0`
-SBIN="`cd "$SBIN"; pwd`"
-if [ -z $CONTRACTS_DIR ] | [ -z $L1_GETH_BIN ]; then
-    . $SBIN/configure.sh
-fi
-# Parse args.
-optspec="cdh"
-while getopts "$optspec" optchar; do
-    case "${optchar}" in
-        c)
-	    echo "Cleaning..."
-	    $SBIN/clean_deployment.sh
-	    ;;
-	d)
-	    L1_DEPLOY=true
-	    ;;
-        h)
-            echo "usage: $0 [-c][-d][-h]"
-	    echo "-c : clean before running"
-	    echo "-d : deploy contracts"
-            exit
-            ;;
-        *)
-            if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-                echo "Unknown option: '-${OPTARG}'"
-		exit 1
-            fi
-            ;;
-    esac
-done
 
-# Check that the dotenv exists.
+SBIN=$(dirname "$(readlink -f "$0")")
+ROOT_DIR=$SBIN/..
+
+# Check that the all required dotenv files exists.
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
+    exit
+fi
+echo "Using paths dotenv: $PATHS_ENV"
+. $PATHS_ENV
+
 GENESIS_ENV=".genesis.env"
-if ! test -f $GENESIS_ENV; then
+if ! test -f "$GENESIS_ENV"; then
     echo "Expected dotenv at $GENESIS_ENV (does not exist)."
     exit
 fi
 echo "Using genesis dotenv: $GENESIS_ENV"
 . $GENESIS_ENV
+
+if [ "$L1_STACK" = "geth" ]; then
 CONTRACTS_ENV=".contracts.env"
-if ! test -f $CONTRACTS_ENV; then
-    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
+if ! test -f "$CONTRACTS_ENV"; then
+    echo "Expected contracts dotenv at $CONTRACTS_ENV (does not exist)."
     exit
 fi
 echo "Using contracts dotenv: $CONTRACTS_ENV"
 . $CONTRACTS_ENV
+fi
+
+# Parse args.
+optspec="cdh"
+while getopts "$optspec" optchar; do
+  case "${optchar}" in
+    c)
+      echo "Cleaning..."
+      $SBIN/clean_deployment.sh
+      ;;
+    d)
+      L1_DEPLOY=true
+      ;;
+    h)
+      echo "usage: $0 [-c][-d][-h]"
+      echo "-c : clean before running"
+      echo "-d : deploy contracts"
+      exit
+      ;;
+    *)
+      if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
+        echo "Unknown option: '-${OPTARG}'"
+        exit 1
+      fi
+      ;;
+  esac
+done
 
 L1_HOST=`echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}'`
 L1_PORT=`echo $L1_ENDPOINT | awk -F':' '{print $3}'`

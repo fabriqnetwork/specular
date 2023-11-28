@@ -1,20 +1,26 @@
 #!/bin/bash
-SBIN=`dirname $0`
 
-# Enforce that the dotenv exists.
-ENV=".sp_magi.env"
-if ! test -f $ENV; then
-    echo "Expected dotenv at $ENV (does not exist)."
+# the local sbin paths are relative to the project root
+SBIN=$(dirname "$(readlink -f "$0")")
+SBIN="`cd "$SBIN"; pwd`"
+ROOT_DIR=$SBIN/..
+
+# Check that all required dotenv files exists.
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
     exit
 fi
-echo "Using dotenv: $ENV"
-. $ENV
+echo "Using paths dotenv: $PATHS_ENV"
+. $PATHS_ENV
 
-if [ -z $SP_MAGI_BIN ]; then
-    # If no binary specified, assume repo directory structure.
-    . $SBIN/configure.sh
+SP_MAGI_ENV=".sp_magi.env"
+if ! test -f "$SP_MAGI_ENV"; then
+    echo "Expected dotenv at $SP_MAGI_ENV (does not exist)."
+    exit
 fi
-echo "Using bin: $SP_MAGI_BIN"
+echo "Using sp_magi dotenv: $SP_MAGI_ENV"
+. $SP_MAGI_ENV
 
 # Set sync flags.
 SYNC_FLAGS=""

@@ -1,9 +1,18 @@
 #!/bin/bash
+
+# the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="`cd "$SBIN"; pwd`"
-ROOT="`cd $SBIN/../; pwd`"
-CONFIG="$ROOT/config"
-. $SBIN/configure.sh
+ROOT_DIR=$SBIN/..
+
+# Check that the all required dotenv files exists.
+PATHS_ENV=".paths.env"
+if ! test -f "$PATHS_ENV"; then
+    echo "Expected dotenv at $PATHS_ENV (does not exist)."
+    exit
+fi
+echo "Using paths dotenv: $PATHS_ENV"
+. $PATHS_ENV
 
 ###### PID handling ######
 trap ctrl_c INT
