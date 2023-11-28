@@ -5,7 +5,9 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/cockroachdb/errors"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
+
 	"golang.org/x/sync/errgroup"
 
 	"github.com/specularL2/specular/services/sidecar/internal/service/config"
@@ -13,8 +15,6 @@ import (
 	"github.com/specularL2/specular/services/sidecar/rollup/services"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/disseminator"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/validator"
-
-	"github.com/sirupsen/logrus"
 )
 
 type WaitGroup interface {
@@ -25,7 +25,7 @@ type WaitGroup interface {
 
 type Application struct {
 	ctx               context.Context
-	log               *logrus.Logger
+	log               log.Logger
 	config            *config.Config
 	systemConfig      *services.SystemConfig
 	l1State           *eth.EthState
@@ -64,7 +64,7 @@ func (app *Application) Run() error {
 	}
 
 	if err := errGroup.Wait(); err != nil {
-		return errors.Newf("service failed while running: %w", err)
+		return fmt.Errorf("service failed while running: %w", err)
 	}
 	app.log.Info("app stopped")
 
@@ -75,7 +75,7 @@ func (app *Application) ShutdownAndCleanup() {
 	app.log.Info("app shutting down")
 }
 
-func (app *Application) GetLogger() *logrus.Logger {
+func (app *Application) GetLogger() log.Logger {
 	return app.log
 }
 
@@ -91,6 +91,6 @@ type TestApplication struct {
 	*Application
 
 	Ctx    context.Context
-	Log    *logrus.Logger
+	log    log.Logger
 	Config *config.Config
 }

@@ -6,8 +6,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/specularL2/specular/services/sidecar/internal/service/di"
 )
 
@@ -29,7 +27,7 @@ func main() {
 
 	if err := application.Run(); err != nil {
 		if !errors.Is(err, context.Canceled) {
-			application.GetLogger().WithError(err).Log(logrus.FatalLevel, "application failed")
+			application.GetLogger().Crit("application failed")
 			exitCode = 1
 		}
 	}

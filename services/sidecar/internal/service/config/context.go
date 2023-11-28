@@ -6,7 +6,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/sirupsen/logrus"
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 type CancelChannel chan struct{}
@@ -15,7 +15,7 @@ func NewCancelChannel() CancelChannel {
 	return make(chan struct{}, 1)
 }
 
-func NewContext(log *logrus.Logger, termination CancelChannel) context.Context {
+func NewContext(log log.Logger, termination CancelChannel) context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	quit := make(chan os.Signal, 1)
@@ -25,7 +25,7 @@ func NewContext(log *logrus.Logger, termination CancelChannel) context.Context {
 		for {
 			select {
 			case sig := <-quit:
-				log.WithField("signal", sig).Info("os signal - shutting down")
+				log.Info("os signal - shutting down", "signal", sig)
 				cancel()
 				return
 			case <-termination:

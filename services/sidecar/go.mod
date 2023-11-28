@@ -6,11 +6,9 @@ replace github.com/ethereum/go-ethereum => ../el_clients/go-ethereum
 
 require (
 	github.com/avast/retry-go/v4 v4.3.3
-	github.com/cockroachdb/errors v1.9.1
 	github.com/ethereum/go-ethereum v1.12.2
 	github.com/google/wire v0.5.0
 	github.com/pkg/errors v0.9.1
-	github.com/sirupsen/logrus v1.9.0
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.8.1
 	github.com/urfave/cli/v2 v2.25.7
@@ -26,6 +24,7 @@ require (
 	github.com/bits-and-blooms/bitset v1.7.0 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.2.0 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
+	github.com/cockroachdb/errors v1.9.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
 	github.com/cockroachdb/pebble v0.0.0-20230906160148-46873a6a7a06 // indirect
 	github.com/cockroachdb/redact v1.1.3 // indirect

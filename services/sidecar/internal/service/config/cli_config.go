@@ -3,7 +3,6 @@ package config
 import (
 	"os"
 
-	"github.com/sirupsen/logrus"
 	"github.com/urfave/cli/v2"
 
 	"github.com/specularL2/specular/services/sidecar/rollup/services"
@@ -23,7 +22,7 @@ func (t *CLIExtractor) ExtractFromCLIContext(cliCtx *cli.Context) error {
 }
 
 // Nasty trick to extract parsed SystemConfig from the urfave/cli package wrapper and serve properly from a provider
-func NewSystemConfig(log *logrus.Logger, cfg *Config) (*services.SystemConfig, error) {
+func NewSystemConfig(cfg *Config) (*services.SystemConfig, error) {
 	cliExtractor := &CLIExtractor{}
 
 	cliApp := &cli.App{
@@ -34,7 +33,7 @@ func NewSystemConfig(log *logrus.Logger, cfg *Config) (*services.SystemConfig, e
 	cliApp.Flags = services.CLIFlags()
 
 	if err := cliApp.Run(os.Args); err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
 	return cliExtractor.systemConfig, nil

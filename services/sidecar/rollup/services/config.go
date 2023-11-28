@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	"github.com/specularL2/specular/services/sidecar/utils/log"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/urfave/cli/v2"
@@ -19,6 +21,7 @@ type SystemConfig struct {
 	L2Config           `toml:"l2,omitempty"`
 	DisseminatorConfig `toml:"disseminator,omitempty"`
 	ValidatorConfig    `toml:"validator,omitempty"`
+	Verbosity          log.Lvl `toml:"verbosity,omitempty"`
 }
 
 func (c *SystemConfig) Protocol() ProtocolConfig         { return c.ProtocolConfig }
@@ -64,6 +67,7 @@ func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
 			L2Config:           newL2ConfigFromCLI(cliCtx),
 			DisseminatorConfig: newDisseminatorConfigFromCLI(cliCtx, disseminatorTxMgrCfg),
 			ValidatorConfig:    newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
+			Verbosity:          log.Lvl(cliCtx.Int(VerbosityFlag.Name)),
 		}
 	)
 	disseminatorTxMgrCfg.From = cfg.DisseminatorConfig.AccountAddr

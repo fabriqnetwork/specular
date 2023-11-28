@@ -4,13 +4,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/specularL2/specular/services/sidecar/utils/log"
+
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 const (
-	defaultLogLevel    = logrus.InfoLevel
+	defaultLogLevel    = log.LvlInfo
 	defaultServiceName = "sidecar"
 	defaultVersion     = "unknown"
 	defaultUsageDesc   = "launch a validator and/or disseminator"
@@ -22,15 +23,6 @@ type Config struct {
 
 	UsageDesc string `mapstructure:"USAGE_DESC"`
 	LogLevel  string `mapstructure:"LOG_LEVEL"`
-}
-
-func (c *Config) GetLogLevel(defaultLevel logrus.Level) logrus.Level {
-	level, err := logrus.ParseLevel(c.LogLevel)
-	if err != nil {
-		level = defaultLevel
-	}
-
-	return level
 }
 
 func (c *Config) IsValid() error {
@@ -45,12 +37,12 @@ func (c *Config) IsValid() error {
 	return nil
 }
 
-func LoadConfig(log *logrus.Logger, configObject *Config, fileNames ...string) (*viper.Viper, error) {
+func LoadConfig(log log.Logger, configObject *Config, fileNames ...string) (*viper.Viper, error) {
 	mainConfig := viper.New()
 	fileNames = append([]string{"default.yaml", "config/default.yaml"}, fileNames...)
 
 	for _, fileName := range fileNames {
-		log.Infof("Loading config from: %s", fileName)
+		log.Debug("Loading config", "fileName", fileName)
 		viperConfig := viper.New()
 		viperConfig.SetConfigFile(fileName)
 
@@ -59,7 +51,7 @@ func LoadConfig(log *logrus.Logger, configObject *Config, fileNames ...string) (
 		}
 
 		if err := viperConfig.MergeInConfig(); err != nil {
-			log.WithError(err).Info("config not found; skipping")
+			log.Debug("config not found; skipping")
 			continue
 		}
 
@@ -91,11 +83,12 @@ func (c *Config) LoadDefaults() {
 
 func newConfig(configFiles []string) (*Config, error) {
 	var (
-		tmpLog = logrus.New()
+		tmpLog = log.New()
 		cfg    Config
 	)
-	tmpLog.SetOutput(os.Stdout)
-	tmpLog.SetLevel(defaultLogLevel)
+	gLogger := log.NewGlogHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(false)))
+	gLogger.Verbosity(defaultLogLevel)
+	tmpLog.SetHandler(gLogger)
 
 	cfg.LoadDefaults()
 

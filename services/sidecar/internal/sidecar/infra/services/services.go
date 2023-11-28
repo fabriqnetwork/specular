@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/external"
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
-	"github.com/sirupsen/logrus"
 
 	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
@@ -130,7 +129,7 @@ func createL1State(ctx context.Context, cfg *services.SystemConfig) (*eth.EthSta
 	return l1State, nil
 }
 
-func NewL1State(ctx context.Context, log *logrus.Logger, cfg *services.SystemConfig) (*eth.EthState, error) {
+func NewL1State(ctx context.Context, log log.Logger, cfg *services.SystemConfig) (*eth.EthState, error) {
 	log.Info("Starting L1 sync...")
 
 	return createL1State(ctx, cfg)

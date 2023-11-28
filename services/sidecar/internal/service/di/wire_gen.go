@@ -18,13 +18,13 @@ func SetupApplication() (*Application, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	logger := config.NewLogger(configConfig)
-	cancelChannel := config.NewCancelChannel()
-	context := config.NewContext(logger, cancelChannel)
-	systemConfig, err := config.NewSystemConfig(logger, configConfig)
+	systemConfig, err := config.NewSystemConfig(configConfig)
 	if err != nil {
 		return nil, nil, err
 	}
+	logger := config.NewLogger(systemConfig)
+	cancelChannel := config.NewCancelChannel()
+	context := config.NewContext(logger, cancelChannel)
 	ethState, err := services.NewL1State(context, logger, systemConfig)
 	if err != nil {
 		return nil, nil, err
@@ -51,13 +51,13 @@ func SetupApplication() (*Application, func(), error) {
 }
 
 func SetupApplicationForIntegrationTests(cfg *config.Config) (*TestApplication, func(), error) {
-	logger := config.NewLogger(cfg)
-	cancelChannel := config.NewCancelChannel()
-	context := config.NewContext(logger, cancelChannel)
-	systemConfig, err := config.NewSystemConfig(logger, cfg)
+	systemConfig, err := config.NewSystemConfig(cfg)
 	if err != nil {
 		return nil, nil, err
 	}
+	logger := config.NewLogger(systemConfig)
+	cancelChannel := config.NewCancelChannel()
+	context := config.NewContext(logger, cancelChannel)
 	ethState, err := services.NewL1State(context, logger, systemConfig)
 	if err != nil {
 		return nil, nil, err
@@ -82,7 +82,7 @@ func SetupApplicationForIntegrationTests(cfg *config.Config) (*TestApplication, 
 	testApplication := &TestApplication{
 		Application: application,
 		Ctx:         context,
-		Log:         logger,
+		log:         logger,
 		Config:      cfg,
 	}
 	return testApplication, func() {
