@@ -1,5 +1,5 @@
 #!/bin/bash
-#
+
 SBIN=$(dirname "$(readlink -f "$0")")
 ROOT_DIR=$SBIN/..
 
