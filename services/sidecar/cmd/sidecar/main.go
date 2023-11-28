@@ -14,7 +14,7 @@ import (
 func main() {
 	application, _, err := di.SetupApplication()
 	if err != nil {
-		log.Fatalf("failed to setup application %w", err)
+		log.Fatalf("failed to setup application %s", err)
 	}
 
 	exitCode := 0

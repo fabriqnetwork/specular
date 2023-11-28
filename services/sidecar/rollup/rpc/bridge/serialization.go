@@ -23,7 +23,7 @@ const (
 	ConfirmFirstUnresolvedAssertionFnName = "confirmFirstUnresolvedAssertion"
 	RejectFirstUnresolvedAssertionFnName  = "rejectFirstUnresolvedAssertion"
 	// IChallenge.sol functions
-	bisectExecutionFn = "bisectExecution"
+	// bisectExecutionFn = "bisectExecution"
 	// IRollup.sol errors (TODO: figure out a work-around to hardcoding)
 	NoUnresolvedAssertionErr     = "Error: VM Exception while processing transaction: reverted with custom error 'NoUnresolvedAssertion()'"
 	ConfirmationPeriodPendingErr = "Error: VM Exception while processing transaction: reverted with custom error 'ConfirmationPeriodPending()'"

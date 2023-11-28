@@ -3,8 +3,9 @@ package services
 import (
 	"context"
 	"crypto/ecdsa"
-	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr/metrics"
 	"math/big"
+
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr/metrics"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

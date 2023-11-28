@@ -1,3 +1,4 @@
 build
 bindings/I*
 bindings/L1Oracle.go
+*/**/forge-std
