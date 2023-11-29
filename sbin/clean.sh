@@ -1,5 +1,5 @@
 #!/bin/bash
-SBIN=`dirname $0`
+SBIN=$(dirname $0)
 $SBIN/clean_sp_geth.sh
 $SBIN/clean_deployment.sh
 
