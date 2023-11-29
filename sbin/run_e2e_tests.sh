@@ -2,14 +2,17 @@
 
 # the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
-SBIN="`cd "$SBIN"; pwd`"
+SBIN="$(
+  cd "$SBIN"
+  pwd
+)"
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
 PATHS_ENV=".paths.env"
 if ! test -f "$PATHS_ENV"; then
-    echo "Expected dotenv at $PATHS_ENV (does not exist)."
-    exit
+  echo "Expected dotenv at $PATHS_ENV (does not exist)."
+  exit
 fi
 echo "Using paths dotenv: $PATHS_ENV"
 . $PATHS_ENV
@@ -29,18 +32,18 @@ trap ctrl_c INT
 PIDS=()
 
 function cleanup() {
-    echo "Cleaning up..."
-    for pid in "${PIDS[@]}"; do
-	echo "Killing $pid"
-	disown $pid
-	kill $pid
-    done
-    # Clean up
-    $SBIN/clean.sh
+  echo "Cleaning up..."
+  for pid in "${PIDS[@]}"; do
+    echo "Killing $pid"
+    disown $pid
+    kill $pid
+  done
+  # Clean up
+  $SBIN/clean.sh
 }
 
 function ctrl_c() {
-    cleanup
+  cleanup
 }
 
 ##########################
@@ -82,26 +85,26 @@ PIDS+=($SIDECAR_PID)
 
 # Run testing script
 case $1 in
-  transactions)
-    npx hardhat run scripts/e2e/test_transactions.ts
-    RESULT=$?
-    ;;
-  deposit)
-    npx hardhat run scripts/e2e/bridge/test_standard_bridge_deposit_eth.ts
-    RESULT=$?
-    ;;
-  withdraw)
-    npx hardhat run scripts/e2e/bridge/test_standard_bridge_withdraw_eth.ts
-    RESULT=$?
-    ;;
-  erc20)
-    npx hardhat run scripts/e2e/bridge/test_standard_bridge_erc20.ts
-    RESULT=$?
-    ;;
-  *)
-    echo "unknown test"
-    RESULT=1
-    ;;
+transactions)
+  npx hardhat run scripts/e2e/test_transactions.ts
+  RESULT=$?
+  ;;
+deposit)
+  npx hardhat run scripts/e2e/bridge/test_standard_bridge_deposit_eth.ts
+  RESULT=$?
+  ;;
+withdraw)
+  npx hardhat run scripts/e2e/bridge/test_standard_bridge_withdraw_eth.ts
+  RESULT=$?
+  ;;
+erc20)
+  npx hardhat run scripts/e2e/bridge/test_standard_bridge_erc20.ts
+  RESULT=$?
+  ;;
+*)
+  echo "unknown test"
+  RESULT=1
+  ;;
 esac
 
 cleanup
