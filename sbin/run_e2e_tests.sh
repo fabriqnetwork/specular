@@ -32,12 +32,24 @@ trap ctrl_c INT
 PIDS=()
 
 function cleanup() {
-  echo "Cleaning up..."
+  echo "[run] Cleaning up..."
   for pid in "${PIDS[@]}"; do
     echo "Killing $pid"
     disown $pid
     kill $pid
   done
+  # For good measure...
+  pgrep geth | xargs kill
+  pgrep sidecar | xargs kill
+  pgrep magi | xargs kill
+  L1_PORT=4012
+  if [ -n "$L1_PORT" ]; then
+    L1_PORT_PID=$(lsof -i tcp:${L1_PORT} | awk 'NR!=1 {print $2}')
+    if [ -n "$L1_WS_PID" ]; then
+      echo "Killing proc on $L1_PORT"
+      kill $L1_PORT_PID
+    fi
+  fi
   # Clean up
   $SBIN/clean.sh
 }
@@ -59,7 +71,7 @@ echo "Copying local_devnet config files to cwd..."
 cp -a $CONFIG_DIR/local_devnet/. .
 
 # Start L1
-$SBIN/start_l1.sh -d &
+yes | $SBIN/start_l1.sh -d -s &
 L1_PID=$!
 PIDS+=($L1_PID)
 
@@ -72,17 +84,29 @@ echo "L1 endpoint is available"
 # TODO: remove
 echo "sleeping for a bit"
 sleep 60
+echo "done sleeping"
 
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &
 SP_GETH_PID=$!
 PIDS+=($SP_GETH_PID)
-#
+
+sleep 1
+
+# Start sp-magi
+$SBIN/start_sp_magi.sh &
+SP_MAGI_PID=$!
+PIDS+=($SP_MAGI_PID)
+
+sleep 1
+
 # Start sidecar
 $SBIN/start_sidecar.sh &
 SIDECAR_PID=$!
 PIDS+=($SIDECAR_PID)
 
+cd $CONTRACTS_DIR
+echo "Running test $1"
 # Run testing script
 case $1 in
 transactions)

@@ -1,6 +1,9 @@
 #!/bin/bash
-
 SBIN=$(dirname "$(readlink -f "$0")")
+SBIN="$(
+  cd "$SBIN"
+  pwd
+)"
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
@@ -31,20 +34,24 @@ if [ "$L1_STACK" = "geth" ]; then
 fi
 
 # Parse args.
-optspec="cdh"
+optspec="cdsh"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
-    echo "Cleaning..."
+    echo "Cleaning deployment before starting l1..."
     $SBIN/clean_deployment.sh
     ;;
   d)
     L1_DEPLOY=true
     ;;
+  s)
+    SILENT=true
+    ;;
   h)
-    echo "usage: $0 [-c][-d][-h]"
+    echo "usage: $0 [-c][-d][-s][-h]"
     echo "-c : clean before running"
     echo "-d : deploy contracts"
+    echo "-s : silent-mode (no log tailing)"
     exit
     ;;
   *)
@@ -69,7 +76,7 @@ trap ctrl_c INT
 PIDS=()
 
 function cleanup() {
-  echo "Cleaning up..."
+  echo "Cleaning up l1 processes..."
   rm -f $LOG_FILE
   for pid in "${PIDS[@]}"; do
     echo "Killing $pid"
@@ -130,7 +137,7 @@ elif [ "$L1_STACK" = "hardhat" ]; then
   echo "Using $CONTRACTS_DIR as HH proj"
   cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &>$LOG_FILE &
   L1_PID=$!
-  PIDS+=$L1_PID
+  PIDS+=($L1_PID)
   echo "L1 PID: $L1_PID"
   sleep 3
 else
@@ -145,6 +152,8 @@ if [ "$L1_DEPLOY" = "true" ]; then
 fi
 
 # Follow output
-echo "L1 started... (Use ctrl-c to stop)"
-tail -f $LOG_FILE
+if [ ! "$SILENT" = "true" ]; then
+    echo "L1 started... (Use ctrl-c to stop)"
+    tail -f $LOG_FILE
+fi
 wait $L1_PID

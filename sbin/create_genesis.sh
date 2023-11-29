@@ -1,7 +1,5 @@
 #!/bin/bash
-
-# TODO: can we get rid of this somehow?
-# currently the local sbin paths are relative to the project root
+# Currently the local sbin paths are relative to the project root.
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
   cd "$SBIN"
@@ -23,7 +21,7 @@ if ! test -f "$GENESIS_ENV"; then
   echo "Expected dotenv at $GENESIS_ENV (does not exist)."
   exit
 fi
-echo "Using dotenv: $GENESIS_ENV"
+echo "Using genesis dotenv: $GENESIS_ENV"
 . $GENESIS_ENV
 
 echo "Using $OPS_DIR as ops directory."
@@ -41,7 +39,7 @@ guard_overwrite() {
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
       rm $1
     else
-      exit
+      exit 1
     fi
   fi
 }
@@ -62,14 +60,14 @@ go run ./cmd/genesis/main.go \
     --export-hash $GENESIS_EXPORTED_HASH_PATH
 """
 echo "Running $CMD"
-exec $CMD
+eval $CMD
 
 # Initialize a reference to the genesis file at
 # "contracts/.genesis" (using relative paths as appropriate).
-CONTRACTS_ENV=$CONTRACTS_DIR/$ENV
+CONTRACTS_ENV=$CONTRACTS_DIR/$GENESIS_ENV
 guard_overwrite $CONTRACTS_ENV
 # Write file, using relative paths.
-echo "Initializing $CONTRACTS_ENV"
+echo "Initializing contracts dotenv $CONTRACTS_ENV"
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
 echo GENESIS_PATH=$GENESIS_PATH >>$CONTRACTS_ENV
