@@ -59,6 +59,7 @@ function cleanup() {
 
 function ctrl_c() {
   cleanup
+  exit
 }
 
 ##############################
@@ -74,18 +75,18 @@ echo "Copying local_devnet config files to cwd..."
 cp -a $CONFIG_DIR/local_devnet/. .
 
 # Start L1
-$SBIN/start_l1.sh -d -s &
+yes | $SBIN/start_l1.sh -d -s &
 
 # Parse url into host:port
 L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
 # Wait for services
 $SBIN/wait-for-it.sh -t 60 $L1_HOST_AND_PORT | sed "s/^/[WAIT] /"
 echo "L1 endpoint is available"
-
-# TODO: remove
-echo "sleeping for a bit"
-sleep 60
-echo "done sleeping"
+until [ -f "$ROLLUP_CFG_PATH" ]
+do
+    echo "waiting for $ROLLUP_CFG_PATH to be generated..."
+    sleep 4
+done
 
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &> proc.out &
