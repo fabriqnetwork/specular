@@ -53,7 +53,7 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 		firstL2BlockNum = e.subBatches[0].FirstL2BlockNum
 		lastL2BlockNum  = e.subBatches[lastSubBatchIdx].lastL2BlockNum()
 	)
-	log.Info("Flushing batch...", "first l2#", firstL2BlockNum, "last l2#", lastL2BlockNum)
+	log.Info("Flushing batch...", "first_l2#", firstL2BlockNum, "last_l2#", lastL2BlockNum)
 	if err := rlp.Encode(buf, e.subBatches[:lastSubBatchIdx+1]); err != nil {
 		return nil, fmt.Errorf("failed to encode batch: %w", err)
 	}

@@ -96,7 +96,7 @@ func (b *batchBuilder) Advance() {
 func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	// Force-build batch if necessary (timeout exceeded).
 	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
-	log.Info("Trying to get batch", "force?", force)
+	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
 	batch, err := b.encoder.Flush(force)
 	if force {
 		// If it's too late to sequence, the batch should just be dropped entirely.
