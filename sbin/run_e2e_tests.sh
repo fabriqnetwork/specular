@@ -1,4 +1,8 @@
 #!/bin/bash
+if [[ $# -eq 0 ]] ; then
+    echo "no test name provided"
+    exit 1
+fi
 
 # the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
@@ -32,13 +36,7 @@ trap ctrl_c INT
 PIDS=()
 
 function cleanup() {
-  echo "[run] Cleaning up..."
-  for pid in "${PIDS[@]}"; do
-    echo "Killing $pid"
-    disown $pid
-    kill $pid
-  done
-  # For good measure...
+  echo "Cleaning up processes..."
   pgrep geth | xargs kill
   pgrep sidecar | xargs kill
   pgrep magi | xargs kill
@@ -72,8 +70,6 @@ cp -a $CONFIG_DIR/local_devnet/. .
 
 # Start L1
 yes | $SBIN/start_l1.sh -d -s &
-L1_PID=$!
-PIDS+=($L1_PID)
 
 # Parse url into host:port
 L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
@@ -87,26 +83,24 @@ sleep 60
 echo "done sleeping"
 
 # Start sp-geth
-$SBIN/start_sp_geth.sh -c &
-SP_GETH_PID=$!
-PIDS+=($SP_GETH_PID)
+$SBIN/start_sp_geth.sh -c &> proc.out &
 
 sleep 1
 
 # Start sp-magi
-$SBIN/start_sp_magi.sh &
-SP_MAGI_PID=$!
-PIDS+=($SP_MAGI_PID)
+$SBIN/start_sp_magi.sh &> proc2.out &
 
 sleep 1
 
 # Start sidecar
-$SBIN/start_sidecar.sh &
+$SBIN/start_sidecar.sh &> proc3.out &
 SIDECAR_PID=$!
 PIDS+=($SIDECAR_PID)
 
+sleep 1
+
 cd $CONTRACTS_DIR
-echo "Running test $1"
+echo "Running test: $1"
 # Run testing script
 case $1 in
 transactions)
