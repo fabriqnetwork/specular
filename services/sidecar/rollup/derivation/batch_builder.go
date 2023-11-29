@@ -25,7 +25,7 @@ type Config interface {
 type VersionedDataEncoder interface {
 	// Returns an encoded batch if one is ready (or if forced).
 	// If not forced, an error is returned if one cannot yet be built.
-	GetBatch(force bool) ([]byte, error)
+	Flush(force bool) ([]byte, error)
 	// Processes a block, adding its data to the current batch.
 	// Returns an `errBatchFull` if the block would cause the batch to exceed the target size.
 	// Returns an error if the block could not be processed.
@@ -96,8 +96,15 @@ func (b *batchBuilder) Advance() {
 func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	// Force-build batch if necessary (timeout exceeded).
 	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
-	log.Info("Trying to get batch", "force?", force)
-	batch, err := b.encoder.GetBatch(force)
+	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
+	batch, err := b.encoder.Flush(force)
+	if force {
+		// If it's too late to sequence, the batch should just be dropped entirely.
+		timeoutExceeded := l1Head.GetNumber() >= b.timeout+b.cfg.GetSubSafetyMargin()
+		if timeoutExceeded {
+			return nil, fmt.Errorf("batch timeout exceeded: %w", err)
+		}
+	}
 	if err != nil {
 		if errors.Is(err, errBatchTooSmall) {
 			log.Warn("Batch too small, waiting for more blocks")
