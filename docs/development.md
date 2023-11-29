@@ -63,6 +63,6 @@ After an L2 transaction, in the L1 node console, observe the resulting L1 transa
 
 ### Troubleshooting
 
-If you see a message like`Forkchoice requested unknown head` logged by `sp-geth`, it may be because it's using stale data, while the CL client is using the correct genesis hash.
+If you see a message like `Forkchoice requested unknown head` logged by `sp-geth`, it may be because it's using stale data, while the CL client is using the correct genesis hash.
 - This can happen due to re-running geth without cleaning. You can use `start_sp_geth.sh -c` to do so.
 - This may also happen if you called `start_sp_geth.sh` without waiting for `start_l1.sh` to finish creating the new deployment configs. Make sure you wait a couple seconds—you should see `L1 started... (Use ctrl-c to stop)`.
