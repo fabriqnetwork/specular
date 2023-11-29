@@ -13,7 +13,8 @@ async function main() {
     l1Portal,
     l2Portal,
     l1StandardBridge,
-    l1Oracle,
+    // This should not be required thanks to magi
+    //l1Oracle,
   } = await getSignersAndContracts();
 
   const balanceStart = await l2Bridger.getBalance();
@@ -47,7 +48,8 @@ async function main() {
     l1Portal.address,
     initEvent.args.depositHash
   );
-  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+  // This should not be required thanks to magi
+  //await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
   blockNumber = await l1Provider.getBlockNumber();
   rawBlock = await l1Provider.send("eth_getBlockByNumber", [
@@ -56,7 +58,8 @@ async function main() {
   ]);
   stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
   console.log({ blockNumber, stateRoot });
-  await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+  // This should not be required thanks to magi
+  //await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(
     crossDomainMessage,

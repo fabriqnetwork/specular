@@ -13,11 +13,11 @@ const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {
   const l1Bridger = new ethers.Wallet(
-    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a1",
+    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
     l1Provider
   );
   const l2Bridger = new ethers.Wallet(
-    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a1",
+    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6",
     l2Provider
   );
 
