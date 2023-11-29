@@ -45,7 +45,11 @@ while getopts "$optspec" optchar; do
 done
 
 if [ ! -d $DATA_DIR ]; then
-    echo "Initializing sp-geth..."
+    echo "Initializing sp-geth with genesis json at $GENESIS_PATH"
+    if [ ! -f $GENESIS_PATH ]; then
+        echo "Missing genesis json at $GENESIS_PATH"
+        exit
+    fi
     $SP_GETH_BIN --datadir $DATA_DIR --networkid $NETWORK_ID init $GENESIS_PATH
 fi
 

@@ -45,6 +45,7 @@ if [ "$SEQUENCER" = true ] ; then
         --sequencer-pk-file $SEQUENCER_PK_FILE"
 fi
 
+# TODO: use array for flags
 FLAGS="
     --network $NETWORK \
     --l1-rpc-url $L1_RPC_URL \
@@ -53,9 +54,7 @@ FLAGS="
     --l2-engine-url $L2_ENGINE_URL \
     --jwt-file $JWT_SECRET_PATH \
     --rpc-port $RPC_PORT \
-    $SYNC_FLAGS \
-    $DEVNET_FLAGS \
-    $SEQUENCER_FLAGS"
+    $SYNC_FLAGS $DEVNET_FLAGS $SEQUENCER_FLAGS $@"
 
 echo "starting sp-magi with the following flags:"
 echo "$FLAGS"

@@ -34,9 +34,13 @@ type VersionedDataEncoder interface {
 	Reset()
 }
 
-type InvalidBlockError struct{ Msg string }
+type (
+	InvalidBlockError        struct{ Msg string }
+	HardTimeoutExceededError struct{ Msg string }
+)
 
-func (e InvalidBlockError) Error() string { return e.Msg }
+func (e InvalidBlockError) Error() string        { return e.Msg }
+func (e HardTimeoutExceededError) Error() string { return e.Msg }
 
 type batchBuilder struct {
 	cfg           Config
@@ -45,7 +49,7 @@ type batchBuilder struct {
 	lastEnqueued  types.BlockID
 	lastBuilt     []byte
 
-	timeout uint64
+	timeout uint64 // L1 epoch at which the batch should be sequenced (soft timeout).
 }
 
 func NewBatchBuilder(cfg Config, encoder VersionedDataEncoder) *batchBuilder {
@@ -57,9 +61,9 @@ func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
 // Enqueues a block, to be processed and batched.
 // Returns a `InvalidBlockError` if the block is not a child of the last enqueued block.
 func (b *batchBuilder) Enqueue(block *ethTypes.Block) error {
-	// Ensure block is a child of the last appended block. Not enforced when no prior blocks.
+	// Ensure block is a child of the last enqueued block. Not enforced when no prior blocks.
 	if (b.lastEnqueued.GetHash() != common.Hash{}) && (block.ParentHash() != b.lastEnqueued.GetHash()) {
-		return InvalidBlockError{Msg: "Enqueued block is not a child of the last appended block"}
+		return InvalidBlockError{Msg: "Enqueued block is not a child of the last enqueued block"}
 	}
 	b.pendingBlocks = append(b.pendingBlocks, block)
 	b.lastEnqueued = types.NewBlockID(block.NumberU64(), block.Hash())
@@ -100,9 +104,10 @@ func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	batch, err := b.encoder.Flush(force)
 	if force {
 		// If it's too late to sequence, the batch should just be dropped entirely.
-		timeoutExceeded := l1Head.GetNumber() >= b.timeout+b.cfg.GetSubSafetyMargin()
-		if timeoutExceeded {
-			return nil, fmt.Errorf("batch timeout exceeded: %w", err)
+		// TODO: instead of dropping the whole batch, we can prune earlier sub-batches.
+		hardTimeoutExceeded := l1Head.GetNumber() >= b.timeout+b.cfg.GetSubSafetyMargin()
+		if hardTimeoutExceeded {
+			return nil, HardTimeoutExceededError{Msg: "hard timeout exceeded for batch"}
 		}
 	}
 	if err != nil {
