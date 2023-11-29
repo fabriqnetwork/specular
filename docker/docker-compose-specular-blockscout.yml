@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+
+  backend:
+    extends:
+      file: ../blockscout/docker-compose/docker-compose.yml
+      service: blockscout
+    container_name: 'blockscout'
+    depends_on:
+      - db
+      - smart-contract-verifier
+      - redis_db
+    links:
+      - db:database
+      - redis_db:redis
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    env_file:
+      -  ../config/blockscout_docker/blockscout.env
+    environment:
+        ETHEREUM_JSONRPC_VARIANT: 'geth'
+        ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:8545/
+        ETHEREUM_JSONRPC_WS_URL: ws://host.docker.internal:8545/
+        INDEXER_DISABLE_INTERNAL_TRANSACTIONS_FETCHER: 'true'
+        INDEXER_DISABLE_PENDING_TRANSACTIONS_FETCHER: 'true'
+        DATABASE_URL: postgresql://postgres:@database:5432/blockscout
+        ECTO_USE_SSL: 'false'
+        API_V2_ENABLED: 'true'
+        MIX_ENV: 'prod'
+    ports:
+      - 4000:4000
+    volumes:
+      - ./logs/:/app/logs/
+
+  redis_db:
+    image: 'redis:alpine'
+    container_name: redis_db
+    command: redis-server
+    volumes:
+      - ${REDIS_DATA:-$PWD/redis-data}:/data
+
+  db:
+    extends:
+      file: ../blockscout/docker-compose/docker-compose.yml
+      service: db
+
+  smart-contract-verifier:
+    extends:
+      file: ../blockscout/docker-compose/docker-compose.yml
+      service: smart-contract-verifier
+
+  visualizer:
+    extends:
+      file: ../blockscout/docker-compose/docker-compose.yml
+      service: visualizer
+
+  sig-provider:
+    extends:
+      file: ../blockscout/docker-compose/docker-compose.yml
+      service: sig-provider
+
+  frontend:
+    env_file:
+      -  ../config/blockscout_docker/frontend.env
+    depends_on:
+      - backend
+    extends:
+      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
+      service: frontend
+
+  stats-db:
+    depends_on:
+      - backend
+    extends:
+      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
+      service: stats-db
+
+  stats:
+    depends_on:
+      - stats-db
+    extends:
+      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
+      service: stats
+
+  proxy:
+    depends_on:
+      - backend
+      - frontend
+      - stats
+    extends:
+      file: ../blockscout/docker-compose/docker-compose-no-build-frontend.yml
+      service: proxy
