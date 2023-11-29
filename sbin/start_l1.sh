@@ -129,6 +129,9 @@ if [ "$L1_STACK" = "geth" ]; then
   $L1_GETH_BIN attach --exec \
     "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
     $L1_ENDPOINT
+  $L1_GETH_BIN attach --exec \
+    "eth.sendTransaction({ from: eth.coinbase, to: '"0x90F79bf6EB2c4f870365E785982E1f101E93b906"', value: web3.toWei(10000, 'ether') })" \
+    $L1_ENDPOINT
 
   # Wait for 1 block
   echo "Waiting for chain progression..."
