@@ -13,20 +13,20 @@ const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {
   const l1Bridger = new ethers.Wallet(
-    process.env.BRIDGER_PRIVATE_KEY,
+    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a1",
     l1Provider
   );
   const l2Bridger = new ethers.Wallet(
-    process.env.BRIDGER_PRIVATE_KEY,
+    "0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a1",
     l2Provider
   );
 
   const l1Relayer = new ethers.Wallet(
-    process.env.SEQUENCER_PRIVATE_KEY,
+    "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
     l1Provider
   );
   const l2Relayer = new ethers.Wallet(
-    process.env.SEQUENCER_PRIVATE_KEY,
+    "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a",
     l2Provider
   );
 
@@ -49,7 +49,7 @@ export async function getSignersAndContracts() {
   );
   const l1Portal = L1PortalFactory.attach(l1PortalAddress);
 
-  const l2PortalAddress = await l2StandardBridge.PORTAL_ADDRESS();
+  const l2PortalAddress = "0x2A00000000000000000000000000000000000011"; // await l2StandardBridge.PORTAL_ADDRESS();
   const L2PortalFactory = await ethers.getContractFactory(
     "L2Portal",
     l2Relayer
