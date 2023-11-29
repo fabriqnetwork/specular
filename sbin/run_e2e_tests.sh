@@ -15,7 +15,7 @@ ROOT_DIR=$SBIN/..
 # Check that the all required dotenv files exists.
 PATHS_ENV=".paths.env"
 if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
+  echo "Expected paths dotenv at $PATHS_ENV (does not exist)."
   exit
 fi
 echo "Using paths dotenv: $PATHS_ENV"
@@ -23,17 +23,22 @@ echo "Using paths dotenv: $PATHS_ENV"
 # Use sidecar dotenv (to get l1 endpoint)
 SIDECAR_ENV=".sidecar.env"
 if ! test -f "$SIDECAR_ENV"; then
-    echo "Expected dotenv at $SIDECAR_ENV (does not exist)."
+    echo "Expected sidecar dotenv at $SIDECAR_ENV (does not exist)."
     exit
 fi
 echo "Using sidecar dotenv: $SIDECAR_ENV"
 . $SIDECAR_ENV
+# Use sidecar dotenv (to get l1 endpoint)
+CONTRACTS_ENV=".contracts.env"
+if ! test -f "$CONTRACTS_ENV"; then
+    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
+    exit
+fi
+echo "Using contracts dotenv: $CONTRACTS_ENV"
+. $CONTRACTS_ENV
 
-###### PID handling ######
+###### Process handling ######
 trap ctrl_c INT
-
-# Active PIDs
-PIDS=()
 
 function cleanup() {
   echo "Cleaning up processes..."
@@ -56,7 +61,7 @@ function ctrl_c() {
   cleanup
 }
 
-##########################
+##############################
 
 WORKSPACE_DIR=./workspace-test
 mkdir -p $WORKSPACE_DIR
@@ -69,7 +74,7 @@ echo "Copying local_devnet config files to cwd..."
 cp -a $CONFIG_DIR/local_devnet/. .
 
 # Start L1
-yes | $SBIN/start_l1.sh -d -s &
+$SBIN/start_l1.sh -d -s &
 
 # Parse url into host:port
 L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
@@ -84,19 +89,14 @@ echo "done sleeping"
 
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &> proc.out &
-
 sleep 1
 
 # Start sp-magi
 $SBIN/start_sp_magi.sh &> proc2.out &
-
 sleep 1
 
 # Start sidecar
 $SBIN/start_sidecar.sh &> proc3.out &
-SIDECAR_PID=$!
-PIDS+=($SIDECAR_PID)
-
 sleep 1
 
 cd $CONTRACTS_DIR
