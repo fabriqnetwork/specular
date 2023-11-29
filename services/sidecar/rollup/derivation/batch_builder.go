@@ -100,7 +100,7 @@ func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	batch, err := b.encoder.Flush(force)
 	if force {
 		// If it's too late to sequence, the batch should just be dropped entirely.
-		timeoutExceeded := l1Head.GetNumber()+b.cfg.GetSubSafetyMargin() >= b.timeout
+		timeoutExceeded := l1Head.GetNumber() >= b.timeout+b.cfg.GetSubSafetyMargin()
 		if timeoutExceeded {
 			return nil, fmt.Errorf("batch timeout exceeded: %w", err)
 		}
