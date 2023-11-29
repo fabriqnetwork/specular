@@ -577,11 +577,13 @@ contract Rollup is RollupBase {
     ) private {
         Assertion storage parentAssertion = assertions[parentID];
         AssertionState storage parentAssertionState = assertionState[parentID];
-        // Child assertions must have same inbox size
-        uint256 parentBlockNum = parentAssertion.blockNum;
-        if (parentBlockNum == 0) {
-            parentAssertion.blockNum = blockNum;
-        } else if (blockNum != parentBlockNum) {
+        // Siblings must have same inbox size.
+        uint256 siblingConstraint = parentAssertion.childBlockNum;
+        if (siblingConstraint == 0) {
+            // Set the constraint for future siblings.
+            parentAssertion.childBlockNum = blockNum;
+        } else if (blockNum != siblingConstraint) {
+            // Enforce the constraint if it's set.
             revert InvalidInboxSize();
         } else if (parentAssertionState.childStateCommitments[stateCommitment]) {
             revert DuplicateAssertion();
