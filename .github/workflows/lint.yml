@@ -7,7 +7,7 @@ on:
       - main
 
 jobs:
-  pre_job:
+  check_for_changes:
     runs-on: ubuntu-latest
     outputs:
       should_skip: ${{ steps.skip_check.outputs.should_skip }}
@@ -16,13 +16,14 @@ jobs:
         uses: fkirc/skip-duplicate-actions@v5
         with:
           concurrent_skipping: same_content_newer
-  lint:
-    needs: pre_job
+
+  lint_solidity:
+    needs: check_for_changes
     if: needs.pre_job.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: contracts
+        working-directory: ./contracts
 
     steps:
       - uses: actions/checkout@v3
@@ -45,3 +46,20 @@ jobs:
 
       - name: Check if forge fmt was run
         run: forge fmt --check
+
+  lint_bash:
+    needs: check_for_changes
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./sbin
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install shfmt
+        run: sudo apt-get install -y shfmt
+
+      - name: Run shfmt
+        run: shfmt -d .
