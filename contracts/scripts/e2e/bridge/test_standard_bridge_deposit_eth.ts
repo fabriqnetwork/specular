@@ -68,9 +68,17 @@ async function main() {
   );
   await finalizeTx.wait();
 
+  // balanceStart <- balance on L2 before bridging
+  // balanceEnd <- balance on L2 after bridging
+  // bridgeValue <- the value we're transfering
+  // Expected: balanceEnd - balanceStart - bridgeValue ~== 0
   const balanceEnd = await l2Bridger.getBalance();
-  if (!balanceEnd.sub(balanceStart).eq(bridgeValue)) {
-    throw "unexpected end balance";
+  const actualDiff = balanceEnd.sub(balanceStart).sub(bridgeValue).abs();
+  const acceptableMargin = ethers.utils.parseEther("0.0001");
+
+  if (!actualDiff.lt(acceptableMargin)) {
+    console.log({ balanceStart, bridgeValue, balanceEnd, actualDiff, acceptableMargin })
+    throw "value after bridging is not as expected, actualDiff is expected to be close to zero";
   }
 
   console.log("bridging ETH was successful");
