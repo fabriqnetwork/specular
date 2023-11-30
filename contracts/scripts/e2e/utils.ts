@@ -6,9 +6,9 @@ const l1Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:8545"
 );
 
-const l1BridgeAddr = process.env.L1_BRIDGE_ADDR;
-const l2BridgeAddr = process.env.L2_BRIDGE_ADDR;
-const l1OracleAddress = process.env.L1_ORACLE_ADDR;
+const l1BridgeAddr = process.env.L1STANDARD_BRIDGE_ADDR;
+const l2BridgeAddr = process.env.ROLLUP_ADDR;
+const l1OracleAddress = process.env.SEQUENCER_INBOX_ADDR;
 const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {

@@ -11,10 +11,12 @@ type RawLog = {
 async function main() {
   const baseConfigPath = parseFlag("--in");
   const configPath = parseFlag("--out");
+  const deploymentsConfig = parseFlag("--deployments-config-path");
   const genesisPath = parseFlag("--genesis");
   const genesisHashPath = parseFlag("--genesis-hash-path");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
   await generateConfigFile(baseConfigPath, configPath, genesisPath, genesisHashPath, deploymentsPath);
+  await generateContractAddresses(deploymentsConfig, deploymentsPath)
 }
 
 /**
@@ -32,7 +34,7 @@ export async function generateConfigFile(
   const contract = "Proxy__Rollup";
   const deployment = JSON.parse(fs.readFileSync(`${deploymentsPath}/${contract}.json`, "utf-8"))
 
-  // exctract L1 block hash and L1 block number from receipt
+  // extract L1 block hash and L1 block number from receipt
   const l1Number = deployment.receipt.blockNumber;
   const l1Hash = deployment.receipt.blockHash;
 
@@ -50,6 +52,28 @@ export async function generateConfigFile(
 
   fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
   console.log(`successfully wrote config to: ${configPath}`)
+}
+
+/**
+ * Reads the L1 deployment and writes deployments address to the deployments env file
+ */
+export async function generateContractAddresses(
+  deploymentsConfigPath: string,
+  deploymentsPath: string
+) {
+  // check the deployments dir - error out if it is not there
+  const deploymentFiles = fs.readdirSync(deploymentsPath);
+  let result = ""
+  for (const deploymentFile of deploymentFiles) {
+    if (deploymentFile.startsWith('Proxy__') && deploymentFile.endsWith('.json')) {
+      const deployment = JSON.parse(fs.readFileSync(`${deploymentsPath}/${deploymentFile}`, "utf-8"))
+      let contractName = deploymentFile.replace(/^Proxy__/, '').replace(/\.json$/, '');
+      contractName = contractName.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
+      result += `${contractName}_ADDR=${deployment.address}\n`
+    }
+  }
+  fs.writeFileSync(deploymentsConfigPath, result);
+  console.log(`successfully wrote deployments to: ${deploymentsConfigPath}`)
 }
 
 if (!require.main!.loaded) {

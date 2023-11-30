@@ -33,6 +33,8 @@ fi
 echo "Using contracts dotenv: $CONTRACTS_ENV"
 . $CONTRACTS_ENV
 
+DEPLOYMENTS_CFG_PATH=".deployments.env"
+
 # Parse args.
 optspec="ch"
 while getopts "$optspec" optchar; do
@@ -79,12 +81,13 @@ guard_overwrite() {
 guard_overwrite $CONTRACTS_DIR/.env
 cp $CONTRACTS_ENV $CONTRACTS_DIR/.env
 
-# Get relative paths, since we have to run `create_genesis.ts`
+# Get relative paths, since we have to run `create_genesis.sh`
 # and `create_config.ts` from the HH proj.
 BASE_ROLLUP_CFG_PATH=$(relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR)
 ROLLUP_CFG_PATH=$(relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR)
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
+DEPLOYMENTS_CFG_PATH=$(relpath $DEPLOYMENTS_CFG_PATH $CONTRACTS_DIR)
 
 # Generate genesis file
 $SBIN/create_genesis.sh
@@ -101,6 +104,7 @@ guard_overwrite $ROLLUP_CFG_PATH
 npx ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
+  --deployments-config-path $DEPLOYMENTS_CFG_PATH \
   --genesis $GENESIS_PATH \
   --genesis-hash-path $GENESIS_EXPORTED_HASH_PATH \
   --l1-network $L1_ENDPOINT
