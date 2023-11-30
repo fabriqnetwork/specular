@@ -35,39 +35,39 @@ type RollupConfig interface {
 // MakeSpecularEVMPreTransferHook creates specular's vm.EVMHook function
 // which is injected into the EVM and runs before every transfer
 // currently this is only used to calculate & charge the L1 Fee
-func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
+func MakeSpecularEVMPreTransferHook(l2ChainId uint64, l1FeeRecipient common.Address) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
 	log.Info("L1Oracle config", "address", L1OracleAddress, "baseFeeSlot", BaseFeeSlot, "overheadSlot", OverheadSlot, "scalarSlot", ScalarSlot)
 
 	return func(msg vm.MessageInterface, db vm.StateDB) error {
-		tx := transactionFromMessage(msg, cfg)
-		fee, err := calculateL1Fee(tx, db, cfg)
+		tx := transactionFromMessage(msg, l2ChainId)
+		fee, err := calculateL1Fee(tx, db)
 		if err != nil {
 			return err
 		}
 
-		return chargeL1Fee(fee, msg, db, cfg)
+		return chargeL1Fee(fee, msg, db, l1FeeRecipient)
 	}
 }
 
 // MakeSpecularL1FeeReader creates specular's vm.EVMReader function
 // which is injected into the EVM and can be used to return the L1Fee of a transaction.
 // This is a read only method and does not change the state.
-func MakeSpecularL1FeeReader(cfg RollupConfig) vm.EVMReader {
+func MakeSpecularL1FeeReader(l2ChainId uint64) vm.EVMReader {
 	log.Info("Injected Specular EVM reader")
 	log.Info("L1Oracle config", "address", L1OracleAddress, "baseFeeSlot", BaseFeeSlot, "overheadSlot", OverheadSlot, "scalarSlot", ScalarSlot)
 	return func(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
-		return calculateL1Fee(tx, db, cfg)
+		return calculateL1Fee(tx, db)
 	}
 }
 
 // creates a Transaction from a transaction
 // the Tx Type is reconstructed and the signature is left empty
-func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Transaction {
+func transactionFromMessage(msg vm.MessageInterface, l2ChainId uint64) *types.Transaction {
 	var txData types.TxData
 	if msg.GetGasTipCap() != nil {
 		txData = &types.DynamicFeeTx{
-			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			ChainID:    new(big.Int).SetUint64(l2ChainId),
 			Nonce:      msg.GetNonce(),
 			GasTipCap:  msg.GetGasTipCap(),
 			GasFeeCap:  msg.GetGasFeeCap(),
@@ -79,7 +79,7 @@ func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Tr
 		}
 	} else if msg.GetAccessList() != nil {
 		txData = &types.AccessListTx{
-			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			ChainID:    new(big.Int).SetUint64(l2ChainId),
 			Nonce:      msg.GetNonce(),
 			GasPrice:   msg.GetGasPrice(),
 			Gas:        msg.GetGasLimit(),
@@ -105,7 +105,7 @@ func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Tr
 // L1Fee = L1FeeMultiplier * L1BaseFee * (TxDataGas + L1OverheadGas)
 // L1BaseFee is dynamically set by the L1Oracle
 // L1FeeMultiplier & L1OverheadGas are set in the rollup configuration
-func calculateL1Fee(tx *types.Transaction, db vm.StateDB, cfg RollupConfig) (*big.Int, error) {
+func calculateL1Fee(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 	// calculate L1 gas from RLP encoding
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
@@ -163,14 +163,14 @@ func ScaleBigInt(num *big.Int, scalar float64) *big.Int {
 
 // subtract the L1 Fee from the sender of the Tx
 // add the Fee to the balance of the coinbase address
-func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, cfg RollupConfig) error {
+func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, l1FeeRecipient common.Address) error {
 	senderBalance := db.GetBalance(msg.GetFrom())
 
 	if senderBalance.Cmp(l1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	db.AddBalance(cfg.GetL1FeeRecipient(), l1Fee)
+	db.AddBalance(l1FeeRecipient, l1Fee)
 	db.SubBalance(msg.GetFrom(), l1Fee)
 
 	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
