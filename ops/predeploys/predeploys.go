@@ -152,7 +152,8 @@ func BuildPredeployProxies(ctx context.Context, backend *backends.SimulatedBacke
 			return nil, err
 		}
 		proxyConstructors = append(proxyConstructors, deployer.Constructor{
-			Name: "ERC1967Proxy",
+			Name:     "ERC1967Proxy",
+			ImplName: name,
 			Args: []any{
 				implDeploymentResults[name].Address,
 				data,
@@ -166,7 +167,7 @@ func BuildPredeployProxies(ctx context.Context, backend *backends.SimulatedBacke
 	}
 	results := make(DeploymentResults)
 	for _, dep := range deployments {
-		results[dep.Name] = DeploymentResult{
+		results[dep.ImplName] = DeploymentResult{
 			Bytecode: dep.Bytecode,
 			Address:  dep.Address,
 		}
