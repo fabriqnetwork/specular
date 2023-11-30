@@ -27,12 +27,14 @@ var TestAddress = crypto.PubkeyToAddress(TestKey.PublicKey)
 var thousandETH = new(big.Int).Mul(big.NewInt(params.Ether), big.NewInt(1000))
 
 type Constructor struct {
-	Name string
-	Args []interface{}
+	Name     string
+	ImplName string // optional, only used for proxy contracts
+	Args     []interface{}
 }
 
 type Deployment struct {
 	Name     string
+	ImplName string
 	Bytecode hexutil.Bytes
 	Address  common.Address
 }
@@ -132,6 +134,7 @@ func Deploy(backend *backends.SimulatedBackend, constructors []Constructor, cb D
 		}
 		results[i] = Deployment{
 			Name:     deployment.Name,
+			ImplName: deployment.ImplName,
 			Bytecode: code,
 			Address:  addr,
 		}
