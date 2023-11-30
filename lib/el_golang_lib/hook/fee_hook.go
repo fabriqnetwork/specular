@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/specularL2/specular/ops/bindings/bindings"
 )
 
 // TODO: maybe move these constants to the rollup config or a separate file
@@ -17,12 +18,6 @@ const (
 	txDataZero          = 4
 	txDataOne           = 16
 	txSignatureOverhead = 68
-)
-
-var (
-	BaseFeeSlot  = common.BigToHash(big.NewInt(253))
-	OverheadSlot = common.BigToHash(big.NewInt(256))
-	ScalarSlot   = common.BigToHash(big.NewInt(257))
 )
 
 var L1OracleAddress = common.HexToAddress("0x2A00000000000000000000000000000000000010")
@@ -37,7 +32,9 @@ type RollupConfig interface {
 // currently this is only used to calculate & charge the L1 Fee
 func MakeSpecularEVMPreTransferHook(l2ChainId uint64, l1FeeRecipient common.Address) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
-	log.Info("L1Oracle config", "address", L1OracleAddress, "baseFeeSlot", BaseFeeSlot, "overheadSlot", OverheadSlot, "scalarSlot", ScalarSlot)
+
+	overheadSlot, baseFeeSlot, scalarSlot := getStorageSlots()
+	log.Info("L1Oracle config", "address", L1OracleAddress, "overhead", overheadSlot, "baseFeeSlot", baseFeeSlot, "scalarSlot", scalarSlot)
 
 	return func(msg vm.MessageInterface, db vm.StateDB) error {
 		tx := transactionFromMessage(msg, l2ChainId)
@@ -55,7 +52,7 @@ func MakeSpecularEVMPreTransferHook(l2ChainId uint64, l1FeeRecipient common.Addr
 // This is a read only method and does not change the state.
 func MakeSpecularL1FeeReader(l2ChainId uint64) vm.EVMReader {
 	log.Info("Injected Specular EVM reader")
-	log.Info("L1Oracle config", "address", L1OracleAddress, "baseFeeSlot", BaseFeeSlot, "overheadSlot", OverheadSlot, "scalarSlot", ScalarSlot)
+	log.Info("L1Oracle config", "address", L1OracleAddress)
 	return func(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 		return calculateL1Fee(tx, db)
 	}
@@ -123,9 +120,11 @@ func calculateL1Fee(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 		zeroes, ones  = zeroesAndOnes(rlp)
 		rollupDataGas = zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne
 
-		overhead = readStorageSlot(db, L1OracleAddress, common.Hash(OverheadSlot))
-		basefee  = readStorageSlot(db, L1OracleAddress, common.Hash(BaseFeeSlot))
-		scalar   = readStorageSlot(db, L1OracleAddress, common.Hash(ScalarSlot))
+		overheadSlot, baseFeeSlot, scalarSlot = getStorageSlots()
+
+		overhead = readStorageSlot(db, L1OracleAddress, common.Hash(overheadSlot))
+		basefee  = readStorageSlot(db, L1OracleAddress, common.Hash(baseFeeSlot))
+		scalar   = readStorageSlot(db, L1OracleAddress, common.Hash(scalarSlot))
 	)
 
 	log.Trace(
@@ -193,4 +192,28 @@ func zeroesAndOnes(data []byte) (uint64, uint64) {
 		}
 	}
 	return zeroes, ones
+}
+
+func getStorageSlots() (common.Hash, common.Hash, common.Hash) {
+	layout, err := bindings.GetStorageLayout("L1Oracle")
+	if err != nil {
+		panic("could not get storage layout for L1Oracle")
+	}
+
+	baseFeeEntry, err := layout.GetStorageLayoutEntry("baseFee")
+	if err != nil {
+		panic("could not get basefee storage slot")
+	}
+	overheadEntry, err := layout.GetStorageLayoutEntry("l1FeeOverhead")
+	if err != nil {
+		panic("could not get overhead storage slot")
+	}
+	scalarEntry, err := layout.GetStorageLayoutEntry("l1FeeScalar")
+	if err != nil {
+		panic("could not get scalar storage slot")
+	}
+
+	return common.BigToHash(new(big.Int).SetUint64(uint64(baseFeeEntry.Slot))),
+		common.BigToHash(new(big.Int).SetUint64(uint64(overheadEntry.Slot))),
+		common.BigToHash(new(big.Int).SetUint64(uint64(scalarEntry.Slot)))
 }
