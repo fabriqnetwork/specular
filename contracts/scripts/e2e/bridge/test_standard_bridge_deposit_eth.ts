@@ -1,4 +1,6 @@
 import { ethers } from "hardhat";
+import { BigNumber } from "ethers";
+import { formatEther } from "ethers/lib/utils";
 import {
   getSignersAndContracts,
   getStorageKey,
@@ -17,8 +19,8 @@ async function main() {
     //l1Oracle,
   } = await getSignersAndContracts();
 
-  const balanceStart = await l2Bridger.getBalance();
-  const bridgeValue = ethers.utils.parseEther("0.1");
+  const balanceStart: BigNumber = await l2Bridger.getBalance();
+  const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
 
   const bridgeTx = await l1StandardBridge.bridgeETH(200_000, [], {
     value: bridgeValue,
@@ -42,7 +44,8 @@ async function main() {
     false, // We only want the block header
   ]);
   let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
-  console.log({ blockNumber, stateRoot });
+
+  console.log("Initial block", { blockNumber, stateRoot });
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
@@ -57,9 +60,15 @@ async function main() {
     false, // We only want the block header
   ]);
   stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
-  console.log({ blockNumber, stateRoot });
+
   // This should not be required thanks to magi
   //await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+  l1Provider.send()
+
+  // TODO: make this a proper event driven
+  await delay(8000);
+
+  console.log("After deposit block", { blockNumber, stateRoot });
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(
     crossDomainMessage,
@@ -72,12 +81,19 @@ async function main() {
   // balanceEnd <- balance on L2 after bridging
   // bridgeValue <- the value we're transfering
   // Expected: balanceEnd - balanceStart - bridgeValue ~== 0
-  const balanceEnd = await l2Bridger.getBalance();
-  const actualDiff = balanceEnd.sub(balanceStart).sub(bridgeValue).abs();
-  const acceptableMargin = ethers.utils.parseEther("0.0001");
+  const balanceEnd: BigNumber = await l2Bridger.getBalance();
+  const actualDiff: BigNumber = balanceEnd.sub(balanceStart).sub(bridgeValue).abs();
+  const acceptableMargin: BigNumber = ethers.utils.parseEther("0.0001");
 
   if (!actualDiff.lt(acceptableMargin)) {
-    console.log({ balanceStart, bridgeValue, balanceEnd, actualDiff, acceptableMargin })
+    const situation = {
+      balanceStart: formatEther(balanceStart),
+      bridgeValue: formatEther(bridgeValue),
+      balanceEnd: formatEther(balanceEnd),
+      actualDiff: formatEther(actualDiff),
+      acceptableMargin: formatEther(acceptableMargin),
+    }
+    console.log(situation);
     throw "value after bridging is not as expected, actualDiff is expected to be close to zero";
   }
 
