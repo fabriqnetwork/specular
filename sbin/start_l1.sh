@@ -156,7 +156,7 @@ fi
 
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
-    echo "L1 started... (Use ctrl-c to stop)"
-    tail -f $LOG_FILE
+  echo "L1 started... (Use ctrl-c to stop)"
+  tail -f $LOG_FILE
 fi
 wait $L1_PID

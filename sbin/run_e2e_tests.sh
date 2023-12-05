@@ -1,7 +1,7 @@
 #!/bin/bash
-if [[ $# -eq 0 ]] ; then
-    echo "no test name provided"
-    exit 1
+if [[ $# -eq 0 ]]; then
+  echo "no test name provided"
+  exit 1
 fi
 
 # the local sbin paths are relative to the project root
@@ -23,16 +23,16 @@ echo "Using paths dotenv: $PATHS_ENV"
 # Use sidecar dotenv (to get l1 endpoint)
 SIDECAR_ENV=".sidecar.env"
 if ! test -f "$SIDECAR_ENV"; then
-    echo "Expected sidecar dotenv at $SIDECAR_ENV (does not exist)."
-    exit
+  echo "Expected sidecar dotenv at $SIDECAR_ENV (does not exist)."
+  exit
 fi
 echo "Using sidecar dotenv: $SIDECAR_ENV"
 . $SIDECAR_ENV
 # Use sidecar dotenv (to get l1 endpoint)
 CONTRACTS_ENV=".contracts.env"
 if ! test -f "$CONTRACTS_ENV"; then
-    echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
-    exit
+  echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
+  exit
 fi
 echo "Using contracts dotenv: $CONTRACTS_ENV"
 . $CONTRACTS_ENV
@@ -82,22 +82,21 @@ L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
 # Wait for services
 $SBIN/wait-for-it.sh -t 60 $L1_HOST_AND_PORT | sed "s/^/[WAIT] /"
 echo "L1 endpoint is available"
-until [ -f "$ROLLUP_CFG_PATH" ]
-do
-    echo "waiting for $ROLLUP_CFG_PATH to be generated..."
-    sleep 4
+until [ -f "$ROLLUP_CFG_PATH" ]; do
+  echo "waiting for $ROLLUP_CFG_PATH to be generated..."
+  sleep 4
 done
 
 # Start sp-geth
-$SBIN/start_sp_geth.sh -c &> proc.out &
+$SBIN/start_sp_geth.sh -c &>proc.out &
 sleep 1
 
 # Start sp-magi
-$SBIN/start_sp_magi.sh &> proc2.out &
+$SBIN/start_sp_magi.sh &>proc2.out &
 sleep 1
 
 # Start sidecar
-$SBIN/start_sidecar.sh &> proc3.out &
+$SBIN/start_sidecar.sh &>proc3.out &
 sleep 1
 
 cd $CONTRACTS_DIR
