@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 )

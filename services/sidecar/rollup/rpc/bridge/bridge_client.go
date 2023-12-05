@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/specularL2/specular/services/sidecar/bindings"
 )
 
@@ -49,4 +50,12 @@ func (c *BridgeClient) GetLastConfirmedAssertionID(ctx context.Context) (*big.In
 
 func (c *BridgeClient) GetRequiredStakeAmount(ctx context.Context) (*big.Int, error) {
 	return c.IRollup.CurrentRequiredStake(&bind.CallOpts{Pending: false, Context: ctx})
+}
+
+func (c *BridgeClient) RequireFirstUnresolvedAssertionIsRejectable(ctx context.Context, address common.Address) error {
+	return c.IRollup.RequireFirstUnresolvedAssertionIsRejectable(&bind.CallOpts{Pending: false, Context: ctx}, address)
+}
+
+func (c *BridgeClient) IsStakedOnAssertion(ctx context.Context, assertionID *big.Int, address common.Address) (bool, error) {
+	return c.IRollup.IsStakedOnAssertion(&bind.CallOpts{Pending: false, Context: ctx}, assertionID, address)
 }

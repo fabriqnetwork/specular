@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	specularTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 )
@@ -80,6 +81,14 @@ func (m *TxManager) ConfirmFirstUnresolvedAssertion(ctx context.Context) (*types
 
 func (m *TxManager) RejectFirstUnresolvedAssertion(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error) {
 	data, err := packRejectFirstUnresolvedAssertionInput(stakerAddress)
+	if err != nil {
+		return nil, err
+	}
+	return m.sendRollupTx(ctx, data, 0)
+}
+
+func (m *TxManager) RemoveStake(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error) {
+	data, err := packRemoveStakeInput(stakerAddress)
 	if err != nil {
 		return nil, err
 	}

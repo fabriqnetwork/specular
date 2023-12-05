@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	spTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )

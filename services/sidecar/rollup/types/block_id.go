@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 

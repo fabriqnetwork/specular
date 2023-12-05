@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/rlp"
+
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )

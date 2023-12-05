@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ethereum/go-ethereum/event"
+
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
@@ -34,9 +35,7 @@ func (b *Broker[T]) Start(ctx context.Context, sub event.Subscription) error {
 			for msgCh := range subs {
 				// Note: msgCh is buffered, non-blocking send protects broker
 				// default:
-				select {
-				case msgCh <- msg:
-				}
+				msgCh <- msg
 			}
 		case msgCh := <-b.subCh:
 			subs[msgCh] = struct{}{}

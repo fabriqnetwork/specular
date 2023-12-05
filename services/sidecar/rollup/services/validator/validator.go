@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
@@ -61,6 +62,7 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 
 // Advances validator step-by-step.
 func (v *Validator) start(ctx context.Context) error {
+	// TODO: Maybe we should change this to be event-based and listen for head advances on the chain
 	var ticker = time.NewTicker(v.cfg.GetValidationInterval())
 	defer ticker.Stop()
 	// TODO: do this in the L2 consensus client, not here.
@@ -91,16 +93,37 @@ func (v *Validator) start(ctx context.Context) error {
 
 // Attempts to create a new assertion and confirm an existing assertion.
 func (v *Validator) step(ctx context.Context) error {
+	// Flush validators staked on confirmed prior assertion
+	if err := v.flushValidator(ctx); err != nil {
+		return fmt.Errorf("failed to flush validators: %w", err)
+	}
 	// Try to create a new assertion.
 	// TODO: do this only if configured to be an active validator.
 	if err := v.createAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to create assertion: %w", err)
 	}
-	// TODO: validate assertions locally.
-	// Resolve the first unresolved assertion.
 	if err := v.resolveFirstUnresolvedAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to resolve assertion: %w", err)
 	}
+	return nil
+}
+
+func (v *Validator) flushValidator(ctx context.Context) error {
+	_, err := v.l1BridgeClient.GetLastConfirmedAssertionID(ctx)
+	if err != nil {
+		return err
+	}
+	// FIXME: iterate on the stakers and flush, do not flush own stake
+	//stakedOnLast, err := v.l1BridgeClient.IsStakedOnAssertion(ctx, id, v.cfg.GetAccountAddr())
+	//if err != nil {
+	//	return err
+	//}
+	//if !stakedOnLast {
+	//	_, err = v.l1TxMgr.RemoveStake(ctx, v.cfg.GetAccountAddr())
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 	return nil
 }
 
@@ -134,11 +157,11 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 }
 
 // If the first unresolved assertion is eligible for confirmation, trigger its confirmation. Otherwise, wait.
-// TODO: reject or challenge, depending on circumstances.
 func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
-	// Simulate a confirmation attempt.
 	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
 	if err != nil {
+		// It is not confirmable.
+		// Let's explore the reasons.
 		errStr := err.Error()
 		if errStr == bridge.NoUnresolvedAssertionErr {
 			log.Trace("No unresolved assertion to resolve.")
@@ -147,10 +170,31 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 		} else {
 			return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
 		}
+
+		// If not confirmable could still be rejectable
+		err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsRejectable(ctx, v.cfg.GetAccountAddr())
+		if err != nil {
+			// It is not rejectable
+			log.Trace("No unresolved assertion to be rejected.")
+		} else {
+			// It is not confirmable, but it is rejectable so let's try to reject
+			_, err = v.l1TxMgr.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
+			if err != nil {
+				// It should be rejectable, but it failed to reject
+				log.Warn("rejectable assertion failed to reject")
+				return err
+			}
+		}
+
 		return nil
 	}
+
+	// At this point we know it's confirmable
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
+
+	// TODO: check we are in sync by e.g. block number
+
 	_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(cCtx)
 	if err != nil {
 		return fmt.Errorf("failed to confirm assertion: %w", err)
