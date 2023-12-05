@@ -4,6 +4,7 @@
 In addition to the dependencies listed in `README.md`, you'll also need to install:
 - [`slither`](https://github.com/crytic/slither)
 - [`Husky`](https://www.npmjs.com/package/husky)
+- [`shfmt`](https://github.com/patrickvane/shfmt)
 - ... **TODO**
 
 **TODO**
