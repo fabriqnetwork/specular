@@ -44,8 +44,7 @@ func SubscribeNewHeadByPolling(
 		for {
 			select {
 			case <-ticker.C:
-				err := poll()
-				if err != nil {
+				if err := poll(); err != nil {
 					return err
 				}
 			case <-ctx.Done():

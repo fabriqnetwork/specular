@@ -82,8 +82,7 @@ func (d *BatchDisseminator) step(ctx context.Context) error {
 	if err := d.appendToBuilder(ctx); err != nil {
 		if errors.As(err, &L2ReorgDetectedError{}) {
 			log.Error("Reorg detected, reverting to safe state.", "error", err)
-			err := d.rollback()
-			if err != nil {
+			if err := d.rollback(); err != nil {
 				return err
 			}
 		}
