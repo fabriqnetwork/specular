@@ -38,7 +38,7 @@ optspec="ch"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
-    echo "Cleaning..."
+    echo "Cleaning deployment..."
     $SBIN/clean_deployment.sh
     ;;
   h)
