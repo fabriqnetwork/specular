@@ -113,16 +113,17 @@ func (v *Validator) flushValidator(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	stakedOnLast, err := v.l1BridgeClient.IsStakedOnAssertion(ctx, id, v.cfg.GetAccountAddr())
-	if err != nil {
-		return err
-	}
-	if !stakedOnLast {
-		_, err = v.l1TxMgr.RemoveStake(ctx, v.cfg.GetAccountAddr())
-		if err != nil {
-			return err
-		}
-	}
+	// FIXME: iterate on the stakers and flush, do not flush own stake
+	//stakedOnLast, err := v.l1BridgeClient.IsStakedOnAssertion(ctx, id, v.cfg.GetAccountAddr())
+	//if err != nil {
+	//	return err
+	//}
+	//if !stakedOnLast {
+	//	_, err = v.l1TxMgr.RemoveStake(ctx, v.cfg.GetAccountAddr())
+	//	if err != nil {
+	//		return err
+	//	}
+	//}
 	return nil
 }
 
