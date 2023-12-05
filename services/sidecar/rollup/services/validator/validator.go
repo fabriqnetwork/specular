@@ -109,7 +109,7 @@ func (v *Validator) step(ctx context.Context) error {
 }
 
 func (v *Validator) flushValidator(ctx context.Context) error {
-	id, err := v.l1BridgeClient.GetLastConfirmedAssertionID(ctx)
+	_, err := v.l1BridgeClient.GetLastConfirmedAssertionID(ctx)
 	if err != nil {
 		return err
 	}
