@@ -6,16 +6,16 @@ const rollupPrKey = process.env.ROLLUP_PRIVATE_KEY;
 const sequencerAddr = process.env.SEQUENCER_ADDR;
 const sequencerPrKey = process.env.SEQUENCER_PRIVATE_KEY;
 
-const l1BridgeAddr = process.env.L1_BRIDGE_ADDR;
+const l1BridgeAddr = process.env.L1STANDARD_BRIDGE;
 const l1BridgePrKey = process.env.L1_BRIDGE_PRIVATE_KEY;
 
-const l1OracleAddr = process.env.L1_ORACLE_ADDR;
+const l1OracleAddr = process.env.SEQUENCER_INBOX_ADDR;
 const l1OraclePrKey = process.env.L1_ORACLE_PRIVATE_KEY;
 
 const l1PortalAddr = process.env.L1_PORTAL_ADDR;
 const l1PortalPrKey = process.env.L1_PORTAL_PRIVATE_KEY;
 
-const l2BridgeAddr = process.env.L2_BRIDGE_ADDR;
+const l2BridgeAddr = process.env.ROLLUP_ADDR;
 const l2PortalAddr = process.env.L2_PORTAL_ADDR;
 
 const faucetAddr = process.env.FAUCET_ADDR;

@@ -25,6 +25,14 @@ fi
 echo "Using sidecar dotenv: $SIDECAR_ENV"
 . $SIDECAR_ENV
 
+DEPLOYMENTS_ENV=".deployments.env"
+if ! test -f "$DEPLOYMENTS_ENV"; then
+  echo "Expected dotenv at $DEPLOYMENTS_ENV (does not exist)."
+  exit
+fi
+echo "Using deployments dotenv: $DEPLOYMENTS_ENV"
+. $DEPLOYMENTS_ENV
+
 FLAGS=(
   "--l1.endpoint $L1_ENDPOINT"
   "--l2.endpoint $L2_ENDPOINT"
