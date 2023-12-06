@@ -1,4 +1,4 @@
-import { getSignersAndContracts, deployTokenPair } from "./utils";
+import { getSignersAndContracts, deployTokenPair } from "../e2e/utils";
 
 async function main() {
   const { l1Bridger, l2Relayer } = await getSignersAndContracts();

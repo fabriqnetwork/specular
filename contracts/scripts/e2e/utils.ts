@@ -1,4 +1,5 @@
 import * as addresses from "./addresses"
+import { ethers } from "hardhat"
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:4011"
@@ -8,8 +9,8 @@ const l1Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:8545"
 );
 
-const l1BridgeAddr = process.env.L1STANDARD_BRIDGE_ADDR;
-const rollupAddress = process.env.ROLLUP_ADDR;
+const l1BridgeAddress = process.env.L1STANDARD_BRIDGE_ADDR || "invalid address";
+const rollupAddress = process.env.ROLLUP_ADDR || "invalid address";
 
 export async function getSignersAndContracts() {
   const l1Bridger = new ethers.Wallet(
@@ -34,7 +35,7 @@ export async function getSignersAndContracts() {
     "L1StandardBridge",
     l1Bridger
   );
-  const l1StandardBridge = L1StandardBridgeFactory.attach(l1BridgeAddr);
+  const l1StandardBridge = L1StandardBridgeFactory.attach(l1BridgeAddress);
 
   const L2StandardBridgeFactory = await ethers.getContractFactory(
     "L2StandardBridge",
@@ -62,14 +63,14 @@ export async function getSignersAndContracts() {
   const l1Oracle = L1OracleFactory.attach(addresses.l1OracleAddress);
 
   const RollupFactory = await ethers.getContractFactory("Rollup", l1Relayer);
-  const rollup = await RollupFactory.attach(rollupAddress);
+  const rollup = RollupFactory.attach(rollupAddress);
 
   const InboxFactory = await ethers.getContractFactory(
     "SequencerInbox",
     l1Relayer
   );
   const daProvider = await rollup.daProvider();
-  const inbox = await InboxFactory.attach(daProvider);
+  const inbox = InboxFactory.attach(daProvider);
 
   // l1Portal.on("*", (...args) => console.log({ ...args }));
   // l2Portal.on("*", (...args) => console.log({ ...args }));
@@ -131,7 +132,7 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
     l2Relayer
   );
   const mintableERC20Factory = await MintableERC20FactoryFactory.deploy(
-    l2BridgeAddr
+    l2StandardBridgeAddress
   );
   const deployTx = await mintableERC20Factory.createMintableERC20(
     l1Token.address,
@@ -139,7 +140,7 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
     "TT"
   );
   const deployTxWithLogs = await deployTx.wait();
-  const deployEvent = await mintableERC20Factory.interface.parseLog(
+  const deployEvent = mintableERC20Factory.interface.parseLog(
     deployTxWithLogs.logs[0]
   );
   const l2TokenAddr = deployEvent.args.localToken;
@@ -158,22 +159,6 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
 
 export function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export async function getLastBlockNumber(data) {
-  // TODO: consider using the npm bindings package
-  const InboxFactory = await ethers.getContractFactory("SequencerInbox");
-  const iface = InboxFactory.interface;
-
-  const decoded = iface.decodeFunctionData(
-    data.slice(0, 10), // method id (8 hex chars) with leading Ox
-    data
-  );
-  const contexts: BigNumber[] = decoded[0];
-  const firstL2BlockNumber = decoded[2];
-  const lastL2BlockNumber =
-    contexts.length / 2 + firstL2BlockNumber.toNumber() - 1;
-  return lastL2BlockNumber;
 }
 
 export function getStorageKey(messageHash: string) {
