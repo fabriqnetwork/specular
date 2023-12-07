@@ -123,7 +123,6 @@ contract L2Portal is
     function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data)
         public
         payable
-        onlyProxy
         whenNotPaused
     {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
@@ -151,7 +150,7 @@ contract L2Portal is
         Types.CrossDomainMessage memory depositTx,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
-    ) external onlyProxy whenNotPaused {
+    ) external whenNotPaused {
         // Prevent nested deposits within deposits.
         require(l1Sender == DEFAULT_L1_SENDER, "L2Portal: can only trigger one deposit per transaction");
 
