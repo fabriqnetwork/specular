@@ -62,8 +62,8 @@ async function main() {
   stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
   // This should not be required thanks to magi
-  //await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
-  l1Provider.send()
+  // await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+  // l1Provider.send()
 
   // TODO: make this a proper event driven
   await delay(8000);

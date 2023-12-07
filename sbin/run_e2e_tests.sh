@@ -99,6 +99,13 @@ sleep 1
 $SBIN/start_sidecar.sh &>proc3.out &
 sleep 1
 
+CONTRACTS_ENV=$CONTRACTS_DIR/.env
+until [ -f $CONTRACTS_ENV ]; do
+  echo "waiting for contracts/.env to be generated..."
+  sleep 4
+done
+cat .deployments.env >>$CONTRACTS_ENV
+
 cd $CONTRACTS_DIR
 echo "Running test: $1"
 # Run testing script
