@@ -16,7 +16,7 @@ async function main() {
     l2Portal,
     l1StandardBridge,
     // This should not be required thanks to magi
-    //l1Oracle,
+    l1Oracle,
   } = await getSignersAndContracts();
 
   const balanceStart: BigNumber = await l2Bridger.getBalance();
@@ -45,37 +45,61 @@ async function main() {
   ]);
   let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
-  console.log("Initial block", { blockNumber, stateRoot });
+  console.log("Initial block", { blockNumber, stateRoot, initEvent });
 
-  const { accountProof, storageProof } = await getDepositProof(
-    l1Portal.address,
-    initEvent.args.depositHash
-  );
-  // This should not be required thanks to magi
-  //await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
+  let oracleStateRoot = await l1Oracle.stateRoot()
+  // while (oracleStateRoot !== stateRoot) {
+  //   await delay(500)
+  //   oracleStateRoot = await l1Oracle.stateRoot()
+  //   console.log({ stateRoot, oracleStateRoot })
+  // }
 
-  blockNumber = await l1Provider.getBlockNumber();
-  rawBlock = await l1Provider.send("eth_getBlockByNumber", [
-    ethers.utils.hexValue(blockNumber),
-    false, // We only want the block header
-  ]);
-  stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
+  console.log({ depositHash: initEvent.args.depositHash })
+  const initiated = await l1Portal.initiatedDeposits(initEvent.args.depositHash)
+  console.log({ initiated })
 
-  // This should not be required thanks to magi
-  // await l1Oracle.setL1OracleValues(blockNumber, stateRoot, 0);
-  // l1Provider.send()
+  let t = 0
+  while (true) {
+    await delay(1000)
+    if (oracleStateRoot == stateRoot) {
+      break
+    }
 
-  // TODO: make this a proper event driven
-  await delay(8000);
+    const { accountProof, storageProof } = await getDepositProof(
+      l1Portal.address,
+      initEvent.args.depositHash,
+      ethers.utils.hexlify(blockNumber)
+    );
+    oracleStateRoot = await l1Oracle.stateRoot()
+    console.log({ storageProof })
+    console.log({ t, stateRoot, oracleStateRoot })
+    t++
 
-  console.log("After deposit block", { blockNumber, stateRoot });
+    try {
+      const finalizeTx = await l2Portal.finalizeDepositTransaction(
+        crossDomainMessage,
+        accountProof,
+        storageProof
+      );
+      await finalizeTx.wait();
+    } catch(e) {
+      continue
+    }
+    break
+  }
 
-  const finalizeTx = await l2Portal.finalizeDepositTransaction(
-    crossDomainMessage,
-    accountProof,
-    storageProof
-  );
-  await finalizeTx.wait();
+  // const { accountProof, storageProof } = await getDepositProof(
+  //   l1Portal.address,
+  //   initEvent.args.depositHash,
+  //   ethers.utils.hexlify(blockNumber)
+  // );
+
+  // const finalizeTx = await l2Portal.finalizeDepositTransaction(
+  //   crossDomainMessage,
+  //   accountProof,
+  //   storageProof
+  // );
+  // await finalizeTx.wait();
 
   // balanceStart <- balance on L2 before bridging
   // balanceEnd <- balance on L2 after bridging

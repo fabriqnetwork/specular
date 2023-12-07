@@ -8,7 +8,7 @@ const l1Provider = new ethers.providers.JsonRpcProvider(
 
 const l1BridgeAddr = process.env.L1STANDARD_BRIDGE_ADDR;
 const l2BridgeAddr = process.env.ROLLUP_ADDR;
-const l1OracleAddress = process.env.SEQUENCER_INBOX_ADDR;
+const l1OracleAddress = "0x2A00000000000000000000000000000000000010"
 const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {
@@ -94,11 +94,11 @@ export async function getSignersAndContracts() {
   };
 }
 
-export async function getDepositProof(portalAddress, depositHash) {
+export async function getDepositProof(portalAddress, depositHash, blockNumber="latest") {
   const proof = await l1Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(depositHash)],
-    "latest",
+    blockNumber,
   ]);
 
   return {
