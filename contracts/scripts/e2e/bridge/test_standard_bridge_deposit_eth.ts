@@ -12,6 +12,7 @@ import { nextTick } from "node:process";
 async function main() {
   const {
     l1Provider,
+    l2Provider,
     l2Bridger,
     l1Portal,
     l2Portal,
@@ -22,6 +23,9 @@ async function main() {
 
   const balanceStart: BigNumber = await l2Bridger.getBalance();
   const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
+
+  const donateTx = await l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
+  await donateTx;
 
   const bridgeTx = await l1StandardBridge.bridgeETH(200_000, [], {
     value: bridgeValue,
@@ -67,6 +71,9 @@ async function main() {
   const l2OtherBridge = await l2StandardBridge.OTHER_BRIDGE()
   const l2PortalAddr = await l2StandardBridge.PORTAL_ADDRESS()
   console.log({ l2OtherBridge, l1Bridge: l1StandardBridge.address, l2PortalAddr, l2PortalAddrActual: l2Portal.address })
+
+  const l2PortalBalance = await l2Provider.getBalance(l2PortalAddr)
+  console.log({ l2PortalBalance })
 
   // let t = 0
   // while (true) {
