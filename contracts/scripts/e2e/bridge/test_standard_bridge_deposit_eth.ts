@@ -3,11 +3,9 @@ import { BigNumber } from "ethers";
 import { formatEther } from "ethers/lib/utils";
 import {
   getSignersAndContracts,
-  getStorageKey,
   getDepositProof,
   delay,
 } from "../utils";
-import { nextTick } from "node:process";
 
 async function main() {
   const {
@@ -24,6 +22,7 @@ async function main() {
   const balanceStart: BigNumber = await l2Bridger.getBalance();
   const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
 
+  // TODO: portal should be funded as part of pre-deploy pipeline
   const donateTx = await l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
   await donateTx;
 
@@ -74,37 +73,6 @@ async function main() {
 
   const l2PortalBalance = await l2Provider.getBalance(l2PortalAddr)
   console.log({ l2PortalBalance })
-
-  // let t = 0
-  // while (true) {
-  //   await delay(1000)
-  //   if (oracleStateRoot == stateRoot) {
-  //     break
-  //   }
-
-  //   const { accountProof, storageProof } = await getDepositProof(
-  //     l1Portal.address,
-  //     initEvent.args.depositHash,
-  //     ethers.utils.hexlify(blockNumber)
-  //   );
-  //   oracleStateRoot = await l1Oracle.stateRoot()
-  //   console.log({ storageProof })
-  //   console.log({ t, stateRoot, oracleStateRoot })
-  //   t++
-
-  //   try {
-  //     const finalizeTx = await l2Portal.finalizeDepositTransaction(
-  //       crossDomainMessage,
-  //       accountProof,
-  //       storageProof
-  //     );
-  //     await finalizeTx.wait();
-  //   } catch(e) {
-  //     console.log({ e })
-  //     continue
-  //   }
-  //   break
-  // }
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
