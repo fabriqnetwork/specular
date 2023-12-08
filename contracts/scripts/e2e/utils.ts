@@ -1,3 +1,5 @@
+import * as addresses from "./addresses"
+
 const l2Provider = new ethers.providers.JsonRpcProvider(
   "http://localhost:4011"
 );
@@ -7,8 +9,6 @@ const l1Provider = new ethers.providers.JsonRpcProvider(
 );
 
 const l1BridgeAddr = process.env.L1STANDARD_BRIDGE_ADDR;
-const l2BridgeAddr = "0x2A00000000000000000000000000000000000012"
-const l1OracleAddress = "0x2A00000000000000000000000000000000000010"
 const rollupAddress = process.env.ROLLUP_ADDR;
 
 export async function getSignersAndContracts() {
@@ -40,7 +40,7 @@ export async function getSignersAndContracts() {
     "L2StandardBridge",
     l2Bridger
   );
-  const l2StandardBridge = L2StandardBridgeFactory.attach(l2BridgeAddr);
+  const l2StandardBridge = L2StandardBridgeFactory.attach(addresses.l2StandardBridgeAddress);
 
   const l1PortalAddress = await l1StandardBridge.PORTAL_ADDRESS();
   const L1PortalFactory = await ethers.getContractFactory(
@@ -49,18 +49,17 @@ export async function getSignersAndContracts() {
   );
   const l1Portal = L1PortalFactory.attach(l1PortalAddress);
 
-  const l2PortalAddress = "0x2A00000000000000000000000000000000000011"; // await l2StandardBridge.PORTAL_ADDRESS();
   const L2PortalFactory = await ethers.getContractFactory(
     "L2Portal",
     l2Relayer
   );
-  const l2Portal = L2PortalFactory.attach(l2PortalAddress);
+  const l2Portal = L2PortalFactory.attach(addresses.l2PortalAddress);
 
   const L1OracleFactory = await ethers.getContractFactory(
     "L1Oracle",
     l2Relayer
   );
-  const l1Oracle = L1OracleFactory.attach(l1OracleAddress);
+  const l1Oracle = L1OracleFactory.attach(addresses.l1OracleAddress);
 
   const RollupFactory = await ethers.getContractFactory("Rollup", l1Relayer);
   const rollup = await RollupFactory.attach(rollupAddress);
