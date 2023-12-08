@@ -120,11 +120,7 @@ contract L2Portal is
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data)
-        public
-        payable
-        whenNotPaused
-    {
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable whenNotPaused {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
                 version: 0,
