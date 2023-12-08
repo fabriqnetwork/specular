@@ -7,6 +7,7 @@ import {
   getDepositProof,
   delay,
 } from "../utils";
+import { nextTick } from "node:process";
 
 async function main() {
   const {
@@ -15,7 +16,7 @@ async function main() {
     l1Portal,
     l2Portal,
     l1StandardBridge,
-    // This should not be required thanks to magi
+    l2StandardBridge,
     l1Oracle,
   } = await getSignersAndContracts();
 
@@ -48,11 +49,11 @@ async function main() {
   console.log("Initial block", { blockNumber, stateRoot, initEvent });
 
   let oracleStateRoot = await l1Oracle.stateRoot()
-  // while (oracleStateRoot !== stateRoot) {
-  //   await delay(500)
-  //   oracleStateRoot = await l1Oracle.stateRoot()
-  //   console.log({ stateRoot, oracleStateRoot })
-  // }
+  while (oracleStateRoot !== stateRoot) {
+    await delay(500)
+    oracleStateRoot = await l1Oracle.stateRoot()
+    console.log({ stateRoot, oracleStateRoot })
+  }
 
   console.log({ depositHash: initEvent.args.depositHash })
   const initiated = await l1Portal.initiatedDeposits(initEvent.args.depositHash)
@@ -61,48 +62,59 @@ async function main() {
   const onChainL1PortalAddr = await l2Portal.l1PortalAddress();
   console.log({ onChainL1PortalAddr, actualAddr: l1Portal.address })
 
-  let t = 0
-  while (true) {
-    await delay(1000)
-    if (oracleStateRoot == stateRoot) {
-      break
-    }
+  console.log({ L2BrideAddr: l2StandardBridge.address })
 
-    const { accountProof, storageProof } = await getDepositProof(
-      l1Portal.address,
-      initEvent.args.depositHash,
-      ethers.utils.hexlify(blockNumber)
+  const l2OtherBridge = await l2StandardBridge.OTHER_BRIDGE()
+  const l2PortalAddr = await l2StandardBridge.PORTAL_ADDRESS()
+  console.log({ l2OtherBridge, l1Bridge: l1StandardBridge.address, l2PortalAddr, l2PortalAddrActual: l2Portal.address })
+
+  // let t = 0
+  // while (true) {
+  //   await delay(1000)
+  //   if (oracleStateRoot == stateRoot) {
+  //     break
+  //   }
+
+  //   const { accountProof, storageProof } = await getDepositProof(
+  //     l1Portal.address,
+  //     initEvent.args.depositHash,
+  //     ethers.utils.hexlify(blockNumber)
+  //   );
+  //   oracleStateRoot = await l1Oracle.stateRoot()
+  //   console.log({ storageProof })
+  //   console.log({ t, stateRoot, oracleStateRoot })
+  //   t++
+
+  //   try {
+  //     const finalizeTx = await l2Portal.finalizeDepositTransaction(
+  //       crossDomainMessage,
+  //       accountProof,
+  //       storageProof
+  //     );
+  //     await finalizeTx.wait();
+  //   } catch(e) {
+  //     console.log({ e })
+  //     continue
+  //   }
+  //   break
+  // }
+
+  const { accountProof, storageProof } = await getDepositProof(
+    l1Portal.address,
+    initEvent.args.depositHash,
+    ethers.utils.hexlify(blockNumber)
+  );
+
+  try {
+    const finalizeTx = await l2Portal.finalizeDepositTransaction(
+      crossDomainMessage,
+      accountProof,
+      storageProof
     );
-    oracleStateRoot = await l1Oracle.stateRoot()
-    console.log({ storageProof })
-    console.log({ t, stateRoot, oracleStateRoot })
-    t++
-
-    try {
-      const finalizeTx = await l2Portal.finalizeDepositTransaction(
-        crossDomainMessage,
-        accountProof,
-        storageProof
-      );
-      await finalizeTx.wait();
-    } catch(e) {
-      continue
-    }
-    break
+    await finalizeTx.wait();
+  } catch(e) {
+    console.log({ e })
   }
-
-  // const { accountProof, storageProof } = await getDepositProof(
-  //   l1Portal.address,
-  //   initEvent.args.depositHash,
-  //   ethers.utils.hexlify(blockNumber)
-  // );
-
-  // const finalizeTx = await l2Portal.finalizeDepositTransaction(
-  //   crossDomainMessage,
-  //   accountProof,
-  //   storageProof
-  // );
-  // await finalizeTx.wait();
 
   // balanceStart <- balance on L2 before bridging
   // balanceEnd <- balance on L2 after bridging
