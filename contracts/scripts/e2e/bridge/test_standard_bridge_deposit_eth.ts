@@ -58,6 +58,9 @@ async function main() {
   const initiated = await l1Portal.initiatedDeposits(initEvent.args.depositHash)
   console.log({ initiated })
 
+  const onChainL1PortalAddr = await l2Portal.l1PortalAddress();
+  console.log({ onChainL1PortalAddr, actualAddr: l1Portal.address })
+
   let t = 0
   while (true) {
     await delay(1000)
