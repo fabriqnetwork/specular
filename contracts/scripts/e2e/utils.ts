@@ -7,7 +7,7 @@ const l1Provider = new ethers.providers.JsonRpcProvider(
 );
 
 const l1BridgeAddr = process.env.L1STANDARD_BRIDGE_ADDR;
-const l2BridgeAddr = process.env.ROLLUP_ADDR;
+const l2BridgeAddr = "0x2A00000000000000000000000000000000000012"
 const l1OracleAddress = "0x2A00000000000000000000000000000000000010"
 const rollupAddress = process.env.ROLLUP_ADDR;
 
