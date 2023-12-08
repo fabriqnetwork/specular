@@ -94,7 +94,7 @@ export async function getSignersAndContracts() {
   };
 }
 
-export async function getDepositProof(portalAddress, depositHash, blockNumber="latest") {
+export async function getDepositProof(portalAddress: string, depositHash: string, blockNumber="latest") {
   const proof = await l1Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(depositHash)],
@@ -107,7 +107,7 @@ export async function getDepositProof(portalAddress, depositHash, blockNumber="l
   };
 }
 
-export async function getWithdrawalProof(portalAddress, withdrawalHash, blockNumber) {
+export async function getWithdrawalProof(portalAddress: string, withdrawalHash: string, blockNumber: string) {
   const proof = await l2Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(withdrawalHash)],
@@ -120,7 +120,7 @@ export async function getWithdrawalProof(portalAddress, withdrawalHash, blockNum
   };
 }
 
-export async function deployTokenPair(l1Bridger, l2Relayer) {
+export async function deployTokenPair(l1Bridger: string, l2Relayer: string) {
   const TestTokenFactory = await ethers.getContractFactory(
     "TestToken",
     l1Bridger
@@ -132,7 +132,7 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
     l2Relayer
   );
   const mintableERC20Factory = await MintableERC20FactoryFactory.deploy(
-    l2StandardBridgeAddress
+    addresses.l2StandardBridgeAddress
   );
   const deployTx = await mintableERC20Factory.createMintableERC20(
     l1Token.address,

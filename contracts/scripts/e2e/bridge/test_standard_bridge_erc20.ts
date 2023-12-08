@@ -19,6 +19,7 @@ async function main() {
     l1Portal,
     l2Portal,
     l1StandardBridge,
+    l2Provider,
     l2StandardBridge,
     l1Oracle,
     rollup,
@@ -94,6 +95,7 @@ async function main() {
     200_000,
     []
   );
+  console.log(withdrawalTx)
   const txWithLogs = await withdrawalTx.wait();
 
   const l2BalanceEmpty = await l2Token.balanceOf(l2Bridger.address);
@@ -101,15 +103,15 @@ async function main() {
     throw "unexpected L2 balance";
   }
 
-  const withdrawalEvent = l2Portal.interface.parseLog(txWithLogs.logs[3]);
+  const initEvent = l2Portal.interface.parseLog(txWithLogs.logs[3]);
   const crossDomainMessage = {
     version: 0,
-    nonce: withdrawalEvent.args.nonce,
-    sender: withdrawalEvent.args.sender,
-    target: withdrawalEvent.args.target,
-    value: withdrawalEvent.args.value,
-    gasLimit: withdrawalEvent.args.gasLimit,
-    data: withdrawalEvent.args.data,
+    nonce: initEvent.args.nonce,
+    sender: initEvent.args.sender,
+    target: initEvent.args.target,
+    value: initEvent.args.value,
+    gasLimit: initEvent.args.gasLimit,
+    data: initEvent.args.data,
   };
 
   const blockNumber = txWithLogs.blockNumber;
@@ -145,14 +147,16 @@ async function main() {
     await delay(500);
   }
 
-  const {accountProof, storageProof} = await getWithdrawalProof(
+  const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
-    withdrawEvent.args.withdrawalHash
+    initEvent.args.withdrawalHash
   );
 
+  let l2VmHash = l2Provider.formatter.hash(rawBlock.hash);
   const finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
     crossDomainMessage,
     assertionId,
+    l2VmHash,
     accountProof,
     storageProof
   );

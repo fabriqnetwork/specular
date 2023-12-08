@@ -28,6 +28,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {AccessControlDefaultAdminRulesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {Hashing} from "./libraries/Hashing.sol";
 
 import "./challenge/IChallenge.sol";
 import "./challenge/SymChallenge.sol";
@@ -109,9 +110,9 @@ contract Rollup is RollupBase {
         uint256 _minimumAssertionPeriod,
         uint256 _baseStakeAmount,
         uint256 _initialAssertionID,
-        uint256 _initialBlockNum,
-        bytes32 _initialBlockHash,
-        bytes32 _initialStateRoot,
+        uint256 _initialL2BlockNum,
+        bytes32 _initialL2BlockHash,
+        bytes32 _initialL2StateRoot,
         address[] calldata _validators
     ) public initializer {
         if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
@@ -137,8 +138,8 @@ contract Rollup is RollupBase {
             grantRole(VALIDATOR_ROLE, _validators[i]);
         }
 
-        // Create initial versioned state commitment
-        bytes32 initialStateCommitment = createStateCommitmentV0(_initialBlockHash, _initialStateRoot);
+
+        bytes32 initialStateCommitment = Hashing.createStateCommitmentV0(_initialL2BlockHash, _initialL2StateRoot);
 
         createAssertionHelper(
             _initialAssertionID, // assertionID
@@ -680,6 +681,7 @@ contract Rollup is RollupBase {
             revert ChallengedStaker();
         }
     }
+<<<<<<< HEAD
 
     function createStateCommitmentV0(bytes32 blockHash, bytes32 stateRoot) private pure returns (bytes32) {
         // output v0 format is keccak256(version || vmHash)
@@ -687,4 +689,6 @@ contract Rollup is RollupBase {
         stateCommitment = bytes.concat(stateCommitment, blockHash, stateRoot);
         return keccak256(stateCommitment);
     }
+=======
+>>>>>>> 726e16e9d (fix withdraw)
 }
