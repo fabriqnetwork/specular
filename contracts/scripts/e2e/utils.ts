@@ -120,12 +120,20 @@ export async function getWithdrawalProof(portalAddress: string, withdrawalHash: 
   };
 }
 
-export async function deployTokenPair(l1Bridger: string, l2Relayer: string) {
+export async function deployTokenPair(l1Bridger, l2Relayer) {
   const TestTokenFactory = await ethers.getContractFactory(
     "TestToken",
     l1Bridger
   );
   const l1Token = await TestTokenFactory.deploy();
+  const l1TokenWithLogs = await l1Token.deployTransaction.wait()
+  const logs0 = l1Token.interface.parseLog(
+    l1TokenWithLogs.logs[0]
+  );
+  const logs1 = l1Token.interface.parseLog(
+    l1TokenWithLogs.logs[1]
+  );
+  console.log(logs0, logs1)
 
   const MintableERC20FactoryFactory = await ethers.getContractFactory(
     "MintableERC20Factory",
@@ -140,6 +148,7 @@ export async function deployTokenPair(l1Bridger: string, l2Relayer: string) {
     "TT"
   );
   const deployTxWithLogs = await deployTx.wait();
+  console.log(deployTxWithLogs)
   const deployEvent = mintableERC20Factory.interface.parseLog(
     deployTxWithLogs.logs[0]
   );

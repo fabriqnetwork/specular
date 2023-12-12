@@ -39,7 +39,7 @@ async function main() {
   const txWithLogs = await bridgeTx.wait();
   const blockNumber = txWithLogs.blockNumber;
 
-  const initEvent = l2Portal.interface.parseLog(txWithLogs.logs[1]);
+  const initEvent = l1Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
     version: 0,
     nonce: initEvent.args.nonce,

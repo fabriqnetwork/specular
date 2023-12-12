@@ -1,11 +1,11 @@
 import { ethers } from "hardhat";
 import {
   getSignersAndContracts,
-  getStorageKey,
   getDepositProof,
   getWithdrawalProof,
   delay,
   deployTokenPair,
+  hexlifyBlockNum,
 } from "../utils";
 
 import { BigNumber } from "ethers";
@@ -27,15 +27,23 @@ async function main() {
   } = await getSignersAndContracts();
 
   const { l1Token, l2Token } = await deployTokenPair(l1Bridger, l2Relayer);
-  console.log("\tdeployed tokens...");
+  console.log(`Deployed tokens ${l1Token.address}, ${l2Token.address}`);
+
+  // TODO: portal should be funded as part of pre-deploy pipeline
+  const donateTx = await l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
+  await donateTx;
 
   const l1BalanceStart = await l1Token.balanceOf(l1Bridger.address);
+  const l2BalanceStart = await l2Token.balanceOf(l2Relayer.address);
+
+  console.log({L1Bridger: l1Bridger.address, l2Replayer: l2Relayer.address, L1BalanceStart: l1BalanceStart, l2BalanceStart: l2BalanceStart})
 
   const approveTx = await l1Token.approve(
     l1StandardBridge.address,
     l1BalanceStart
   );
-  await approveTx.wait();
+  const approveTxWithLogs = await approveTx.wait();
+  console.log({ApproveTx: approveTxWithLogs})
 
   const depositTx = await l1StandardBridge.bridgeERC20(
     l1Token.address,
@@ -44,11 +52,13 @@ async function main() {
     200_000,
     []
   );
+
   const depositTxWithLogs = await depositTx.wait();
+  console.log(depositTxWithLogs)
   const l1BalanceEnd = await l1Token.balanceOf(l1Bridger.address);
 
   const depositEvent = l1Portal.interface.parseLog(
-    depositTxWithLogs.logs[3]
+    depositTxWithLogs.logs[1]
   );
   const depositMessage = {
     version: 0,
@@ -60,24 +70,54 @@ async function main() {
     data: depositEvent.args.data,
   };
 
-  const depositBlockNumber = await l1Provider.getBlockNumber();
+  let blockNumber = await l1Provider.getBlockNumber();
   const rawBlock = await l1Provider.send("eth_getBlockByNumber", [
-    ethers.utils.hexValue(depositBlockNumber),
+    ethers.utils.hexValue(blockNumber),
     false, // We only want the block header
   ]);
   const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
+  console.log("Initial block", { blockNumber, stateRoot, depositMessage });
+
+  let oracleStateRoot = await l1Oracle.stateRoot()
+  while (oracleStateRoot !== stateRoot) {
+    await delay(500)
+    oracleStateRoot = await l1Oracle.stateRoot()
+    console.log({ stateRoot, oracleStateRoot })
+  }
+
+  console.log({ depositHash: depositEvent.args.depositHash })
+  const initiated = await l1Portal.initiatedDeposits(depositEvent.args.depositHash)
+  console.log({ initiated })
+
+  const onChainL1PortalAddr = await l2Portal.l1PortalAddress();
+  console.log({ onChainL1PortalAddr, actualAddr: l1Portal.address })
+
+  console.log({ L2BridgeAddr: l2StandardBridge.address })
+
+  const l2OtherBridge = await l2StandardBridge.OTHER_BRIDGE()
+  const l2PortalAddr = await l2StandardBridge.PORTAL_ADDRESS()
+  console.log({ l2OtherBridge, l1Bridge: l1StandardBridge.address, l2PortalAddr, l2PortalAddrActual: l2Portal.address })
+
+  const l2PortalBalance = await l2Provider.getBalance(l2PortalAddr)
+  console.log({ l2PortalBalance })
+
   const depositProof = await getDepositProof(
     l1Portal.address,
-    depositEvent.args.depositHash
+    depositEvent.args.depositHash,
+    hexlifyBlockNum(blockNumber),
   );
-  await l1Oracle.setL1OracleValues(depositBlockNumber, stateRoot, 0);
 
-  const tx = await l2Portal.finalizeDepositTransaction(
-    depositMessage,
-    depositProof.accountProof,
-    depositProof.storageProof
-  );
+  try {
+    const tx = await l2Portal.finalizeDepositTransaction(
+      depositMessage,
+      depositProof.accountProof,
+      depositProof.storageProof
+    );
+  } catch(e) {
+    console.log({ e })
+  }
+
 
   await tx.wait();
 
@@ -114,7 +154,7 @@ async function main() {
     data: initEvent.args.data,
   };
 
-  const blockNumber = txWithLogs.blockNumber;
+  blockNumber = txWithLogs.blockNumber;
 
   let assertionId: number | undefined = undefined;
   let lastConfirmedBlockNum: number | undefined = undefined;
