@@ -58,7 +58,7 @@ async function main() {
   const l1BalanceEnd = await l1Token.balanceOf(l1Bridger.address);
 
   const depositEvent = l1Portal.interface.parseLog(
-    depositTxWithLogs.logs[1]
+    depositTxWithLogs.logs[3]
   );
   const depositMessage = {
     version: 0,
@@ -109,20 +109,17 @@ async function main() {
   );
 
   try {
-    const tx = await l2Portal.finalizeDepositTransaction(
+    const finalizeTx = await l2Portal.finalizeDepositTransaction(
       depositMessage,
       depositProof.accountProof,
       depositProof.storageProof
     );
+    await finalizeTx.wait();
   } catch(e) {
     console.log({ e })
   }
 
-
-  await tx.wait();
-
   const l2BalanceEnd = await l2Token.balanceOf(l2Bridger.address);
-
   if (!l1BalanceEnd.eq(0) || !l2BalanceEnd.eq(l1BalanceStart)) {
     throw "unexpected end balance";
   }

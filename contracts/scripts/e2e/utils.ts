@@ -126,14 +126,6 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
     l1Bridger
   );
   const l1Token = await TestTokenFactory.deploy();
-  const l1TokenWithLogs = await l1Token.deployTransaction.wait()
-  const logs0 = l1Token.interface.parseLog(
-    l1TokenWithLogs.logs[0]
-  );
-  const logs1 = l1Token.interface.parseLog(
-    l1TokenWithLogs.logs[1]
-  );
-  console.log(logs0, logs1)
 
   const MintableERC20FactoryFactory = await ethers.getContractFactory(
     "MintableERC20Factory",
