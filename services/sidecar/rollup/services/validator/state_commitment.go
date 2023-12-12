@@ -40,11 +40,6 @@ func (o *StateCommitmentV0) Marshal() []byte {
 	copy(buf[:32], version[:])
 	copy(buf[32:64], o.l2BlockHash[:])
 	copy(buf[64:], o.l2StateRoot[:])
-	log.Info(
-		"marshalling v0 state commitment",
-		"l2BlockHash", common.Bytes2Hex(o.l2BlockHash[:]),
-		"l2StateRoot", common.Bytes2Hex(o.l2StateRoot[:]),
-	)
 	return buf[:]
 }
 

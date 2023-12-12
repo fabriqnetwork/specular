@@ -47,7 +47,7 @@ async function main() {
   const depositTxWithLogs = await depositTx.wait();
   const l1BalanceEnd = await l1Token.balanceOf(l1Bridger.address);
 
-  const depositEvent = await l1Portal.interface.parseLog(
+  const depositEvent = l1Portal.interface.parseLog(
     depositTxWithLogs.logs[3]
   );
   const depositMessage = {
@@ -116,7 +116,6 @@ async function main() {
 
   const blockNumber = txWithLogs.blockNumber;
 
-  let assertionWasCreated = false;
   let assertionId: number | undefined = undefined;
   let lastConfirmedBlockNum: number | undefined = undefined;
 
@@ -128,19 +127,13 @@ async function main() {
   );
 
   rollup.on(rollup.filters.AssertionConfirmed(), async (id: BigNumber) => {
-    if (assertionWasCreated) {
+    console.log("AssertionConfirmed", "id", assertionId)
+    if (!assertionId) {
       assertionId = id.toNumber();
       const assertion = await rollup.getAssertion(assertionId);
       lastConfirmedBlockNum = assertion.blockNum.toNumber();
-      console.log("AssertionConfirmed", "id", assertionId, "blockNum", lastConfirmedBlockNum)
     }
   });
-
-  rollup.on(rollup.filters.AssertionCreated(), () => {
-    console.log("AssertionCreated")
-    assertionWasCreated = true;
-  });
-
 
   console.log("Waiting for assertion to be confirmed...");
   while (!assertionId || !lastConfirmedBlockNum || lastConfirmedBlockNum < blockNumber) {

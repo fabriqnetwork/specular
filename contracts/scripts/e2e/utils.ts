@@ -94,7 +94,7 @@ export async function getSignersAndContracts() {
   };
 }
 
-export async function getDepositProof(portalAddress: string, depositHash: string, blockNumber="latest") {
+export async function getDepositProof(portalAddress: string, depositHash: string, blockNumber: string) {
   const proof = await l1Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(depositHash)],
@@ -168,4 +168,28 @@ export function getStorageKey(messageHash: string) {
       [messageHash, 0]
     )
   );
+}
+
+// eth_getProof block number param cannot have leading zeros
+// This function hexlifys blockNum and strips leading zeros
+export function hexlifyBlockNum(blockNum: number): string {
+  let hexBlockNum = ethers.utils.hexlify(blockNum)
+  // Check if the string starts with "0x" and contains more than just "0x".
+  if (hexBlockNum.startsWith("0x") && hexBlockNum.length > 2) {
+    let strippedString = "0x";
+    
+    // Iterate through the characters of the input string starting from the third character (index 2).
+    for (let i = 2; i < hexBlockNum.length; i++) {
+      if (hexBlockNum[i] !== '0') {
+        strippedString += hexBlockNum.substring(i); // Append the remaining characters.
+        return strippedString;
+      }
+    }
+    
+    // If all characters are '0', return "0x0".
+    return "0x0";
+  }
+  
+  // If the input is not in the expected format, return it as is.
+  return hexBlockNum;
 }

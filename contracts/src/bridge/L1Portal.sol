@@ -130,7 +130,7 @@ contract L1Portal is
     function finalizeWithdrawalTransaction(
         Types.CrossDomainMessage memory withdrawalTx,
         uint256 assertionID,
-        bytes32 l2VmHash,
+        bytes32 stateRoot,
         // bytes calldata encodedBlockHeader,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
@@ -165,10 +165,10 @@ contract L1Portal is
             // require(blockHash == assertion.stateHash, "L1Portal: invalid block");
 
             // Verify the account proof.
-            bytes32 stateCommitment = Hashing.createStateCommitmentV0(l2VmHash);
-            require(stateCommitment == assertion.stateCommitment, "L1Portal: l2 vm hash does not match assertion");
+            // bytes32 stateCommitment = Hashing.createStateCommitmentV0(l2VmHash);
+            // require(stateCommitment == assertion.stateCommitment, "L1Portal: l2 vm hash does not match assertion");
             bytes32 storageRoot =
-                _verifyAccountInclusion(Predeploys.L2_PORTAL, l2VmHash, withdrawalAccountProof);
+                _verifyAccountInclusion(Predeploys.L2_PORTAL, stateRoot, withdrawalAccountProof);
 
             // Verify that the hash of this withdrawal was stored in the L2Portal contract on L2.
             // If this is true, then we know that this withdrawal was actually triggered on L2

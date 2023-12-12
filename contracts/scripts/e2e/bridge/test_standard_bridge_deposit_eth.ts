@@ -17,6 +17,7 @@ async function main() {
     l1StandardBridge,
     l2StandardBridge,
     l1Oracle,
+    hexlifyBlockNum,
   } = await getSignersAndContracts();
 
   // TODO: portal should be funded as part of pre-deploy pipeline
@@ -77,7 +78,7 @@ async function main() {
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
     initEvent.args.depositHash,
-    ethers.utils.hexlify(blockNumber)
+    hexlifyBlockNum(blockNumber)
   );
 
   try {
