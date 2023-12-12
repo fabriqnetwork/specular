@@ -5,6 +5,7 @@ import {
   getSignersAndContracts,
   getDepositProof,
   delay,
+  hexlifyBlockNum,
 } from "../utils";
 
 async function main() {
@@ -17,7 +18,6 @@ async function main() {
     l1StandardBridge,
     l2StandardBridge,
     l1Oracle,
-    hexlifyBlockNum,
   } = await getSignersAndContracts();
 
   // TODO: portal should be funded as part of pre-deploy pipeline
@@ -32,7 +32,7 @@ async function main() {
   });
   const txWithLogs = await bridgeTx.wait();
 
-  const initEvent = await l1Portal.interface.parseLog(txWithLogs.logs[1]);
+  const initEvent = l1Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
     version: 0,
     nonce: initEvent.args.nonce,
@@ -66,7 +66,7 @@ async function main() {
   const onChainL1PortalAddr = await l2Portal.l1PortalAddress();
   console.log({ onChainL1PortalAddr, actualAddr: l1Portal.address })
 
-  console.log({ L2BrideAddr: l2StandardBridge.address })
+  console.log({ L2BridgeAddr: l2StandardBridge.address })
 
   const l2OtherBridge = await l2StandardBridge.OTHER_BRIDGE()
   const l2PortalAddr = await l2StandardBridge.PORTAL_ADDRESS()
