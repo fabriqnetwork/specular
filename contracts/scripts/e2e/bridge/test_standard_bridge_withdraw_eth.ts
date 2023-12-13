@@ -104,14 +104,13 @@ async function main() {
   const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
     withdrawalHash,
-    hexlifyBlockNum(blockNumber)
+    hexlifyBlockNum(lastConfirmedBlockNum)
   );
 
   let rawBlock = await l2Provider.send("eth_getBlockByNumber", [
     ethers.utils.hexValue(lastConfirmedBlockNum),
     false, // We only want the block header
   ]);
-  console.log(rawBlock)
 
   let stateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
   console.log("Finalizing withdraw", "stateRoot", stateRoot, "blockNum", lastConfirmedBlockNum);
