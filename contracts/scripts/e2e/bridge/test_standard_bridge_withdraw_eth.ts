@@ -112,13 +112,15 @@ async function main() {
     false, // We only want the block header
   ]);
 
-  let stateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
+  let l2StateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
+  let l2BlockHash = l2Provider.formatter.hash(rawBlock.hash);
   console.log("Finalizing withdraw", "stateRoot", stateRoot, "blockNum", lastConfirmedBlockNum);
   try {
     let finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
       crossDomainMessage,
       assertionId,
-      stateRoot,
+      l2StateRoot,
+      l2BlockHash,
       accountProof,
       storageProof
     );

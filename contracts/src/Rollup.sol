@@ -138,13 +138,12 @@ contract Rollup is RollupBase {
             grantRole(VALIDATOR_ROLE, _validators[i]);
         }
 
-
         bytes32 initialStateCommitment = Hashing.createStateCommitmentV0(_initialL2BlockHash, _initialL2StateRoot);
 
         createAssertionHelper(
             _initialAssertionID, // assertionID
             initialStateCommitment,
-            _initialBlockNum, // blockNum (genesis)
+            _initialL2BlockNum, // blockNum (genesis)
             _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
@@ -681,14 +680,4 @@ contract Rollup is RollupBase {
             revert ChallengedStaker();
         }
     }
-<<<<<<< HEAD
-
-    function createStateCommitmentV0(bytes32 blockHash, bytes32 stateRoot) private pure returns (bytes32) {
-        // output v0 format is keccak256(version || vmHash)
-        bytes memory stateCommitment = new bytes(32); // version 0 is a zero bytes32
-        stateCommitment = bytes.concat(stateCommitment, blockHash, stateRoot);
-        return keccak256(stateCommitment);
-    }
-=======
->>>>>>> 726e16e9d (fix withdraw)
 }

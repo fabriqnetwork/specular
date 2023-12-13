@@ -151,8 +151,9 @@ contract RollupTest is RollupBaseSetup {
             0, // minimumAssertionPeriod
             0, //baseStakeAmount,
             0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
+            0, // initialL2InboxSize
+            bytes32(""), // initialL2BlockHash
+            bytes32(""), // initialL2StateRoot
             new address[](0) // validators
         );
     }
