@@ -1,5 +1,5 @@
 import { ethers } from "hardhat";
-import { getSignersAndContracts } from "./utils";
+import { getSignersAndContracts } from "../e2e/utils";
 
 async function main() {
   const { l1Provider, l1Oracle } = await getSignersAndContracts();

@@ -4,15 +4,12 @@ import {
   getStorageKey,
   getWithdrawalProof,
   delay,
-  getLastBlockNumber,
 } from "../utils";
+import { BigNumber } from "ethers";
 
 async function main() {
   const {
-    l1Provider,
-    l2Provider,
     l1Bridger,
-    l2Relayer,
     l1Portal,
     l2Portal,
     l1StandardBridge,
@@ -34,7 +31,7 @@ async function main() {
   });
   const txWithLogs = await bridgeTx.wait();
 
-  const initEvent = await l2Portal.interface.parseLog(txWithLogs.logs[1]);
+  const initEvent = l2Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
     version: 0,
     nonce: initEvent.args.nonce,
@@ -47,25 +44,28 @@ async function main() {
 
   const blockNumber = txWithLogs.blockNumber;
 
-  let lastConfirmedBlockNumber = 0;
   let assertionWasCreated = false;
-  let assertionId;
+  let assertionId: number | undefined = undefined;
+  let lastConfirmedBlockNum: number | undefined = undefined;
 
   inbox.on(
     inbox.filters.TxBatchAppended(),
-    async (batchNumber, previousInboxSize, inboxSize, event) => {
-      const tx = await event.getTransaction();
-      lastConfirmedBlockNumber = await getLastBlockNumber(tx.data);
+    (event) => {
+      console.log(`TxBatchAppended blockNum: ${event.blockNumber}`)
     }
   );
 
-  rollup.on(rollup.filters.AssertionConfirmed(), (id) => {
+  rollup.on(rollup.filters.AssertionConfirmed(), async (id: BigNumber) => {
     if (assertionWasCreated) {
-      assertionId = id;
+      assertionId = id.toNumber();
+      const assertion = await rollup.getAssertion(assertionId);
+      lastConfirmedBlockNum = assertion.blockNum.toNumber();
+      console.log("AssertionConfirmed", "id", assertionId, "blockNum", lastConfirmedBlockNum)
     }
   });
 
   rollup.on(rollup.filters.AssertionCreated(), () => {
+    console.log("AssertionCreated")
     assertionWasCreated = true;
   });
 
@@ -76,8 +76,8 @@ async function main() {
     }
   );
 
-  console.log("\twaiting for assertion to be confirmed...");
-  while (lastConfirmedBlockNumber < blockNumber || !assertionId) {
+  console.log("Waiting for assertion to be confirmed...");
+  while (!assertionId || !lastConfirmedBlockNum || lastConfirmedBlockNum < blockNumber) {
     await delay(500);
   }
 

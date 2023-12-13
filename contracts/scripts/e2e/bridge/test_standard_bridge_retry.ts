@@ -25,7 +25,7 @@ async function main() {
   });
   const txWithLogs = await bridgeTx.wait();
 
-  const initEvent = await l1Portal.interface.parseLog(txWithLogs.logs[1]);
+  const initEvent = l1Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
     version: 0,
     nonce: initEvent.args.nonce,
@@ -46,7 +46,6 @@ async function main() {
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
-    blockNumber,
     initEvent.args.depositHash
   );
 
