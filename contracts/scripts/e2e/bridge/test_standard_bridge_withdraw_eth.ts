@@ -1,3 +1,4 @@
+import { Console } from "console";
 import { ethers } from "hardhat";
 import {
   getSignersAndContracts,
@@ -48,25 +49,13 @@ async function main() {
   const blockNumber = txWithLogs.blockNumber;
 
   let lastConfirmedBlockNumber = 0;
-  let assertionWasCreated = false;
   let assertionId;
 
-  inbox.on(
-    inbox.filters.TxBatchAppended(),
-    async (batchNumber, previousInboxSize, inboxSize, event) => {
-      const tx = await event.getTransaction();
-      lastConfirmedBlockNumber = await getLastBlockNumber(tx.data);
-    }
-  );
-
-  rollup.on(rollup.filters.AssertionConfirmed(), (id) => {
-    if (assertionWasCreated) {
-      assertionId = id;
-    }
-  });
-
-  rollup.on(rollup.filters.AssertionCreated(), () => {
-    assertionWasCreated = true;
+  rollup.on(rollup.filters.AssertionConfirmed(), async (id: Number) => {
+    assertionId = id;
+    const assertion = await rollup.getAssertion(id)
+    console.log({ assertion })
+    lastConfirmedBlockNumber = assertion.blockNum.toNumber()
   });
 
   l1StandardBridge.on(
@@ -78,19 +67,74 @@ async function main() {
 
   console.log("\twaiting for assertion to be confirmed...");
   while (lastConfirmedBlockNumber < blockNumber || !assertionId) {
+    console.log({ lastConfirmedBlockNumber, blockNumber, assertionId })
     await delay(500);
   }
+  console.log({ lastConfirmedBlockNumber, blockNumber, assertionId })
+  await delay(5000);
 
+  const lastBlockNumber = (await l2Provider.getBlock("latest")).number
+
+  console.log({ lastBlockNumber })
+
+  for (let blockNumber = 0; blockNumber <= lastBlockNumber; blockNumber++) {
+    let hexBlockNum = ethers.utils.hexlify(blockNumber)
+    if (hexBlockNum.startsWith('0x0')) {
+      hexBlockNum = '0x' + hexBlockNum.substr(3)
+    }
+    let rawBlock = await l2Provider.send("eth_getBlockByNumber", [
+      hexBlockNum,
+      false, // We only want the block header
+    ]);
+    const blockHash = rawBlock.hash;
+    const stateRoot = rawBlock.stateRoot;
+
+    const tmp = ethers.utils.concat([
+      ethers.constants.HashZero,
+      blockHash,
+      stateRoot
+    ])
+
+    const stateCommitment = ethers.utils.keccak256(tmp)
+    console.log({ blockNumber, blockHash, stateRoot, stateCommitment })
+  }
+
+  return
+
+  let hexBlockNum = ethers.utils.hexlify(lastConfirmedBlockNumber + 1)
+  if (hexBlockNum.startsWith('0x0')) {
+    hexBlockNum = '0x' + hexBlockNum.substr(3)
+  }
   const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
-    initEvent.args.withdrawalHash
+    initEvent.args.withdrawalHash,
+    hexBlockNum
   );
 
+  let rawBlock = await l1Provider.send("eth_getBlockByNumber", [
+    hexBlockNum,
+    false, // We only want the block header
+  ]);
+  let stateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
+
+  const tmp = ethers.utils.concat([
+    ethers.constants.HashZero,
+    stateRoot
+  ])
+
+  const rootWithVersion = ethers.utils.keccak256(tmp)
+  console.log({ tmp, rootWithVersion })
+  console.log({ stateRoot })
+  const decode = ethers.utils.RLP.decode(storageProof[0])
+  console.log({ storageProof })
+  console.log({ decode })
+  decode.push("0x00")
+  const newProof = ethers.utils.RLP.encode(decode)
   const finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
     crossDomainMessage,
     assertionId,
     accountProof,
-    storageProof
+    newProof
   );
   await finalizeTx.wait();
 

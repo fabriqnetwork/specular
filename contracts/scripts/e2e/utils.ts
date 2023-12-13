@@ -106,11 +106,11 @@ export async function getDepositProof(portalAddress, depositHash, blockNumber="l
   };
 }
 
-export async function getWithdrawalProof(portalAddress, withdrawalHash) {
+export async function getWithdrawalProof(portalAddress, withdrawalHash, blockNumber) {
   const proof = await l2Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(withdrawalHash)],
-    "latest",
+    blockNumber,
   ]);
 
   return {
@@ -158,22 +158,6 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
 
 export function delay(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-export async function getLastBlockNumber(data) {
-  // TODO: consider using the npm bindings package
-  const InboxFactory = await ethers.getContractFactory("SequencerInbox");
-  const iface = InboxFactory.interface;
-
-  const decoded = iface.decodeFunctionData(
-    data.slice(0, 10), // method id (8 hex chars) with leading Ox
-    data
-  );
-  const contexts: BigNumber[] = decoded[0];
-  const firstL2BlockNumber = decoded[2];
-  const lastL2BlockNumber =
-    contexts.length / 2 + firstL2BlockNumber.toNumber() - 1;
-  return lastL2BlockNumber;
 }
 
 export function getStorageKey(messageHash: string) {

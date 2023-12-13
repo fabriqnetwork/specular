@@ -103,7 +103,7 @@ echo "Starting L1..."
 if [ "$L1_STACK" = "geth" ]; then
   $L1_GETH_BIN \
     --dev \
-    --dev.period 0 \
+    --dev.period 1 \
     --verbosity 0 \
     --http \
     --http.api eth,web3,net \
