@@ -224,7 +224,9 @@ func (v *Validator) getNextAssertionAttrs(ctx context.Context) (assertionAttribu
 	if err != nil {
 		return assertionAttributes{}, fmt.Errorf("failed to get finalized assertion attrs: %w", err)
 	}
-	return assertionAttributes{header.Number.Uint64(), StateCommitment(&StateCommitmentV0{header.Hash()})}, nil
+
+	log.Info("creating new assertion", "stateRoot", header.Hash(), "stateCommitment", StateCommitment(&StateCommitmentV0{header.Hash(), header.Root}))
+	return assertionAttributes{header.Number.Uint64(), StateCommitment(&StateCommitmentV0{header.Hash(), header.Root})}, nil
 }
 
 func (v *Validator) ensureStaked(ctx context.Context) error {
@@ -260,7 +262,7 @@ func (v *Validator) validateGenesis(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get L2 genesis block: %w", err)
 	}
-	genesisStateCommitment := StateCommitment(&StateCommitmentV0{genesisBlock.Header().Hash()})
+	genesisStateCommitment := StateCommitment(&StateCommitmentV0{genesisBlock.Header().Hash(), genesisBlock.Header().Root})
 	if stateCommitment != genesisStateCommitment {
 		return fmt.Errorf("mismatching genesis on L1=%s vs L2=%s", &stateCommitment, &genesisStateCommitment)
 	}

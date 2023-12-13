@@ -11,12 +11,18 @@ require("dotenv").config({ path: path.join(CONTRACTS_DIR, ".genesis.env")});
 const GENESIS_JSON = require(path.join(CONTRACTS_DIR, process.env.GENESIS_EXPORTED_HASH_PATH));
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  // Calculate initial VM hash
-  let initialVMHash = (GENESIS_JSON.hash || "") as string;
-  if (!initialVMHash) {
-     throw Error(`hash not found\n$`);
+  console.log({ GENESIS_JSON })
+  const initialBlockHash = (GENESIS_JSON.blockHash || "") as string;
+  if (!initialBlockHash) {
+     throw Error(`blockHash not found\n$`);
   }
-  console.log("initial VM hash:", initialVMHash);
+  console.log("initial blockHash:", initialBlockHash);
+
+  const initialStateRoot = (GENESIS_JSON.stateRoot || "") as string;
+  if (!initialStateRoot) {
+     throw Error(`stateRoot not found\n$`);
+  }
+  console.log("initial stateRoot:", initialStateRoot);
 
   const { deployments, getNamedAccounts } = hre;
   const { sequencer, validator, deployer } = await getNamedAccounts();
@@ -36,7 +42,8 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     0, // uint256 _baseStakeAmount
     0, // uint256 _initialAssertionID
     0, // uint256 _initialInboxSize
-    initialVMHash, // bytes32 _initialVMhash
+    initialBlockHash, // bytes32 _initialBlockHash
+    initialStateRoot, // bytes32 _initialStateRoot
     [sequencer, validator], // address[] calldata _validators
   ];
 

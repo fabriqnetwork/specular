@@ -110,7 +110,8 @@ contract Rollup is RollupBase {
         uint256 _baseStakeAmount,
         uint256 _initialAssertionID,
         uint256 _initialBlockNum,
-        bytes32 _initialVMhash,
+        bytes32 _initialBlockHash,
+        bytes32 _initialStateRoot,
         address[] calldata _validators
     ) public initializer {
         if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
@@ -137,7 +138,7 @@ contract Rollup is RollupBase {
         }
 
         // Create initial versioned state commitment
-        bytes32 initialStateCommitment = createStateCommitmentV0(_initialVMhash);
+        bytes32 initialStateCommitment = createStateCommitmentV0(_initialBlockHash, _initialStateRoot);
 
         createAssertionHelper(
             _initialAssertionID, // assertionID
@@ -680,10 +681,10 @@ contract Rollup is RollupBase {
         }
     }
 
-    function createStateCommitmentV0(bytes32 vmHash) private pure returns (bytes32) {
+    function createStateCommitmentV0(bytes32 blockHash, bytes32 stateRoot) private pure returns (bytes32) {
         // output v0 format is keccak256(version || vmHash)
         bytes memory stateCommitment = new bytes(32); // version 0 is a zero bytes32
-        stateCommitment = bytes.concat(stateCommitment, vmHash);
+        stateCommitment = bytes.concat(stateCommitment, blockHash, stateRoot);
         return keccak256(stateCommitment);
     }
 }
