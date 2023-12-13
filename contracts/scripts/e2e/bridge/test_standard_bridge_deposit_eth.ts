@@ -19,12 +19,12 @@ async function main() {
     l1Oracle,
   } = await getSignersAndContracts();
 
-  const balanceStart: BigNumber = await l2Bridger.getBalance();
-  const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
-
   // TODO: portal should be funded as part of pre-deploy pipeline
   const donateTx = await l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
   await donateTx;
+
+  const balanceStart: BigNumber = await l2Bridger.getBalance();
+  const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
 
   const bridgeTx = await l1StandardBridge.bridgeETH(200_000, [], {
     value: bridgeValue,

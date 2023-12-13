@@ -107,11 +107,11 @@ export async function getDepositProof(portalAddress, depositHash, blockNumber="l
   };
 }
 
-export async function getWithdrawalProof(portalAddress, withdrawalHash) {
+export async function getWithdrawalProof(portalAddress, withdrawalHash, blockNumber) {
   const proof = await l2Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(withdrawalHash)],
-    "latest",
+    blockNumber,
   ]);
 
   return {

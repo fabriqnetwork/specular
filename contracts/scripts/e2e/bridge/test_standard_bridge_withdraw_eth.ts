@@ -1,19 +1,21 @@
 import { ethers } from "hardhat";
 import {
   getSignersAndContracts,
-  getStorageKey,
   getWithdrawalProof,
   delay,
+  hexlifyBlockNum,
 } from "../utils";
 import { BigNumber } from "ethers";
 
 async function main() {
   const {
+    l1Provider,
     l1Bridger,
     l1Portal,
     l2Portal,
     l1StandardBridge,
     l2StandardBridge,
+    l2Provider,
     rollup,
     inbox,
   } = await getSignersAndContracts();
@@ -23,6 +25,11 @@ async function main() {
   });
   await donateTx.wait();
 
+  const donateTx2 = await l2Portal.donateETH({
+    value: ethers.utils.parseEther("1"),
+  });
+  await donateTx2.wait();
+
   const balanceStart = await l1Bridger.getBalance();
   const bridgeValue = ethers.utils.parseEther("0.1");
 
@@ -30,6 +37,7 @@ async function main() {
     value: bridgeValue,
   });
   const txWithLogs = await bridgeTx.wait();
+  const blockNumber = txWithLogs.blockNumber;
 
   const initEvent = l2Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
@@ -42,9 +50,20 @@ async function main() {
     data: initEvent.args.data,
   };
 
-  const blockNumber = txWithLogs.blockNumber;
+  const withdrawalHash = initEvent.args.withdrawalHash
+  console.log({ withdrawHash: withdrawalHash })
+  const initiated = await l2Portal.initiatedWithdrawals(withdrawalHash)
+  console.log({ initiated })
 
-  let assertionWasCreated = false;
+  console.log({ L2BridgeAddr: l2StandardBridge.address })
+
+  const l1OtherBridge = await l2StandardBridge.OTHER_BRIDGE()
+  const l1PortalAddr = await l1StandardBridge.PORTAL_ADDRESS()
+  console.log({ l1OtherBridge, l1Bridge: l1StandardBridge.address, l1PortalAddr, l2PortalAddrActual: l1Portal.address })
+
+  const l1PortalBalance = await l1Provider.getBalance(l1PortalAddr)
+  console.log({ l1PortalBalance })
+
   let assertionId: number | undefined = undefined;
   let lastConfirmedBlockNum: number | undefined = undefined;
 
@@ -56,17 +75,16 @@ async function main() {
   );
 
   rollup.on(rollup.filters.AssertionConfirmed(), async (id: BigNumber) => {
-    if (assertionWasCreated) {
+    console.log("AssertionConfirmed")
+    if (!assertionId) {
       assertionId = id.toNumber();
-      const assertion = await rollup.getAssertion(assertionId);
+      const assertion = await rollup.getAssertion(id.toNumber());
       lastConfirmedBlockNum = assertion.blockNum.toNumber();
-      console.log("AssertionConfirmed", "id", assertionId, "blockNum", lastConfirmedBlockNum)
     }
   });
 
   rollup.on(rollup.filters.AssertionCreated(), () => {
     console.log("AssertionCreated")
-    assertionWasCreated = true;
   });
 
   l1StandardBridge.on(
@@ -80,19 +98,36 @@ async function main() {
   while (!assertionId || !lastConfirmedBlockNum || lastConfirmedBlockNum < blockNumber) {
     await delay(500);
   }
+ 
+  console.log(`Assertion confirmed: ${assertionId}, l2 block: ${lastConfirmedBlockNum}`);
 
   const { accountProof, storageProof } = await getWithdrawalProof(
     l2Portal.address,
-    initEvent.args.withdrawalHash
+    withdrawalHash,
+    hexlifyBlockNum(blockNumber)
   );
 
-  const finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
-    crossDomainMessage,
-    assertionId,
-    accountProof,
-    storageProof
-  );
-  await finalizeTx.wait();
+  let rawBlock = await l2Provider.send("eth_getBlockByNumber", [
+    ethers.utils.hexValue(lastConfirmedBlockNum),
+    false, // We only want the block header
+  ]);
+  console.log(rawBlock)
+
+  let stateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
+  console.log("Finalizing withdraw", "stateRoot", stateRoot, "blockNum", lastConfirmedBlockNum);
+  try {
+    let finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
+      crossDomainMessage,
+      assertionId,
+      stateRoot,
+      accountProof,
+      storageProof
+    );
+    console.log(finalizeTx)
+    await finalizeTx.wait();
+  } catch(e) {
+    console.log({ e })
+  }
 
   const balanceEnd = await l1Bridger.getBalance();
   const balanceDiff = balanceEnd.sub(balanceStart);
