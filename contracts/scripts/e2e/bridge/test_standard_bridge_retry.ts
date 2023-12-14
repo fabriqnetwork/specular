@@ -1,6 +1,6 @@
 // NOTE: this test will fail without portal level retryability
 import { ethers } from "hardhat";
-import { getSignersAndContracts, getDepositProof } from "../utils";
+import { getSignersAndContracts, getDepositProof, hexlifyBlockNum } from "../utils";
 
 async function main() {
   const {
@@ -46,7 +46,8 @@ async function main() {
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
-    initEvent.args.depositHash
+    initEvent.args.depositHash,
+    hexlifyBlockNum(blockNumber)
   );
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(

@@ -57,9 +57,8 @@ var Flags = []cli.Flag{
 }
 
 type exportedHash struct {
-	BlockHash common.Hash `json:"blockHash"`
+	BlockHash common.Hash `json:"hash"`
 	StateRoot common.Hash `json:"stateRoot"`
-
 }
 
 func GenerateSpecularGenesis(ctx *cli.Context) error {

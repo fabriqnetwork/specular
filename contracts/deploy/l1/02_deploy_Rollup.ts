@@ -12,7 +12,7 @@ const GENESIS_JSON = require(path.join(CONTRACTS_DIR, process.env.GENESIS_EXPORT
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   console.log({ GENESIS_JSON })
-  const initialBlockHash = (GENESIS_JSON.blockHash || "") as string;
+  const initialBlockHash = (GENESIS_JSON.hash || "") as string;
   if (!initialBlockHash) {
      throw Error(`blockHash not found\n$`);
   }

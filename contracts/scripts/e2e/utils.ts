@@ -1,4 +1,5 @@
 import * as addresses from "./addresses"
+import { Wallet, BigNumber, Contract } from "ethers"
 import { ethers } from "hardhat"
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
@@ -120,7 +121,7 @@ export async function getWithdrawalProof(portalAddress: string, withdrawalHash: 
   };
 }
 
-export async function deployTokenPair(l1Bridger, l2Relayer) {
+export async function deployTokenPair(l1Bridger: Wallet, l2Relayer: Wallet) {
   const TestTokenFactory = await ethers.getContractFactory(
     "TestToken",
     l1Bridger
@@ -169,6 +170,46 @@ export function getStorageKey(messageHash: string) {
       [messageHash, 0]
     )
   );
+}
+
+export async function waitUntilStateRoot(l1Oracle: Contract, stateRoot: string) {
+  console.log(`Waiting for L2 state root ${stateRoot}...`);
+
+  let oracleStateRoot = await l1Oracle.stateRoot()
+  while (oracleStateRoot !== stateRoot) {
+    oracleStateRoot = await l1Oracle.stateRoot()
+    console.log({ stateRoot, oracleStateRoot })
+    await delay(500)
+  }
+}
+
+export async function waitUntilBlockConfirmed(rollup: Contract, blockNum: number): Promise<[number, number]> {
+  let confirmedAssertionId: number | undefined = undefined;
+  let confirmedBlockNum: number;
+
+  rollup.on(rollup.filters.AssertionCreated(), () => {
+    console.log("AssertionCreated")
+  });
+
+  rollup.on(rollup.filters.AssertionConfirmed(), async (id: BigNumber) => {
+    const assertionId = id.toNumber();
+    const assertion = await rollup.getAssertion(assertionId);
+    const assertionBlockNum = assertion.blockNum.toNumber();
+
+    console.log({msg: "AssertionConfirmed", id: assertionId, blockNum: assertionBlockNum})
+    if (!confirmedAssertionId && blockNum <= assertionBlockNum) {
+        // Found the first assertion to confirm block
+        confirmedAssertionId = assertionId;
+        confirmedBlockNum = assertionBlockNum
+      }
+    })
+
+  console.log(`Waiting for L2 block ${blockNum} to be confirmed...`);
+  while (!confirmedAssertionId) {
+    await delay(500);
+  }
+
+  return [confirmedAssertionId!, confirmedBlockNum!]
 }
 
 // eth_getProof block number param cannot have leading zeros
