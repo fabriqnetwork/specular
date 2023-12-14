@@ -1,7 +1,7 @@
-FROM ethereum/client-go
+FROM specular:build-v0.0.1
 
-RUN apk add --no-cache bash nodejs-current npm python3 make g++ go musl-dev linux-headers git
-RUN corepack enable
+# RUN apk add --no-cache bash nodejs-current npm python3 make g++ go musl-dev linux-headers git
+# RUN corepack enable
 
 WORKDIR /specular
 COPY . /specular
