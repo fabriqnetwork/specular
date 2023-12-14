@@ -12,7 +12,6 @@ cache_path  = 'forge-cache'
 allow_paths = [
     '../node_modules',
 ]
-via_ir = true
 
 [fmt]
 line_length = 120

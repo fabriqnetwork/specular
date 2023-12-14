@@ -32,20 +32,30 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
   const verifierProxyAddress = (await deployments.get(getProxyName("Verifier")))
     .address;
 
+  const config = {
+    vault: sequencer,
+    daProvider: sequencerInboxProxyAddress,
+    verifier: verifierProxyAddress,
+    confirmationPeriod: 5,
+    challengePeriod: 0,
+    minimumAssertionPeriod: 0,
+    baseStakeAmount: 0,
+    validators: [sequencer, validator]
+  }
+
+  const initialRollupState = {
+    assertionID: 0,
+    l2BlockNum: 0,
+    l2BlockHash: initialBlockHash,
+    l2StateRoot: initialStateRoot,
+  }
+
   const args = [
-    sequencer, // address _vault
-    sequencerInboxProxyAddress, // address _sequencerInbox
-    verifierProxyAddress, // address _verifier
-    5, // uint256 _confirmationPeriod
-    0, // uint256 _challengePeriod
-    0, // uint256 _minimumAssertionPeriod
-    0, // uint256 _baseStakeAmount
-    0, // uint256 _initialAssertionID
-    0, // uint256 _initialInboxSize
-    initialBlockHash, // bytes32 _initialBlockHash
-    initialStateRoot, // bytes32 _initialStateRoot
-    [sequencer, validator], // address[] calldata _validators
+    config,
+    initialRollupState
   ];
+
+  console.log({ args })
 
   await deployUUPSProxiedContract(hre, deployer, "Rollup", args);
 };

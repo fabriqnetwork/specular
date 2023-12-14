@@ -68,6 +68,24 @@ abstract contract RollupBase is
         uint256 lastAssertionID;
     }
 
+    struct Config {
+        address vault;
+        address daProvider;
+        address verifier;
+        uint256 confirmationPeriod;
+        uint256 challengePeriod;
+        uint256 minimumAssertionPeriod;
+        uint256 baseStakeAmount;
+        address[] validators;
+    }
+
+    struct InitialRollupState {
+        uint256 assertionID;
+        uint256 l2BlockNum;
+        bytes32 l2BlockHash;
+        bytes32 l2StateRoot;
+    }
+
     function __RollupBase_init() internal onlyInitializing {
         __AccessControlDefaultAdminRules_init(3 days, msg.sender);
         __UUPSUpgradeable_init();
@@ -102,49 +120,39 @@ contract Rollup is RollupBase {
     Zombie[] public zombies; // stores stakers that lost a challenge
 
     function initialize(
-        address _vault,
-        address _daProvider,
-        address _verifier,
-        uint256 _confirmationPeriod,
-        uint256 _challengePeriod,
-        uint256 _minimumAssertionPeriod,
-        uint256 _baseStakeAmount,
-        uint256 _initialAssertionID,
-        uint256 _initialL2BlockNum,
-        bytes32 _initialL2BlockHash,
-        bytes32 _initialL2StateRoot,
-        address[] calldata _validators
+        Config calldata _config,
+        InitialRollupState calldata _initialRollupState
     ) public initializer {
-        if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
+        if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
             revert ZeroAddress();
         }
         __RollupBase_init();
 
-        vault = _vault;
-        daProvider = IDAProvider(_daProvider);
-        verifier = IVerifier(_verifier);
+        vault = _config.vault;
+        daProvider = IDAProvider(_config.daProvider);
+        verifier = IVerifier(_config.verifier);
 
-        confirmationPeriod = _confirmationPeriod;
-        challengePeriod = _challengePeriod;
-        minimumAssertionPeriod = _minimumAssertionPeriod;
-        baseStakeAmount = _baseStakeAmount;
+        confirmationPeriod = _config.confirmationPeriod;
+        challengePeriod = _config.challengePeriod;
+        minimumAssertionPeriod = _config.minimumAssertionPeriod;
+        baseStakeAmount = _config.baseStakeAmount;
 
-        lastResolvedAssertionID = _initialAssertionID;
-        lastConfirmedAssertionID = _initialAssertionID;
-        lastCreatedAssertionID = _initialAssertionID;
+        lastResolvedAssertionID = _initialRollupState.assertionID;
+        lastConfirmedAssertionID = _initialRollupState.assertionID;
+        lastCreatedAssertionID = _initialRollupState.assertionID;
 
         // Initialize role based access control
-        for (uint256 i = 0; i < _validators.length; i++) {
-            grantRole(VALIDATOR_ROLE, _validators[i]);
+        for (uint256 i = 0; i < _config.validators.length; i++) {
+            grantRole(VALIDATOR_ROLE, _config.validators[i]);
         }
 
-        bytes32 initialStateCommitment = Hashing.createStateCommitmentV0(_initialL2BlockHash, _initialL2StateRoot);
+        bytes32 initialStateCommitment = Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);
 
         createAssertionHelper(
-            _initialAssertionID, // assertionID
+            _initialRollupState.assertionID, // assertionID
             initialStateCommitment,
-            _initialL2BlockNum, // blockNum (genesis)
-            _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
+            _initialRollupState.l2BlockNum, // blockNum (genesis)
+            _initialRollupState.assertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, initialStateCommitment);
