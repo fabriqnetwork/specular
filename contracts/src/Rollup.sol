@@ -37,27 +37,7 @@ import "./libraries/Errors.sol";
 import "./IDAProvider.sol";
 import "./IRollup.sol";
 
-abstract contract RollupBase is
-    IRollup,
-    IChallengeResultReceiver,
-    Initializable,
-    UUPSUpgradeable,
-    PausableUpgradeable,
-    AccessControlDefaultAdminRulesUpgradeable
-{
-    // Access role identifiers
-    bytes32 public constant VALIDATOR_ROLE = keccak256("VALIDATOR_ROLE");
-
-    // Config parameters
-    uint256 public confirmationPeriod; // number of L1 blocks
-    uint256 public challengePeriod; // number of L1 blocks
-    uint256 public minimumAssertionPeriod; // number of L1 blocks
-    uint256 public baseStakeAmount; // number of stake tokens
-
-    address public vault;
-    IDAProvider public daProvider;
-    IVerifier public verifier;
-
+abstract contract RollupData {
     struct AssertionState {
         mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
         mapping(bytes32 => bool) childStateCommitments; // child state commitments
@@ -85,6 +65,29 @@ abstract contract RollupBase is
         bytes32 l2BlockHash;
         bytes32 l2StateRoot;
     }
+}
+
+abstract contract RollupBase is
+    IRollup,
+    RollupData,
+    IChallengeResultReceiver,
+    Initializable,
+    UUPSUpgradeable,
+    PausableUpgradeable,
+    AccessControlDefaultAdminRulesUpgradeable
+{
+    // Access role identifiers
+    bytes32 public constant VALIDATOR_ROLE = keccak256("VALIDATOR_ROLE");
+
+    // Config parameters
+    uint256 public confirmationPeriod; // number of L1 blocks
+    uint256 public challengePeriod; // number of L1 blocks
+    uint256 public minimumAssertionPeriod; // number of L1 blocks
+    uint256 public baseStakeAmount; // number of stake tokens
+
+    address public vault;
+    IDAProvider public daProvider;
+    IVerifier public verifier;
 
     function __RollupBase_init() internal onlyInitializing {
         __AccessControlDefaultAdminRules_init(3 days, msg.sender);
@@ -119,10 +122,7 @@ contract Rollup is RollupBase {
     mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
     Zombie[] public zombies; // stores stakers that lost a challenge
 
-    function initialize(
-        Config calldata _config,
-        InitialRollupState calldata _initialRollupState
-    ) public initializer {
+    function initialize(Config calldata _config, InitialRollupState calldata _initialRollupState) public initializer {
         if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
             revert ZeroAddress();
         }
@@ -146,7 +146,8 @@ contract Rollup is RollupBase {
             grantRole(VALIDATOR_ROLE, _config.validators[i]);
         }
 
-        bytes32 initialStateCommitment = Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);
+        bytes32 initialStateCommitment =
+            Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);
 
         createAssertionHelper(
             _initialRollupState.assertionID, // assertionID
