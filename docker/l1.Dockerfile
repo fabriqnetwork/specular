@@ -1,13 +1,12 @@
 FROM specular:build-v0.0.1
 
-# RUN apk add --no-cache bash nodejs-current npm python3 make g++ go musl-dev linux-headers git
-# RUN corepack enable
-
 WORKDIR /specular
 ADD . /specular
 
 # frozen lockfile is automatically enabled in CI environments
 RUN pnpm install
+
+ENV RUST_BACKTRACE=full
 RUN make
 
 # TODO: what ports should be exposed?
