@@ -159,17 +159,17 @@ contract L1Portal is
 
         // Avoid stack too deep
         {
-            // (bytes32 blockHash, bytes32 stateRoot) = Encoding.decodeStateRootFromEncodedBlockHeader(encodedBlockHeader);
-
-            // Verify that the block hash is the assertion's stateHash.
-            // require(blockHash == assertion.stateHash, "L1Portal: invalid block");
-
             // Verify provided state root matches state commitment.
             bytes32 stateCommitment = Hashing.createStateCommitmentV0(l2BlockHash, l2StateRoot);
-            require(stateCommitment == assertion.stateCommitment, "L1Portal: L2 state does not match assertion state commitment");
+            require(
+                stateCommitment == assertion.stateCommitment,
+                "L1Portal: l2 state does not match assertion state commitment"
+            );
+        }
 
-            bytes32 storageRoot =
-                _verifyAccountInclusion(Predeploys.L2_PORTAL, l2StateRoot, withdrawalAccountProof);
+        // Avoid stack too deep
+        {
+            bytes32 storageRoot = _verifyAccountInclusion(Predeploys.L2_PORTAL, l2StateRoot, withdrawalAccountProof);
 
             // Verify that the hash of this withdrawal was stored in the L2Portal contract on L2.
             // If this is true, then we know that this withdrawal was actually triggered on L2
