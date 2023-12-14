@@ -4,7 +4,7 @@ FROM specular:build-v0.0.1
 # RUN corepack enable
 
 WORKDIR /specular
-COPY . /specular
+ADD . /specular
 
 # frozen lockfile is automatically enabled in CI environments
 RUN pnpm install
