@@ -4,9 +4,9 @@ import hre from "hardhat";
 import { parseFlag } from "./utils";
 
 type RawLog = {
-  topics: string[],
-  data: string
-}
+  topics: string[];
+  data: string;
+};
 
 async function main() {
   const baseConfigPath = parseFlag("--in");
@@ -15,8 +15,14 @@ async function main() {
   const genesisPath = parseFlag("--genesis");
   const genesisHashPath = parseFlag("--genesis-hash-path");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
-  await generateConfigFile(baseConfigPath, configPath, genesisPath, genesisHashPath, deploymentsPath);
-  await generateContractAddresses(deploymentsConfig, deploymentsPath)
+  await generateConfigFile(
+    baseConfigPath,
+    configPath,
+    genesisPath,
+    genesisHashPath,
+    deploymentsPath,
+  );
+  await generateContractAddresses(deploymentsConfig, deploymentsPath);
 }
 
 /**
@@ -28,11 +34,13 @@ export async function generateConfigFile(
   configPath: string,
   genesisPath: string,
   genesisHashPath: string,
-  deploymentsPath: string
+  deploymentsPath: string,
 ) {
   // check the deployments dir - error out if it is not there
   const contract = "Proxy__Rollup";
-  const deployment = JSON.parse(fs.readFileSync(`${deploymentsPath}/${contract}.json`, "utf-8"))
+  const deployment = JSON.parse(
+    fs.readFileSync(`${deploymentsPath}/${contract}.json`, "utf-8"),
+  );
 
   // extract L1 block hash and L1 block number from receipt
   const l1Number = deployment.receipt.blockNumber;
@@ -48,10 +56,11 @@ export async function generateConfigFile(
   baseConfig.genesis.l1.number = l1Number;
   baseConfig.genesis.l2.hash = l2Hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
-  baseConfig.genesis.l2_time = ethers.BigNumber.from(genesis.timestamp).toNumber() || 0;
+  baseConfig.genesis.l2_time =
+    ethers.BigNumber.from(genesis.timestamp).toNumber() || 0;
 
   fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
-  console.log(`successfully wrote config to: ${configPath}`)
+  console.log(`successfully wrote config to: ${configPath}`);
 }
 
 /**
@@ -59,21 +68,30 @@ export async function generateConfigFile(
  */
 export async function generateContractAddresses(
   deploymentsConfigPath: string,
-  deploymentsPath: string
+  deploymentsPath: string,
 ) {
   // check the deployments dir - error out if it is not there
   const deploymentFiles = fs.readdirSync(deploymentsPath);
-  let result = ""
+  let result = "";
   for (const deploymentFile of deploymentFiles) {
-    if (deploymentFile.startsWith('Proxy__') && deploymentFile.endsWith('.json')) {
-      const deployment = JSON.parse(fs.readFileSync(`${deploymentsPath}/${deploymentFile}`, "utf-8"))
-      let contractName = deploymentFile.replace(/^Proxy__/, '').replace(/\.json$/, '');
-      contractName = contractName.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
-      result += `${contractName}_ADDR=${deployment.address}\n`
+    if (
+      deploymentFile.startsWith("Proxy__") &&
+      deploymentFile.endsWith(".json")
+    ) {
+      const deployment = JSON.parse(
+        fs.readFileSync(`${deploymentsPath}/${deploymentFile}`, "utf-8"),
+      );
+      let contractName = deploymentFile
+        .replace(/^Proxy__/, "")
+        .replace(/\.json$/, "");
+      contractName = contractName
+        .replace(/([a-z])([A-Z])/g, "$1_$2")
+        .toUpperCase();
+      result += `${contractName}_ADDR=${deployment.address}\n`;
     }
   }
   fs.writeFileSync(deploymentsConfigPath, result);
-  console.log(`successfully wrote deployments to: ${deploymentsConfigPath}`)
+  console.log(`successfully wrote deployments to: ${deploymentsConfigPath}`);
 }
 
 if (!require.main!.loaded) {

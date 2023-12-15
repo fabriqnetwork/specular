@@ -26,7 +26,7 @@ async function main() {
     l1StandardBridge.filters.ETHBridgeFinalized(),
     async (from, to, amount, data) => {
       console.log({ msg: "ETHBridgeFinalized", from, to, amount, data });
-    }
+    },
   );
 
   const balanceStart = await l1Bridger.getBalance();
@@ -50,19 +50,21 @@ async function main() {
     data: withdrawEvent.args.data,
   };
 
-  const withdrawalHash = withdrawEvent.args.withdrawalHash
-  console.log({ withdrawHash: withdrawalHash })
-  const initiated = await l2Portal.initiatedWithdrawals(withdrawalHash)
-  console.log({ initiated })
+  const withdrawalHash = withdrawEvent.args.withdrawalHash;
+  console.log({ withdrawHash: withdrawalHash });
+  const initiated = await l2Portal.initiatedWithdrawals(withdrawalHash);
+  console.log({ initiated });
 
-  const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(rollup, withdrawTxBlockNum)
-
+  const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(
+    rollup,
+    withdrawTxBlockNum,
+  );
 
   // Get withdraw proof for the block the assertion committed to.
   const withdrawProof = await getWithdrawalProof(
     l2Portal.address,
     withdrawalHash,
-    hexlifyBlockNum(assertionBlockNum)
+    hexlifyBlockNum(assertionBlockNum),
   );
 
   // Get block for the block the assertion committed to.
@@ -74,7 +76,7 @@ async function main() {
   let l2StateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
 
   // Finalize withdraw
-  console.log({l2BlockHash, l2StateRoot});
+  console.log({ l2BlockHash, l2StateRoot });
   try {
     let finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
       withdrawMessage,
@@ -82,12 +84,12 @@ async function main() {
       l2BlockHash,
       l2StateRoot,
       withdrawProof.accountProof,
-      withdrawProof.storageProof
+      withdrawProof.storageProof,
     );
-    console.log(finalizeTx)
+    console.log(finalizeTx);
     await finalizeTx.wait();
-  } catch(e) {
-    console.log({ e })
+  } catch (e) {
+    console.log({ e });
   }
 
   // Confirm ETH balance was bridged
