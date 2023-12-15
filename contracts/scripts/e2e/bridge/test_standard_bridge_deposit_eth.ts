@@ -6,6 +6,7 @@ import {
   getDepositProof,
   hexlifyBlockNum,
   waitUntilStateRoot,
+  delay
 } from "../utils";
 
 async function main() {
@@ -49,7 +50,7 @@ async function main() {
   let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
   console.log("Initial block", { blockNumber, stateRoot, depositEvent });
-  await waitUntilStateRoot(l1Oracle, stateRoot)
+  await waitUntilStateRoot(l1Oracle, stateRoot, blockNumber)
 
   console.log({ depositHash: depositEvent.args.depositHash })
   const initiated = await l1Portal.initiatedDeposits(depositEvent.args.depositHash)
@@ -64,6 +65,7 @@ async function main() {
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
       despositMessage,
+      blockNumber,
       depositProof.accountProof,
       depositProof.storageProof
     );

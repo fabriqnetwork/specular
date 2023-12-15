@@ -76,7 +76,7 @@ async function main() {
   const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
   console.log("Initial block", { blockNumber, stateRoot, depositMessage });
-  await waitUntilStateRoot(l1Oracle, stateRoot)
+  await waitUntilStateRoot(l1Oracle, stateRoot, blockNumber)
 
   console.log({ depositHash: depositEvent.args.depositHash })
   let initiated = await l1Portal.initiatedDeposits(depositEvent.args.depositHash)
@@ -91,6 +91,7 @@ async function main() {
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
       depositMessage,
+      blockNumber,
       depositProof.accountProof,
       depositProof.storageProof
     );

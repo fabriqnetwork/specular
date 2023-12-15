@@ -34,9 +34,9 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
     bytes32 public hash;
 
     /**
-     * @notice The latest L1 stateRoot known by the L2 system.
+     * @notice The latest 256 L1 stateRoots known by the L2 system.
      */
-    bytes32 public stateRoot;
+    mapping(uint8 => bytes32) public stateRoots;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -81,7 +81,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
         timestamp = _timestamp;
         baseFee = _baseFee;
         hash = _hash;
-        stateRoot = _stateRoot;
+        stateRoots[uint8(_number % 256)] = _stateRoot;
     }
 
     /**

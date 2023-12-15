@@ -63,7 +63,6 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"timestamp":     {ProxyValue: block.Time()},
 				"baseFee":       {ProxyValue: block.BaseFee()},
 				"hash":          {ProxyValue: block.Hash()},
-				"stateRoot":     {ProxyValue: block.Root()},
 			},
 		},
 		"L2Portal": {

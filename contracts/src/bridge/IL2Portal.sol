@@ -46,11 +46,13 @@ interface IL2Portal {
      * @notice Finalizes a deposit transaction.
      *
      * @param depositTx           Deposit transaction to finalize.
+     * @param l1BlockNumber       L1 Block Number of the deposit.
      * @param depositAccountProof Inclusion proof of the L1Portal contract's storage root.
      * @param depositProof        Inclusion proof of the deposit in L1Portal contract.
      */
     function finalizeDepositTransaction(
         Types.CrossDomainMessage memory depositTx,
+        uint256 l1BlockNumber,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
     ) external;

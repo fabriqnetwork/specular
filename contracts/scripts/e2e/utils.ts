@@ -172,13 +172,18 @@ export function getStorageKey(messageHash: string) {
   );
 }
 
-export async function waitUntilStateRoot(l1Oracle: Contract, stateRoot: string) {
+// TODO: block number
+export async function waitUntilStateRoot(
+  l1Oracle: Contract,
+  stateRoot: string,
+  blockNumber: number
+) {
   console.log(`Waiting for L2 state root ${stateRoot}...`);
 
-  let oracleStateRoot = await l1Oracle.stateRoot()
+  let oracleStateRoot = await l1Oracle.stateRoots(blockNumber % 256)
   while (oracleStateRoot !== stateRoot) {
-    oracleStateRoot = await l1Oracle.stateRoot()
-    console.log({ stateRoot, oracleStateRoot })
+    oracleStateRoot = await l1Oracle.stateRoots(blockNumber % 256)
+    console.log({ stateRoot, blockNumber: blockNumber, oracleStateRoot })
     await delay(500)
   }
 }
@@ -219,7 +224,7 @@ export function hexlifyBlockNum(blockNum: number): string {
   // Check if the string starts with "0x" and contains more than just "0x".
   if (hexBlockNum.startsWith("0x") && hexBlockNum.length > 2) {
     let strippedString = "0x";
-    
+
     // Iterate through the characters of the input string starting from the third character (index 2).
     for (let i = 2; i < hexBlockNum.length; i++) {
       if (hexBlockNum[i] !== '0') {
@@ -227,11 +232,11 @@ export function hexlifyBlockNum(blockNum: number): string {
         return strippedString;
       }
     }
-    
+
     // If all characters are '0', return "0x0".
     return "0x0";
   }
-  
+
   // If the input is not in the expected format, return it as is.
   return hexBlockNum;
 }
