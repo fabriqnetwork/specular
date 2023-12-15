@@ -6,7 +6,7 @@ import {
   deployTokenPair,
   hexlifyBlockNum,
   waitUntilStateRoot,
-  waitUntilBlockConfirmed
+  waitUntilBlockConfirmed,
 } from "../utils";
 
 async function main() {
@@ -30,15 +30,15 @@ async function main() {
   // TODO: portal should be funded as part of pre-deploy pipeline
   await Promise.all([
     l1Portal.donateETH({ value: ethers.utils.parseEther("1") }),
-    l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
-  ])
+    l2Portal.donateETH({ value: ethers.utils.parseEther("1") }),
+  ]);
 
   const l1BalanceStart = await l1Token.balanceOf(l1Bridger.address);
 
   // Approve entire ERC-20 balance on L1
   const l1ApproveTx = await l1Token.approve(
     l1StandardBridge.address,
-    l1BalanceStart
+    l1BalanceStart,
   );
   await l1ApproveTx.wait();
 
@@ -48,16 +48,14 @@ async function main() {
     l2Token.address,
     l1BalanceStart,
     200_000,
-    []
+    [],
   );
 
   const depositTxWithLogs = await depositTx.wait();
-  console.log(depositTxWithLogs)
+  console.log(depositTxWithLogs);
   const l1BalanceEnd = await l1Token.balanceOf(l1Bridger.address);
 
-  const depositEvent = l1Portal.interface.parseLog(
-    depositTxWithLogs.logs[3]
-  );
+  const depositEvent = l1Portal.interface.parseLog(depositTxWithLogs.logs[3]);
   const depositMessage = {
     version: 0,
     nonce: depositEvent.args.nonce,
@@ -76,11 +74,13 @@ async function main() {
   const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
   console.log("Initial block", { blockNumber, stateRoot, depositMessage });
-  await waitUntilStateRoot(l1Oracle, stateRoot, blockNumber)
+  await waitUntilStateRoot(l1Oracle, stateRoot, blockNumber);
 
-  console.log({ depositHash: depositEvent.args.depositHash })
-  let initiated = await l1Portal.initiatedDeposits(depositEvent.args.depositHash)
-  console.log({ initiated })
+  console.log({ depositHash: depositEvent.args.depositHash });
+  let initiated = await l1Portal.initiatedDeposits(
+    depositEvent.args.depositHash,
+  );
+  console.log({ initiated });
 
   const depositProof = await getDepositProof(
     l1Portal.address,
@@ -93,11 +93,11 @@ async function main() {
       depositMessage,
       blockNumber,
       depositProof.accountProof,
-      depositProof.storageProof
+      depositProof.storageProof,
     );
     await finalizeTx.wait();
-  } catch(e) {
-    console.log({ e })
+  } catch (e) {
+    console.log({ e });
   }
 
   const l2BalanceEnd = await l2Token.balanceOf(l2Bridger.address);
@@ -109,7 +109,7 @@ async function main() {
   // Approve entire ERC-20 balance on L2
   const l2ApproveTx = await l2Token.approve(
     l2StandardBridge.address,
-    l2BalanceEnd
+    l2BalanceEnd,
   );
   await l2ApproveTx.wait();
 
@@ -118,7 +118,7 @@ async function main() {
     l1Token.address,
     l2BalanceEnd,
     200_000,
-    []
+    [],
   );
   const txWithLogs = await withdrawalTx.wait();
   const withdrawBlockNum = txWithLogs.blockNumber;
@@ -139,18 +139,21 @@ async function main() {
     data: withdrawEvent.args.data,
   };
 
-  const withdrawalHash = withdrawEvent.args.withdrawalHash
-  console.log({ withdrawHash: withdrawalHash })
-  initiated = await l2Portal.initiatedWithdrawals(withdrawalHash)
-  console.log({ initiated })
+  const withdrawalHash = withdrawEvent.args.withdrawalHash;
+  console.log({ withdrawHash: withdrawalHash });
+  initiated = await l2Portal.initiatedWithdrawals(withdrawalHash);
+  console.log({ initiated });
 
-  const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(rollup, withdrawBlockNum)
+  const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(
+    rollup,
+    withdrawBlockNum,
+  );
 
   // Get withdraw proof for the block the assertion committed to.
   const withdrawProof = await getWithdrawalProof(
     l2Portal.address,
     withdrawalHash,
-    hexlifyBlockNum(assertionBlockNum)
+    hexlifyBlockNum(assertionBlockNum),
   );
 
   // Get block for the block the assertion committed to.
@@ -162,7 +165,7 @@ async function main() {
   let l2StateRoot = l2Provider.formatter.hash(rawBlock.stateRoot);
 
   // Finalize withdraw
-  console.log({l2BlockHash, l2StateRoot});
+  console.log({ l2BlockHash, l2StateRoot });
   try {
     let finalizeTx = await l1Portal.finalizeWithdrawalTransaction(
       withdrawMessage,
@@ -170,12 +173,12 @@ async function main() {
       l2BlockHash,
       l2StateRoot,
       withdrawProof.accountProof,
-      withdrawProof.storageProof
+      withdrawProof.storageProof,
     );
-    console.log(finalizeTx)
+    console.log(finalizeTx);
     await finalizeTx.wait();
-  } catch(e) {
-    console.log({ e })
+  } catch (e) {
+    console.log({ e });
   }
 
   const finalBalance = await l1Token.balanceOf(l1Bridger.address);

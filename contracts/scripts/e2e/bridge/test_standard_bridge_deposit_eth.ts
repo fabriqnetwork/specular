@@ -6,7 +6,7 @@ import {
   getDepositProof,
   hexlifyBlockNum,
   waitUntilStateRoot,
-  delay
+  delay,
 } from "../utils";
 
 async function main() {
@@ -20,7 +20,9 @@ async function main() {
   } = await getSignersAndContracts();
 
   // TODO: portal should be funded as part of pre-deploy pipeline
-  const donateTx = await l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
+  const donateTx = await l2Portal.donateETH({
+    value: ethers.utils.parseEther("1"),
+  });
   await donateTx;
 
   const balanceStart: BigNumber = await l2Bridger.getBalance();
@@ -50,16 +52,18 @@ async function main() {
   let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
   console.log("Initial block", { blockNumber, stateRoot, depositEvent });
-  await waitUntilStateRoot(l1Oracle, stateRoot, blockNumber)
+  await waitUntilStateRoot(l1Oracle, stateRoot, blockNumber);
 
-  console.log({ depositHash: depositEvent.args.depositHash })
-  const initiated = await l1Portal.initiatedDeposits(depositEvent.args.depositHash)
-  console.log({ initiated })
+  console.log({ depositHash: depositEvent.args.depositHash });
+  const initiated = await l1Portal.initiatedDeposits(
+    depositEvent.args.depositHash,
+  );
+  console.log({ initiated });
 
   const depositProof = await getDepositProof(
     l1Portal.address,
     depositEvent.args.depositHash,
-    hexlifyBlockNum(blockNumber)
+    hexlifyBlockNum(blockNumber),
   );
 
   try {
@@ -67,11 +71,11 @@ async function main() {
       despositMessage,
       blockNumber,
       depositProof.accountProof,
-      depositProof.storageProof
+      depositProof.storageProof,
     );
     await finalizeTx.wait();
-  } catch(e) {
-    console.log({ e })
+  } catch (e) {
+    console.log({ e });
   }
 
   // balanceStart <- balance on L2 before bridging
@@ -79,7 +83,10 @@ async function main() {
   // bridgeValue <- the value we're transfering
   // Expected: balanceEnd - balanceStart - bridgeValue ~== 0
   const balanceEnd: BigNumber = await l2Bridger.getBalance();
-  const actualDiff: BigNumber = balanceEnd.sub(balanceStart).sub(bridgeValue).abs();
+  const actualDiff: BigNumber = balanceEnd
+    .sub(balanceStart)
+    .sub(bridgeValue)
+    .abs();
   const acceptableMargin: BigNumber = ethers.utils.parseEther("0.0001");
 
   if (!actualDiff.lt(acceptableMargin)) {
@@ -89,7 +96,7 @@ async function main() {
       balanceEnd: formatEther(balanceEnd),
       actualDiff: formatEther(actualDiff),
       acceptableMargin: formatEther(acceptableMargin),
-    }
+    };
     console.log(situation);
     throw "value after bridging is not as expected, actualDiff is expected to be close to zero";
   }

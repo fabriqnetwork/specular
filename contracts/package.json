@@ -10,8 +10,8 @@
   ],
   "scripts": {
     "build": "hardhat compile",
-    "lint:fix": "forge fmt",
-    "lint:check": "forge fmt --check",
+    "lint:fix": "forge fmt && npx prettier scripts/ -w",
+    "lint:check": "forge fmt --check && npx prettier scripts/ -c",
     "lint:forge-tests:check": "npx ts-node scripts/forge_test_names.ts",
     "test": "forge test",
     "preinstall": "npx only-allow pnpm",
@@ -42,7 +42,7 @@
     "hardhat-abi-exporter": "^2.10.0",
     "hardhat-deploy": "^0.11.18",
     "inquirer": "^8.2.5",
-    "prettier": "^2.8.4",
+    "prettier": "^3.1.1",
     "ts-node": "^10.9.1",
     "typechain": "^8.1.1",
     "typescript": "^4.9.3"
