@@ -1,15 +1,21 @@
 {
-  "name": "specular-l1-contracts",
+  "name": "@specularl2/contracts",
   "version": "0.0.1",
-  "private": true,
   "description": "",
   "main": "index.js",
+  "files": [
+    "src/**/*.sol",
+    "artifacts/src/**/*.json",
+    "!artifacts/src/**/*.dbg.json"
+  ],
   "scripts": {
-    "build": "forge build",
+    "build": "hardhat compile",
     "lint:fix": "forge fmt",
     "lint:check": "forge fmt --check",
-    "lint:forge-tests:check": "ts-node scripts/forge_test_names.ts",
-    "test": "forge test"
+    "lint:forge-tests:check": "npx ts-node scripts/forge_test_names.ts",
+    "test": "forge test",
+    "preinstall": "npx only-allow pnpm",
+    "prepublishOnly": "pnpm build"
   },
   "keywords": [],
   "author": "Specular contributors",

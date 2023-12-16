@@ -1,0 +1,3 @@
+build
+bindings/bindings/*.go
+!bindings/bindings/registry.go

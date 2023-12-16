@@ -11,6 +11,7 @@ import {Hashing} from "../libraries/Hashing.sol";
 import {Encoding} from "../libraries/Hashing.sol";
 import {MerkleTrie} from "../libraries/trie/MerkleTrie.sol";
 import {SecureMerkleTrie} from "../libraries/trie/SecureMerkleTrie.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 import {IL2Portal} from "./IL2Portal.sol";
 import {L1Oracle} from "./L1Oracle.sol";
@@ -47,11 +48,6 @@ contract L2Portal is
     uint256 internal constant FINALIZE_GAS_BUFFER = 20_000;
 
     /**
-     * @notice Address of the L1Oracle deployed on L2.
-     */
-    L1Oracle public l1Oracle;
-
-    /**
      * @notice Address of the L2Portal deployed on L1.
      */
     address public l1PortalAddress; // TODO: store the hash instead
@@ -81,12 +77,11 @@ contract L2Portal is
     /**
      * @notice Initializer;
      */
-    function initialize(address _l1Oracle, address _l1PortalAddress) public initializer {
-        if (_l1Oracle == address(0) || _l1PortalAddress == address(0)) {
+    function initialize(address _l1PortalAddress) public initializer {
+        if (_l1PortalAddress == address(0)) {
             revert ZeroAddress();
         }
 
-        l1Oracle = L1Oracle(_l1Oracle);
         l1PortalAddress = _l1PortalAddress;
         l1Sender = DEFAULT_L1_SENDER;
 
@@ -125,12 +120,7 @@ contract L2Portal is
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data)
-        public
-        payable
-        onlyProxy
-        whenNotPaused
-    {
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable whenNotPaused {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
                 version: 0,
@@ -156,7 +146,8 @@ contract L2Portal is
         Types.CrossDomainMessage memory depositTx,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
-    ) external onlyProxy whenNotPaused {
+    ) external whenNotPaused {
+        // TODO: re-add `onlyProxy`
         // Prevent nested deposits within deposits.
         require(l1Sender == DEFAULT_L1_SENDER, "L2Portal: can only trigger one deposit per transaction");
 
@@ -173,7 +164,7 @@ contract L2Portal is
         // Check that this deposit has not already been finalized, this is replay protection.
         require(finalizedDeposits[depositHash] == false, "L2Portal: deposit has already been finalized");
 
-        bytes32 stateRoot = l1Oracle.stateRoot();
+        bytes32 stateRoot = L1Oracle(Predeploys.L1_ORACLE).stateRoot();
 
         // Verify the account proof.
         bytes32 storageRoot = _verifyAccountInclusion(l1PortalAddress, stateRoot, depositAccountProof);

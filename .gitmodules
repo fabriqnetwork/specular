@@ -1,9 +1,12 @@
 [submodule "contracts/lib/forge-std"]
 	path = contracts/lib/forge-std
 	url = https://github.com/foundry-rs/forge-std
-[submodule "clients/geth/go-ethereum"]
-	path = clients/geth/go-ethereum
-	url = https://github.com/SpecularL2/go-ethereum
 [submodule "blockscout"]
 	path = blockscout
 	url = https://github.com/SpecularL2/blockscout
+[submodule "services/el_clients/go-ethereum"]
+	path = services/el_clients/go-ethereum
+	url = https://github.com/specularL2/go-ethereum
+[submodule "services/cl_clients/magi"]
+	path = services/cl_clients/magi
+	url = https://github.com/specularl2/magi

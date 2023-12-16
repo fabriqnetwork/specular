@@ -3,6 +3,7 @@ pragma solidity 0.8.15;
 
 // Testing utilities
 import {Test, StdUtils} from "forge-std/Test.sol";
+import "forge-std/console.sol";
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
@@ -12,6 +13,7 @@ import {L1Portal} from "../../src/bridge/L1Portal.sol";
 import {L2Portal} from "../../src/bridge/L2Portal.sol";
 import {L1StandardBridge} from "../../src/bridge/L1StandardBridge.sol";
 import {L2StandardBridge} from "../../src/bridge/L2StandardBridge.sol";
+import {Predeploys} from "../../src/libraries/Predeploys.sol";
 import {MintableERC20} from "../../src/bridge/mintable/MintableERC20.sol";
 import {MintableERC20Factory} from "../../src/bridge/mintable/MintableERC20Factory.sol";
 
@@ -31,7 +33,7 @@ contract CommonTest is Test {
 
 contract L1Oracle_Initializer is CommonTest {
     address sequencerAddress = address(8);
-    address l1OracleAddress = address(16);
+    address l1OracleAddress = Predeploys.L1_ORACLE;
 
     L1Oracle oracle;
 
@@ -42,7 +44,7 @@ contract L1Oracle_Initializer is CommonTest {
         vm.label(l1OracleAddress, "L1Oracle");
 
         oracle = L1Oracle(l1OracleAddress);
-        oracle.initialize(sequencerAddress);
+        oracle.initialize();
     }
 }
 
@@ -89,19 +91,32 @@ contract Portal_Initializer is L1Oracle_Initializer {
         // dummy rollup address
         l1Portal.initialize(address(42));
 
-        l2PortalProxy = new UUPSProxy(address(new L2Portal()), "");
-        l2PortalAddress = payable(address(l2PortalProxy));
-        vm.label(l2PortalAddress, "L2Portal");
-        l2Portal = L2Portal(l2PortalAddress);
+        // the L2Portal needs to be deployed at the correct predeploy address
+        // deploy implementation contract
+        address l2PortalImplAddress = address(new L2Portal());
 
-        l1Portal.setL2PortalAddress(l2PortalAddress);
-        l2Portal.initialize(l1OracleAddress, l1PortalAddress);
+        // deploy Proxy at random address
+        l2PortalProxy = new UUPSProxy(l2PortalImplAddress, "");
+
+        // etch proxy to the predeploy address
+        l2PortalAddress = payable(Predeploys.L2_PORTAL);
+        vm.etch(l2PortalAddress, address(l2PortalProxy).code);
+        vm.label(l2PortalAddress, "L2Portal");
+
+        // store implementation address at the correct storage slot
+        // the slot is defined in https://eips.ethereum.org/EIPS/eip-1967
+        // bytes32(uint256(keccak256('eip1967.proxy.implementation')) - 1)
+        bytes32 implSlot = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+        vm.store(l2PortalAddress, implSlot, bytes32(uint256(uint160(l2PortalImplAddress))));
+
+        l2Portal = L2Portal(l2PortalAddress);
+        l2Portal.initialize(l1PortalAddress);
     }
 }
 
 contract StandardBridge_Initializer is Portal_Initializer {
     address payable l1StandardBridgeAddress = payable(address(128));
-    address payable l2StandardBridgeAddress = payable(address(256));
+    address payable l2StandardBridgeAddress = payable(Predeploys.L2_STANDARD_BRIDGE);
 
     L1StandardBridge l1StandardBridge;
     L2StandardBridge l2StandardBridge;
@@ -145,18 +160,16 @@ contract StandardBridge_Initializer is Portal_Initializer {
         vm.label(l1StandardBridgeAddress, "L1StandardBridge");
 
         l1StandardBridge = L1StandardBridge(payable(l1StandardBridgeAddress));
-        l1StandardBridge.initialize(l1PortalAddress, l2StandardBridgeAddress);
+        l1StandardBridge.initialize(l1PortalAddress);
 
         vm.etch(l2StandardBridgeAddress, address(new L2StandardBridge()).code);
         vm.label(l2StandardBridgeAddress, "L2StandardBridge");
 
         l2StandardBridge = L2StandardBridge(l2StandardBridgeAddress);
-        l2StandardBridge.initialize(l2PortalAddress, l1StandardBridgeAddress);
+        l2StandardBridge.initialize(l1StandardBridgeAddress);
 
         // depoly ERC20 tokens for testing
-        l2TokenFactory = new MintableERC20Factory(
-            l2StandardBridgeAddress
-        );
+        l2TokenFactory = new MintableERC20Factory(l2StandardBridgeAddress);
 
         l1Token = new ERC20("Native L1 Token", "L1T");
 

@@ -1,6 +1,6 @@
 // NOTE: this test will fail without portal level retryability
 import { ethers } from "hardhat";
-import { getSignersAndContracts, getDepositProof } from "../utils";
+import { getSignersAndContracts, getDepositProof, hexlifyBlockNum } from "../utils";
 
 async function main() {
   const {
@@ -25,7 +25,7 @@ async function main() {
   });
   const txWithLogs = await bridgeTx.wait();
 
-  const initEvent = await l1Portal.interface.parseLog(txWithLogs.logs[1]);
+  const initEvent = l1Portal.interface.parseLog(txWithLogs.logs[1]);
   const crossDomainMessage = {
     version: 0,
     nonce: initEvent.args.nonce,
@@ -46,8 +46,8 @@ async function main() {
 
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
-    blockNumber,
-    initEvent.args.depositHash
+    initEvent.args.depositHash,
+    hexlifyBlockNum(blockNumber)
   );
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(

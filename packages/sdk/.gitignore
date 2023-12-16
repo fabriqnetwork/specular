@@ -1,0 +1,4 @@
+dist/
+
+# typechain bindings
+src/types/contracts

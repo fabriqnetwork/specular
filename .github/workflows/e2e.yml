@@ -27,22 +27,24 @@ jobs:
     if: needs.pre_job.outputs.should_skip != 'true'
 
     steps:
+      - name: Cache git folder
+        uses: actions/cache@v3
+        with:
+          path: ./.git
+          key: git-folder
 
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
 
-      - name: Setup Node
+      - name: Build node
         uses: ./.github/actions/node
 
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
+      - name: Make specular
+        run: make
 
-      - name: Setup Testing Environment
-        run: ./e2e/sbin/setup.sh
+      - name: Setup workspace
+        run: mkdir workspace && cp -a config/e2e_test/. workspace/
 
-      - name: Run Test
-        run: ./e2e/sbin/test.sh ${{ matrix.test-name }}
+      - name: Run tests
+        run: cd workspace && ../sbin/run_e2e_tests.sh ${{ matrix.test-name }}

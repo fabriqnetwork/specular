@@ -28,6 +28,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {AccessControlDefaultAdminRulesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {Hashing} from "./libraries/Hashing.sol";
 
 import "./challenge/IChallenge.sol";
 import "./challenge/SymChallenge.sol";
@@ -36,8 +37,39 @@ import "./libraries/Errors.sol";
 import "./IDAProvider.sol";
 import "./IRollup.sol";
 
+abstract contract RollupData {
+    struct AssertionState {
+        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
+        mapping(bytes32 => bool) childStateCommitments; // child state commitments
+    }
+
+    struct Zombie {
+        address stakerAddress;
+        uint256 lastAssertionID;
+    }
+
+    struct Config {
+        address vault;
+        address daProvider;
+        address verifier;
+        uint256 confirmationPeriod;
+        uint256 challengePeriod;
+        uint256 minimumAssertionPeriod;
+        uint256 baseStakeAmount;
+        address[] validators;
+    }
+
+    struct InitialRollupState {
+        uint256 assertionID;
+        uint256 l2BlockNum;
+        bytes32 l2BlockHash;
+        bytes32 l2StateRoot;
+    }
+}
+
 abstract contract RollupBase is
     IRollup,
+    RollupData,
     IChallengeResultReceiver,
     Initializable,
     UUPSUpgradeable,
@@ -56,16 +88,6 @@ abstract contract RollupBase is
     address public vault;
     IDAProvider public daProvider;
     IVerifier public verifier;
-
-    struct AssertionState {
-        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
-        mapping(bytes32 => bool) childStateHashes; // child assertion vm hashes
-    }
-
-    struct Zombie {
-        address stakerAddress;
-        uint256 lastAssertionID;
-    }
 
     function __RollupBase_init() internal onlyInitializing {
         __AccessControlDefaultAdminRules_init(3 days, msg.sender);
@@ -100,50 +122,41 @@ contract Rollup is RollupBase {
     mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
     Zombie[] public zombies; // stores stakers that lost a challenge
 
-    function initialize(
-        address _vault,
-        address _daProvider,
-        address _verifier,
-        uint256 _confirmationPeriod,
-        uint256 _challengePeriod,
-        uint256 _minimumAssertionPeriod,
-        uint256 _baseStakeAmount,
-        uint256 _initialAssertionID,
-        uint256 _initialInboxSize,
-        bytes32 _initialVMhash,
-        address[] calldata _validators
-    ) public initializer {
-        if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
+    function initialize(Config calldata _config, InitialRollupState calldata _initialRollupState) public initializer {
+        if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
             revert ZeroAddress();
         }
         __RollupBase_init();
 
-        vault = _vault;
-        daProvider = IDAProvider(_daProvider);
-        verifier = IVerifier(_verifier);
+        vault = _config.vault;
+        daProvider = IDAProvider(_config.daProvider);
+        verifier = IVerifier(_config.verifier);
 
-        confirmationPeriod = _confirmationPeriod;
-        challengePeriod = _challengePeriod;
-        minimumAssertionPeriod = _minimumAssertionPeriod;
-        baseStakeAmount = _baseStakeAmount;
+        confirmationPeriod = _config.confirmationPeriod;
+        challengePeriod = _config.challengePeriod;
+        minimumAssertionPeriod = _config.minimumAssertionPeriod;
+        baseStakeAmount = _config.baseStakeAmount;
 
-        lastResolvedAssertionID = _initialAssertionID;
-        lastConfirmedAssertionID = _initialAssertionID;
-        lastCreatedAssertionID = _initialAssertionID;
+        lastResolvedAssertionID = _initialRollupState.assertionID;
+        lastConfirmedAssertionID = _initialRollupState.assertionID;
+        lastCreatedAssertionID = _initialRollupState.assertionID;
 
         // Initialize role based access control
-        for (uint256 i = 0; i < _validators.length; i++) {
-            grantRole(VALIDATOR_ROLE, _validators[i]);
+        for (uint256 i = 0; i < _config.validators.length; i++) {
+            grantRole(VALIDATOR_ROLE, _config.validators[i]);
         }
 
+        bytes32 initialStateCommitment =
+            Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);
+
         createAssertionHelper(
-            _initialAssertionID, // assertionID
-            _initialVMhash,
-            _initialInboxSize, // inboxSize (genesis)
-            _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
+            _initialRollupState.assertionID, // assertionID
+            initialStateCommitment,
+            _initialRollupState.l2BlockNum, // blockNum (genesis)
+            _initialRollupState.assertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, _initialVMhash);
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, initialStateCommitment);
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -172,8 +185,8 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function confirmedInboxSize() public view override returns (uint256) {
-        return assertions[lastConfirmedAssertionID].inboxSize;
+    function confirmedBlockNum() public view override returns (uint256) {
+        return assertions[lastConfirmedAssertionID].blockNum;
     }
 
     /// @inheritdoc IRollup
@@ -415,7 +428,7 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 vmHash, uint256 inboxSize)
+    function createAssertion(bytes32 stateCommitment, uint256 blockNum)
         external
         override
         stakedOnly
@@ -428,20 +441,15 @@ contract Rollup is RollupBase {
         if (block.number - parent.proposalTime < minimumAssertionPeriod) {
             revert MinimumAssertionPeriodNotPassed();
         }
-        // Require that the assertion at least includes one transaction
-        if (inboxSize <= parent.inboxSize) {
+        // Require that the assertion at least includes one block
+        if (blockNum <= parent.blockNum) {
             revert EmptyAssertion();
-        }
-        // TODO: Enforce stricter bounds on assertion size.
-        // Require that the assertion doesn't read past the end of the current inbox.
-        if (inboxSize > daProvider.getInboxSize()) {
-            revert InboxReadLimitExceeded();
         }
 
         // Initialize assertion.
         lastCreatedAssertionID++;
-        emit AssertionCreated(lastCreatedAssertionID, msg.sender, vmHash);
-        createAssertionHelper(lastCreatedAssertionID, vmHash, inboxSize, parentID, newAssertionDeadline());
+        emit AssertionCreated(lastCreatedAssertionID, msg.sender, stateCommitment);
+        createAssertionHelper(lastCreatedAssertionID, stateCommitment, blockNum, parentID, newAssertionDeadline());
 
         // Update stake.
         stakeOnAssertion(msg.sender, lastCreatedAssertionID);
@@ -483,9 +491,9 @@ contract Rollup is RollupBase {
         // Initialize challenge.
         SymChallenge challenge = new SymChallenge();
         address challengeAddr = address(challenge);
-        bytes32 startStateHash = assertions[parentID].stateHash;
-        bytes32 endStateDefenderHash = assertions[defenderAssertionID].stateHash;
-        bytes32 endStateChallengerHash = assertions[challengerAssertionID].stateHash;
+        bytes32 startStateCommitment = assertions[parentID].stateCommitment;
+        bytes32 endStateDefenderCommitment = assertions[defenderAssertionID].stateCommitment;
+        bytes32 endStateChallengerCommitment = assertions[challengerAssertionID].stateCommitment;
         stakers[challenger].currentChallenge = challengeAddr;
         stakers[defender].currentChallenge = challengeAddr;
         emit AssertionChallenged(defenderAssertionID, challengeAddr);
@@ -495,9 +503,9 @@ contract Rollup is RollupBase {
             verifier,
             daProvider,
             IChallengeResultReceiver(address(this)),
-            startStateHash,
-            endStateDefenderHash,
-            endStateChallengerHash,
+            startStateCommitment,
+            endStateDefenderCommitment,
+            endStateChallengerCommitment,
             challengePeriod
         );
         return challengeAddr;
@@ -572,26 +580,28 @@ contract Rollup is RollupBase {
      */
     function createAssertionHelper(
         uint256 assertionID,
-        bytes32 stateHash,
-        uint256 inboxSize,
+        bytes32 stateCommitment,
+        uint256 blockNum,
         uint256 parentID,
         uint256 deadline
     ) private {
         Assertion storage parentAssertion = assertions[parentID];
         AssertionState storage parentAssertionState = assertionState[parentID];
-        // Child assertions must have same inbox size
-        uint256 parentChildInboxSize = parentAssertion.childInboxSize;
-        if (parentChildInboxSize == 0) {
-            parentAssertion.childInboxSize = inboxSize;
-        } else if (inboxSize != parentChildInboxSize) {
+        // Siblings must have same inbox size.
+        uint256 siblingConstraint = parentAssertion.childBlockNum;
+        if (siblingConstraint == 0) {
+            // Set the constraint for future siblings.
+            parentAssertion.childBlockNum = blockNum;
+        } else if (blockNum != siblingConstraint) {
+            // Enforce the constraint if it's set.
             revert InvalidInboxSize();
-        } else if (parentAssertionState.childStateHashes[stateHash]) {
+        } else if (parentAssertionState.childStateCommitments[stateCommitment]) {
             revert DuplicateAssertion();
         }
-        parentAssertionState.childStateHashes[stateHash] = true;
+        parentAssertionState.childStateCommitments[stateCommitment] = true;
         assertions[assertionID] = Assertion(
-            stateHash,
-            inboxSize,
+            stateCommitment,
+            blockNum,
             parentID,
             deadline,
             block.number, // proposal time

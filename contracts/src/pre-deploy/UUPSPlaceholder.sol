@@ -30,6 +30,7 @@ contract UUPSPlaceholder is PredeployUUPSUpgradeable, OwnableUpgradeable {
 
     function initialize() public initializer {
         __Ownable_init();
+        __UUPSUpgradeable_init();
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}

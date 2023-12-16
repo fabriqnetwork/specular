@@ -7,12 +7,11 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {StandardBridge} from "./StandardBridge.sol";
 import {L2Portal} from "./L2Portal.sol";
 import {IMintableERC20} from "./mintable/IMintableERC20.sol";
+import {Predeploys} from "../libraries/Predeploys.sol";
 import {AddressAliasHelper} from "../vendor/AddressAliasHelper.sol";
 
 contract L2StandardBridge is StandardBridge {
     using SafeERC20 for IERC20;
-
-    L2Portal public L2_PORTAL;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -21,7 +20,7 @@ contract L2StandardBridge is StandardBridge {
 
     /// @inheritdoc StandardBridge
     modifier onlyOtherBridge() override {
-        address origSender = AddressAliasHelper.undoL1ToL2Alias(L2_PORTAL.l1Sender());
+        address origSender = AddressAliasHelper.undoL1ToL2Alias(L2Portal(payable(Predeploys.L2_PORTAL)).l1Sender());
         require(
             msg.sender == address(PORTAL_ADDRESS) && origSender == address(OTHER_BRIDGE),
             "StandardBridge: function can only be called from the other bridge"
@@ -31,10 +30,8 @@ contract L2StandardBridge is StandardBridge {
     }
 
     /// @notice Initializer;
-    function initialize(address payable _l2Portal, address payable _otherBridge) public initializer {
-        L2_PORTAL = L2Portal(_l2Portal);
-
-        __StandardBridge_init(_l2Portal, _otherBridge);
+    function initialize(address payable _otherBridge) public initializer {
+        __StandardBridge_init(payable(Predeploys.L2_PORTAL), _otherBridge);
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
@@ -54,7 +51,7 @@ contract L2StandardBridge is StandardBridge {
     ) internal override {
         emit ETHBridgeInitiated(_from, _to, _amount, _extraData);
 
-        L2_PORTAL.initiateWithdrawal{value: _amount}(
+        L2Portal(payable(Predeploys.L2_PORTAL)).initiateWithdrawal{value: _amount}(
             address(OTHER_BRIDGE),
             _minGasLimit,
             abi.encodeWithSelector(this.finalizeBridgeETH.selector, _from, _to, _amount, _extraData)
@@ -80,7 +77,7 @@ contract L2StandardBridge is StandardBridge {
 
         emit ERC20BridgeInitiated(_localToken, _remoteToken, _from, _to, _amount, _extraData);
 
-        L2_PORTAL.initiateWithdrawal(
+        L2Portal(payable(Predeploys.L2_PORTAL)).initiateWithdrawal(
             address(OTHER_BRIDGE),
             _minGasLimit,
             abi.encodeWithSelector(
