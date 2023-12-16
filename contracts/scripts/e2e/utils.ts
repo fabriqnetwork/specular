@@ -1,4 +1,5 @@
 import * as addresses from "./addresses"
+import { Wallet, BigNumber, Contract } from "ethers"
 import { ethers } from "hardhat"
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
@@ -94,7 +95,7 @@ export async function getSignersAndContracts() {
   };
 }
 
-export async function getDepositProof(portalAddress, depositHash, blockNumber="latest") {
+export async function getDepositProof(portalAddress: string, depositHash: string, blockNumber: string) {
   const proof = await l1Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(depositHash)],
@@ -107,11 +108,11 @@ export async function getDepositProof(portalAddress, depositHash, blockNumber="l
   };
 }
 
-export async function getWithdrawalProof(portalAddress, withdrawalHash) {
+export async function getWithdrawalProof(portalAddress: string, withdrawalHash: string, blockNumber: string) {
   const proof = await l2Provider.send("eth_getProof", [
     portalAddress,
     [getStorageKey(withdrawalHash)],
-    "latest",
+    blockNumber,
   ]);
 
   return {
@@ -120,7 +121,7 @@ export async function getWithdrawalProof(portalAddress, withdrawalHash) {
   };
 }
 
-export async function deployTokenPair(l1Bridger, l2Relayer) {
+export async function deployTokenPair(l1Bridger: Wallet, l2Relayer: Wallet) {
   const TestTokenFactory = await ethers.getContractFactory(
     "TestToken",
     l1Bridger
@@ -132,7 +133,7 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
     l2Relayer
   );
   const mintableERC20Factory = await MintableERC20FactoryFactory.deploy(
-    l2StandardBridgeAddress
+    addresses.l2StandardBridgeAddress
   );
   const deployTx = await mintableERC20Factory.createMintableERC20(
     l1Token.address,
@@ -140,6 +141,7 @@ export async function deployTokenPair(l1Bridger, l2Relayer) {
     "TT"
   );
   const deployTxWithLogs = await deployTx.wait();
+  console.log(deployTxWithLogs)
   const deployEvent = mintableERC20Factory.interface.parseLog(
     deployTxWithLogs.logs[0]
   );
@@ -168,4 +170,68 @@ export function getStorageKey(messageHash: string) {
       [messageHash, 0]
     )
   );
+}
+
+export async function waitUntilStateRoot(l1Oracle: Contract, stateRoot: string) {
+  console.log(`Waiting for L2 state root ${stateRoot}...`);
+
+  let oracleStateRoot = await l1Oracle.stateRoot()
+  while (oracleStateRoot !== stateRoot) {
+    oracleStateRoot = await l1Oracle.stateRoot()
+    console.log({ stateRoot, oracleStateRoot })
+    await delay(500)
+  }
+}
+
+export async function waitUntilBlockConfirmed(rollup: Contract, blockNum: number): Promise<[number, number]> {
+  let confirmedAssertionId: number | undefined = undefined;
+  let confirmedBlockNum: number;
+
+  rollup.on(rollup.filters.AssertionCreated(), () => {
+    console.log("AssertionCreated")
+  });
+
+  rollup.on(rollup.filters.AssertionConfirmed(), async (id: BigNumber) => {
+    const assertionId = id.toNumber();
+    const assertion = await rollup.getAssertion(assertionId);
+    const assertionBlockNum = assertion.blockNum.toNumber();
+
+    console.log({msg: "AssertionConfirmed", id: assertionId, blockNum: assertionBlockNum})
+    if (!confirmedAssertionId && blockNum <= assertionBlockNum) {
+        // Found the first assertion to confirm block
+        confirmedAssertionId = assertionId;
+        confirmedBlockNum = assertionBlockNum
+      }
+    })
+
+  console.log(`Waiting for L2 block ${blockNum} to be confirmed...`);
+  while (!confirmedAssertionId) {
+    await delay(500);
+  }
+
+  return [confirmedAssertionId!, confirmedBlockNum!]
+}
+
+// eth_getProof block number param cannot have leading zeros
+// This function hexlifys blockNum and strips leading zeros
+export function hexlifyBlockNum(blockNum: number): string {
+  let hexBlockNum = ethers.utils.hexlify(blockNum)
+  // Check if the string starts with "0x" and contains more than just "0x".
+  if (hexBlockNum.startsWith("0x") && hexBlockNum.length > 2) {
+    let strippedString = "0x";
+    
+    // Iterate through the characters of the input string starting from the third character (index 2).
+    for (let i = 2; i < hexBlockNum.length; i++) {
+      if (hexBlockNum[i] !== '0') {
+        strippedString += hexBlockNum.substring(i); // Append the remaining characters.
+        return strippedString;
+      }
+    }
+    
+    // If all characters are '0', return "0x0".
+    return "0x0";
+  }
+  
+  // If the input is not in the expected format, return it as is.
+  return hexBlockNum;
 }

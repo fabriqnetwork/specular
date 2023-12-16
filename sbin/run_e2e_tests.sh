@@ -87,6 +87,14 @@ until [ -f "$ROLLUP_CFG_PATH" ]; do
   sleep 4
 done
 
+DEPLOYMENTS_ENV=".deployments.env"
+if ! test -f "$DEPLOYMENTS_ENV"; then
+  echo "Expected dotenv at $DEPLOYMENTS_ENV (does not exist)."
+  exit
+fi
+echo "Using deployments dotenv: $DEPLOYMENTS_ENV"
+. $DEPLOYMENTS_ENV
+
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &>proc.out &
 sleep 1

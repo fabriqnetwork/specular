@@ -153,7 +153,7 @@ func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
 	// Process oracle tx, if it exists (to update timeout).
 	if block.Transactions().Len() > 0 {
 		var firstTx = block.Transactions()[0]
-		if *firstTx.To() == b.cfg.GetL1OracleAddr() {
+		if firstTx.To() != nil && *firstTx.To() == b.cfg.GetL1OracleAddr() {
 			epoch, _, _, _, _, err = bridge.UnpackL1OracleInput(firstTx)
 			if err != nil {
 				return fmt.Errorf("could not unpack oracle tx: %w", err)

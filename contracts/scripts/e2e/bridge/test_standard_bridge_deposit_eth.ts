@@ -4,42 +4,41 @@ import { formatEther } from "ethers/lib/utils";
 import {
   getSignersAndContracts,
   getDepositProof,
-  delay,
+  hexlifyBlockNum,
+  waitUntilStateRoot,
 } from "../utils";
 
 async function main() {
   const {
     l1Provider,
-    l2Provider,
     l2Bridger,
     l1Portal,
     l2Portal,
     l1StandardBridge,
-    l2StandardBridge,
     l1Oracle,
   } = await getSignersAndContracts();
-
-  const balanceStart: BigNumber = await l2Bridger.getBalance();
-  const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
 
   // TODO: portal should be funded as part of pre-deploy pipeline
   const donateTx = await l2Portal.donateETH({ value: ethers.utils.parseEther("1") })
   await donateTx;
+
+  const balanceStart: BigNumber = await l2Bridger.getBalance();
+  const bridgeValue: BigNumber = ethers.utils.parseEther("0.1");
 
   const bridgeTx = await l1StandardBridge.bridgeETH(200_000, [], {
     value: bridgeValue,
   });
   const txWithLogs = await bridgeTx.wait();
 
-  const initEvent = await l1Portal.interface.parseLog(txWithLogs.logs[1]);
-  const crossDomainMessage = {
+  const depositEvent = l1Portal.interface.parseLog(txWithLogs.logs[1]);
+  const despositMessage = {
     version: 0,
-    nonce: initEvent.args.nonce,
-    sender: initEvent.args.sender,
-    target: initEvent.args.target,
-    value: initEvent.args.value,
-    gasLimit: initEvent.args.gasLimit,
-    data: initEvent.args.data,
+    nonce: depositEvent.args.nonce,
+    sender: depositEvent.args.sender,
+    target: depositEvent.args.target,
+    value: depositEvent.args.value,
+    gasLimit: depositEvent.args.gasLimit,
+    data: depositEvent.args.data,
   };
 
   let blockNumber = await l1Provider.getBlockNumber();
@@ -49,42 +48,24 @@ async function main() {
   ]);
   let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
-  console.log("Initial block", { blockNumber, stateRoot, initEvent });
+  console.log("Initial block", { blockNumber, stateRoot, depositEvent });
+  await waitUntilStateRoot(l1Oracle, stateRoot)
 
-  let oracleStateRoot = await l1Oracle.stateRoot()
-  while (oracleStateRoot !== stateRoot) {
-    await delay(500)
-    oracleStateRoot = await l1Oracle.stateRoot()
-    console.log({ stateRoot, oracleStateRoot })
-  }
-
-  console.log({ depositHash: initEvent.args.depositHash })
-  const initiated = await l1Portal.initiatedDeposits(initEvent.args.depositHash)
+  console.log({ depositHash: depositEvent.args.depositHash })
+  const initiated = await l1Portal.initiatedDeposits(depositEvent.args.depositHash)
   console.log({ initiated })
 
-  const onChainL1PortalAddr = await l2Portal.l1PortalAddress();
-  console.log({ onChainL1PortalAddr, actualAddr: l1Portal.address })
-
-  console.log({ L2BrideAddr: l2StandardBridge.address })
-
-  const l2OtherBridge = await l2StandardBridge.OTHER_BRIDGE()
-  const l2PortalAddr = await l2StandardBridge.PORTAL_ADDRESS()
-  console.log({ l2OtherBridge, l1Bridge: l1StandardBridge.address, l2PortalAddr, l2PortalAddrActual: l2Portal.address })
-
-  const l2PortalBalance = await l2Provider.getBalance(l2PortalAddr)
-  console.log({ l2PortalBalance })
-
-  const { accountProof, storageProof } = await getDepositProof(
+  const depositProof = await getDepositProof(
     l1Portal.address,
-    initEvent.args.depositHash,
-    ethers.utils.hexlify(blockNumber)
+    depositEvent.args.depositHash,
+    hexlifyBlockNum(blockNumber)
   );
 
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
-      crossDomainMessage,
-      accountProof,
-      storageProof
+      despositMessage,
+      depositProof.accountProof,
+      depositProof.storageProof
     );
     await finalizeTx.wait();
   } catch(e) {

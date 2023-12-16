@@ -28,6 +28,7 @@ import {OwnableUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Own
 import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
 import {AccessControlDefaultAdminRulesUpgradeable} from
     "@openzeppelin/contracts-upgradeable/access/AccessControlDefaultAdminRulesUpgradeable.sol";
+import {Hashing} from "./libraries/Hashing.sol";
 
 import "./challenge/IChallenge.sol";
 import "./challenge/SymChallenge.sol";
@@ -36,8 +37,39 @@ import "./libraries/Errors.sol";
 import "./IDAProvider.sol";
 import "./IRollup.sol";
 
+abstract contract RollupData {
+    struct AssertionState {
+        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
+        mapping(bytes32 => bool) childStateCommitments; // child state commitments
+    }
+
+    struct Zombie {
+        address stakerAddress;
+        uint256 lastAssertionID;
+    }
+
+    struct Config {
+        address vault;
+        address daProvider;
+        address verifier;
+        uint256 confirmationPeriod;
+        uint256 challengePeriod;
+        uint256 minimumAssertionPeriod;
+        uint256 baseStakeAmount;
+        address[] validators;
+    }
+
+    struct InitialRollupState {
+        uint256 assertionID;
+        uint256 l2BlockNum;
+        bytes32 l2BlockHash;
+        bytes32 l2StateRoot;
+    }
+}
+
 abstract contract RollupBase is
     IRollup,
+    RollupData,
     IChallengeResultReceiver,
     Initializable,
     UUPSUpgradeable,
@@ -56,16 +88,6 @@ abstract contract RollupBase is
     address public vault;
     IDAProvider public daProvider;
     IVerifier public verifier;
-
-    struct AssertionState {
-        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
-        mapping(bytes32 => bool) childStateCommitments; // child state commitments
-    }
-
-    struct Zombie {
-        address stakerAddress;
-        uint256 lastAssertionID;
-    }
 
     function __RollupBase_init() internal onlyInitializing {
         __AccessControlDefaultAdminRules_init(3 days, msg.sender);
@@ -100,50 +122,38 @@ contract Rollup is RollupBase {
     mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
     Zombie[] public zombies; // stores stakers that lost a challenge
 
-    function initialize(
-        address _vault,
-        address _daProvider,
-        address _verifier,
-        uint256 _confirmationPeriod,
-        uint256 _challengePeriod,
-        uint256 _minimumAssertionPeriod,
-        uint256 _baseStakeAmount,
-        uint256 _initialAssertionID,
-        uint256 _initialBlockNum,
-        bytes32 _initialVMhash,
-        address[] calldata _validators
-    ) public initializer {
-        if (_vault == address(0) || _daProvider == address(0) || _verifier == address(0)) {
+    function initialize(Config calldata _config, InitialRollupState calldata _initialRollupState) public initializer {
+        if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
             revert ZeroAddress();
         }
         __RollupBase_init();
 
-        vault = _vault;
-        daProvider = IDAProvider(_daProvider);
-        verifier = IVerifier(_verifier);
+        vault = _config.vault;
+        daProvider = IDAProvider(_config.daProvider);
+        verifier = IVerifier(_config.verifier);
 
-        confirmationPeriod = _confirmationPeriod;
-        challengePeriod = _challengePeriod;
-        minimumAssertionPeriod = _minimumAssertionPeriod;
-        baseStakeAmount = _baseStakeAmount;
+        confirmationPeriod = _config.confirmationPeriod;
+        challengePeriod = _config.challengePeriod;
+        minimumAssertionPeriod = _config.minimumAssertionPeriod;
+        baseStakeAmount = _config.baseStakeAmount;
 
-        lastResolvedAssertionID = _initialAssertionID;
-        lastConfirmedAssertionID = _initialAssertionID;
-        lastCreatedAssertionID = _initialAssertionID;
+        lastResolvedAssertionID = _initialRollupState.assertionID;
+        lastConfirmedAssertionID = _initialRollupState.assertionID;
+        lastCreatedAssertionID = _initialRollupState.assertionID;
 
         // Initialize role based access control
-        for (uint256 i = 0; i < _validators.length; i++) {
-            grantRole(VALIDATOR_ROLE, _validators[i]);
+        for (uint256 i = 0; i < _config.validators.length; i++) {
+            grantRole(VALIDATOR_ROLE, _config.validators[i]);
         }
 
-        // Create initial versioned state commitment
-        bytes32 initialStateCommitment = createStateCommitmentV0(_initialVMhash);
+        bytes32 initialStateCommitment =
+            Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);
 
         createAssertionHelper(
-            _initialAssertionID, // assertionID
+            _initialRollupState.assertionID, // assertionID
             initialStateCommitment,
-            _initialBlockNum, // blockNum (genesis)
-            _initialAssertionID, // parentID (doesn't matter, since unchallengeable)
+            _initialRollupState.l2BlockNum, // blockNum (genesis)
+            _initialRollupState.assertionID, // parentID (doesn't matter, since unchallengeable)
             block.number // deadline (unchallengeable)
         );
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, initialStateCommitment);
@@ -678,12 +688,5 @@ contract Rollup is RollupBase {
         if (stakers[stakerAddress].currentChallenge != address(0)) {
             revert ChallengedStaker();
         }
-    }
-
-    function createStateCommitmentV0(bytes32 vmHash) private pure returns (bytes32) {
-        // output v0 format is keccak256(version || vmHash)
-        bytes memory stateCommitment = new bytes(32); // version 0 is a zero bytes32
-        stateCommitment = bytes.concat(stateCommitment, vmHash);
-        return keccak256(stateCommitment);
     }
 }
