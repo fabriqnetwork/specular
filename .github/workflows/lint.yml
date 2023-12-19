@@ -63,3 +63,22 @@ jobs:
 
       - name: Run shfmt
         run: shfmt -d .
+
+  lint_ts_scripts:
+    needs: check_for_changes
+    if: needs.pre_job.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./contracts
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      - name: Run prettier
+        run: npx prettier scripts/ -c

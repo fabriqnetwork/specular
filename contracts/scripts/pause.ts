@@ -27,7 +27,7 @@ async function pauseContract(
   contract: string,
   address: string,
   provider: ethers.providers.JsonRpcProvider,
-  privateKey: string
+  privateKey: string,
 ) {
   const owner = new ethers.Wallet(privateKey, provider);
   const factory = await ethers.getContractFactory(contract, address);
@@ -40,7 +40,7 @@ async function unpauseContract(
   contract: string,
   address: string,
   provider: ethers.providers.JsonRpcProvider,
-  privateKey: string
+  privateKey: string,
 ) {
   const owner = new ethers.Wallet(privateKey, provider);
   const factory = await ethers.getContractFactory(contract, address);
@@ -54,12 +54,27 @@ async function pauseContracts() {
   pauseContract("Rollup", rollupAddr, l1Provider, rollupPrKey);
   pauseContract("SequencerInbox", sequencerAddr, l1Provider, sequencerPrKey);
   pauseContract("L1StandardBridge", l1BridgeAddr, l1Provider, l1BridgePrKey);
-  pauseContract("L1Oracle", addresses.l1OracleAddress, l1Provider, l1OraclePrKey);
+  pauseContract(
+    "L1Oracle",
+    addresses.l1OracleAddress,
+    l1Provider,
+    l1OraclePrKey,
+  );
   pauseContract("L1Portal", l1PortalAddr, l1Provider, l1PortalPrKey);
 
   // Pause L2 Contracts
-  pauseContract("L2StandardBridge", addresses.l2StandardBridgeAddress, l2Provider, l2BridgePrKey);
-  pauseContract("L2Portal", addresses.l2PortalAddress, l2Provider, l2PortalPrKey);
+  pauseContract(
+    "L2StandardBridge",
+    addresses.l2StandardBridgeAddress,
+    l2Provider,
+    l2BridgePrKey,
+  );
+  pauseContract(
+    "L2Portal",
+    addresses.l2PortalAddress,
+    l2Provider,
+    l2PortalPrKey,
+  );
   pauseContract("Faucet", faucetAddr, l2Provider, faucetPrKey);
 }
 
@@ -68,12 +83,27 @@ async function unpauseContracts() {
   unpauseContract("Rollup", rollupAddr, l1Provider, rollupPrKey);
   unpauseContract("SequencerInbox", sequencerAddr, l1Provider, sequencerPrKey);
   unpauseContract("L1StandardBridge", l1BridgeAddr, l1Provider, l1BridgePrKey);
-  unpauseContract("L1Oracle", addresses.l1OracleAddress, l1Provider, l1OraclePrKey);
+  unpauseContract(
+    "L1Oracle",
+    addresses.l1OracleAddress,
+    l1Provider,
+    l1OraclePrKey,
+  );
   unpauseContract("L1Portal", l1PortalAddr, l1Provider, l1PortalPrKey);
 
   // Unpause L2 Contracts
-  unpauseContract("L2StandardBridge", addresses.l2StandardBridgeAddress, l2Provider, l2BridgePrKey);
-  unpauseContract("L2Portal", addresses.l2PortalAddress, l2Provider, l2PortalPrKey);
+  unpauseContract(
+    "L2StandardBridge",
+    addresses.l2StandardBridgeAddress,
+    l2Provider,
+    l2BridgePrKey,
+  );
+  unpauseContract(
+    "L2Portal",
+    addresses.l2PortalAddress,
+    l2Provider,
+    l2PortalPrKey,
+  );
   unpauseContract("Faucet", faucetAddr, l2Provider, faucetPrKey);
 }
 
