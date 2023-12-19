@@ -2,12 +2,15 @@ package bridge
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/specularL2/specular/services/sidecar/bindings"
+	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 
 type BridgeClient struct {
@@ -19,6 +22,8 @@ type ProtocolConfig interface {
 	GetSequencerInboxAddr() common.Address
 	GetRollupAddr() common.Address
 }
+
+type UnsatisfiedCondition = string
 
 func NewBridgeClient(backend bind.ContractBackend, cfg ProtocolConfig) (*BridgeClient, error) {
 	inbox, err := bindings.NewISequencerInbox(cfg.GetSequencerInboxAddr(), backend)
@@ -32,8 +37,14 @@ func NewBridgeClient(backend bind.ContractBackend, cfg ProtocolConfig) (*BridgeC
 	return &BridgeClient{ISequencerInbox: inbox, IRollup: rollup}, nil
 }
 
-func (c *BridgeClient) RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) error {
-	return c.IRollup.RequireFirstUnresolvedAssertionIsConfirmable(&bind.CallOpts{Pending: false, Context: ctx})
+func (c *BridgeClient) RequireFirstUnresolvedAssertionIsConfirmable(ctx context.Context) (*UnsatisfiedCondition, error) {
+	err := c.IRollup.RequireFirstUnresolvedAssertionIsConfirmable(&bind.CallOpts{Pending: false, Context: ctx})
+	return processRollupError(err)
+}
+
+func (c *BridgeClient) RequireFirstUnresolvedAssertionIsRejectable(ctx context.Context, address common.Address) (*UnsatisfiedCondition, error) {
+	err := c.IRollup.RequireFirstUnresolvedAssertionIsRejectable(&bind.CallOpts{Pending: false, Context: ctx}, address)
+	return processRollupError(err)
 }
 
 func (c *BridgeClient) GetStaker(ctx context.Context, addr common.Address) (bindings.IRollupStaker, error) {
@@ -52,10 +63,21 @@ func (c *BridgeClient) GetRequiredStakeAmount(ctx context.Context) (*big.Int, er
 	return c.IRollup.CurrentRequiredStake(&bind.CallOpts{Pending: false, Context: ctx})
 }
 
-func (c *BridgeClient) RequireFirstUnresolvedAssertionIsRejectable(ctx context.Context, address common.Address) error {
-	return c.IRollup.RequireFirstUnresolvedAssertionIsRejectable(&bind.CallOpts{Pending: false, Context: ctx}, address)
-}
-
 func (c *BridgeClient) IsStakedOnAssertion(ctx context.Context, assertionID *big.Int, address common.Address) (bool, error) {
 	return c.IRollup.IsStakedOnAssertion(&bind.CallOpts{Pending: false, Context: ctx}, assertionID, address)
+}
+
+func processRollupError(err error) (*UnsatisfiedCondition, error) {
+	if err == nil {
+		return nil, nil
+	}
+	var dataErr rpc.DataError
+	if errors.As(err, &dataErr) {
+		unpackedErr, err := UnpackRollupError(dataErr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unpack rollup error: %w", err)
+		}
+		return &unpackedErr.Name, nil
+	}
+	return nil, fmt.Errorf("failed call with unknown error: %w", err)
 }

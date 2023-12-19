@@ -5,7 +5,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/specularL2/specular/services/sidecar/bindings"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
@@ -25,8 +27,10 @@ const (
 	// IChallenge.sol functions
 	// bisectExecutionFn = "bisectExecution"
 	// IRollup.sol errors (TODO: figure out a work-around to hardcoding)
-	NoUnresolvedAssertionErr     = "Error: VM Exception while processing transaction: reverted with custom error 'NoUnresolvedAssertion()'"
-	ConfirmationPeriodPendingErr = "Error: VM Exception while processing transaction: reverted with custom error 'ConfirmationPeriodPending()'"
+	NoUnresolvedAssertionErr     = "NoUnresolvedAssertion"
+	ConfirmationPeriodPendingErr = "ConfirmationPeriodPending"
+	InvalidParentErr             = "InvalidParent"
+	NotAllStakedErr              = "NotAllStaked"
 	// L1Oracle.sol functions
 	SetL1OracleValues = "setL1OracleValues"
 
@@ -65,6 +69,17 @@ func UnpackCreateAssertionInput(tx *types.Transaction) (common.Hash, *big.Int, e
 	stateCommitment := in[0].(common.Hash)
 	blockNum := in[1].(*big.Int)
 	return stateCommitment, blockNum, err
+}
+
+func UnpackRollupError(dataErr rpc.DataError) (*abi.Error, error) {
+	reason := dataErr.ErrorData()
+	data, err := hexutil.Decode(reason.(string))
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode rollup error: %w", err)
+	}
+	var id [4]byte
+	copy(id[:], data)
+	return serializationUtil.rollupAbi.ErrorByID(id)
 }
 
 func packStakeInput() ([]byte, error) {

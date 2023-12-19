@@ -9,6 +9,7 @@ import (
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/specularL2/specular/services/sidecar/bindings"
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 )
@@ -36,8 +37,8 @@ type BridgeClient interface {
 	GetRequiredStakeAmount(context.Context) (*big.Int, error)
 	GetStaker(context.Context, common.Address) (bindings.IRollupStaker, error)
 	GetAssertion(context.Context, *big.Int) (bindings.IRollupAssertion, error)
-	RequireFirstUnresolvedAssertionIsConfirmable(context.Context) error
-	RequireFirstUnresolvedAssertionIsRejectable(context.Context, common.Address) error
+	RequireFirstUnresolvedAssertionIsConfirmable(context.Context) (*bridge.UnsatisfiedCondition, error)
+	RequireFirstUnresolvedAssertionIsRejectable(context.Context, common.Address) (*bridge.UnsatisfiedCondition, error)
 }
 
 type EthState interface {
