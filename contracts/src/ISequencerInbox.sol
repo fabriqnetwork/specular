@@ -33,14 +33,8 @@ interface ISequencerInbox is IDAProvider {
     /// @dev Thrown when the given tx inclusion proof couldn't be verified.
     error ProofVerificationFailed();
 
-    /// @dev Thrown when sequencer tries to append an empty batch
-    error EmptyBatch();
-
     /// @dev Thrown when underflow occurs reading txBatchData
     error TxBatchDataUnderflow();
-
-    /// @dev Thrown when overflow occurs reading txBatchData
-    error TxBatchDataOverflow();
 
     /// @dev Thrown when a transaction batch has an incorrect version
     error TxBatchVersionIncorrect();

@@ -32,9 +32,6 @@ import "./libraries/DeserializationLib.sol";
 import "./libraries/Errors.sol";
 
 contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
-    // accumulators[i] is an accumulator of transactions in txBatch i.
-    bytes32[] public accumulators;
-
     // Current txBatch serialization version
     uint8 public constant currentTxBatchVersion = 0;
 
@@ -70,62 +67,20 @@ contract SequencerInbox is ISequencerInbox, Initializable, UUPSUpgradeable, Owna
         if (msg.sender != sequencerAddress) {
             revert NotSequencer(msg.sender, sequencerAddress);
         }
-
         if (txBatchData.length == 0) {
             revert TxBatchDataUnderflow();
         }
-
         uint8 txBatchVersion = uint8(txBatchData[0]);
         if (txBatchVersion != currentTxBatchVersion) {
             revert TxBatchVersionIncorrect();
         }
-
         emit TxBatchAppended();
     }
 
     // TODO post EIP-4844: KZG proof verification
     // https://eips.ethereum.org/EIPS/eip-4844#point-evaluation-precompile
 
-    /**
-     * @notice Verifies that a transaction is included in a batch, at the expected offset.
-     * @param encodedTx Transaction to verify inclusion of.
-     * @param proof Proof of inclusion, in the form:
-     * proof := txContextHash || batchInfo || {foreach tx in batch: (txContextHash || KEC(txData)), ...} where,
-     * batchInfo := (batchNum || numTxsBefore || numTxsAfterInBatch || accBefore)
-     * txContextHash := KEC(sequencerAddress || l2BlockNumber || l2Timestamp)
-     */
-    function verifyTxInclusion(bytes calldata encodedTx, bytes calldata proof) external view override {
-        uint256 offset = 0;
-        // Deserialize tx context of `encodedTx`.
-        bytes32 txContextHash;
-        (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
-        // Deserialize batch info.
-        uint256 batchNum;
-        uint256 numTxs;
-        uint256 numTxsAfterInBatch;
-        bytes32 acc;
-        (offset, batchNum) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, numTxs) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, numTxsAfterInBatch) = DeserializationLib.deserializeUint256(proof, offset);
-        (offset, acc) = DeserializationLib.deserializeBytes32(proof, offset);
-
-        // Start accumulator at the tx.
-        bytes32 txDataHash = keccak256(encodedTx);
-
-        acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
-        numTxs++;
-
-        // Compute final accumulator value.
-        for (uint256 i = 0; i < numTxsAfterInBatch; i++) {
-            (offset, txContextHash) = DeserializationLib.deserializeBytes32(proof, offset);
-            (offset, txDataHash) = DeserializationLib.deserializeBytes32(proof, offset);
-
-            acc = keccak256(abi.encodePacked(acc, numTxs, txContextHash, txDataHash));
-            numTxs++;
-        }
-
-        if (acc != accumulators[batchNum]) {
-            revert ProofVerificationFailed();
-        }
+    function verifyTxInclusion(bytes calldata, bytes calldata) external pure override {
+        revert ProofVerificationFailed();
     }
 }

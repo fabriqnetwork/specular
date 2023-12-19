@@ -6,7 +6,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
@@ -14,12 +13,14 @@ var (
 	ErrInvalidStateCommitment        = errors.New("invalid state commitment")
 	ErrInvalidStateCommitmentVersion = errors.New("invalid state commitment version")
 
-	StateCommitmentVersionV0 = types.Bytes32{}
+	StateCommitmentVersionV0 = Bytes32{}
 )
+
+type Bytes32 = [32]byte
 
 type VersionedStateCommitment interface {
 	// Version returns the version of the L2 state commitment
-	Version() types.Bytes32
+	Version() Bytes32
 
 	// Marshal a L2 state commitment into a byte slice for hashing
 	Marshal() []byte
@@ -30,7 +31,7 @@ type StateCommitmentV0 struct {
 	l2StateRoot common.Hash
 }
 
-func (o *StateCommitmentV0) Version() types.Bytes32 {
+func (o *StateCommitmentV0) Version() Bytes32 {
 	return StateCommitmentVersionV0
 }
 
@@ -44,17 +45,17 @@ func (o *StateCommitmentV0) Marshal() []byte {
 }
 
 // StateCommitment returns the keccak256 hash of the marshaled L2 state commitment
-func StateCommitment(stateCommitment VersionedStateCommitment) types.Bytes32 {
+func StateCommitment(stateCommitment VersionedStateCommitment) common.Hash {
 	marshaled := stateCommitment.Marshal()
 	log.Info("hashed state commitment", "hex", common.Bytes2Hex(crypto.Keccak256(marshaled)))
-	return types.Bytes32(crypto.Keccak256Hash(marshaled))
+	return crypto.Keccak256Hash(marshaled)
 }
 
 func UnmarshalStateCommitment(data []byte) (VersionedStateCommitment, error) {
 	if len(data) < 32 {
 		return nil, ErrInvalidStateCommitment
 	}
-	var ver types.Bytes32
+	var ver Bytes32
 	copy(ver[:], data[:32])
 	switch ver {
 	case StateCommitmentVersionV0:
