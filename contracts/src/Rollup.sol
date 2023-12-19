@@ -439,7 +439,7 @@ contract Rollup is RollupBase {
             // retrievable, if the validator is experiencing this attack it can simply leave out the
             // blockhash value, and delay submission until it is confident that the L1 block is
             // finalized.
-            revert MismatchingL1Blockhash();
+            revert MismatchingL1Blockhashes();
         }
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];

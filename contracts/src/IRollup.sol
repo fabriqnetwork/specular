@@ -71,7 +71,7 @@ interface IRollup {
     error EmptyAssertion();
 
     /// @dev Thrown when the provided and true l1 block hashes do not match (for a given block number).
-    error MismatchingL1Blockhash();
+    error MismatchingL1Blockhashes();
 
     /// @dev Thrown when the challenge assertion Id is not ordered or in range.
     error WrongOrder();

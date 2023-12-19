@@ -85,6 +85,12 @@ func (v *Validator) start(ctx context.Context) error {
 				log.Errorf("Failed to advance: %w", err)
 				if errors.As(err, &unexpectedSystemStateError{}) {
 					return fmt.Errorf("aborting: %w", err)
+				} else if errors.As(err, &l2ReorgDetectedError{}) {
+					log.Error("Detected L2 re-org, rolling back local state...")
+					if err := v.rollback(ctx); err != nil {
+						return fmt.Errorf("failed to rollback: %w", err)
+					}
+					log.Info("Rollback successful.", "last l2#", v.lastCreatedAssertionAttrs.l2BlockNum)
 				}
 			}
 		case <-ctx.Done():
@@ -114,7 +120,7 @@ func (v *Validator) tryCreateAssertion(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to get next assertion attrs: %w", err)
 	}
-	// TODO remove single-validator assumption: other validators may have inserted new assertions.
+	// TODO: remove single-validator assumption -- other validators may have inserted new assertions.
 	if assertionAttrs.l2BlockNum <= v.lastCreatedAssertionAttrs.l2BlockNum {
 		log.Info("No new blocks to create assertion for yet.", "curr", assertionAttrs.l2BlockNum, "last", v.lastCreatedAssertionAttrs.l2BlockNum)
 		return nil
@@ -124,6 +130,8 @@ func (v *Validator) tryCreateAssertion(ctx context.Context) error {
 	log.Info("Creating assertion...", "l2Block#", assertionAttrs.l2BlockNum)
 	// TODO: get latest L1 block number/hash from L2 CL client.
 	// This should probably happen atomically with getting the safe L2 tip.
+	// If error unwraps a `MismatchingL1BlockHashes`, return an `l2ReorgDetectedError`.
+	// This is easier once we have error bindings.
 	receipt, err := v.l1TxMgr.CreateAssertion(
 		cCtx,
 		assertionAttrs.l2StateCommitment,
