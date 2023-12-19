@@ -2,4 +2,3 @@
 . "$(dirname -- "$0")/_/husky.sh"
 shfmt -d sbin
 pnpm --filter ./contracts/ run lint:fix
-make
