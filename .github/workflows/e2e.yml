@@ -32,14 +32,19 @@ jobs:
         with:
           path: ./.git
           key: git-folder
-          
+
       - uses: actions/checkout@v3
         with:
           submodules: 'recursive'
 
       - name: Build node
         uses: ./.github/actions/node
+
+      - name: Make specular
         run: make
 
+      - name: Setup workspace
+        run: mkdir workspace && cp -a config/e2e_test/. workspace/
+
       - name: Run tests
-        run: ./sbin/run_e2e_tests.sh ${{ matrix.test-name }}
+        run: cd workspace && ../sbin/run_e2e_tests.sh ${{ matrix.test-name }}

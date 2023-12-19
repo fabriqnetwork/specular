@@ -57,7 +57,8 @@ var Flags = []cli.Flag{
 }
 
 type exportedHash struct {
-	Hash common.Hash `json:"hash"`
+	BlockHash common.Hash `json:"hash"`
+	StateRoot common.Hash `json:"stateRoot"`
 }
 
 func GenerateSpecularGenesis(ctx *cli.Context) error {
@@ -95,8 +96,10 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	}
 
 	if ctx.IsSet("export-hash") {
-		hash := l2Genesis.ToBlock().Hash()
-		if err := writeGenesisFile(ctx.String("export-hash"), exportedHash{hash}); err != nil {
+		blockHash := l2Genesis.ToBlock().Hash()
+		stateRoot := l2Genesis.ToBlock().Root()
+
+		if err := writeGenesisFile(ctx.String("export-hash"), exportedHash{blockHash, stateRoot}); err != nil {
 			return err
 		}
 	}

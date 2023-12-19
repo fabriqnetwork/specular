@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/rpc"
+
 	"github.com/specularL2/specular/services/sidecar/proof/proof"
 	"github.com/specularL2/specular/services/sidecar/proof/prover"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"

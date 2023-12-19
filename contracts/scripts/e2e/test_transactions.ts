@@ -31,22 +31,21 @@ async function main() {
     l2Bridger: await l2Bridger.getBalance(),
   };
 
-  console.log({ startBalances, endBalances });
-
   const totalValue = value.mul(numTx);
 
   if (!endBalances.l2Bridger.sub(startBalances.l2Bridger).eq(totalValue)) {
-    throw "unexpected end balance";
+    console.log({ startBalances, endBalances, totalValue });
+    throw `balance after transaction does not match the transaction amount on L2Bridge`;
   }
 
-  const error = ethers.utils.parseEther("0.001");
+  const acceptableMargin = ethers.utils.parseEther("0.001");
   if (
     !startBalances.l2Relayer
       .sub(endBalances.l2Relayer)
       .sub(totalValue)
-      .lt(error)
+      .lt(acceptableMargin)
   ) {
-    throw "unexpected end balance";
+    throw "balance after transaction does not match the transaction acceptable margin on L2Relay";
   }
 
   console.log("transactions test was successful");

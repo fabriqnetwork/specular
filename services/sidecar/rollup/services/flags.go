@@ -2,8 +2,9 @@ package services
 
 import (
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 	"github.com/urfave/cli/v2"
+
+	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
 )
 
 // Returns all supported flags.

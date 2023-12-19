@@ -11,18 +11,22 @@ import (
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
-	specularTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
 var transactTimeout = 10 * time.Minute
 
-type unexpectedSystemStateError struct{ msg string }
+type (
+	unexpectedSystemStateError struct{ msg string }
+	l2ReorgDetectedError       struct{ err error }
+)
 
 func (e unexpectedSystemStateError) Error() string {
 	return fmt.Sprintf("service entered unexpected state: %s", e.msg)
 }
+
+func (e l2ReorgDetectedError) Error() string { return e.err.Error() }
 
 type Validator struct {
 	cfg            Config
@@ -36,7 +40,7 @@ type Validator struct {
 
 type assertionAttributes struct {
 	l2BlockNum        uint64
-	l2StateCommitment specularTypes.Bytes32
+	l2StateCommitment Bytes32
 }
 
 func NewValidator(
@@ -61,6 +65,7 @@ func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
 
 // Advances validator step-by-step.
 func (v *Validator) start(ctx context.Context) error {
+	// TODO: Maybe we should change this to be event-based and listen for head advances on the chain
 	var ticker = time.NewTicker(v.cfg.GetValidationInterval())
 	defer ticker.Stop()
 	// TODO: do this in the L2 consensus client, not here.
@@ -80,6 +85,12 @@ func (v *Validator) start(ctx context.Context) error {
 				log.Errorf("Failed to advance: %w", err)
 				if errors.As(err, &unexpectedSystemStateError{}) {
 					return fmt.Errorf("aborting: %w", err)
+				} else if errors.As(err, &l2ReorgDetectedError{}) {
+					log.Error("Detected L2 re-org, rolling back local state...")
+					if err := v.rollback(ctx); err != nil {
+						return fmt.Errorf("failed to rollback: %w", err)
+					}
+					log.Info("Rollback successful.", "last l2#", v.lastCreatedAssertionAttrs.l2BlockNum)
 				}
 			}
 		case <-ctx.Done():
@@ -93,11 +104,9 @@ func (v *Validator) start(ctx context.Context) error {
 func (v *Validator) step(ctx context.Context) error {
 	// Try to create a new assertion.
 	// TODO: do this only if configured to be an active validator.
-	if err := v.createAssertion(ctx); err != nil {
+	if err := v.tryCreateAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to create assertion: %w", err)
 	}
-	// TODO: validate assertions locally.
-	// Resolve the first unresolved assertion.
 	if err := v.resolveFirstUnresolvedAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to resolve assertion: %w", err)
 	}
@@ -106,20 +115,30 @@ func (v *Validator) step(ctx context.Context) error {
 
 // If enough time has passed and txs have been sequenced to L1, create a new assertion.
 // Add it to the queue for confirmation.
-func (v *Validator) createAssertion(ctx context.Context) error {
+func (v *Validator) tryCreateAssertion(ctx context.Context) error {
 	assertionAttrs, err := v.getNextAssertionAttrs(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get next assertion attrs: %w", err)
 	}
-	// TODO fix assumptions: not reorg-resistant. Other validators may have inserted new assertions.
+	// TODO: remove single-validator assumption -- other validators may have inserted new assertions.
 	if assertionAttrs.l2BlockNum <= v.lastCreatedAssertionAttrs.l2BlockNum {
-		log.Info("No new blocks to create assertion for yet.")
+		log.Info("No new blocks to create assertion for yet.", "curr", assertionAttrs.l2BlockNum, "last", v.lastCreatedAssertionAttrs.l2BlockNum)
 		return nil
 	}
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
-	// TOOD: GasLimit: 0 ...?
-	receipt, err := v.l1TxMgr.CreateAssertion(cCtx, assertionAttrs.l2StateCommitment, big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum))
+	log.Info("Creating assertion...", "l2Block#", assertionAttrs.l2BlockNum)
+	// TODO: get latest L1 block number/hash from L2 CL client.
+	// This should probably happen atomically with getting the safe L2 tip.
+	// If error unwraps a `MismatchingL1BlockHashes`, return an `l2ReorgDetectedError`.
+	// This is easier once we have error bindings.
+	receipt, err := v.l1TxMgr.CreateAssertion(
+		cCtx,
+		assertionAttrs.l2StateCommitment,
+		big.NewInt(0).SetUint64(assertionAttrs.l2BlockNum),
+		common.Hash{},
+		common.Big0,
+	)
 	if err != nil {
 		return err
 	}
@@ -134,9 +153,7 @@ func (v *Validator) createAssertion(ctx context.Context) error {
 }
 
 // If the first unresolved assertion is eligible for confirmation, trigger its confirmation. Otherwise, wait.
-// TODO: reject or challenge, depending on circumstances.
 func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
-	// Simulate a confirmation attempt.
 	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
 	if err != nil {
 		errStr := err.Error()
@@ -147,10 +164,31 @@ func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
 		} else {
 			return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
 		}
+
+		// If not confirmable could still be rejectable
+		err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsRejectable(ctx, v.cfg.GetAccountAddr())
+		if err != nil {
+			// It is not rejectable
+			log.Trace("No unresolved assertion to be rejected.")
+		} else {
+			// It is not confirmable, but it is rejectable so let's try to reject
+			_, err = v.l1TxMgr.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
+			if err != nil {
+				// It should be rejectable, but it failed to reject
+				log.Warn("rejectable assertion failed to reject")
+				return err
+			}
+		}
+
 		return nil
 	}
+
+	// At this point we know it's confirmable
 	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
 	defer cancel()
+
+	// TODO: check we are in sync by e.g. block number
+
 	_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(cCtx)
 	if err != nil {
 		return fmt.Errorf("failed to confirm assertion: %w", err)
@@ -174,13 +212,12 @@ func (v *Validator) rollback(ctx context.Context) error {
 }
 
 // Gets the next assertion's attributes.
-// We can relax this to get the next safe assertion's attributes but need to handle reorgs.
 func (v *Validator) getNextAssertionAttrs(ctx context.Context) (assertionAttributes, error) {
 	header, err := v.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
-		return assertionAttributes{}, fmt.Errorf("failed to get finalized assertion attrs: %w", err)
+		return assertionAttributes{}, fmt.Errorf("failed to get latest safe header: %w", err)
 	}
-	return assertionAttributes{header.Number.Uint64(), StateCommitment(&StateCommitmentV0{header.Hash()})}, nil
+	return assertionAttributes{header.Number.Uint64(), StateCommitment(&StateCommitmentV0{header.Hash(), header.Root})}, nil
 }
 
 func (v *Validator) ensureStaked(ctx context.Context) error {
@@ -189,7 +226,7 @@ func (v *Validator) ensureStaked(ctx context.Context) error {
 		return fmt.Errorf("failed to get staker: %w", err)
 	}
 	if staker.IsStaked {
-		log.Info("Already staked.")
+		log.Info("Validator is already staked.")
 		return nil
 	}
 	amount, err := v.l1BridgeClient.GetRequiredStakeAmount(ctx)
@@ -204,19 +241,21 @@ func (v *Validator) ensureStaked(ctx context.Context) error {
 	return nil
 }
 
-// TODO: refactor.
 func (v *Validator) validateGenesis(ctx context.Context) error {
 	assertion, err := v.l1BridgeClient.GetAssertion(ctx, common.Big0)
 	if err != nil {
 		return fmt.Errorf("failed to get genesis assertion: %w", err)
 	}
-	stateCommitment := assertion.StateCommitment
 	// Check that the genesis assertion is correct.
 	genesisBlock, err := v.l2Client.BlockByNumber(ctx, common.Big0)
 	if err != nil {
 		return fmt.Errorf("failed to get L2 genesis block: %w", err)
 	}
-	genesisStateCommitment := StateCommitment(&StateCommitmentV0{genesisBlock.Header().Hash()})
+	var (
+		genesisHeader          = genesisBlock.Header()
+		genesisStateCommitment = StateCommitment(&StateCommitmentV0{genesisHeader.Hash(), genesisHeader.Root})
+		stateCommitment        = assertion.StateCommitment
+	)
 	if stateCommitment != genesisStateCommitment {
 		return fmt.Errorf("mismatching genesis on L1=%s vs L2=%s", &stateCommitment, &genesisStateCommitment)
 	}

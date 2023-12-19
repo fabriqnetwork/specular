@@ -28,12 +28,12 @@ import {StringsUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/Stri
 import {Utils} from "./utils/Utils.sol";
 import {IRollup} from "../src/IRollup.sol";
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
-import {Rollup} from "../src/Rollup.sol";
+import {Rollup, RollupData} from "../src/Rollup.sol";
 import {ISequencerInbox} from "../src/ISequencerInbox.sol";
 import {SequencerInbox} from "../src/SequencerInbox.sol";
 import {RLPEncodedTransactionsUtil} from "./utils/RLPEncodedTransactions.sol";
 
-contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
+contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil, RollupData {
     Utils internal utils;
     address payable[] internal users;
 
@@ -43,6 +43,9 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
     address internal sequencerAddress;
     address internal defender;
     address internal challenger;
+
+    Config internal validConfig;
+    InitialRollupState internal validState;
 
     Verifier verifier = new Verifier();
 
@@ -58,6 +61,8 @@ contract RollupBaseSetup is Test, RLPEncodedTransactionsUtil {
         bob = users[3];
         defender = users[4];
         challenger = users[5];
+
+        validState = InitialRollupState(0, 0, bytes32(""), bytes32(""));
     }
 }
 
@@ -84,6 +89,17 @@ contract RollupTest is RollupBaseSetup {
 
         address fetchedSequencerAddress = seqIn.sequencerAddress();
         assertEq(fetchedSequencerAddress, sequencerAddress);
+
+        validConfig = Config(
+            sequencerAddress, // vault
+            address(seqIn),
+            address(verifier),
+            0,
+            0,
+            0,
+            0,
+            new address[](0)
+        );
     }
 
     function testFuzz_constructRollup_zeroValues_reverts(
@@ -94,20 +110,10 @@ contract RollupTest is RollupBaseSetup {
         vm.assume(_vault >= address(0));
         vm.assume(_sequencerInboxAddress >= address(0));
         vm.assume(_verifier >= address(0));
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
-            _vault, // vault
-            _sequencerInboxAddress,
-            _verifier,
-            0, //confirmationPeriod
-            0, //challengePeriod
-            0, // minimumAssertionPeriod
-            0, //baseStakeAmount,
-            0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
-            new address[](0) // validators
-        );
+
+        Config memory cfg = Config(_vault, _sequencerInboxAddress, _verifier, 0, 0, 0, 0, new address[](0));
+
+        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg, validState);
         if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
             vm.startPrank(deployer);
 
@@ -119,20 +125,7 @@ contract RollupTest is RollupBaseSetup {
     }
 
     function test_initialize_reinitializeRollup_reverts() external {
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
-            sequencerAddress, // vault
-            address(seqIn),
-            address(verifier),
-            0, //confirmationPeriod
-            0, //challengePeriod
-            0, // minimumAssertionPeriod
-            0, //baseStakeAmount,
-            0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
-            new address[](0) // validators
-        );
+        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, validConfig, validState);
 
         vm.startPrank(deployer);
 
@@ -142,19 +135,7 @@ contract RollupTest is RollupBaseSetup {
         // Trying to call initialize for the second time
         vm.expectRevert("Initializable: contract is already initialized");
 
-        rollup.initialize(
-            sequencerAddress, // vault
-            address(seqIn),
-            address(verifier),
-            0, //confirmationPeriod
-            0, //challengePeriod
-            0, // minimumAssertionPeriod
-            0, //baseStakeAmount,
-            0, // initialAssertionID
-            0, // initialInboxSize
-            bytes32(""),
-            new address[](0) // validators
-        );
+        rollup.initialize(validConfig, validState);
     }
 
     function testFuzz_initialize_valuesAfterInit_succeeds(
@@ -166,8 +147,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialAssertionID
     ) external {
         {
-            bytes memory initializingData = abi.encodeWithSelector(
-                Rollup.initialize.selector,
+            Config memory cfg = Config(
                 sequencerAddress,
                 address(seqIn), // sequencerInbox
                 address(verifier),
@@ -175,11 +155,11 @@ contract RollupTest is RollupBaseSetup {
                 challengePeriod, //challengePeriod
                 minimumAssertionPeriod, // minimumAssertionPeriod
                 baseStakeAmount, //baseStakeAmount
-                initialAssertionID,
-                initialInboxSize,
-                bytes32(""), //initialVMHash
                 new address[](0) // validators
             );
+            InitialRollupState memory state =
+                InitialRollupState(initialAssertionID, initialInboxSize, bytes32(""), bytes32(""));
+            bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg, state);
 
             vm.startPrank(deployer);
 
@@ -733,7 +713,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(assertionIDInitial, 0);
 
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // The assertionID of alice should change after she called `createAssertion`
         (,, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
@@ -893,7 +873,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 mockBlockNum = 1;
 
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // The assertionID of alice should change after she called `createAssertion`
         (,, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
@@ -990,7 +970,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
 
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // A successful assertion should bump the lastCreatedAssertionID to 1.
         assertEq(rollup.lastCreatedAssertionID(), 1, "LastCreatedAssertionID not updated correctly");
@@ -1062,7 +1042,7 @@ contract RollupTest is RollupBaseSetup {
         // try as alice
         vm.expectRevert("Pausable: paused");
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // unpause and continue setup
         vm.prank(deployer);
@@ -1070,7 +1050,7 @@ contract RollupTest is RollupBaseSetup {
 
         // try again now that pause is over
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // A successful assertion should bump the lastCreatedAssertionID to 1.
         assertEq(rollup.lastCreatedAssertionID(), 1, "LastCreatedAssertionID not updated correctly");
@@ -1201,7 +1181,7 @@ contract RollupTest is RollupBaseSetup {
             vm.roll(block.number + rollup.minimumAssertionPeriod());
 
             vm.prank(alice);
-            rollup.createAssertion(mockStateCommitment, mockBlockNum);
+            rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
         }
 
         uint256 defenderAssertionID = lastConfirmedAssertionID; //would be 0 in this case. cannot assign anything lower
@@ -1285,8 +1265,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 initialInboxSize,
         address[] memory validators
     ) internal {
-        bytes memory initializingData = abi.encodeWithSelector(
-            Rollup.initialize.selector,
+        Config memory cfg = Config(
             sequencerAddress,
             address(seqIn), // sequencerInbox
             address(verifier),
@@ -1294,11 +1273,13 @@ contract RollupTest is RollupBaseSetup {
             challengePeriod, //challengePeriod
             minimumAssertionPeriod, // minimumAssertionPeriod
             baseStakeAmount, //baseStakeAmount
-            initialAssertionID,
-            initialInboxSize,
-            bytes32(""), //initialVMHash
-            validators // validators to whitelist
+            validators
         );
+
+        InitialRollupState memory state =
+            InitialRollupState(initialAssertionID, initialInboxSize, bytes32(""), bytes32(""));
+
+        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg, state);
 
         // Deploying the rollup contract as the rollup owner/deployer
         vm.startPrank(deployer);

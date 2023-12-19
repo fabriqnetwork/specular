@@ -47,13 +47,16 @@ interface IL1Portal {
      *
      * @param withdrawalTx           Withdrawal transaction to finalize.
      * @param assertionID            ID of the assertion that can be used to finalize the withdrawal.
+     * @param l2BlockHash            Block hash of the L2 block committed to by the assertion.
+     * @param l2StateRoot            State root of the L2 block committed to by the assertion.
      * @param withdrawalAccountProof Inclusion proof of the L2Portal contract's storage root.
      * @param withdrawalProof        Inclusion proof of the withdrawal in L2Portal contract.
      */
     function finalizeWithdrawalTransaction(
         Types.CrossDomainMessage memory withdrawalTx,
         uint256 assertionID,
-        // bytes calldata encodedBlockHeader,
+        bytes32 l2BlockHash,
+        bytes32 l2StateRoot,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
     ) external;

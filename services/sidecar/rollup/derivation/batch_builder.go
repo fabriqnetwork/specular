@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
@@ -25,7 +26,7 @@ type Config interface {
 type VersionedDataEncoder interface {
 	// Returns an encoded batch if one is ready (or if forced).
 	// If not forced, an error is returned if one cannot yet be built.
-	GetBatch(force bool) ([]byte, error)
+	Flush(force bool) ([]byte, error)
 	// Processes a block, adding its data to the current batch.
 	// Returns an `errBatchFull` if the block would cause the batch to exceed the target size.
 	// Returns an error if the block could not be processed.
@@ -34,9 +35,13 @@ type VersionedDataEncoder interface {
 	Reset()
 }
 
-type InvalidBlockError struct{ Msg string }
+type (
+	InvalidBlockError        struct{ Msg string }
+	HardTimeoutExceededError struct{ Msg string }
+)
 
-func (e InvalidBlockError) Error() string { return e.Msg }
+func (e InvalidBlockError) Error() string        { return e.Msg }
+func (e HardTimeoutExceededError) Error() string { return e.Msg }
 
 type batchBuilder struct {
 	cfg           Config
@@ -45,7 +50,7 @@ type batchBuilder struct {
 	lastEnqueued  types.BlockID
 	lastBuilt     []byte
 
-	timeout uint64
+	timeout uint64 // L1 epoch at which the batch should be sequenced (soft timeout).
 }
 
 func NewBatchBuilder(cfg Config, encoder VersionedDataEncoder) *batchBuilder {
@@ -57,9 +62,9 @@ func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
 // Enqueues a block, to be processed and batched.
 // Returns a `InvalidBlockError` if the block is not a child of the last enqueued block.
 func (b *batchBuilder) Enqueue(block *ethTypes.Block) error {
-	// Ensure block is a child of the last appended block. Not enforced when no prior blocks.
+	// Ensure block is a child of the last enqueued block. Not enforced when no prior blocks.
 	if (b.lastEnqueued.GetHash() != common.Hash{}) && (block.ParentHash() != b.lastEnqueued.GetHash()) {
-		return InvalidBlockError{Msg: "Enqueued block is not a child of the last appended block"}
+		return InvalidBlockError{Msg: "Enqueued block is not a child of the last enqueued block"}
 	}
 	b.pendingBlocks = append(b.pendingBlocks, block)
 	b.lastEnqueued = types.NewBlockID(block.NumberU64(), block.Hash())
@@ -96,8 +101,16 @@ func (b *batchBuilder) Advance() {
 func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	// Force-build batch if necessary (timeout exceeded).
 	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
-	log.Info("Trying to get batch", "force?", force)
-	batch, err := b.encoder.GetBatch(force)
+	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
+	batch, err := b.encoder.Flush(force)
+	if force {
+		// If it's too late to sequence, the batch should just be dropped entirely.
+		// TODO: instead of dropping the whole batch, we can prune earlier sub-batches.
+		hardTimeoutExceeded := l1Head.GetNumber() >= b.timeout+b.cfg.GetSubSafetyMargin()
+		if hardTimeoutExceeded {
+			return nil, HardTimeoutExceededError{Msg: "hard timeout exceeded for batch"}
+		}
+	}
 	if err != nil {
 		if errors.Is(err, errBatchTooSmall) {
 			log.Warn("Batch too small, waiting for more blocks")
@@ -140,7 +153,7 @@ func (b *batchBuilder) processBlock(block *ethTypes.Block) (err error) {
 	// Process oracle tx, if it exists (to update timeout).
 	if block.Transactions().Len() > 0 {
 		var firstTx = block.Transactions()[0]
-		if *firstTx.To() == b.cfg.GetL1OracleAddr() {
+		if firstTx.To() != nil && *firstTx.To() == b.cfg.GetL1OracleAddr() {
 			epoch, _, _, _, _, err = bridge.UnpackL1OracleInput(firstTx)
 			if err != nil {
 				return fmt.Errorf("could not unpack oracle tx: %w", err)

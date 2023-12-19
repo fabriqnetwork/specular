@@ -120,12 +120,7 @@ contract L2Portal is
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data)
-        public
-        payable
-        onlyProxy
-        whenNotPaused
-    {
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable whenNotPaused {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
                 version: 0,
@@ -151,7 +146,8 @@ contract L2Portal is
         Types.CrossDomainMessage memory depositTx,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
-    ) external onlyProxy whenNotPaused {
+    ) external whenNotPaused {
+        // TODO: re-add `onlyProxy`
         // Prevent nested deposits within deposits.
         require(l1Sender == DEFAULT_L1_SENDER, "L2Portal: can only trigger one deposit per transaction");
 

@@ -67,14 +67,11 @@ interface IRollup {
     /// @dev Thrown when a sender tries to create assertion before the minimum assertion time period
     error MinimumAssertionPeriodNotPassed();
 
-    /// @dev Thrown when parent's statehash is not equal to the start state(or previous state)/
-    error PreviousStateHash();
-
     /// @dev Thrown when a sender tries to create assertion without any tx.
     error EmptyAssertion();
 
-    /// @dev Thrown when the requested assertion read past the end of current Inbox.
-    error InboxReadLimitExceeded();
+    /// @dev Thrown when the provided and true l1 block hashes do not match (for a given block number).
+    error MismatchingL1Blockhashes();
 
     /// @dev Thrown when the challenge assertion Id is not ordered or in range.
     error WrongOrder();
@@ -107,9 +104,6 @@ interface IRollup {
 
     /// @dev Thrown when the staker is currently in Challenge
     error ChallengedStaker();
-
-    /// @dev Thrown when all the stakers are not staked
-    error NotAllStaked();
 
     /// @dev Thrown staker's assertion is descendant of firstUnresolved assertion
     error StakerStakedOnTarget();
@@ -309,9 +303,12 @@ interface IRollup {
      * Emits: `AssertionCreated` and `StakerStaked` events.
      *
      * @param stateCommitment Currently keccak256(version || vmHash)
-     * @param blockNum Block number this assertion advances to.
+     * @param blockNum L2 block number this assertion advances to.
+     * @param l1BlockHash A block hash which must be included in the current L1 chain.
+     * @param l1BlockNumber The L1 block number with the specified `l1BlockHash`. Must be within the last 256 blocks.
      */
-    function createAssertion(bytes32 stateCommitment, uint256 blockNum) external;
+    function createAssertion(bytes32 stateCommitment, uint256 blockNum, bytes32 l1BlockHash, uint256 l1BlockNumber)
+        external;
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.
@@ -326,11 +323,10 @@ interface IRollup {
 
     /**
      * @notice Confirms first unresolved assertion. Assertion is confirmed if and only if:
+     * (1) challenge period has passed, and
+     * (2) predecessor has been confirmed, and
+     * (3) at least one staker is staked on the assertion.
      * @notice Only callable by whitelisted validators.
-     * (1) there is at least one staker, and
-     * (2) challenge period has passed, and
-     * (3) predecessor has been confirmed, and
-     * (4) all stakers are staked on the assertion.
      */
     function confirmFirstUnresolvedAssertion() external;
 

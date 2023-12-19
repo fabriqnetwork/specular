@@ -1,5 +1,5 @@
 #!/bin/bash
-SBIN=`dirname $0`
+SBIN=$(dirname $0)
 $SBIN/clean_sp_geth.sh
 $SBIN/clean_deployment.sh
 
@@ -9,6 +9,7 @@ rm -f .genesis.env
 rm -f .sp_geth.env
 rm -f .sp_magi.env
 rm -f .sidecar.env
+rm -f .paths.env
 echo "Done."
 
 echo "Removing $JWT_SECRET_PATH"

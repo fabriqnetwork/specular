@@ -130,7 +130,8 @@ contract L1Portal is
     function finalizeWithdrawalTransaction(
         Types.CrossDomainMessage memory withdrawalTx,
         uint256 assertionID,
-        // bytes calldata encodedBlockHeader,
+        bytes32 l2BlockHash,
+        bytes32 l2StateRoot,
         bytes[] calldata withdrawalAccountProof,
         bytes[] calldata withdrawalProof
     ) external override onlyProxy whenNotPaused {
@@ -158,14 +159,17 @@ contract L1Portal is
 
         // Avoid stack too deep
         {
-            // (bytes32 blockHash, bytes32 stateRoot) = Encoding.decodeStateRootFromEncodedBlockHeader(encodedBlockHeader);
+            // Verify provided state root matches state commitment.
+            bytes32 stateCommitment = Hashing.createStateCommitmentV0(l2BlockHash, l2StateRoot);
+            require(
+                stateCommitment == assertion.stateCommitment,
+                "L1Portal: l2 state does not match assertion state commitment"
+            );
+        }
 
-            // Verify that the block hash is the assertion's stateHash.
-            // require(blockHash == assertion.stateHash, "L1Portal: invalid block");
-
-            // Verify the account proof.
-            bytes32 storageRoot =
-                _verifyAccountInclusion(Predeploys.L2_PORTAL, assertion.stateCommitment, withdrawalAccountProof);
+        // Avoid stack too deep
+        {
+            bytes32 storageRoot = _verifyAccountInclusion(Predeploys.L2_PORTAL, l2StateRoot, withdrawalAccountProof);
 
             // Verify that the hash of this withdrawal was stored in the L2Portal contract on L2.
             // If this is true, then we know that this withdrawal was actually triggered on L2
@@ -214,7 +218,6 @@ contract L1Portal is
         public
         payable
         override
-        onlyProxy
         whenNotPaused
     {
         // Transform the from-address to its alias if the caller is a contract.
