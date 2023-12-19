@@ -154,46 +154,52 @@ func (v *Validator) tryCreateAssertion(ctx context.Context) error {
 
 // If the first unresolved assertion is eligible for confirmation, trigger its confirmation. Otherwise, wait.
 func (v *Validator) resolveFirstUnresolvedAssertion(ctx context.Context) error {
-	err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
+	unsatCondition, err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsConfirmable(ctx)
 	if err != nil {
-		errStr := err.Error()
-		if errStr == bridge.NoUnresolvedAssertionErr {
-			log.Trace("No unresolved assertion to resolve.")
-		} else if errStr == bridge.ConfirmationPeriodPendingErr {
-			log.Trace("Too early to confirm first unresolved assertion.")
-		} else {
-			return &unexpectedSystemStateError{"failed to validate assertion (breaks current assumptions): " + err.Error()}
-		}
-
-		// If not confirmable could still be rejectable
-		err := v.l1BridgeClient.RequireFirstUnresolvedAssertionIsRejectable(ctx, v.cfg.GetAccountAddr())
+		return fmt.Errorf("failed to resolve assertion (unexpected err): %w", err)
+	}
+	if unsatCondition == nil {
+		// Assertion is confirmable.
+		cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
+		defer cancel()
+		_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(cCtx)
 		if err != nil {
-			// It is not rejectable
-			log.Trace("No unresolved assertion to be rejected.")
-		} else {
-			// It is not confirmable, but it is rejectable so let's try to reject
-			_, err = v.l1TxMgr.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
-			if err != nil {
-				// It should be rejectable, but it failed to reject
-				log.Warn("rejectable assertion failed to reject")
-				return err
-			}
+			return fmt.Errorf("failed to confirm assertion: %w", err)
 		}
-
+		log.Info("Confirmed assertion")
 		return nil
 	}
-
-	// At this point we know it's confirmable
-	cCtx, cancel := context.WithTimeout(ctx, transactTimeout)
-	defer cancel()
-
-	// TODO: check we are in sync by e.g. block number
-
-	_, err = v.l1TxMgr.ConfirmFirstUnresolvedAssertion(cCtx)
-	if err != nil {
-		return fmt.Errorf("failed to confirm assertion: %w", err)
+	// An assertion is not confirmable.
+	log.Info("Cannot confirm first unresolved assertion", "unsat", *unsatCondition)
+	switch *unsatCondition {
+	case bridge.NoUnresolvedAssertionErr:
+		log.Info("No unresolved assertion to resolve.")
+		return nil
+	case bridge.ConfirmationPeriodPendingErr:
+		log.Info("Too early to confirm first unresolved assertion.")
+	case bridge.InvalidParentErr, bridge.NotAllStakedErr:
+		return &unexpectedSystemStateError{
+			"failed to confirm assertion (unexpected condition under current assumptions): " + *unsatCondition,
+		}
+	default:
+		return &unexpectedSystemStateError{"failed to confirm assertion (unexpected condition): " + *unsatCondition}
 	}
-	log.Info("Confirmed assertion")
+	// If not confirmable, could still be rejectable.
+	unsatCondition, err = v.l1BridgeClient.RequireFirstUnresolvedAssertionIsRejectable(ctx, v.cfg.GetAccountAddr())
+	if err != nil {
+		return &unexpectedSystemStateError{"failed to reject assertion (unexpected err): " + err.Error()}
+	}
+	if unsatCondition == nil {
+		// It is not confirmable, but it is rejectable so let's try to reject
+		_, err = v.l1TxMgr.RejectFirstUnresolvedAssertion(ctx, v.cfg.GetAccountAddr())
+		if err != nil {
+			// It should be rejectable, but we failed to reject it.
+			log.Warn("Failed to reject rejectable assertion.")
+			return err
+		}
+	}
+	// It is not confirmable, and it is not rejectable.
+	log.Info("Cannot reject unresolved assertion", "unsat", unsatCondition)
 	return nil
 }
 
