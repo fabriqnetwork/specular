@@ -47,6 +47,7 @@ func NewL2EmptyGenesis(config *GenesisConfig, block *types.Block) (*core.Genesis
 		TerminalTotalDifficultyPassed: true,
 		EnableL2EngineApi:             true,
 		L2BaseFeeRecipient:            predeploys.L2BaseFeeVaultAddr,
+		L1FeeRecipient:                predeploys.L1FeeVaultAddr,
 	}
 
 	gasLimit := config.L2GenesisBlockGasLimit
