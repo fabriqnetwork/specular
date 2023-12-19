@@ -37,6 +37,7 @@ type GenesisConfig struct {
 	L2PredeployOwner        common.Address `json:"l2PredeployOwner"`
 	L1PortalAddress         common.Address `json:"l1PortalAddress"`
 	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress"`
+	L2FeesWithdrawalAddress common.Address `json:"l2FeesWithdrawalAddress"`
 
 	Alloc core.GenesisAlloc `json:"alloc"`
 }
@@ -94,6 +95,17 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"PORTAL_ADDRESS": {ProxyValue: *predeploys.Predeploys["L2Portal"]},
 			},
 		},
+		"L1FeeVault": {
+			Proxied:     true,
+			Initializer: "initialize",
+			Storages: map[string]predeploys.StorageConfig{
+				"_initialized":        {ProxyValue: InitializedValue, ImplValue: MaxInitializedValue},
+				"_initializing":       {ProxyValue: false, ImplValue: false},
+				"_owner":              {ProxyValue: config.L2PredeployOwner},
+				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
+				"minWithdrawalAmount": {ProxyValue: "1000000000000000000"},
+			},
+		},
 		"L2BaseFeeVault": {
 			Proxied:     true,
 			Initializer: "initialize",
@@ -101,7 +113,7 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"_initialized":        {ProxyValue: InitializedValue, ImplValue: MaxInitializedValue},
 				"_initializing":       {ProxyValue: false, ImplValue: false},
 				"_owner":              {ProxyValue: config.L2PredeployOwner},
-				"withdrawalAddress":   {ProxyValue: config.L2PredeployOwner},
+				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
 				"minWithdrawalAmount": {ProxyValue: "1000000000000000000"},
 			},
 		},
