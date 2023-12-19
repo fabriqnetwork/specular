@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 
 	"github.com/specularL2/specular/services/sidecar/bindings"
-	specularTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 
@@ -58,12 +57,12 @@ func packAppendTxBatchInput(batch []byte) ([]byte, error) {
 
 // IRollup.sol
 
-func UnpackCreateAssertionInput(tx *types.Transaction) (specularTypes.Bytes32, *big.Int, error) {
+func UnpackCreateAssertionInput(tx *types.Transaction) (common.Hash, *big.Int, error) {
 	in, err := serializationUtil.rollupAbi.Methods[CreateAssertionFnName].Inputs.Unpack(tx.Data()[MethodNumBytes:])
 	if err != nil {
-		return specularTypes.Bytes32{}, nil, err
+		return common.Hash{}, nil, err
 	}
-	stateCommitment := in[0].(specularTypes.Bytes32)
+	stateCommitment := in[0].(common.Hash)
 	blockNum := in[1].(*big.Int)
 	return stateCommitment, blockNum, err
 }
@@ -76,8 +75,8 @@ func packAdvanceStakeInput(assertionID *big.Int) ([]byte, error) {
 	return serializationUtil.rollupAbi.Pack(AdvanceStakeFnName, assertionID)
 }
 
-func packCreateAssertionInput(stateCommitment specularTypes.Bytes32, blockNum *big.Int) ([]byte, error) {
-	return serializationUtil.rollupAbi.Pack(CreateAssertionFnName, stateCommitment, blockNum)
+func packCreateAssertionInput(stateCommitment common.Hash, blockNum *big.Int, l1BlockHash common.Hash, l1BlockNum *big.Int) ([]byte, error) {
+	return serializationUtil.rollupAbi.Pack(CreateAssertionFnName, stateCommitment, blockNum, l1BlockHash, l1BlockNum)
 }
 
 func packConfirmFirstUnresolvedAssertionInput() ([]byte, error) {

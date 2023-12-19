@@ -214,24 +214,19 @@ contract Rollup is RollupBase {
         if (lastResolvedAssertionID >= lastCreatedAssertionID) {
             revert NoUnresolvedAssertion();
         }
-
-        // (1) there is at least one staker present
-        if (numStakers <= 0) revert NoStaker();
-
         uint256 firstUnresolvedID = lastResolvedAssertionID + 1;
         Assertion storage firstUnresolved = assertions[firstUnresolvedID];
-        // (2) confirmation period has passed
+        // (1) confirmation period has passed
         if (block.number < firstUnresolved.deadline) {
             revert ConfirmationPeriodPending();
         }
-        // (3) predecessor has been confirmed
+        // (2) predecessor has been confirmed
         if (firstUnresolved.parent != lastConfirmedAssertionID) {
             revert InvalidParent();
         }
-
-        // (4) all stakers are staked on the block.
-        if (firstUnresolved.numStakers != countStakedZombies(firstUnresolvedID) + numStakers) {
-            revert NotAllStaked();
+        // (3) at least one staker is staked on the assertion.
+        if (firstUnresolved.numStakers != countStakedZombies(firstUnresolvedID) + 1) {
+            revert NoStaker();
         }
     }
 
@@ -428,13 +423,24 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
-    function createAssertion(bytes32 stateCommitment, uint256 blockNum)
+    function createAssertion(bytes32 stateCommitment, uint256 blockNum, bytes32 l1BlockHash, uint256 l1BlockNumber)
         external
         override
         stakedOnly
         whenNotPaused
         validatorOnly
     {
+        if (l1BlockHash != bytes32(0) && blockhash(l1BlockNumber) != l1BlockHash) {
+            // This check allows the validator to propose an output based on a given L1 block,
+            // without fear that it will be reorged out.
+            // It will also revert if the blockheight provided is more than 256 blocks behind the
+            // chain tip (as the hash will return as zero). This does open the door to a griefing
+            // attack in which the validator's submission is censored until the block is no longer
+            // retrievable, if the validator is experiencing this attack it can simply leave out the
+            // blockhash value, and delay submission until it is confident that the L1 block is
+            // finalized.
+            revert MismatchingL1Blockhash();
+        }
         uint256 parentID = stakers[msg.sender].assertionID;
         Assertion storage parent = assertions[parentID];
         // Require that enough time has passed since the last assertion.
