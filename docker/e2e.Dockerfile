@@ -1,13 +1,12 @@
-FROM ethereum/client-go
-
-RUN apk add --no-cache bash nodejs-current npm python3 make g++ go musl-dev linux-headers git
-RUN corepack enable
+FROM specular:build-v0.0.1
 
 WORKDIR /specular
-COPY . /specular
+ADD . /specular
 
 # frozen lockfile is automatically enabled in CI environments
 RUN pnpm install
+
+ENV RUST_BACKTRACE=full
 RUN make
 
 # TODO: what ports should be exposed?
