@@ -23,5 +23,3 @@ RUN wget https://go.dev/dl/go$GOVERSION.linux-amd64.tar.gz && tar -C /usr/local 
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH "$PATH:/root/.cargo/bin"
 ENV PATH="$PATH:/usr/local/go/bin"
-
-
