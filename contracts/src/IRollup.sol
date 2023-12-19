@@ -307,7 +307,8 @@ interface IRollup {
      * @param l1BlockHash A block hash which must be included in the current L1 chain.
      * @param l1BlockNumber The L1 block number with the specified `l1BlockHash`. Must be within the last 256 blocks.
      */
-    function createAssertion(bytes32 stateCommitment, uint256 blockNum, bytes32 l1BlockHash, uint256 l1BlockNumber) external;
+    function createAssertion(bytes32 stateCommitment, uint256 blockNum, bytes32 l1BlockHash, uint256 l1BlockNumber)
+        external;
 
     /**
      * @notice Initiates a dispute between a defender and challenger on an unconfirmed DA.

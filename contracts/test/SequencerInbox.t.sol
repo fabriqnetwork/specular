@@ -81,12 +81,6 @@ contract SequencerInboxTest is SequencerBaseSetup {
         seqIn.initialize(makeAddr("random address"));
     }
 
-    function test_verifyTxInclusion_withEmptyProof_fails() external {
-        vm.expectRevert("too short");
-        bytes memory emptyProof = bytes("");
-        seqIn.verifyTxInclusion(bytes(""), emptyProof);
-    }
-
     // Only sequencer can append transaction batches to the sequencerInbox
     function test_appendTxBatch_invalidSequencer_reverts() public {
         vm.expectRevert(abi.encodeWithSelector(NotSequencer.selector, alice, sequencerAddress));

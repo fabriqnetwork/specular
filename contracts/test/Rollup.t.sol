@@ -713,7 +713,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(assertionIDInitial, 0);
 
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // The assertionID of alice should change after she called `createAssertion`
         (,, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
@@ -873,7 +873,7 @@ contract RollupTest is RollupBaseSetup {
         uint256 mockBlockNum = 1;
 
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // The assertionID of alice should change after she called `createAssertion`
         (,, uint256 assertionIDFinal,) = rollup.stakers(address(alice));
@@ -970,7 +970,7 @@ contract RollupTest is RollupBaseSetup {
         assertEq(rollup.lastCreatedAssertionID(), 0, "The lastCreatedAssertionID should be 0 (genesis)");
 
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // A successful assertion should bump the lastCreatedAssertionID to 1.
         assertEq(rollup.lastCreatedAssertionID(), 1, "LastCreatedAssertionID not updated correctly");
@@ -1042,7 +1042,7 @@ contract RollupTest is RollupBaseSetup {
         // try as alice
         vm.expectRevert("Pausable: paused");
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // unpause and continue setup
         vm.prank(deployer);
@@ -1050,7 +1050,7 @@ contract RollupTest is RollupBaseSetup {
 
         // try again now that pause is over
         vm.prank(alice);
-        rollup.createAssertion(mockStateCommitment, mockBlockNum);
+        rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
 
         // A successful assertion should bump the lastCreatedAssertionID to 1.
         assertEq(rollup.lastCreatedAssertionID(), 1, "LastCreatedAssertionID not updated correctly");
@@ -1181,7 +1181,7 @@ contract RollupTest is RollupBaseSetup {
             vm.roll(block.number + rollup.minimumAssertionPeriod());
 
             vm.prank(alice);
-            rollup.createAssertion(mockStateCommitment, mockBlockNum);
+            rollup.createAssertion(mockStateCommitment, mockBlockNum, bytes32(0), 0);
         }
 
         uint256 defenderAssertionID = lastConfirmedAssertionID; //would be 0 in this case. cannot assign anything lower
