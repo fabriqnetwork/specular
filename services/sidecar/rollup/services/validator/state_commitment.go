@@ -9,6 +9,8 @@ import (
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
+const V0BufSize = 96
+
 var (
 	ErrInvalidStateCommitment        = errors.New("invalid state commitment")
 	ErrInvalidStateCommitmentVersion = errors.New("invalid state commitment version")
@@ -36,7 +38,7 @@ func (o *StateCommitmentV0) Version() Bytes32 {
 }
 
 func (o *StateCommitmentV0) Marshal() []byte {
-	var buf [96]byte
+	var buf [V0BufSize]byte
 	version := o.Version()
 	copy(buf[:32], version[:])
 	copy(buf[32:64], o.l2BlockHash[:])
@@ -66,7 +68,7 @@ func UnmarshalStateCommitment(data []byte) (VersionedStateCommitment, error) {
 }
 
 func unmarshalStateCommitmentV0(data []byte) (*StateCommitmentV0, error) {
-	if len(data) != 96 {
+	if len(data) != V0BufSize {
 		return nil, ErrInvalidStateCommitment
 	}
 	var l2State StateCommitmentV0
