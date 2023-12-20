@@ -1,8 +1,10 @@
 module github.com/specularL2/specular/lib/el_golang_lib
 
+go 1.20
+
 replace github.com/ethereum/go-ethereum => ../../services/el_clients/go-ethereum
 
-go 1.20
+replace github.com/specularL2/specular/ops => ../../ops
 
 require github.com/ethereum/go-ethereum v1.13.2
 
@@ -24,6 +26,7 @@ require (
 	github.com/crate-crypto/go-kzg-4844 v0.3.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v0.3.1 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/gofrs/flock v0.8.1 // indirect

@@ -1,6 +1,6 @@
 module github.com/specularL2/specular/services/sidecar
 
-go 1.19
+go 1.20
 
 replace github.com/ethereum/go-ethereum => ../el_clients/go-ethereum
 
