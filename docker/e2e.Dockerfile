@@ -1,4 +1,4 @@
-FROM specular:build-v0.0.1
+FROM 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:build-latest
 
 WORKDIR /specular
 ADD . /specular
