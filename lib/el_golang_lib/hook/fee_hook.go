@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/specularL2/specular/ops/bindings/bindings"
 )
 
 // TODO: maybe move these constants to the rollup config or a separate file
@@ -19,50 +20,51 @@ const (
 	txSignatureOverhead = 68
 )
 
+var L1OracleAddress = common.HexToAddress("0x2A00000000000000000000000000000000000010")
+
 type RollupConfig interface {
-	GetCoinbase() common.Address         // recipient of the L1 Fee
-	GetL2ChainID() uint64                // chain ID of the specular rollup
-	GetL1FeeOverhead() int64             // fixed cost of submitting a tx to L1
-	GetL1FeeMultiplier() float64         // value to scale the L1 Fee
-	GetL1OracleAddress() common.Address  // contract providing the L1 basefee
-	GetL1OracleBaseFeeSlot() common.Hash // L1 basefee storage slot
+	GetL1FeeRecipient() common.Address // recipient of the L1 Fee
+	GetL2ChainID() uint64              // chain ID of the specular rollup
 }
 
 // MakeSpecularEVMPreTransferHook creates specular's vm.EVMHook function
 // which is injected into the EVM and runs before every transfer
 // currently this is only used to calculate & charge the L1 Fee
-func MakeSpecularEVMPreTransferHook(cfg RollupConfig) vm.EVMHook {
+func MakeSpecularEVMPreTransferHook(l2ChainId uint64, l1FeeRecipient common.Address) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
-	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
+
+	overheadSlot, baseFeeSlot, scalarSlot := getStorageSlots()
+	log.Info("L1Oracle config", "address", L1OracleAddress, "overhead", overheadSlot, "baseFeeSlot", baseFeeSlot, "scalarSlot", scalarSlot)
+
 	return func(msg vm.MessageInterface, db vm.StateDB) error {
-		tx := transactionFromMessage(msg, cfg)
-		fee, err := calculateL1Fee(tx, db, cfg)
+		tx := transactionFromMessage(msg, l2ChainId)
+		fee, err := calculateL1Fee(tx, db)
 		if err != nil {
 			return err
 		}
 
-		return chargeL1Fee(fee, msg, db, cfg)
+		return chargeL1Fee(fee, msg, db, l1FeeRecipient)
 	}
 }
 
 // MakeSpecularL1FeeReader creates specular's vm.EVMReader function
 // which is injected into the EVM and can be used to return the L1Fee of a transaction.
 // This is a read only method and does not change the state.
-func MakeSpecularL1FeeReader(cfg RollupConfig) vm.EVMReader {
+func MakeSpecularL1FeeReader(l2ChainId uint64) vm.EVMReader {
 	log.Info("Injected Specular EVM reader")
-	log.Info("L1Oracle config", "address", cfg.GetL1OracleAddress(), "baseFeeSlot", cfg.GetL1OracleBaseFeeSlot())
+	log.Info("L1Oracle config", "address", L1OracleAddress)
 	return func(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
-		return calculateL1Fee(tx, db, cfg)
+		return calculateL1Fee(tx, db)
 	}
 }
 
 // creates a Transaction from a transaction
 // the Tx Type is reconstructed and the signature is left empty
-func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Transaction {
+func transactionFromMessage(msg vm.MessageInterface, l2ChainId uint64) *types.Transaction {
 	var txData types.TxData
 	if msg.GetGasTipCap() != nil {
 		txData = &types.DynamicFeeTx{
-			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			ChainID:    new(big.Int).SetUint64(l2ChainId),
 			Nonce:      msg.GetNonce(),
 			GasTipCap:  msg.GetGasTipCap(),
 			GasFeeCap:  msg.GetGasFeeCap(),
@@ -74,7 +76,7 @@ func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Tr
 		}
 	} else if msg.GetAccessList() != nil {
 		txData = &types.AccessListTx{
-			ChainID:    big.NewInt(int64(cfg.GetL2ChainID())),
+			ChainID:    new(big.Int).SetUint64(l2ChainId),
 			Nonce:      msg.GetNonce(),
 			GasPrice:   msg.GetGasPrice(),
 			Gas:        msg.GetGasLimit(),
@@ -100,7 +102,7 @@ func transactionFromMessage(msg vm.MessageInterface, cfg RollupConfig) *types.Tr
 // L1Fee = L1FeeMultiplier * L1BaseFee * (TxDataGas + L1OverheadGas)
 // L1BaseFee is dynamically set by the L1Oracle
 // L1FeeMultiplier & L1OverheadGas are set in the rollup configuration
-func calculateL1Fee(tx *types.Transaction, db vm.StateDB, cfg RollupConfig) (*big.Int, error) {
+func calculateL1Fee(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 	// calculate L1 gas from RLP encoding
 	buf := new(bytes.Buffer)
 	if err := tx.EncodeRLP(buf); err != nil {
@@ -115,26 +117,29 @@ func calculateL1Fee(tx *types.Transaction, db vm.StateDB, cfg RollupConfig) (*bi
 	rlp := bytes[:len(bytes)-3]
 
 	var (
-		zeroes, ones = zeroesAndOnes(rlp)
+		zeroes, ones  = zeroesAndOnes(rlp)
+		rollupDataGas = zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne
 
-		txDataGas    = big.NewInt(zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne + cfg.GetL1FeeOverhead())
-		basefee      = readStorageSlot(db, cfg.GetL1OracleAddress(), cfg.GetL1OracleBaseFeeSlot())
-		feeMutiplier = cfg.GetL1FeeMultiplier()
+		overheadSlot, baseFeeSlot, scalarSlot = getStorageSlots()
 
-		l1Fee       = new(big.Int).Mul(txDataGas, basefee)
-		scaledL1Fee = ScaleBigInt(l1Fee, feeMutiplier)
+		overhead = readStorageSlot(db, L1OracleAddress, common.Hash(overheadSlot))
+		basefee  = readStorageSlot(db, L1OracleAddress, common.Hash(baseFeeSlot))
+		scalar   = readStorageSlot(db, L1OracleAddress, common.Hash(scalarSlot))
 	)
 
 	log.Trace(
 		"calculated l1 fee",
-		"txDataGas", txDataGas,
+		"rollupDataGas", rollupDataGas,
+		"overhead", overhead,
 		"basefee", basefee,
-		"l1Fee", l1Fee,
-		"feeMutiplier", feeMutiplier,
-		"scaledL1Fee", scaledL1Fee,
+		"scalar", scalar,
 	)
 
-	return scaledL1Fee, nil
+	l1GasUsed := new(big.Int).SetUint64(rollupDataGas)
+	l1GasUsed = l1GasUsed.Add(l1GasUsed, overhead)
+	l1Cost := l1GasUsed.Mul(l1GasUsed, basefee)
+	l1Cost = l1Cost.Mul(l1Cost, scalar)
+	return l1Cost.Div(l1Cost, big.NewInt(1_000_000)), nil
 }
 
 // multiply a big.Int with a float
@@ -157,14 +162,14 @@ func ScaleBigInt(num *big.Int, scalar float64) *big.Int {
 
 // subtract the L1 Fee from the sender of the Tx
 // add the Fee to the balance of the coinbase address
-func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, cfg RollupConfig) error {
+func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, l1FeeRecipient common.Address) error {
 	senderBalance := db.GetBalance(msg.GetFrom())
 
 	if senderBalance.Cmp(l1Fee) < 0 {
 		return errors.New("insufficient balance to cover L1 fee")
 	}
 
-	db.AddBalance(cfg.GetCoinbase(), l1Fee)
+	db.AddBalance(l1FeeRecipient, l1Fee)
 	db.SubBalance(msg.GetFrom(), l1Fee)
 
 	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
@@ -177,8 +182,8 @@ func readStorageSlot(db vm.StateDB, address common.Address, slot common.Hash) *b
 }
 
 // zeroesAndOnes counts the number of 0 bytes and non 0 bytes in a byte slice
-func zeroesAndOnes(data []byte) (int64, int64) {
-	var zeroes, ones int64
+func zeroesAndOnes(data []byte) (uint64, uint64) {
+	var zeroes, ones uint64
 	for _, b := range data {
 		if b == 0 {
 			zeroes++
@@ -187,4 +192,28 @@ func zeroesAndOnes(data []byte) (int64, int64) {
 		}
 	}
 	return zeroes, ones
+}
+
+func getStorageSlots() (common.Hash, common.Hash, common.Hash) {
+	layout, err := bindings.GetStorageLayout("L1Oracle")
+	if err != nil {
+		panic("could not get storage layout for L1Oracle")
+	}
+
+	baseFeeEntry, err := layout.GetStorageLayoutEntry("baseFee")
+	if err != nil {
+		panic("could not get basefee storage slot")
+	}
+	overheadEntry, err := layout.GetStorageLayoutEntry("l1FeeOverhead")
+	if err != nil {
+		panic("could not get overhead storage slot")
+	}
+	scalarEntry, err := layout.GetStorageLayoutEntry("l1FeeScalar")
+	if err != nil {
+		panic("could not get scalar storage slot")
+	}
+
+	return common.BigToHash(new(big.Int).SetUint64(uint64(baseFeeEntry.Slot))),
+		common.BigToHash(new(big.Int).SetUint64(uint64(overheadEntry.Slot))),
+		common.BigToHash(new(big.Int).SetUint64(uint64(scalarEntry.Slot)))
 }

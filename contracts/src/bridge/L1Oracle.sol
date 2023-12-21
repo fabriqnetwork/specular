@@ -38,6 +38,16 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
      */
     bytes32 public stateRoot;
 
+    /**
+     * @notice The overhead value applied to the L1 portion of the transaction fee.
+     */
+    uint256 public l1FeeOverhead;
+
+    /**
+     * @notice The scalar value applied to the L1 portion of the transaction fee.
+     */
+    uint256 public l1FeeScalar;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -71,17 +81,23 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
      * @param _hash L1 block hash.
      * @param _stateRoot L1 stateRoot.
      */
-    function setL1OracleValues(uint256 _number, uint256 _timestamp, uint256 _baseFee, bytes32 _hash, bytes32 _stateRoot)
-        external
-        onlyCoinbase
-        whenNotPaused
-    {
+    function setL1OracleValues(
+        uint256 _number,
+        uint256 _timestamp,
+        uint256 _baseFee,
+        bytes32 _hash,
+        bytes32 _stateRoot,
+        uint256 _l1FeeOverhead,
+        uint256 _l1FeeScalar
+    ) external onlyCoinbase whenNotPaused {
         require(number < _number, "Block number must be greater than the current block number.");
         number = _number;
         timestamp = _timestamp;
         baseFee = _baseFee;
         hash = _hash;
         stateRoot = _stateRoot;
+        l1FeeOverhead = _l1FeeOverhead;
+        l1FeeScalar = _l1FeeScalar;
     }
 
     /**
