@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:bullseye-slim as base
+FROM debian:bullseye-slim as base
 
 # Versions
 ENV GOVERSION=1.21.5
