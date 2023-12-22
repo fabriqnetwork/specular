@@ -11,6 +11,8 @@
     "l1PortalAddress": "0x000000000000000000000000000000000000dEaD",
     "l1StandardBridgeAddress": "0x000000000000000000000000000000000000dEaD",
     "l2FeesWithdrawalAddress": "0x000000000000000000000000000000000000dEaD",
+    "l1FeeOverhead": "0x42",
+    "l1FeeScalar": "0x424242",
     "alloc": {
         "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266": {
             "balance": "10000000000000000000"
