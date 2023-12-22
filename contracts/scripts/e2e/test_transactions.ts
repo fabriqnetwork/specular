@@ -1,19 +1,16 @@
 import { ethers } from "hardhat";
-import {
-  getSignersAndContracts,
-  getStorageKey,
-  getDepositProof,
-  delay,
-} from "./utils";
+import { l1FeeRecipientAddress } from "./addresses";
+import { getSignersAndContracts, delay } from "./utils";
 
 async function main() {
-  const { l2Relayer, l2Bridger } = await getSignersAndContracts();
+  const { l2Provider, l2Relayer, l2Bridger } = await getSignersAndContracts();
 
   const value = ethers.utils.parseEther("0.1");
 
   const startBalances = {
     l2Relayer: await l2Relayer.getBalance(),
     l2Bridger: await l2Bridger.getBalance(),
+    l1FeeRecipient: await l2Provider.getBalance(l1FeeRecipientAddress),
   };
 
   // TODO: should we randomize numTx and value?
@@ -24,11 +21,13 @@ async function main() {
       value,
     });
     await tx.wait();
+    await delay(500);
   }
 
   const endBalances = {
     l2Relayer: await l2Relayer.getBalance(),
     l2Bridger: await l2Bridger.getBalance(),
+    l1FeeRecipient: await l2Provider.getBalance(l1FeeRecipientAddress),
   };
 
   const totalValue = value.mul(numTx);
@@ -36,6 +35,12 @@ async function main() {
   if (!endBalances.l2Bridger.sub(startBalances.l2Bridger).eq(totalValue)) {
     console.log({ startBalances, endBalances, totalValue });
     throw `balance after transaction does not match the transaction amount on L2Bridge`;
+  }
+
+  // TODO: more precise check
+  if (!endBalances.l1FeeRecipient.gt(startBalances.l1FeeRecipient)) {
+    console.log({ startBalances, endBalances, totalValue });
+    throw "did not collect L1 fee";
   }
 
   const acceptableMargin = ethers.utils.parseEther("0.001");

@@ -39,6 +39,9 @@ type GenesisConfig struct {
 	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress"`
 	L2FeesWithdrawalAddress common.Address `json:"l2FeesWithdrawalAddress"`
 
+	L1FeeOverhead string `json:"l1FeeOverhead"`
+	L1FeeScalar   string `json:"l1FeeScalar"`
+
 	Alloc core.GenesisAlloc `json:"alloc"`
 }
 
@@ -65,6 +68,8 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"baseFee":       {ProxyValue: block.BaseFee()},
 				"hash":          {ProxyValue: block.Hash()},
 				"stateRoot":     {ProxyValue: block.Root()},
+				"l1FeeOverhead": {ProxyValue: config.L1FeeOverhead},
+				"l1FeeScalar":   {ProxyValue: config.L1FeeScalar},
 			},
 		},
 		"L2Portal": {
