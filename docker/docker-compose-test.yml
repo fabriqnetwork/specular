@@ -46,10 +46,10 @@ services:
       context: ..
       dockerfile: ./docker/l1.Dockerfile
     healthcheck:
-      test: ["CMD", "test", "-s", "/specular/workspace/l1.log"]
-      retries: 20
-      interval: 5s
-      start_period: 20s
+      test: ["CMD", "test", "-s", "/workspace/sp_local_devnet.json"]
+      retries: 0
+      interval: 1s
+      start_period: 40s
     volumes:
       - ../sbin:/sbin
       - ../workspace:/workspace

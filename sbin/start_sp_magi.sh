@@ -55,7 +55,7 @@ FLAGS="
     --l2-rpc-url $L2_RPC_URL \
     --sync-mode $SYNC_MODE \
     --l2-engine-url $L2_ENGINE_URL \
-    --jwt-secret $JWT_SECRET \
+    --jwt-file $JWT_SECRET_PATH \
     --rpc-port $RPC_PORT \
     $SYNC_FLAGS $DEVNET_FLAGS $SEQUENCER_FLAGS $@"
 
