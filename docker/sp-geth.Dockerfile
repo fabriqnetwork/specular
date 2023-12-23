@@ -7,8 +7,6 @@ COPY --from=build config/local_docker/.contracts.env config/local_docker/.genesi
 COPY --from=build ./sbin /sbin
 
 FROM build AS sp-geth
-COPY --from=build /specular/services/sidecar/build/bin/sidecar  /usr/local/bin/sidecar
-COPY --from=build /specular/services/cl_clients/magi/target/debug/magi /usr/local/bin/magi
-COPY --from=build /specular/services/el_clients/go-ethereum/build/bin/geth /usr/local/bin/geth
+COPY --from=build /specular/services/el_clients/go-ethereum/build/bin/geth /sbin/sp-geth
 
-EXPOSE 4011 4012 4013
+
