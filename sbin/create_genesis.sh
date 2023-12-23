@@ -53,7 +53,7 @@ cd $OPS_DIR
 guard_overwrite $GENESIS_PATH
 # Create genesis.json file.
 CMD="""
-go run ./cmd/genesis/main.go \
+$OPS_GENESIS_BIN \
     --genesis-config $GENESIS_CFG_PATH \
     --out $GENESIS_PATH \
     --l1-rpc-url $L1_ENDPOINT \
