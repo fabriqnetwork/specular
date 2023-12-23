@@ -2,10 +2,7 @@ version: '3.8'
 
 services:
   sidecar:
-    image: ${L2_DOCKER_TAG:-specularl2/sidecar:latest}
-    build:
-      context: ..
-      dockerfile: ./services/sidecar/Dockerfile
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
     depends_on:
       l1-geth:
         condition: service_healthy
@@ -16,9 +13,7 @@ services:
     entrypoint: sh ../sbin/start_sidecar.sh
 
   sp-geth:
-    image: ${L2_DOCKER_TAG:-specularl2/sp-geth:latest}
-    build:
-      context: ../services/el_clients/go-ethereum
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
     env_file:
       ../workspace/.sp_geth.env
     volumes:
@@ -28,9 +23,7 @@ services:
     entrypoint: sh ../sbin/start_sp_geth.sh
 
   sp-magi:
-    image: ${L2_DOCKER_TAG:-specularl2/sp-magi:latest}
-    build:
-      context: ../services/cl_clients/magi
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
     depends_on:
       l1-geth:
         condition: service_healthy
@@ -41,18 +34,15 @@ services:
     entrypoint: sh ../sbin/start_sp_magi.sh
 
   l1-geth:
-    image: ${L2_DOCKER_TAG:-specularl2/l1_geth:latest}
-    build:
-      context: ..
-      dockerfile: ./docker/l1.Dockerfile
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
     healthcheck:
-      test: ["CMD", "test", "-s", "/specular/workspace/l1.log"]
-      retries: 20
-      interval: 5s
-      start_period: 20s
+      test: ["CMD", "test", "-s", "/specular/workspace/sp_local_devnet.json"]
+      retries: 0
+      interval: 1s
+      start_period: 40s
     volumes:
       - ../sbin:/sbin
       - ../workspace:/workspace
       - ../config:/config
-    working_dir: /workspace
-    entrypoint: sh ../sbin/start_l1.sh -d
+    working_dir: /specular/workspace
+    entrypoint: bash ../sbin/start_l1.sh -d
