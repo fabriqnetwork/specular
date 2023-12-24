@@ -35,10 +35,10 @@ eval $CMD
 
 # Initialize a reference to the config files at
 # "contracts/.genesis" (using relative paths as appropriate).
-CONTRACTS_ENV=$CONTRACTS_DIR/$GENESIS_ENV
+CONTRACTS_ENV=$CONTRACTS_DIR/.genesis.env
 guard_overwrite $CONTRACTS_ENV
 # Write file, using relative paths.
-echo "Initializing contracts dotenv $CONTRACTS_ENV"
+echo "Initializing contracts genesis dotenv $CONTRACTS_ENV"
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
 BASE_ROLLUP_CFG_PATH=$(relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR)

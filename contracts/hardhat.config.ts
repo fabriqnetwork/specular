@@ -7,7 +7,6 @@ import "@nomiclabs/hardhat-waffle";
 import "hardhat-abi-exporter";
 import "hardhat-deploy";
 import "@openzeppelin/hardhat-upgrades";
-import { deploy } from "@openzeppelin/hardhat-upgrades/dist/utils";
 
 const mnemonic =
   process.env.MNEMONIC ??
@@ -25,6 +24,7 @@ function createConfig(baseConfig: HardhatUserConfig) {
   } else {
     console.warn("DEPLOYER_PRIVATE_KEY not found, only exporting network `localhost`.")
   }
+  return baseConfig;
 }
 
 function createNetworkConfig(network: string): HttpNetworkUserConfig {

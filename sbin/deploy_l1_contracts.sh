@@ -15,16 +15,12 @@ reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
 # Parse args.
-optspec="cs"
+optspec="c"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
     echo "Cleaning deployment..."
     $SBIN/clean_deployment.sh
-    ;;
-  s)
-    echo "Generating secrets..."
-    $SBIN/generate_secrets.sh -d
     ;;
   *)
     echo "usage: $0 [-c][-s][-h]"
@@ -39,7 +35,7 @@ echo "Using $CONTRACTS_DIR as HH proj"
 
 # Copy .contracts.env
 guard_overwrite $CONTRACTS_DIR/.env
-cp $CONTRACTS_ENV $CONTRACTS_DIR/.env
+cp .contracts.env $CONTRACTS_DIR/.env
 
 # Get relative paths, since we have to run `create_genesis.sh`
 # and `create_config.ts` from the HH proj.

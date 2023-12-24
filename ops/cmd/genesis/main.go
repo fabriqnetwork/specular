@@ -92,7 +92,7 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
-	if ctx.IsSet("extra-allocs") {
+	if ctx.IsSet("alloc") {
 		addresses := strings.Split(ctx.String("alloc"), ",")
 		for _, addr := range addresses {
 			// TODO: consider exposing balance
