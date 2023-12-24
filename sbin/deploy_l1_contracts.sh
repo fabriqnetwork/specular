@@ -6,32 +6,13 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected paths dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-
-GENESIS_ENV=".genesis.env"
-if ! test -f "$GENESIS_ENV"; then
-  echo "Expected dotenv at $GENESIS_ENV (does not exist)."
-  exit
-fi
-echo "Using genesis dotenv: $GENESIS_ENV"
-. $GENESIS_ENV
-
-CONTRACTS_ENV=".contracts.env"
-if ! test -f "$CONTRACTS_ENV"; then
-  echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
-  exit
-fi
-echo "Using contracts dotenv: $CONTRACTS_ENV"
-. $CONTRACTS_ENV
+reqdotenv "paths" ".paths.env"
+reqdotenv "genesis" ".genesis.env"
+reqdotenv "contracts" ".contracts.env"
 
 DEPLOYMENTS_CFG_PATH=".deployments.env"
 
@@ -58,24 +39,6 @@ while getopts "$optspec" optchar; do
 done
 
 echo "Using $CONTRACTS_DIR as HH proj"
-
-# Define a function to convert a path to be relative to another directory.
-relpath() {
-  echo $(python3 -c "import os.path; print(os.path.relpath('$1', '$2'))")
-}
-
-# Define a function that requests a user to confirm
-# that overwriting file ($1) is okay, if it exists.
-guard_overwrite() {
-  if test -f $1; then
-    read -r -p "Overwrite $1 with a new file? [y/N] " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      rm $1
-    else
-      exit
-    fi
-  fi
-}
 
 # Copy .contracts.env
 guard_overwrite $CONTRACTS_DIR/.env
