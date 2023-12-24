@@ -3,7 +3,7 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { deployUUPSProxiedContract, getProxyName } from "../utils";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { deployments, getNamedAccounts, ethers, upgrades } = hre;
+  const { deployments, getNamedAccounts } = hre;
   const { deployer } = await getNamedAccounts();
   const rollupProxyAddress = (await deployments.get(getProxyName("Rollup")))
     .address;

@@ -50,10 +50,14 @@ export async function generateConfigFile(
   // Parse genesis hash file.
   const l2Hash = JSON.parse(fs.readFileSync(genesisHashPath, "utf-8")).hash;
   // Set genesis L1 fields.
-  baseConfig.genesis.l1.hash = l1Hash;
-  baseConfig.genesis.l1.number = l1Number;
+  baseConfig.genesis.l1 = {
+    hash: l1Hash,
+    number: l1Number,
+  };
   // Set genesis L2 fields.
-  baseConfig.genesis.l2.hash = l2Hash;
+  baseConfig.genesis.l2 = {
+    hash: l2Hash,
+  };
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
   baseConfig.genesis.l2.number = ethers.BigNumber.from(
     genesis.number,

@@ -1,5 +1,3 @@
-import { exec } from "child_process";
-import util from "node:util";
 import path from "node:path";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import { DeployFunction } from "hardhat-deploy/types";
@@ -42,14 +40,14 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     minimumAssertionPeriod: 0,
     baseStakeAmount: 0,
     validators: [process.env.VALIDATOR_ADDRESS]
-  }
+  };
 
   const initialRollupState = {
     assertionID: 0,
     l2BlockNum: 0,
     l2BlockHash: initialBlockHash,
     l2StateRoot: initialStateRoot,
-  }
+  };
 
   const args = [
     config,
