@@ -13,7 +13,7 @@ reqdotenv "genesis" ".genesis.env"
 # reqdotenv "contracts" ".contracts.env"
 
 # Parse args.
-optspec="cdsh"
+optspec="cds"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
@@ -26,18 +26,12 @@ while getopts "$optspec" optchar; do
   s)
     SILENT=true
     ;;
-  h)
+  *)
     echo "usage: $0 [-c][-d][-s][-h]"
     echo "-c : clean before running"
     echo "-d : deploy contracts"
     echo "-s : silent-mode (no log tailing)"
     exit
-    ;;
-  *)
-    if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-      echo "Unknown option: '-${OPTARG}'"
-      exit 1
-    fi
     ;;
   esac
 done

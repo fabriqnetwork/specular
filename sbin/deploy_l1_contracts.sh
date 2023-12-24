@@ -14,10 +14,8 @@ reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
-DEPLOYMENTS_CFG_PATH=".deployments.env"
-
 # Parse args.
-optspec="csh"
+optspec="cs"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
@@ -26,22 +24,13 @@ while getopts "$optspec" optchar; do
     ;;
   s)
     echo "Generating secrets..."
-    # TODO: generate wallets
-    # TODO: write to .contracts.env
-    # TODO: generate jwt secret
-    # TODO: modify genesis.json with allocs
+    $SBIN/generate_secrets.sh -d
     ;;
-  h)
+  *)
     echo "usage: $0 [-c][-s][-h]"
     echo "-c : clean before running"
     echo "-s: generate and configure secrets"
     exit
-    ;;
-  *)
-    if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-      echo "Unknown option: '-${OPTARG}'"
-      exit 1
-    fi
     ;;
   esac
 done
@@ -58,7 +47,7 @@ BASE_ROLLUP_CFG_PATH=$(relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR)
 ROLLUP_CFG_PATH=$(relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR)
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
-DEPLOYMENTS_CFG_PATH=$(relpath $DEPLOYMENTS_CFG_PATH $CONTRACTS_DIR)
+DEPLOYMENTS_CFG_PATH=$(relpath ".deployments.env" $CONTRACTS_DIR)
 
 # Generate genesis file
 $SBIN/create_genesis.sh

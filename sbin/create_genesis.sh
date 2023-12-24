@@ -11,6 +11,7 @@ ROOT_DIR=$SBIN/..
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
+reqdotenv "contracts" ".contracts.env"
 
 echo "Using $OPS_DIR as ops directory."
 # Get relative paths for $OPS_DIR
@@ -21,13 +22,14 @@ echo "Generating new genesis file at $GENESIS_PATH and exporting hash to $GENESI
 cd $OPS_DIR
 guard_overwrite $GENESIS_PATH
 # Create genesis.json file.
-CMD="""
-$OPS_GENESIS_BIN \
-    --genesis-config $GENESIS_CFG_PATH \
-    --out $GENESIS_PATH \
-    --l1-rpc-url $L1_ENDPOINT \
-    --export-hash $GENESIS_EXPORTED_HASH_PATH
-"""
+FLAGS=(
+  "--genesis-config $GENESIS_CFG_PATH"
+  "--out $GENESIS_PATH"
+  "--l1-rpc-url $L1_ENDPOINT"
+  "--export-hash $GENESIS_EXPORTED_HASH_PATH"
+  "--alloc $SEQUENCER_ADDRESS,$VALIDATOR_ADDRESS,$DEPLOYER_ADDRESS"
+)
+CMD="$OPS_GENESIS_BIN ${FLAGS[@]}"
 echo "Running $CMD"
 eval $CMD
 
