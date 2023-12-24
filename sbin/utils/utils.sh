@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Requires that a dotenv exists at path ($2).
 reqdotenv() {
   if ! test -f "$2"; then
@@ -24,4 +26,12 @@ guard_overwrite() {
       exit 1
     fi
   fi
+}
+
+generate_wallet() {
+  wallet=$(cast wallet new)
+  address=$(echo "$wallet" | awk '/Address/ { print $2 }')
+  priv_key=$(echo "$wallet" | awk '/Private key/ { print $3 }')
+  echo "export $1=$address"
+  echo $priv_key >$2
 }
