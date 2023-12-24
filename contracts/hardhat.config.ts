@@ -21,6 +21,7 @@ function createConfig(baseConfig: HardhatUserConfig) {
   if (baseConfig.networks && DEPLOYER_PRIVATE_KEY) {
     baseConfig.networks["mainnet"] = createNetworkConfig("mainnet");
     baseConfig.networks["sepolia"] = createNetworkConfig("sepolia");
+    baseConfig.networks["localhost"] = createNetworkConfig("localhost");
   } else {
     console.warn("DEPLOYER_PRIVATE_KEY not found, only exporting network `localhost`.")
   }
