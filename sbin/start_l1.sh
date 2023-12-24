@@ -85,6 +85,8 @@ if [ "$L1_STACK" = "geth" ]; then
     --ws \
     --ws.api eth,net,web3 \
     --ws.addr 0.0.0.0 \
+    --http.corsdomain '*' \
+    --ws.origins '*' \
     --ws.port $L1_PORT &>$LOG_FILE &
 
   # Wait for 1 block
