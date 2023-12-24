@@ -51,13 +51,13 @@ async function main() {
   const { accountProof, storageProof } = await getDepositProof(
     l1Portal.address,
     initEvent.args.depositHash,
-    hexlifyBlockNum(blockNumber)
+    hexlifyBlockNum(blockNumber),
   );
 
   const finalizeTx = await l2Portal.finalizeDepositTransaction(
     crossDomainMessage,
     accountProof,
-    storageProof
+    storageProof,
   );
   await finalizeTx.wait();
 
@@ -75,7 +75,7 @@ async function main() {
   const retryTx = await l2Portal.finalizeDepositTransaction(
     crossDomainMessage,
     accountProof,
-    storageProof
+    storageProof,
   );
   await retryTx.wait();
 

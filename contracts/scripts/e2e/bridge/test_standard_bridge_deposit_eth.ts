@@ -55,21 +55,21 @@ async function main() {
 
   console.log({ depositHash: depositEvent.args.depositHash });
   const initiated = await l1Portal.initiatedDeposits(
-    depositEvent.args.depositHash
+    depositEvent.args.depositHash,
   );
   console.log({ initiated });
 
   const depositProof = await getDepositProof(
     l1Portal.address,
     depositEvent.args.depositHash,
-    hexlifyBlockNum(blockNumber)
+    hexlifyBlockNum(blockNumber),
   );
 
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
       despositMessage,
       depositProof.accountProof,
-      depositProof.storageProof
+      depositProof.storageProof,
     );
     await finalizeTx.wait();
   } catch (e) {

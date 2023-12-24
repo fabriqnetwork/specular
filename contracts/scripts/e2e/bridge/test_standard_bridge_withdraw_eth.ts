@@ -26,7 +26,7 @@ async function main() {
     l1StandardBridge.filters.ETHBridgeFinalized(),
     async (from, to, amount, data) => {
       console.log({ msg: "ETHBridgeFinalized", from, to, amount, data });
-    }
+    },
   );
 
   const balanceStart = await l1Bridger.getBalance();
@@ -57,14 +57,14 @@ async function main() {
 
   const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(
     rollup,
-    withdrawTxBlockNum
+    withdrawTxBlockNum,
   );
 
   // Get withdraw proof for the block the assertion committed to.
   const withdrawProof = await getWithdrawalProof(
     l2Portal.address,
     withdrawalHash,
-    hexlifyBlockNum(assertionBlockNum)
+    hexlifyBlockNum(assertionBlockNum),
   );
 
   // Get block for the block the assertion committed to.
@@ -84,7 +84,7 @@ async function main() {
       l2BlockHash,
       l2StateRoot,
       withdrawProof.accountProof,
-      withdrawProof.storageProof
+      withdrawProof.storageProof,
     );
     console.log(finalizeTx);
     await finalizeTx.wait();

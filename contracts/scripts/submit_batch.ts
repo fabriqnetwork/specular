@@ -2,7 +2,7 @@ const ethers = require("ethers");
 
 const sendBatch = async () => {
   const provider = new ethers.providers.JsonRpcBatchProvider(
-    "http://localhost:4011"
+    "http://localhost:4011",
   );
 
   const priv =
@@ -22,7 +22,7 @@ const sendBatch = async () => {
         to: "0xf112347faDA222A95d84626b19b2af1DB6672C18",
         value: ethers.utils.parseEther("0.1"),
         nonce: nonce,
-      })
+      }),
     );
     nonce++;
   }
