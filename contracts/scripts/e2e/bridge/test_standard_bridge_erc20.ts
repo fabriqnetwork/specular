@@ -38,7 +38,7 @@ async function main() {
   // Approve entire ERC-20 balance on L1
   const l1ApproveTx = await l1Token.approve(
     l1StandardBridge.address,
-    l1BalanceStart,
+    l1BalanceStart
   );
   await l1ApproveTx.wait();
 
@@ -48,7 +48,7 @@ async function main() {
     l2Token.address,
     l1BalanceStart,
     200_000,
-    [],
+    []
   );
 
   const depositTxWithLogs = await depositTx.wait();
@@ -78,21 +78,21 @@ async function main() {
 
   console.log({ depositHash: depositEvent.args.depositHash });
   let initiated = await l1Portal.initiatedDeposits(
-    depositEvent.args.depositHash,
+    depositEvent.args.depositHash
   );
   console.log({ initiated });
 
   const depositProof = await getDepositProof(
     l1Portal.address,
     depositEvent.args.depositHash,
-    hexlifyBlockNum(blockNumber),
+    hexlifyBlockNum(blockNumber)
   );
 
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
       depositMessage,
       depositProof.accountProof,
-      depositProof.storageProof,
+      depositProof.storageProof
     );
     await finalizeTx.wait();
   } catch (e) {
@@ -108,7 +108,7 @@ async function main() {
   // Approve entire ERC-20 balance on L2
   const l2ApproveTx = await l2Token.approve(
     l2StandardBridge.address,
-    l2BalanceEnd,
+    l2BalanceEnd
   );
   await l2ApproveTx.wait();
 
@@ -117,7 +117,7 @@ async function main() {
     l1Token.address,
     l2BalanceEnd,
     200_000,
-    [],
+    []
   );
   const txWithLogs = await withdrawalTx.wait();
   const withdrawBlockNum = txWithLogs.blockNumber;
@@ -145,14 +145,14 @@ async function main() {
 
   const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(
     rollup,
-    withdrawBlockNum,
+    withdrawBlockNum
   );
 
   // Get withdraw proof for the block the assertion committed to.
   const withdrawProof = await getWithdrawalProof(
     l2Portal.address,
     withdrawalHash,
-    hexlifyBlockNum(assertionBlockNum),
+    hexlifyBlockNum(assertionBlockNum)
   );
 
   // Get block for the block the assertion committed to.
@@ -172,7 +172,7 @@ async function main() {
       l2BlockHash,
       l2StateRoot,
       withdrawProof.accountProof,
-      withdrawProof.storageProof,
+      withdrawProof.storageProof
     );
     console.log(finalizeTx);
     await finalizeTx.wait();

@@ -27,7 +27,7 @@ async function pauseContract(
   contract: string,
   address: string,
   provider: ethers.providers.JsonRpcProvider,
-  privateKey: string,
+  privateKey: string
 ) {
   const owner = new ethers.Wallet(privateKey, provider);
   const factory = await ethers.getContractFactory(contract, address);
@@ -40,7 +40,7 @@ async function unpauseContract(
   contract: string,
   address: string,
   provider: ethers.providers.JsonRpcProvider,
-  privateKey: string,
+  privateKey: string
 ) {
   const owner = new ethers.Wallet(privateKey, provider);
   const factory = await ethers.getContractFactory(contract, address);
@@ -58,7 +58,7 @@ async function pauseContracts() {
     "L1Oracle",
     addresses.l1OracleAddress,
     l1Provider,
-    l1OraclePrKey,
+    l1OraclePrKey
   );
   pauseContract("L1Portal", l1PortalAddr, l1Provider, l1PortalPrKey);
 
@@ -67,13 +67,13 @@ async function pauseContracts() {
     "L2StandardBridge",
     addresses.l2StandardBridgeAddress,
     l2Provider,
-    l2BridgePrKey,
+    l2BridgePrKey
   );
   pauseContract(
     "L2Portal",
     addresses.l2PortalAddress,
     l2Provider,
-    l2PortalPrKey,
+    l2PortalPrKey
   );
   pauseContract("Faucet", faucetAddr, l2Provider, faucetPrKey);
 }
@@ -87,7 +87,7 @@ async function unpauseContracts() {
     "L1Oracle",
     addresses.l1OracleAddress,
     l1Provider,
-    l1OraclePrKey,
+    l1OraclePrKey
   );
   unpauseContract("L1Portal", l1PortalAddr, l1Provider, l1PortalPrKey);
 
@@ -96,13 +96,13 @@ async function unpauseContracts() {
     "L2StandardBridge",
     addresses.l2StandardBridgeAddress,
     l2Provider,
-    l2BridgePrKey,
+    l2BridgePrKey
   );
   unpauseContract(
     "L2Portal",
     addresses.l2PortalAddress,
     l2Provider,
-    l2PortalPrKey,
+    l2PortalPrKey
   );
   unpauseContract("Faucet", faucetAddr, l2Provider, faucetPrKey);
 }

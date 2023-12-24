@@ -35,3 +35,7 @@ generate_wallet() {
   echo "export $1=$address"
   echo $priv_key >$2
 }
+
+generate_jwt_secret() {
+  openssl rand -hex 32
+}

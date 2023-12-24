@@ -6,23 +6,24 @@ import { ethers, upgrades } from "hardhat";
 dotenv.config({ path: __dirname + "/../.env" });
 
 const main = async () => {
-  const UUPSPlaceholderFactory =
-    await ethers.getContractFactory("UUPSPlaceholder");
+  const UUPSPlaceholderFactory = await ethers.getContractFactory(
+    "UUPSPlaceholder"
+  );
   const FaucetFactory = await ethers.getContractFactory("Faucet");
 
   const proxyAddress = "0xff00000000000000000000000000000000000001";
 
   console.log(
     "Implementation address: " +
-      (await upgrades.erc1967.getImplementationAddress(proxyAddress)),
+      (await upgrades.erc1967.getImplementationAddress(proxyAddress))
   );
   console.log(
-    "Admin address: " + (await upgrades.erc1967.getAdminAddress(proxyAddress)),
+    "Admin address: " + (await upgrades.erc1967.getAdminAddress(proxyAddress))
   );
 
   const proxy = await upgrades.forceImport(
     proxyAddress,
-    UUPSPlaceholderFactory,
+    UUPSPlaceholderFactory
   );
 
   const init = await proxy.initialize();

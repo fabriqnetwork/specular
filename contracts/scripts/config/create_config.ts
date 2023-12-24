@@ -16,7 +16,7 @@ async function main() {
     baseConfigPath,
     genesisPath,
     genesisHashPath,
-    deploymentsPath,
+    deploymentsPath
   );
   await generateContractAddresses(deploymentsConfig, deploymentsPath);
 }
@@ -31,15 +31,15 @@ export async function generateConfigFile(
   baseConfigPath: string,
   genesisPath: string,
   genesisHashPath: string,
-  deploymentsPath: string,
+  deploymentsPath: string
 ) {
   // check the deployments dir - error out if it is not there
   const contract = "Proxy__Rollup";
   const deployment = JSON.parse(
-    fs.readFileSync(`${deploymentsPath}/${contract}.json`, "utf-8"),
+    fs.readFileSync(`${deploymentsPath}/${contract}.json`, "utf-8")
   );
   const inboxDeployment = JSON.parse(
-    fs.readFileSync(`${deploymentsPath}/Proxy__SequencerInbox.json`, "utf-8"),
+    fs.readFileSync(`${deploymentsPath}/Proxy__SequencerInbox.json`, "utf-8")
   );
 
   // extract L1 block hash and L1 block number from receipt
@@ -55,9 +55,15 @@ export async function generateConfigFile(
   // Set genesis L2 fields.
   baseConfig.genesis.l2.hash = l2Hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
-  baseConfig.genesis.l2.number = ethers.BigNumber.from(genesis.number).toNumber();
-  baseConfig.genesis.l2_time = ethers.BigNumber.from(genesis.timestamp).toNumber();
-  baseConfig.genesis.gasLimit = ethers.BigNumber.from(genesis.gasLimit).toNumber();
+  baseConfig.genesis.l2.number = ethers.BigNumber.from(
+    genesis.number
+  ).toNumber();
+  baseConfig.genesis.l2_time = ethers.BigNumber.from(
+    genesis.timestamp
+  ).toNumber();
+  baseConfig.genesis.gasLimit = ethers.BigNumber.from(
+    genesis.gasLimit
+  ).toNumber();
   // Set other fields.
   baseConfig.l2_chain_id = genesis.config.chainId;
   baseConfig.batch_inbox_address = inboxDeployment.address;
@@ -73,7 +79,7 @@ export async function generateConfigFile(
  */
 export async function generateContractAddresses(
   deploymentsConfigPath: string,
-  deploymentsPath: string,
+  deploymentsPath: string
 ) {
   // check the deployments dir - error out if it is not there
   const deploymentFiles = fs.readdirSync(deploymentsPath);
@@ -84,7 +90,7 @@ export async function generateContractAddresses(
       deploymentFile.endsWith(".json")
     ) {
       const deployment = JSON.parse(
-        fs.readFileSync(`${deploymentsPath}/${deploymentFile}`, "utf-8"),
+        fs.readFileSync(`${deploymentsPath}/${deploymentFile}`, "utf-8")
       );
       let contractName = deploymentFile
         .replace(/^Proxy__/, "")
