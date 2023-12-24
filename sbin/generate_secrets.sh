@@ -6,10 +6,6 @@ while getopts "$optspec" optchar; do
   d)
     GEN_DEPLOYER=true
     ;;
-  a)
-    NUM_ACCOUNTS=${OPTARG}
-    echo "YAY $NUM_ACCOUNTS"
-    ;;
   *)
     echo "usage: $0 [-d][-h]"
     echo "-d : generate deployer"
@@ -25,6 +21,7 @@ SBIN="$(
   pwd
 )"
 . $SBIN/utils/utils.sh
+. $SBIN/utils/crypto.sh
 ROOT_DIR=$SBIN/..
 
 reqdotenv "sp_magi" ".sp_magi.env"
@@ -58,7 +55,3 @@ if [ "$GEN_DEPLOYER" = "true" ]; then
   echo "DEPLOYER_PRIVATE_KEY=$(cat $deployer_pk_path)" >>$CONTRACTS_ENV
   echo "Wrote address to $CONTRACTS_ENV"
 fi
-
-# for (( i=0; i<$NUM_ACCOUNTS; i++)); do
-#     echo "hi $i"
-# done

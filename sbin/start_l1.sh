@@ -10,7 +10,7 @@ ROOT_DIR=$SBIN/..
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
-# reqdotenv "contracts" ".contracts.env"
+reqdotenv "contracts" ".contracts.env"
 
 # Parse args.
 optspec="cds"

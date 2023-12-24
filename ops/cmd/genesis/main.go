@@ -56,6 +56,7 @@ var Flags = []cli.Flag{
 		Name:  "l1-block",
 		Usage: "L1 block number",
 	},
+	// TODO: provide a better interface for this.
 	&cli.StringFlag{
 		Name:  "alloc",
 		Usage: "Comma-separated list of addresses to allocate a balance to",
@@ -94,11 +95,9 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	}
 	if ctx.IsSet("alloc") {
 		addresses := strings.Split(ctx.String("alloc"), ",")
+		balance := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(100000))
 		for _, addr := range addresses {
-			// TODO: consider exposing balance
-			config.Alloc[common.HexToAddress(addr)] = core.GenesisAccount{
-				Balance: big.NewInt(1000000000000000000),
-			}
+			config.Alloc[common.HexToAddress(addr)] = core.GenesisAccount{Balance: balance}
 		}
 	}
 

@@ -1,7 +1,8 @@
 import fs from "fs";
 import { ethers } from "ethers";
-import hre from "hardhat";
 import { parseFlag } from "./utils";
+
+require("dotenv").config();
 
 // TODO: consider moving to golang (ops).
 async function main() {
@@ -23,7 +24,7 @@ async function main() {
 
 /**
  * Reads the L1 and L2 genesis block info from the specified deployment and
- * adds it to the base config file.
+ * adds it to the base config file, along with other config params.
  * Outputs the new config file at `configPath`.
  */
 export async function generateConfigFile(
@@ -46,28 +47,30 @@ export async function generateConfigFile(
   const l1Number = deployment.receipt.blockNumber;
   const l1Hash = deployment.receipt.blockHash;
 
-  const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"));
-  // Parse genesis hash file.
+  // Parse genesis and hash file.
   const l2Hash = JSON.parse(fs.readFileSync(genesisHashPath, "utf-8")).hash;
-  // Set genesis L1 fields.
-  baseConfig.genesis.l1 = {
-    hash: l1Hash,
-    number: l1Number,
-  };
-  // Set genesis L2 fields.
-  baseConfig.genesis.l2 = {
-    hash: l2Hash,
-  };
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
-  baseConfig.genesis.l2.number = ethers.BigNumber.from(
-    genesis.number,
-  ).toNumber();
-  baseConfig.genesis.l2_time = ethers.BigNumber.from(
-    genesis.timestamp,
-  ).toNumber();
-  baseConfig.genesis.gasLimit = ethers.BigNumber.from(
-    genesis.gasLimit,
-  ).toNumber();
+  // Set genesis fields.
+  const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"));
+  baseConfig.genesis = {
+    l1: {
+      hash: l1Hash,
+      number: l1Number,
+    },
+    l2: {
+      hash: l2Hash,
+      number: ethers.BigNumber.from(genesis.number).toNumber(),
+    },
+    l2_time: ethers.BigNumber.from(genesis.timestamp).toNumber(),
+    system_config: {
+      batcherAddr: process.env.SEQUENCER_ADDRESS,
+      gasLimit: ethers.BigNumber.from(genesis.gasLimit).toNumber(),
+      overhead:
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      scalar:
+        "0x0000000000000000000000000000000000000000000000000000000000000000",
+    },
+  };
   // Set other fields.
   baseConfig.l2_chain_id = genesis.config.chainId;
   baseConfig.batch_inbox_address = inboxDeployment.address;

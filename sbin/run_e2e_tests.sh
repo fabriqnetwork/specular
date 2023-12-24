@@ -56,6 +56,7 @@ echo "Copying local_devnet config files to cwd..."
 cp -a $CONFIG_DIR/e2e_test/. .
 
 # Start L1
+yes | $SBIN/generate_secrets.sh -d
 yes | $SBIN/start_l1.sh -d -s &
 
 # Parse url into host:port

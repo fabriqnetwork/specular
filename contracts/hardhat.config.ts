@@ -14,8 +14,8 @@ const mnemonic =
 const wallet = ethers.Wallet.fromMnemonic(mnemonic);
 
 const INFURA_KEY = process.env.INFURA_KEY || "";
-const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY ?? "";
-const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS ?? wallet.address;
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY || "";
+const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS || wallet.address;
 
 function createConfig(baseConfig: HardhatUserConfig) {
   if (baseConfig.networks && DEPLOYER_PRIVATE_KEY) {
@@ -31,8 +31,8 @@ function createConfig(baseConfig: HardhatUserConfig) {
 function createNetworkConfig(network: string): HttpNetworkUserConfig {
   return {
     url: getNetworkURL(network),
-    accounts: network === "localhost" ? { mnemonic } : [DEPLOYER_PRIVATE_KEY],
-    live: network !== "localhost",
+    accounts: network === "hardhat" ? { mnemonic } : [DEPLOYER_PRIVATE_KEY],
+    live: network !== "localhost" && network !== "hardhat",
     saveDeployments: true,
     deploy: ["deploy/l1"],
   };
@@ -70,9 +70,8 @@ const baseConfig: HardhatUserConfig = {
   namedAccounts: {
     deployer: {
       default: DEPLOYER_ADDRESS,
+      localhost: DEPLOYER_ADDRESS,
       hardhat: 0,
-      localhost: 0,
-      specularLocalDev: 0,
     },
   },
   networks: {

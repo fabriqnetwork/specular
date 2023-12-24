@@ -54,7 +54,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     initialRollupState
   ];
 
-  console.log("args", { args })
+  console.log("Deploying Rollup with args:", { args })
   await deployUUPSProxiedContract(hre, deployer, "Rollup", args);
 };
 
