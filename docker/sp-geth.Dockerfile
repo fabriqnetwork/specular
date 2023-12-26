@@ -11,15 +11,15 @@ RUN mkdir -p /etc/apt/keyrings && \
         apt-get update && \
         apt-get install nodejs -y
 
-RUN mkdir -p /specular/workspace
+RUN mkdir -p /specular/workspace-temp
 RUN mkdir -p /specular/sbin
 RUN mkdir -p /specular/contracts
 
 WORKDIR /specular
 
-COPY --from=build /specular/config/local_docker /specular/workspace
+COPY --from=build /specular/config/local_docker /specular/workspace-temp
 
-RUN cp /specular/workspace/base_sp_rollup.json /specular/workspace/sp_rollup.json
+# RUN cp /specular/workspace/base_sp_rollup.json /specular/workspace/sp_rollup.json
 
 COPY --from=build /specular/sbin/ /specular/sbin/
 COPY --from=build /specular/contracts /specular/contracts

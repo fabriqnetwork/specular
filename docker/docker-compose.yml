@@ -3,56 +3,45 @@ version: '3.8'
 services:
   sidecar:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    # build:
-    #   context: ..
-    #   dockerfile: ./services/sidecar/Dockerfile
     depends_on:
       l1-geth:
         condition: service_healthy
-    # volumes:
-    #   - ../sbin:/sbin
-    #   - ../workspace:/workspace
+    volumes:
+      - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_sidecar.sh
 
   sp-geth:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    # build:
-    #   context: ../services/el_clients/go-ethereum
     # env_file:
       # ../workspace/.sp_geth.env
-    # volumes:
-    #   - ../sbin:/sbin
-    #   - ../workspace:/workspace
+    volumes:
+      - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_sp_geth.sh
 
   sp-magi:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    # build:
-    #   context: ../services/cl_clients/magi
     depends_on:
       l1-geth:
         condition: service_healthy
-    # volumes:
-    #   - ../sbin:/sbin
-    #   - ../workspace:/workspace
+    volumes:
+      - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_sp_magi.sh
 
   l1-geth:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    # build:
-    #   context: ..
-    #   dockerfile: ./docker/l1.Dockerfile
     healthcheck:
       test: ["CMD", "test", "-s", "/workspace/sp_local_devnet.json"]
       retries: 0
       interval: 1s
       start_period: 40s
-    # volumes:
-    #   - ../sbin:/sbin
-    #   - ../workspace:/workspace
-    #   - ../config:/config
+    volumes:
+      - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_l1.sh -d
+volumes:
+  sp_workspace:
+    driver: local # Define the driver and options under the volume name
+
