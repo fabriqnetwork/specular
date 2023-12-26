@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
@@ -54,6 +56,11 @@ var Flags = []cli.Flag{
 		Name:  "l1-block",
 		Usage: "L1 block number",
 	},
+	// TODO: provide a better interface for this.
+	&cli.StringFlag{
+		Name:  "alloc",
+		Usage: "Comma-separated list of addresses to allocate a balance to",
+	},
 }
 
 type exportedHash struct {
@@ -85,6 +92,13 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	config, err := genesis.NewGenesisConfig(genesisConfig)
 	if err != nil {
 		return err
+	}
+	if ctx.IsSet("alloc") {
+		addresses := strings.Split(ctx.String("alloc"), ",")
+		balance := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(100000))
+		for _, addr := range addresses {
+			config.Alloc[common.HexToAddress(addr)] = core.GenesisAccount{Balance: balance}
+		}
 	}
 
 	l2Genesis, err := genesis.BuildL2Genesis(ctx.Context, config, l1StartBlock)

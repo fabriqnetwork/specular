@@ -53,10 +53,10 @@ cp -a config/local_devnet/. workspace/ # copy all config files
 
 **Start L1**
 
-Run the below script to initialize a new local L1 chain.
+Run the below scripts to initialize a new local L1 chain.
 ```sh
 cd workspace
-../sbin/start_l1.sh -c -d # Terminal 1
+../sbin/generate_secrets.sh -d && ../sbin/start_l1.sh -c -d # Terminal 1
 ```
 
 **Start an L2 node**
