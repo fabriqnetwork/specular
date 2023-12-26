@@ -1,14 +1,18 @@
 #!/bin/bash
-optspec="da"
+optspec="dj"
 NUM_ACCOUNTS=0
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   d)
     GEN_DEPLOYER=true
     ;;
+  j)
+    GEN_JWT=true
+    ;;
   *)
-    echo "usage: $0 [-d][-h]"
+    echo "usage: $0 [-d][-j][-h]"
     echo "-d : generate deployer"
+    echo "-j : generate jwt secret"
     exit
     ;;
   esac
@@ -54,4 +58,9 @@ if [ "$GEN_DEPLOYER" = "true" ]; then
   echo "DEPLOYER_ADDRESS=$DEPLOYER_ADDRESS" >>$CONTRACTS_ENV
   echo "DEPLOYER_PRIVATE_KEY=$(cat $deployer_pk_path)" >>$CONTRACTS_ENV
   echo "Wrote address to $CONTRACTS_ENV"
+fi
+
+if [ "$GEN_JWT" = "true" ]; then
+  JWT=$(generate_jwt_secret)
+  echo $JWT > $JWT_SECRET_PATH
 fi
