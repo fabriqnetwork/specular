@@ -4,37 +4,16 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-
-GENESIS_ENV=".genesis.env"
-if ! test -f "$GENESIS_ENV"; then
-  echo "Expected dotenv at $GENESIS_ENV (does not exist)."
-  exit
-fi
-echo "Using genesis dotenv: $GENESIS_ENV"
-. $GENESIS_ENV
-
-if [ "$L1_STACK" = "geth" ]; then
-  CONTRACTS_ENV=".contracts.env"
-  if ! test -f "$CONTRACTS_ENV"; then
-    echo "Expected contracts dotenv at $CONTRACTS_ENV (does not exist)."
-    exit
-  fi
-  echo "Using contracts dotenv: $CONTRACTS_ENV"
-  . $CONTRACTS_ENV
-fi
+reqdotenv "paths" ".paths.env"
+reqdotenv "genesis" ".genesis.env"
+reqdotenv "contracts" ".contracts.env"
 
 # Parse args.
-optspec="cdsh"
+optspec="cds"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
@@ -47,18 +26,12 @@ while getopts "$optspec" optchar; do
   s)
     SILENT=true
     ;;
-  h)
+  *)
     echo "usage: $0 [-c][-d][-s][-h]"
     echo "-c : clean before running"
     echo "-d : deploy contracts"
     echo "-s : silent-mode (no log tailing)"
     exit
-    ;;
-  *)
-    if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-      echo "Unknown option: '-${OPTARG}'"
-      exit 1
-    fi
     ;;
   esac
 done
@@ -100,10 +73,11 @@ function ctrl_c() {
 
 # Start L1 network.
 echo "Starting L1..."
+L1_PERIOD=2
 if [ "$L1_STACK" = "geth" ]; then
   $L1_GETH_BIN \
     --dev \
-    --dev.period 2 \
+    --dev.period $L1_PERIOD \
     --verbosity 0 \
     --http \
     --http.api eth,web3,net \
@@ -115,28 +89,21 @@ if [ "$L1_STACK" = "geth" ]; then
 
   # Wait for 1 block
   echo "Waiting for chain progression..."
-  sleep 4
+  sleep $L1_PERIOD
 
   L1_PID=$!
   echo "L1 PID: $L1_PID"
 
   echo "Funding addresses..."
-  $L1_GETH_BIN attach --exec \
-    "eth.sendTransaction({ from: eth.coinbase, to: '"$SEQUENCER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
-    $L1_ENDPOINT
-  $L1_GETH_BIN attach --exec \
-    "eth.sendTransaction({ from: eth.coinbase, to: '"$VALIDATOR_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
-    $L1_ENDPOINT
-  $L1_GETH_BIN attach --exec \
-    "eth.sendTransaction({ from: eth.coinbase, to: '"$DEPLOYER_ADDRESS"', value: web3.toWei(10000, 'ether') })" \
-    $L1_ENDPOINT
-  $L1_GETH_BIN attach --exec \
-    "eth.sendTransaction({ from: eth.coinbase, to: '"0x90F79bf6EB2c4f870365E785982E1f101E93b906"', value: web3.toWei(10000, 'ether') })" \
-    $L1_ENDPOINT
-
+  addresses_to_fund=($SEQUENCER_ADDRESS $VALIDATOR_ADDRESS $DEPLOYER_ADDRESS)
+  # TODO: consider using cast (more general)
+  for address in "${addresses_to_fund[@]}"; do
+    mycall="eth.sendTransaction({ from: eth.coinbase, to: '"$address"', value: web3.toWei(10000, 'ether') })"
+    $L1_GETH_BIN attach --exec "$mycall" $L1_ENDPOINT
+  done
   # Wait for 1 block
   echo "Waiting for chain progression..."
-  sleep 4
+  sleep $L1_PERIOD
 elif [ "$L1_STACK" = "hardhat" ]; then
   echo "Using $CONTRACTS_DIR as HH proj"
   cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &>$LOG_FILE &

@@ -6,38 +6,17 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
-# Check that all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-
-SIDECAR_ENV=".sidecar.env"
-if ! test -f "$SIDECAR_ENV"; then
-  echo "Expected dotenv at $SIDECAR_ENV (does not exist)."
-  exit
-fi
-echo "Using sidecar dotenv: $SIDECAR_ENV"
-. $SIDECAR_ENV
-
-DEPLOYMENTS_ENV=".deployments.env"
-if ! test -f "$DEPLOYMENTS_ENV"; then
-  echo "Expected dotenv at $DEPLOYMENTS_ENV (does not exist)."
-  exit
-fi
-echo "Using deployments dotenv: $DEPLOYMENTS_ENV"
-. $DEPLOYMENTS_ENV
+# Check that the all required dotenv files exists.
+reqdotenv "paths" ".paths.env"
+reqdotenv "sidecar" ".sidecar.env"
 
 FLAGS=(
   "--l1.endpoint $L1_ENDPOINT"
   "--l2.endpoint $L2_ENDPOINT"
   "--protocol.rollup-cfg-path $ROLLUP_CFG_PATH"
-  "--protocol.rollup-addr $ROLLUP_ADDR"
 )
 
 # Set disseminator flags.
@@ -57,7 +36,6 @@ if [ "$VALIDATOR" = true ]; then
   VALIDATOR_PRIV_KEY=$(cat "$VALIDATOR_PK_PATH")
   FLAGS+=(
     "--validator"
-    "--validator.addr $VALIDATOR_ADDR"
     "--validator.private-key $VALIDATOR_PRIV_KEY"
   )
 fi

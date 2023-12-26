@@ -53,3 +53,5 @@ type L2Client interface {
 	BlockByNumber(ctx context.Context, number *big.Int) (*ethTypes.Block, error)
 	HeaderByTag(ctx context.Context, tag eth.BlockTag) (*ethTypes.Header, error)
 }
+
+type ErrGroup interface{ Go(f func() error) }

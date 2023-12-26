@@ -10,32 +10,8 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-
-# Check that the all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected paths dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-# Use sidecar dotenv (to get l1 endpoint)
-SIDECAR_ENV=".sidecar.env"
-if ! test -f "$SIDECAR_ENV"; then
-  echo "Expected sidecar dotenv at $SIDECAR_ENV (does not exist)."
-  exit
-fi
-echo "Using sidecar dotenv: $SIDECAR_ENV"
-. $SIDECAR_ENV
-# Use sidecar dotenv (to get l1 endpoint)
-CONTRACTS_ENV=".contracts.env"
-if ! test -f "$CONTRACTS_ENV"; then
-  echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
-  exit
-fi
-echo "Using contracts dotenv: $CONTRACTS_ENV"
-. $CONTRACTS_ENV
 
 ###### Process handling ######
 trap ctrl_c INT
@@ -64,6 +40,11 @@ function ctrl_c() {
 
 ##############################
 
+# Check that the all required dotenv files exists.
+reqdotenv "paths" ".paths.env"
+reqdotenv "sidecar" ".sidecar.env"
+reqdotenv "contracts" ".contracts.env"
+
 WORKSPACE_DIR=./workspace-test
 mkdir -p $WORKSPACE_DIR
 cd $WORKSPACE_DIR
@@ -75,6 +56,7 @@ echo "Copying local_devnet config files to cwd..."
 cp -a $CONFIG_DIR/e2e_test/. .
 
 # Start L1
+yes | $SBIN/generate_secrets.sh -d
 yes | $SBIN/start_l1.sh -d -s &
 
 # Parse url into host:port
@@ -87,13 +69,7 @@ until [ -f "$ROLLUP_CFG_PATH" ]; do
   sleep 4
 done
 
-DEPLOYMENTS_ENV=".deployments.env"
-if ! test -f "$DEPLOYMENTS_ENV"; then
-  echo "Expected dotenv at $DEPLOYMENTS_ENV (does not exist)."
-  exit
-fi
-echo "Using deployments dotenv: $DEPLOYMENTS_ENV"
-. $DEPLOYMENTS_ENV
+reqdotenv "deployments" ".deployments.env"
 
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &>proc.out &
