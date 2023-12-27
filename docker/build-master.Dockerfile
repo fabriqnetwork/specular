@@ -2,7 +2,7 @@ FROM debian:bullseye-slim as base
 
 # Versions
 ENV GOVERSION=1.21.5
-ENV NODE_MAJOR=20
+ENV NODE_MAJOR=16
 
 RUN apt update && apt install -y ca-certificates curl gnupg
 RUN mkdir -p /etc/apt/keyrings

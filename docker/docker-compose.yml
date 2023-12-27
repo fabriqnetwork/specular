@@ -45,3 +45,6 @@ volumes:
   sp_workspace:
     driver: local # Define the driver and options under the volume name
 
+networks:
+  specular:
+    name: sp_network
