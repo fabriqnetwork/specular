@@ -24,6 +24,8 @@ type Config interface {
 }
 
 type VersionedDataEncoder interface {
+	// Returns true iff empty.
+	IsEmpty() bool
 	// Returns an encoded batch if one is ready (or if forced).
 	// If not forced, an error is returned if one cannot yet be built.
 	Flush(force bool) ([]byte, error)
@@ -82,6 +84,7 @@ func (b *batchBuilder) Reset(lastEnqueued types.BlockID) {
 // This short-circuits the build process if a batch is
 // already built and `Advance` hasn't been called.
 // An l1Head must be provided to allow the encoder to determine if the batch is ready.
+// Returns an `io.EOF` error if there's nothing to build yet.
 func (b *batchBuilder) Build(l1Head types.BlockID) ([]byte, error) {
 	if b.lastBuilt != nil {
 		return b.lastBuilt, nil
@@ -99,6 +102,9 @@ func (b *batchBuilder) Advance() {
 
 // Tries to get the current batch.
 func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
+	if b.encoder.IsEmpty() {
+		return nil, io.EOF
+	}
 	// Force-build batch if necessary (timeout exceeded).
 	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
 	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
@@ -124,10 +130,9 @@ func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 }
 
 // Encodes pending blocks into a new batch, constrained by `maxBatchSize`.
-// Returns an `io.EOF` error if there are no pending blocks.
 func (b *batchBuilder) encodePending() error {
 	if len(b.pendingBlocks) == 0 {
-		return io.EOF
+		return nil
 	}
 	// Process all pending blocks (until the batch is full).
 	numProcessed := 0
