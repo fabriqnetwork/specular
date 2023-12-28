@@ -23,9 +23,8 @@ while getopts "$optspec" optchar; do
     $SBIN/clean_deployment.sh
     ;;
   *)
-    echo "usage: $0 [-c][-s][-h]"
+    echo "usage: $0 [-c][-h]"
     echo "-c : clean before running"
-    echo "-s: generate and configure secrets"
     exit
     ;;
   esac
@@ -50,8 +49,8 @@ $SBIN/create_genesis.sh
 
 # Deploy contracts
 cd $CONTRACTS_DIR
+guard "Deploy contracts? [y/N]"
 echo "Deploying l1 contracts..."
-echo $GENESIS_EXPORTED_HASH_PATH
 npx hardhat deploy --network $L1_NETWORK
 
 # Generate rollup config
