@@ -1,5 +1,5 @@
 #!/bin/bash
-optspec="da"
+optspec="d"
 NUM_ACCOUNTS=0
 while getopts "$optspec" optchar; do
   case "${optchar}" in

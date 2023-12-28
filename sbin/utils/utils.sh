@@ -22,7 +22,7 @@ guard_overwrite() {
 reqdotenv() {
   if ! test -f "$2"; then
     echo "Expected $1 dotenv at $2 (not found)."
-    exit
+    exit 1
   fi
   echo "Using $1 dotenv: $2"
   . $2
