@@ -7,7 +7,7 @@ relpath() {
 
 # Requests a user to confirm the given prompt ($1).
 guard() {
-  read -r -p $1 response
+  read -r -p "$1 " response
   if ! [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     exit 1
   fi
