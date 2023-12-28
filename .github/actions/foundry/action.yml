@@ -17,4 +17,5 @@ runs:
         version: nightly
 
     - name: Run forge install
+      shell: bash
       run: forge install
