@@ -108,7 +108,7 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"_initializing":       {ProxyValue: false, ImplValue: false},
 				"_owner":              {ProxyValue: config.L2PredeployOwner},
 				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
-				"minWithdrawalAmount": {ProxyValue: "1000000000000000000"},
+				"minWithdrawalAmount": {ProxyValue: 1},
 			},
 		},
 		"L2BaseFeeVault": {
@@ -119,7 +119,7 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"_initializing":       {ProxyValue: false, ImplValue: false},
 				"_owner":              {ProxyValue: config.L2PredeployOwner},
 				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
-				"minWithdrawalAmount": {ProxyValue: "1000000000000000000"},
+				"minWithdrawalAmount": {ProxyValue: 1},
 			},
 		},
 	}
