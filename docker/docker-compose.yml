@@ -1,24 +1,29 @@
 version: '3.8'
 
 services:
-  sidecar:
+
+  l1-geth:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    depends_on:
-      l1-geth:
-        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-s", "/workspace/l1_started.lock"]
+      retries: 10
+      interval: 5s
+      start_period: 20s
     volumes:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
-    entrypoint: bash ../sbin/start_sidecar.sh
+    entrypoint: yes |../sbin/generate_secrets.sh -d -j && yes ./sbin/start_l1.sh -c -d
+    networks:
+      - specular
 
   sp-geth:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    # env_file:
-      # ../workspace/.sp_geth.env
     volumes:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
-    entrypoint: bash ../sbin/start_sp_geth.sh
+    entrypoint: yes | ../sbin/start_sp_geth.sh -c
+    networks:
+      - specular
 
   sp-magi:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
@@ -29,18 +34,22 @@ services:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_sp_magi.sh
+    networks:
+      - specular
 
-  l1-geth:
+  sidecar:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
-    healthcheck:
-      test: ["CMD", "test", "-s", "/workspace/sp_local_devnet.json"]
-      retries: 0
-      interval: 1s
-      start_period: 40s
+    depends_on:
+      l1-geth:
+        condition: service_healthy
     volumes:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
-    entrypoint: bash ../sbin/start_l1.sh -d
+    entrypoint: bash ../sbin/start_sidecar.sh
+    networks:
+      - specular
+
+# shared volume and networks
 volumes:
   sp_workspace:
     driver: local # Define the driver and options under the volume name

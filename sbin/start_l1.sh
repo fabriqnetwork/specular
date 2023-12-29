@@ -6,7 +6,7 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-
+L1_WAITFILE=./l1_started.lock
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
@@ -56,6 +56,9 @@ function cleanup() {
     disown $pid
     kill $pid
   done
+
+  # Remove L1_WAITFILE
+  rm $L1_WAITFILE
   # For good measure...
   if [ -n "$L1_PORT" ]; then
     L1_WS_PID=$(lsof -i tcp:${L1_PORT} | awk 'NR!=1 {print $2}')
@@ -124,7 +127,8 @@ fi
 
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
-  echo "L1 started... (Use ctrl-c to stop)"
+  echo "L1 started...Creating wait_for file (Use ctrl-c to stop)"
+  touch $L1_WAITFILE
   tail -f $LOG_FILE
 fi
 wait $L1_PID
