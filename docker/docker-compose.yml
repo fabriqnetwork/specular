@@ -12,7 +12,7 @@ services:
     volumes:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
-    entrypoint: /bin/bash ../sbin/generate_secrets.sh -d -j -y && ./sbin/start_l1.sh -c -d -l
+    entrypoint: /bin/bash ../sbin/generate_secrets.sh -d -j -y && ../sbin/start_l1.sh -c -d -w -y
     networks:
       - specular
 

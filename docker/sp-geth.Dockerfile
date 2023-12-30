@@ -6,6 +6,8 @@ ENV NODE_MAJOR=16
 ENV FOUNDRY_VERSION="nightly-67ab8704476d55e47545cf6217e236553c427a80"
 ENV FOUNDRY_TAR="foundry_nightly_linux_amd64.tar.gz"
 
+WORKDIR /tmp
+
 RUN apt install -y python3 ca-certificates curl gnupg
 RUN mkdir -p /etc/apt/keyrings && \
         curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg && \
@@ -13,35 +15,38 @@ RUN mkdir -p /etc/apt/keyrings && \
         apt-get update && \
         apt-get install nodejs -y
 
-RUN mkdir -p /specular/workspace
-RUN mkdir -p /specular/sbin
-# RUN mkdir -p /specular/contracts
-
-WORKDIR /tmp
 RUN wget https://github.com/foundry-rs/foundry/releases/download/$FOUNDRY_VERSION/$FOUNDRY_TAR && \
     tar xzvf $FOUNDRY_TAR && \
     mv cast /usr/local/bin
 
+# copy everything we need
+WORKDIR /specular
 
-RUN echo
-COPY --from=build /specular/config/local_docker /specular/workspace
+RUN mkdir -p /specular/workspace
+RUN mkdir -p /specular/sbin
+RUN mkdir -p /specular/contracts
 
-# RUN cp /specular/workspace/base_sp_rollup.json /specular/workspace/sp_rollup.json
-
-COPY --from=build /specular/sbin/ /specular/sbin/
-# COPY --from=build /specular/contracts /specular/contracts
-# COPY --from=build /specular/services /specular/services
-
-RUN ln -s /specular/services/sidecar/build/bin/sidecar  /usr/local/bin/sidecar
-RUN ln -s /specular/services/cl_clients/magi/target/debug/magi /usr/local/bin/magi
-RUN ln -s /specular/services/el_clients/go-ethereum/build/bin/geth /usr/local/bin/geth
+# install hardhar
 COPY --from=build /specular/package.json .
+COPY --from=build /specular/contracts /specular/contracts
+COPY --from=build /specular/pnpm-lock.yaml /specular/pnpm-lock.yaml
+COPY --from=build /specular/pnpm-workspace.yaml /specular/pnpm-workspace.yaml
 
 RUN npm install -g pnpm
 RUN pnpm install
 
+COPY --from=build /specular/config/local_docker /specular/workspace
+COPY --from=build /specular/sbin/ /specular/sbin/
+COPY --from=build /specular/ops/ /specular/ops/
+# COPY --from=build /specular/services /specular/services
+
+COPY --from=build /specular/services/sidecar/build/bin/sidecar  /usr/local/bin/sidecar
+COPY --from=build /specular/ops/build/bin/genesis  /usr/local/bin/genesis
+COPY --from=build /specular/services/cl_clients/magi/target/debug/magi /usr/local/bin/magi
+COPY --from=build /specular/services/el_clients/go-ethereum/build/bin/geth /usr/local/bin/geth
 
 WORKDIR /specular/workspace
+
 
 EXPOSE 4011 4012 4013 8545
 

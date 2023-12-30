@@ -14,18 +14,24 @@ reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
+AUTO_ACCEPT=""
+
 # Parse args.
-optspec="c"
+optspec="cy"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
+  y)
+    AUTO_ACCEPT="--yes"
+    ;;
   c)
     echo "Cleaning deployment..."
     $SBIN/clean_deployment.sh
     ;;
   *)
-    echo "usage: $0 [-c][-s][-h]"
+    echo "usage: $0 [-c][-s][-y][-h]"
     echo "-c : clean before running"
     echo "-s: generate and configure secrets"
+    echo "-y : auto accept prompts"
     exit
     ;;
   esac
@@ -52,12 +58,12 @@ $SBIN/create_genesis.sh
 cd $CONTRACTS_DIR
 echo "Deploying l1 contracts..."
 echo $GENESIS_EXPORTED_HASH_PATH
-npx hardhat deploy --network $L1_NETWORK
+npx $AUTO_ACCEPT hardhat deploy --network $L1_NETWORK
 
 # Generate rollup config
 echo "Generating rollup config..."
 guard_overwrite $ROLLUP_CFG_PATH
-npx ts-node scripts/config/create_config.ts \
+npx $AUTO_ACCEPT ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
   --deployments-config-path $DEPLOYMENTS_CFG_PATH \

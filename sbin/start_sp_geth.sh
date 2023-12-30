@@ -14,10 +14,10 @@ reqdotenv "paths" ".paths.env"
 reqdotenv "sp_geth" ".sp_geth.env"
 
 # Parse args.
-optspec="ch"
+optspec="chw"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
-  l)
+  w)
     echo "Creating wait file for docker"
     touch $SP_GETH_WAIT
     ;;
@@ -26,8 +26,9 @@ while getopts "$optspec" optchar; do
     $SBIN/clean_sp_geth.sh
     ;;
   h)
-    echo "usage: $0 [-c][-h]"
+    echo "usage: $0 [-c][-h][-w]"
     echo "-c : clean before running"
+    echo "-w : generate docker-compose wait for file"
     exit
     ;;
   *)

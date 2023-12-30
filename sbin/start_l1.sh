@@ -12,8 +12,10 @@ reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
+AUTO_APPROVE=""
+
 # Parse args.
-optspec="cds"
+optspec="cdswy"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
@@ -23,17 +25,22 @@ while getopts "$optspec" optchar; do
   d)
     L1_DEPLOY=true
     ;;
-  l)
+  w)
     L1_WAIT=true
     ;;
   s)
     SILENT=true
     ;;
+  y)
+    AUTO_APPROVE="-y"
+    ;;
   *)
-    echo "usage: $0 [-c][-d][-s][-h]"
+    echo "usage: $0 [-c][-d][-s][-y][-h]"
     echo "-c : clean before running"
     echo "-d : deploy contracts"
     echo "-s : silent-mode (no log tailing)"
+    echo "-y : auto accept prompts"
+    echo "-w : generate docker-compose wait for file"
     exit
     ;;
   esac
@@ -62,8 +69,10 @@ function cleanup() {
 
   # Remove L1_WAITFILE
   if [ "$L1_WAIT" = "true" ]; then
-    echo "Removing wait file for docker..."
+    if test -f $L1_WAITFILE; then
+      echo "Removing wait file for docker..."
       rm $L1_WAITFILE
+    fi
   fi
 
   # For good measure...
@@ -129,16 +138,16 @@ fi
 # Optionally deploy the contracts
 if [ "$L1_DEPLOY" = "true" ]; then
   echo "Deploying contracts..."
-  $SBIN/deploy_l1_contracts.sh
+  $SBIN/deploy_l1_contracts.sh $AUTO_APPROVE
 fi
 
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
-  echo "L1 started... (Use ctrl-c to stop)"
   if [ "$L1_WAIT" = "true" ]; then
     echo "Creating wait file for docker..."
     touch $L1_WAITFILE
   fi
+  echo "L1 started... (Use ctrl-c to stop)"
   tail -f $LOG_FILE
 fi
 wait $L1_PID
