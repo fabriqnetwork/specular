@@ -38,7 +38,7 @@ echo "Generated account (address=$SEQUENCER_ADDRESS, priv_key_path=$SEQUENCER_PK
 if [ "$DISSEMINATOR_PK_PATH" != "$SEQUENCER_PK_FILE" ]; then
   echo "$DISSEMINATOR_PK_PATH" "$SEQUENCER_PK_FILE"
   guard_overwrite $DISSEMINATOR_PK_PATH
-  cat $SEQUENCER_PK_FILE > $DISSEMINATOR_PK_PATH
+  cat $SEQUENCER_PK_FILE >$DISSEMINATOR_PK_PATH
 fi
 
 # Write dotenv
