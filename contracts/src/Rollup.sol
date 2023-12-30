@@ -122,7 +122,7 @@ contract Rollup is RollupBase {
     mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
     Zombie[] public zombies; // stores stakers that lost a challenge
 
-    function initialize(Config calldata _config, InitialRollupState calldata _initialRollupState) public initializer {
+    function initialize(Config calldata _config) public initializer {
         if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
             revert ZeroAddress();
         }
@@ -137,14 +137,18 @@ contract Rollup is RollupBase {
         minimumAssertionPeriod = _config.minimumAssertionPeriod;
         baseStakeAmount = _config.baseStakeAmount;
 
-        lastResolvedAssertionID = _initialRollupState.assertionID;
-        lastConfirmedAssertionID = _initialRollupState.assertionID;
-        lastCreatedAssertionID = _initialRollupState.assertionID;
-
         // Initialize role based access control
         for (uint256 i = 0; i < _config.validators.length; i++) {
             grantRole(VALIDATOR_ROLE, _config.validators[i]);
         }
+    }
+
+    function initializeGenesis(InitialRollupState calldata _initialRollupState) external onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(lastCreatedAssertionID == 0, "Rollup: genesis already initialized");
+
+        lastResolvedAssertionID = _initialRollupState.assertionID;
+        lastConfirmedAssertionID = _initialRollupState.assertionID;
+        lastCreatedAssertionID = _initialRollupState.assertionID;
 
         bytes32 initialStateCommitment =
             Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);

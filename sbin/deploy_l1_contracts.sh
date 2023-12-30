@@ -1,5 +1,6 @@
 #!/bin/bash
 
+WORKSPACE_DIR=$(pwd)
 # the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
@@ -44,21 +45,30 @@ GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
 DEPLOYMENTS_CFG_PATH=$(relpath ".deployments.env" $CONTRACTS_DIR)
 
-# Generate genesis file
-$SBIN/create_genesis.sh
-
 # Deploy contracts
 cd $CONTRACTS_DIR
 guard "Deploy contracts? [y/N]"
 echo "Deploying l1 contracts..."
 npx hardhat deploy --network $L1_NETWORK
 
+echo "Generating deployments config..."
+guard_overwrite $DEPLOYMENTS_CFG_PATH
+npx ts-node scripts/config/create_deployments_config.ts \
+  --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \
+  --deployments-config-path $DEPLOYMENTS_CFG_PATH
+
+# Generate genesis file
+cd $WORKSPACE_DIR
+$SBIN/create_genesis.sh
+
 # Generate rollup config
+cd $CONTRACTS_DIR
 echo "Generating rollup config..."
 guard_overwrite $ROLLUP_CFG_PATH
 npx ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
+  --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \
   --deployments-config-path $DEPLOYMENTS_CFG_PATH \
   --genesis $GENESIS_PATH \
   --genesis-hash-path $GENESIS_EXPORTED_HASH_PATH \
@@ -66,5 +76,9 @@ npx ts-node scripts/config/create_config.ts \
 
 # Add deployment addresses to contracts env file
 cat $DEPLOYMENTS_CFG_PATH >>$CONTRACTS_DIR/.env
+
+echo "Initializing Rollup contract genesis state..."
+npx ts-node scripts/config/set_rollup_genesis_state.ts \
+  --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK
 
 echo "Done."
