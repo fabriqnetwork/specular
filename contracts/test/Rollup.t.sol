@@ -113,7 +113,7 @@ contract RollupTest is RollupBaseSetup {
 
         Config memory cfg = Config(_vault, _sequencerInboxAddress, _verifier, 0, 0, 0, 0, new address[](0));
 
-        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg, validState);
+        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg);
         if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
             vm.startPrank(deployer);
 
@@ -121,21 +121,23 @@ contract RollupTest is RollupBaseSetup {
 
             vm.expectRevert(ZeroAddress.selector);
             rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
+            rollup.initializeGenesis(validState);
         }
     }
 
     function test_initialize_reinitializeRollup_reverts() external {
-        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, validConfig, validState);
+        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, validConfig);
 
         vm.startPrank(deployer);
 
         Rollup implementationRollup = new Rollup(); // implementation contract
         rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
+        rollup.initializeGenesis(validState);
 
         // Trying to call initialize for the second time
         vm.expectRevert("Initializable: contract is already initialized");
 
-        rollup.initialize(validConfig, validState);
+        rollup.initialize(validConfig);
     }
 
     function testFuzz_initialize_valuesAfterInit_succeeds(
@@ -159,12 +161,13 @@ contract RollupTest is RollupBaseSetup {
             );
             InitialRollupState memory state =
                 InitialRollupState(initialAssertionID, initialInboxSize, bytes32(""), bytes32(""));
-            bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg, state);
+            bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg);
 
             vm.startPrank(deployer);
 
             Rollup implementationRollup = new Rollup(); // implementation contract
             rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData))); // The rollup contract (proxy, not implementation should have been initialized by now)
+            rollup.initializeGenesis(state);
 
             vm.stopPrank();
         }
@@ -1279,12 +1282,13 @@ contract RollupTest is RollupBaseSetup {
         InitialRollupState memory state =
             InitialRollupState(initialAssertionID, initialInboxSize, bytes32(""), bytes32(""));
 
-        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg, state);
+        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg);
 
         // Deploying the rollup contract as the rollup owner/deployer
         vm.startPrank(deployer);
         Rollup implementationRollup = new Rollup();
         rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
+        rollup.initializeGenesis(state);
         vm.stopPrank();
 
         // Check initial validators are in the whitelist
