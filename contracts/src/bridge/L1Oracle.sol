@@ -48,6 +48,8 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
      */
     uint256 public l1FeeScalar;
 
+    mapping(uint8 => bytes32) public prevStateRoots;
+
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
@@ -98,6 +100,7 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
         stateRoot = _stateRoot;
         l1FeeOverhead = _l1FeeOverhead;
         l1FeeScalar = _l1FeeScalar;
+        prevStateRoots[uint8(number % 256)] = _stateRoot;
     }
 
     /**
