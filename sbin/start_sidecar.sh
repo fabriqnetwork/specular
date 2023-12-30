@@ -33,7 +33,7 @@ fi
 # Set validator flags.
 if [ "$VALIDATOR" = true ]; then
   echo "Enabling validator."
-  VALIDATOR_PRIV_KEY=$(cat "$VALIDATOR_PK_PATH")
+  VALIDATOR_PRIV_KEY=$(cat "$VALIDATOR_PK_FILE")
   FLAGS+=(
     "--validator"
     "--validator.private-key $VALIDATOR_PRIV_KEY"
