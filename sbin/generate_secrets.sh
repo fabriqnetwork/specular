@@ -1,8 +1,12 @@
 #!/bin/bash
-optspec="dj"
+optspec="djy"
 NUM_ACCOUNTS=0
+AUTO_ACCEPT=false
 while getopts "$optspec" optchar; do
   case "${optchar}" in
+  y)
+    AUTO_ACCEPT=true
+    ;;
   d)
     GEN_DEPLOYER=true
     ;;
@@ -10,9 +14,10 @@ while getopts "$optspec" optchar; do
     GEN_JWT=true
     ;;
   *)
-    echo "usage: $0 [-d][-j][-h]"
+    echo "usage: $0 [-d][-j][-y][-h]"
     echo "-d : generate deployer"
     echo "-j : generate jwt secret"
+    echo "-y : auto accept prompts"
     exit
     ;;
   esac
@@ -32,7 +37,7 @@ reqdotenv "sp_magi" ".sp_magi.env"
 reqdotenv "sidecar" ".sidecar.env"
 
 CONTRACTS_ENV=".contracts.env"
-guard_overwrite $CONTRACTS_ENV
+guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
 
 # Generate accounts
 VALIDATOR_ADDRESS=$(generate_wallet $VALIDATOR_PK_PATH)
@@ -41,7 +46,7 @@ SEQUENCER_ADDRESS=$(generate_wallet $SEQUENCER_PK_FILE)
 echo "Generated account (address=$SEQUENCER_ADDRESS, priv_key_path=$SEQUENCER_PK_FILE)"
 if [ "$DISSEMINATOR_PK_PATH" != "$SEQUENCER_PK_FILE" ]; then
   echo "$DISSEMINATOR_PK_PATH" "$SEQUENCER_PK_FILE"
-  guard_overwrite $DISSEMINATOR_PK_PATH
+  guard_overwrite $DISSEMINATOR_PK_PATH $AUTO_ACCEPT
   cat $SEQUENCER_PK_FILE >$DISSEMINATOR_PK_PATH
 fi
 

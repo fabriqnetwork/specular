@@ -3,6 +3,8 @@ FROM 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-latest a
 FROM golang:bullseye
 
 ENV NODE_MAJOR=16
+ENV FOUNDRY_VERSION="nightly-67ab8704476d55e47545cf6217e236553c427a80"
+ENV FOUNDRY_TAR="foundry_nightly_linux_amd64.tar.gz"
 
 RUN apt install -y python3 ca-certificates curl gnupg
 RUN mkdir -p /etc/apt/keyrings && \
@@ -15,15 +17,20 @@ RUN mkdir -p /specular/workspace
 RUN mkdir -p /specular/sbin
 # RUN mkdir -p /specular/contracts
 
-WORKDIR /specular
+WORKDIR /tmp
+RUN wget https://github.com/foundry-rs/foundry/releases/download/$FOUNDRY_VERSION/$FOUNDRY_TAR && \
+    tar xzvf $FOUNDRY_TAR && \
+    mv cast /usr/local/bin
 
+
+RUN echo
 COPY --from=build /specular/config/local_docker /specular/workspace
 
-RUN cp /specular/workspace/base_sp_rollup.json /specular/workspace/sp_rollup.json
+# RUN cp /specular/workspace/base_sp_rollup.json /specular/workspace/sp_rollup.json
 
 COPY --from=build /specular/sbin/ /specular/sbin/
 # COPY --from=build /specular/contracts /specular/contracts
-COPY --from=build /specular/services /specular/services
+# COPY --from=build /specular/services /specular/services
 
 RUN ln -s /specular/services/sidecar/build/bin/sidecar  /usr/local/bin/sidecar
 RUN ln -s /specular/services/cl_clients/magi/target/debug/magi /usr/local/bin/magi

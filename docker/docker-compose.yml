@@ -3,33 +3,48 @@ version: '3.8'
 services:
 
   l1-geth:
-    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     healthcheck:
-      test: ["CMD", "test", "-s", "/workspace/l1_started.lock"]
+      test: ["CMD", "test", "-s", "/tmp/.l1_started.lock"]
       retries: 10
       interval: 5s
       start_period: 20s
     volumes:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
-    entrypoint: yes |../sbin/generate_secrets.sh -d -j && yes ./sbin/start_l1.sh -c -d
+    entrypoint: /bin/bash ../sbin/generate_secrets.sh -d -j -y && ./sbin/start_l1.sh -c -d -l
     networks:
       - specular
 
   sp-geth:
-    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     volumes:
       - sp_workspace:/specular/workspace
+    restart: on-failure
+    depends_on:
+      l1-geth:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-s", "/tmp/.sp_geth_started.lock"]
+      retries: 10
+      interval: 5s
+      start_period: 20s
     working_dir: /specular/workspace
-    entrypoint: yes | ../sbin/start_sp_geth.sh -c
+    entrypoint: echo "yes" | ../sbin/start_sp_geth.sh -c -l
     networks:
       - specular
 
   sp-magi:
-    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    restart: on-failure
     depends_on:
-      l1-geth:
+      sp-geth:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "test", "-s", "/tmp/sp_magi_started.lock"]
+      retries: 10
+      interval: 5s
+      start_period: 20s
     volumes:
       - sp_workspace:/specular/workspace
     working_dir: /specular/workspace
@@ -38,9 +53,10 @@ services:
       - specular
 
   sidecar:
-    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-v.0.01
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    restart: on-failure
     depends_on:
-      l1-geth:
+      sp-magi:
         condition: service_healthy
     volumes:
       - sp_workspace:/specular/workspace

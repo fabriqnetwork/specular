@@ -7,13 +7,18 @@ relpath() {
 
 # Requests a user to confirm that overwriting
 # file ($1) is okay, if it exists.
+# doesn't ask if -y is set
 guard_overwrite() {
+
   if test -f $1; then
-    read -r -p "Overwrite $1 with a new file? [y/N] " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      rm $1
-    else
-      exit 1
+
+    if [[ "$2" = "false" ]]; then
+      read -r -p "Overwrite $1 with a new file? [y/N] " response
+      if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
+        rm $1
+      else
+        exit 1
+      fi
     fi
   fi
 }

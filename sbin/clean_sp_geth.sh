@@ -8,3 +8,9 @@ fi
 . $GETH_ENV
 echo "Removing sp-geth data dir $DATA_DIR"
 rm -rf $DATA_DIR
+
+if test -f .sp_geth_started.lock; then
+
+  echo "Removing docker lock file"
+  L1_WAIT=/tmp/.sp_geth_started.lock
+fi
