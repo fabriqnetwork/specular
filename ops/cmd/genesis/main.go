@@ -103,17 +103,15 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	}
 	if ctx.IsSet("l1-portal-address") {
 		config.L1PortalAddress = common.HexToAddress(ctx.String("l1-portal-address"))
-	} else {
-		if config.L1PortalAddress == (common.Address{}) {
-			return fmt.Errorf("L1Portal address not set")
-		}
+	}
+	if config.L1PortalAddress == (common.Address{}) {
+		return fmt.Errorf("L1Portal address not set")
 	}
 	if ctx.IsSet("l1-standard-bridge-address") {
 		config.L1StandardBridgeAddress = common.HexToAddress(ctx.String("l1-standard-bridge-address"))
-	} else {
-		if config.L1StandardBridgeAddress == (common.Address{}) {
-			return fmt.Errorf("L1StandardBridge address not set")
-		}
+	}
+	if config.L1StandardBridgeAddress == (common.Address{}) {
+		return fmt.Errorf("L1StandardBridge address not set")
 	}
 	if ctx.IsSet("alloc") {
 		addresses := strings.Split(ctx.String("alloc"), ",")

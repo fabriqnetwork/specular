@@ -8,7 +8,5 @@
     "l2GenesisBlockBaseFeePerGas": "0x0",
     "l2GenesisBlockExtraData": "0x",
     "l2PredeployOwner": "0x000000000000000000000000000000000000dEaD",
-    "l1PortalAddress": "0x000000000000000000000000000000000000dEaD",
-    "l1StandardBridgeAddress": "0x000000000000000000000000000000000000dEaD",
     "alloc": {}
 }
