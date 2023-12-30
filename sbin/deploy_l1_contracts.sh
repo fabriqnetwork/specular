@@ -31,6 +31,8 @@ while getopts "$optspec" optchar; do
   esac
 done
 
+rm -f $WORKSPACE_DIR/.deployed
+
 echo "Using $CONTRACTS_DIR as HH proj"
 
 # Copy .contracts.env
@@ -78,7 +80,9 @@ npx ts-node scripts/config/create_config.ts \
 cat $DEPLOYMENTS_CFG_PATH >>$CONTRACTS_DIR/.env
 
 echo "Initializing Rollup contract genesis state..."
-npx ts-node scripts/config/set_rollup_genesis_state.ts \
-  --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK
+npx hardhat run --network $L1_NETWORK scripts/config/set_rollup_genesis_state.ts
+
+# Signal that we're done.
+touch $WORKSPACE_DIR/.deployed
 
 echo "Done."

@@ -1,5 +1,4 @@
 import fs from "fs";
-import { ethers } from "ethers";
 import { parseFlag } from "./utils";
 
 require("dotenv").config();

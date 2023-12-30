@@ -153,12 +153,14 @@ contract Rollup is RollupBase {
         bytes32 initialStateCommitment =
             Hashing.createStateCommitmentV0(_initialRollupState.l2BlockHash, _initialRollupState.l2StateRoot);
 
-        createAssertionHelper(
-            _initialRollupState.assertionID, // assertionID
+        assertions[_initialRollupState.assertionID] = Assertion(
             initialStateCommitment,
             _initialRollupState.l2BlockNum, // blockNum (genesis)
-            _initialRollupState.assertionID, // parentID (doesn't matter, since unchallengeable)
-            block.number // deadline (unchallengeable)
+            0, // parentID
+            block.number, // deadline (unchallengeable)
+            block.number, // proposal time
+            0, // numStakers
+            0 // childInboxSize
         );
         emit AssertionCreated(lastCreatedAssertionID, msg.sender, initialStateCommitment);
     }

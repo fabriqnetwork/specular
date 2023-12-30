@@ -5,22 +5,23 @@ import hre from "hardhat";
 
 const { ethers } = hre;
 
-const CONTRACTS_DIR = path.join(__dirname, "/../../")
-require("dotenv").config({ path: path.join(CONTRACTS_DIR, ".genesis.env")});
+const CONTRACTS_DIR = path.join(__dirname, "/../../");
+require("dotenv").config({ path: path.join(CONTRACTS_DIR, ".genesis.env") });
 const EXPORTED_PATH = process.env.GENESIS_EXPORTED_HASH_PATH || "";
+const ROLLUP_ADDR = process.env.ROLLUP_ADDR || "invalid address";
 
 async function main() {
   const exported = require(path.join(CONTRACTS_DIR, EXPORTED_PATH));
-  console.log({ exported })
+  console.log({ exported });
   const initialBlockHash = (exported.hash || "") as string;
   if (!initialBlockHash) {
-     throw Error(`blockHash not found\n$`);
+    throw Error(`blockHash not found\n$`);
   }
   console.log("initial blockHash:", initialBlockHash);
 
   const initialStateRoot = (exported.stateRoot || "") as string;
   if (!initialStateRoot) {
-     throw Error(`stateRoot not found\n$`);
+    throw Error(`stateRoot not found\n$`);
   }
   console.log("initial stateRoot:", initialStateRoot);
 
@@ -31,17 +32,12 @@ async function main() {
     l2StateRoot: initialStateRoot,
   };
 
-  // check the deployments dir - error out if it is not there
-  const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
-  const deployment = JSON.parse(
-    fs.readFileSync(`${deploymentsPath}/Proxy__Rollup.json`, "utf-8"),
-  );
-
   const { deployer } = await hre.getNamedAccounts();
   const RollupFactory = await ethers.getContractFactory("Rollup", deployer);
-  const rollup = RollupFactory.attach(deployment.address);
+  const rollup = RollupFactory.attach(ROLLUP_ADDR);
   const tx = await rollup.initializeGenesis(initialRollupState);
   await tx.wait();
+  console.log("initialized genesis state on rollup contract");
 }
 
 if (!require.main!.loaded) {
