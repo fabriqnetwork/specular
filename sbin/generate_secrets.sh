@@ -31,8 +31,8 @@ CONTRACTS_ENV=".contracts.env"
 guard_overwrite $CONTRACTS_ENV
 
 # Generate accounts
-VALIDATOR_ADDRESS=$(generate_wallet $VALIDATOR_PK_PATH)
-echo "Generated account (address=$VALIDATOR_ADDRESS, priv_key_path=$VALIDATOR_PK_PATH)"
+VALIDATOR_ADDRESS=$(generate_wallet $VALIDATOR_PK_FILE)
+echo "Generated account (address=$VALIDATOR_ADDRESS, priv_key_path=$VALIDATOR_PK_FILE)"
 SEQUENCER_ADDRESS=$(generate_wallet $SEQUENCER_PK_FILE)
 echo "Generated account (address=$SEQUENCER_ADDRESS, priv_key_path=$SEQUENCER_PK_FILE)"
 if [ $(realpath "$DISSEMINATOR_PK_PATH") != $(realpath "$SEQUENCER_PK_FILE") ]; then
