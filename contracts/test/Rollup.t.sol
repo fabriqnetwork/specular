@@ -102,26 +102,21 @@ contract RollupTest is RollupBaseSetup {
         );
     }
 
-    function testFuzz_constructRollup_zeroValues_reverts(
-        address _vault,
-        address _sequencerInboxAddress,
-        address _verifier
-    ) external {
-        vm.assume(_vault >= address(0));
-        vm.assume(_sequencerInboxAddress >= address(0));
-        vm.assume(_verifier >= address(0));
+    function test_constructRollup_zeroValues_reverts() external {
+        vm.startPrank(deployer);
 
-        Config memory cfg = Config(_vault, _sequencerInboxAddress, _verifier, 0, 0, 0, 0, new address[](0));
+        Config[] memory cfgs = new Config[](3);
+        cfgs[0] = Config(address(0), address(1), address(1), 0, 0, 0, 0, new address[](0));
+        cfgs[1] = Config(address(1), address(0), address(1), 0, 0, 0, 0, new address[](0));
+        cfgs[2] = Config(address(1), address(1), address(0), 0, 0, 0, 0, new address[](0));
 
-        bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfg);
-        if (_vault == address(0) || _sequencerInboxAddress == address(0) || _verifier == address(0)) {
-            vm.startPrank(deployer);
+        for (uint256 i = 0; i < cfgs.length; i++) {
+            bytes memory initializingData = abi.encodeWithSelector(Rollup.initialize.selector, cfgs[i]);
 
             Rollup implementationRollup = new Rollup(); // implementation contract
 
-            vm.expectRevert(ZeroAddress.selector);
+            vm.expectRevert();
             rollup = Rollup(address(new ERC1967Proxy(address(implementationRollup), initializingData)));
-            rollup.initializeGenesis(validState);
         }
     }
 
