@@ -30,5 +30,5 @@ reqdotenv() {
     exit
   fi
   echo "Using $1 dotenv: $2"
-  . $2
+  . "$2"
 }

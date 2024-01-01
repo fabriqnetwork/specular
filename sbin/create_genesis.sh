@@ -5,11 +5,12 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
-. $SBIN/utils/utils.sh
+. "$SBIN/utils/utils.sh"
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
+source .paths.env
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
@@ -29,6 +30,7 @@ FLAGS=(
   "--export-hash $GENESIS_EXPORTED_HASH_PATH"
   "--alloc $SEQUENCER_ADDRESS,$VALIDATOR_ADDRESS,$DEPLOYER_ADDRESS"
 )
+
 CMD="$OPS_GENESIS_BIN ${FLAGS[@]}"
 echo "Running $CMD"
 eval $CMD

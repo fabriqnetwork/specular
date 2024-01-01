@@ -35,11 +35,16 @@ COPY --from=build /specular/pnpm-workspace.yaml /specular/pnpm-workspace.yaml
 RUN npm install -g pnpm
 RUN pnpm install
 
-COPY --from=build /specular/config/local_docker /specular/workspace
-COPY --from=build /specular/sbin/ /specular/sbin/
-COPY --from=build /specular/ops/ /specular/ops/
 # COPY --from=build /specular/services /specular/services
 
+RUN echo "e"
+
+COPY --from=build /specular/config/local_docker /specular/workspace
+COPY --from=build /specular/sbin/ /specular/sbin/
+# COPY ../workspace /specular/workspace
+# COPY ./sbin /specular/sbin
+
+COPY --from=build /specular/ops/ /specular/ops/
 COPY --from=build /specular/services/sidecar/build/bin/sidecar  /usr/local/bin/sidecar
 COPY --from=build /specular/ops/build/bin/genesis  /usr/local/bin/genesis
 COPY --from=build /specular/services/cl_clients/magi/target/debug/magi /usr/local/bin/magi
