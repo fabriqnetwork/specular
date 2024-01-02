@@ -22,6 +22,7 @@ runs:
         echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
 
     - name: Install node-gyp
+      shell: bash
       run: pnpm install -g node-gyp
 
     - name: Install dependencies
