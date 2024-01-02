@@ -19,7 +19,7 @@ guard_overwrite() {
   if test -f $1; then
     read -r -p "Overwrite $1 with a new file? [y/N] " response
     if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      rm $1
+      rm -f $1
     else
       exit 1
     fi
