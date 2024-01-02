@@ -43,7 +43,6 @@ function ctrl_c() {
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sidecar" ".sidecar.env"
-reqdotenv "contracts" ".contracts.env"
 
 WORKSPACE_DIR=./workspace-test
 mkdir -p $WORKSPACE_DIR
