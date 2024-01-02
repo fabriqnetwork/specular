@@ -15,7 +15,3 @@ runs:
       uses: foundry-rs/foundry-toolchain@v1
       with:
         version: nightly
-
-    - name: Run forge install
-      shell: bash
-      run: forge install
