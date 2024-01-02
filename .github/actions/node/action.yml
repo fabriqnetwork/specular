@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
     - name: Install Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v3
       with:
         node-version: 16
 
@@ -20,6 +20,9 @@ runs:
       shell: bash
       run: |
         echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+    - name: Install node-gyp
+      run: pnpm install -g node-gyp
 
     - name: Install dependencies
       shell: bash
