@@ -2,6 +2,7 @@ import { BigNumber } from "ethers";
 import { Static, Type } from "@sinclair/typebox";
 
 export type CrossDomainMessage = {
+  version: BigNumber;
   nonce: BigNumber;
   sender: string;
   target: string;
@@ -11,6 +12,7 @@ export type CrossDomainMessage = {
 };
 
 export const FundDepositRequestBody = Type.Object({
+  version: Type.String(),
   nonce: Type.String(),
   sender: Type.String(),
   target: Type.String(),

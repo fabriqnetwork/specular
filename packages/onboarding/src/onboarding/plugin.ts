@@ -1,12 +1,10 @@
-import { FastifyPluginAsync, RouteHandlerMethod, RouteHandler } from "fastify";
-import { FastifyRequest, FastifyReply } from "fastify";
 import { FastifyPluginAsyncTypebox } from "@fastify/type-provider-typebox";
-import cors from '@fastify/cors';
+import cors from "@fastify/cors";
 
 import {
   FundDepositRequestBodyType,
   FundDepositRequestBody,
-  RelayerService,
+  OnboardingService,
   FundDepositReplyBodyType,
   FundDepositReplyBody,
   FundDepositReplyErrorBody,
@@ -17,22 +15,22 @@ import { BigNumber, ethers } from "ethers";
 
 declare module "fastify" {
   interface FastifyInstance {
-    relayer: RelayerService;
+    onboarding: OnboardingService;
   }
 }
 
 export interface RelayerPluginOptions {
-  relayer: RelayerService;
+  onboarding: OnboardingService;
 }
 
 export const relayerPlugin: FastifyPluginAsyncTypebox<
   RelayerPluginOptions
 > = async (fastify, opts) => {
-  fastify.decorate("relayer", opts.relayer);
+  fastify.decorate("onboarding", opts.onboarding);
 
   fastify.register(cors, {
-    origin: '*',
-    methods: ['POST'],
+    origin: "*",
+    methods: ["POST"],
   });
 
   fastify.post<{
@@ -51,7 +49,8 @@ export const relayerPlugin: FastifyPluginAsyncTypebox<
       },
     },
     async function (request, reply) {
-      let {
+      const {
+        version: versionStr,
         nonce: nonceStr,
         sender,
         target,
@@ -60,6 +59,13 @@ export const relayerPlugin: FastifyPluginAsyncTypebox<
         data,
         depositHash,
       } = request.body;
+      let version: BigNumber;
+      try {
+        version = BigNumber.from(versionStr);
+      } catch (e) {
+        reply.status(400).send({ error: "Invalid version" });
+        return;
+      }
       let nonce: BigNumber;
       try {
         nonce = BigNumber.from(nonceStr);
@@ -97,14 +103,18 @@ export const relayerPlugin: FastifyPluginAsyncTypebox<
         reply.status(400).send({ error: "Invalid deposit hash" });
         return;
       }
-      const targetBalance = await this.relayer.l2Provider.getBalance(target);
+      const targetBalance = await this.onboarding.l2Provider.getBalance(target);
       console.log("targetBalance", targetBalance.toString());
-      console.log("depositFundingThreshold", this.relayer.config.depositFundingThreshold);
-      if (targetBalance.gt(this.relayer.config.depositFundingThreshold)) {
+      console.log(
+        "depositFundingThreshold",
+        this.onboarding.config.depositFundingThreshold
+      );
+      if (targetBalance.gt(this.onboarding.config.depositFundingThreshold)) {
         reply.status(400).send({ error: "Target balance too high" });
         return;
       }
       const depositTx: CrossDomainMessage = {
+        version,
         nonce,
         sender,
         target,
@@ -113,10 +123,9 @@ export const relayerPlugin: FastifyPluginAsyncTypebox<
         data,
       };
       try {
-        const txHash = await this.relayer.fundDeposit(
+        const txHash = await this.onboarding.fundDeposit(
           depositTx,
-          depositHash,
-          this.relayer.state.lastUpdatedL1OracleBlockNumber,
+          depositHash
         );
         request.log.info(`funded deposit ${txHash}`);
         reply.status(200).send({ txHash });
