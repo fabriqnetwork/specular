@@ -29,6 +29,9 @@ jobs:
       - uses: ./.github/actions/node
       - uses: ./.github/actions/foundry
 
+      - name: Run forge install
+        run: forge install
+
       - name: Run tests
         env:
           RPC_URL: ${{ secrets.RPC_URL }}
