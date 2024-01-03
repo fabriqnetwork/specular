@@ -33,5 +33,6 @@ if test -f "$DEPLOYMENTS_ENV"; then
   rm $DEPLOYMENTS_ENV
 fi
 
-echo "Removing deployment files in $CONTRACTS_DIR"
-rm -rf $CONTRACTS_DIR/deployments/*
+echo "Removing deployment files in $CONTRACTS_DIR/deployments/$L1_NETWORK"
+rm -rf $CONTRACTS_DIR/deployments/$L1_NETWORK
+rm -f .deployed

@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 20
     strategy:
       matrix:
-        test-name: ['transactions'] # todo add back: 'deposit', 'withdraw', 'erc20'
+        test-name: ['transactions', 'deposit', 'withdraw', 'erc20']
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
 
