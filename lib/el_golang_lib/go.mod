@@ -1,10 +1,10 @@
 module github.com/specularL2/specular/lib/el_golang_lib
 
+go 1.20
+
 replace github.com/ethereum/go-ethereum => ../../services/el_clients/go-ethereum
 
 replace github.com/specularL2/specular/ops => ../../ops
-
-go 1.20
 
 require (
 	github.com/ethereum/go-ethereum v1.13.2
