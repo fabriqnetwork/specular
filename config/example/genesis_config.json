@@ -9,7 +9,7 @@
     "l2GenesisBlockExtraData": "0x",
     "l2PredeployOwner": "0x000000000000000000000000000000000000dEaD",
     "l2FeesWithdrawalAddress": "0x000000000000000000000000000000000000dEaD",
-    "l2FeesMinimalWithdrwalAmount": "0x0",
+    "l2FeesMinWithdrwalAmount": "0x0",
     "l1FeeOverhead": "0x0",
     "l1FeeScalar": "0x0",
     "alloc": {
