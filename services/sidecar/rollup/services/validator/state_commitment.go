@@ -12,7 +12,6 @@ import (
 const V0BufSize = 96
 const V0VersionSize = 32
 const V0BlockHashOffset = 32
-const V0BlockHashSize = 32
 const V0StateRootOffset = 64
 
 var (
@@ -45,7 +44,7 @@ func (o *StateCommitmentV0) Marshal() []byte {
 	var buf [V0BufSize]byte
 	version := o.Version()
 	copy(buf[:V0VersionSize], version[:])
-	copy(buf[V0BlockHashOffset:V0BlockHashSize], o.l2BlockHash[:])
+	copy(buf[V0BlockHashOffset:V0StateRootOffset], o.l2BlockHash[:])
 	copy(buf[V0StateRootOffset:], o.l2StateRoot[:])
 	return buf[:]
 }
@@ -77,7 +76,7 @@ func unmarshalStateCommitmentV0(data []byte) (*StateCommitmentV0, error) {
 	}
 	var l2State StateCommitmentV0
 	// data[:32] is the version
-	copy(l2State.l2BlockHash[:], data[V0BlockHashOffset:V0BlockHashSize])
+	copy(l2State.l2BlockHash[:], data[V0BlockHashOffset:V0StateRootOffset])
 	copy(l2State.l2StateRoot[:], data[V0StateRootOffset:])
 	return &l2State, nil
 }
