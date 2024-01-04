@@ -38,6 +38,7 @@ interface IChallenge {
     enum CompletionReason {
         OSP_VERIFIED, // OSP verified by winner.
         TIMEOUT // Loser timed out before completing their round.
+
     }
 
     event Completed(address winner, address loser, CompletionReason reason);
