@@ -37,8 +37,11 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Build node
-        uses: ./.github/actions/node
+      - uses: ./.github/actions/node
+
+      - uses: ./.github/actions/foundry
+
+      - uses: ./.github/actions/go
 
       - name: Make specular
         run: make
@@ -48,3 +51,7 @@ jobs:
 
       - name: Run tests
         run: cd workspace && ../sbin/run_e2e_tests.sh ${{ matrix.test-name }}
+
+      - name: Print log
+        if: failure()
+        run: cd workspace/workspace-test && cat proc.*

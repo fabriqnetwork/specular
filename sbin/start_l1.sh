@@ -114,7 +114,10 @@ if [ "$L1_STACK" = "geth" ]; then
   echo "L1 PID: $L1_PID"
 
   echo "Funding addresses..."
+  # Add addresses from .contracts.env
   addresses_to_fund=($SEQUENCER_ADDRESS $VALIDATOR_ADDRESS $DEPLOYER_ADDRESS)
+  # Add addresses from $GENESIS_CFG_PATH
+  addresses_to_fund+=($(python3 -c "import json; print(' '.join(json.load(open('$GENESIS_CFG_PATH'))['alloc']))"))
   # TODO: consider using cast (more general)
   for address in "${addresses_to_fund[@]}"; do
     mycall="eth.sendTransaction({ from: eth.coinbase, to: '"$address"', value: web3.toWei(10000, 'ether') })"

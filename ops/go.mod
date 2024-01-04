@@ -1,11 +1,11 @@
 module github.com/specularL2/specular/ops
 
-go 1.19
+go 1.20
 
 replace github.com/ethereum/go-ethereum => ../services/el_clients/go-ethereum
 
 require (
-	github.com/ethereum/go-ethereum v1.10.26
+	github.com/ethereum/go-ethereum v1.13.2
 	github.com/urfave/cli/v2 v2.25.7
 )
 

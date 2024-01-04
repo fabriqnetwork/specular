@@ -43,7 +43,6 @@ function ctrl_c() {
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sidecar" ".sidecar.env"
-reqdotenv "contracts" ".contracts.env"
 
 WORKSPACE_DIR=./workspace-test
 mkdir -p $WORKSPACE_DIR
@@ -64,8 +63,8 @@ L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
 # Wait for services
 $SBIN/wait-for-it.sh -t 60 $L1_HOST_AND_PORT | sed "s/^/[WAIT] /"
 echo "L1 endpoint is available"
-until [ -f "$ROLLUP_CFG_PATH" ]; do
-  echo "waiting for $ROLLUP_CFG_PATH to be generated..."
+until [ -f ".deployed" ]; do
+  echo "waiting for L1 to be fully deployed..."
   sleep 4
 done
 
