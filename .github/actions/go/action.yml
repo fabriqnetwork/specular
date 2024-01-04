@@ -1,4 +1,4 @@
-name: 'Build foundry'
+name: 'Setup go'
 
 runs:
   using: "composite"
