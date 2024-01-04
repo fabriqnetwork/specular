@@ -15,5 +15,8 @@ export function parseFlag(flag: string, defaultValue?: string): string {
 }
 
 export function numberStrToPaddedHex(numStr: string, length: number): string {
-  return ethers.utils.hexZeroPad(ethers.BigNumber.from(numStr).toHexString(), length);
+  return ethers.utils.hexZeroPad(
+    ethers.BigNumber.from(numStr).toHexString(),
+    length,
+  );
 }
