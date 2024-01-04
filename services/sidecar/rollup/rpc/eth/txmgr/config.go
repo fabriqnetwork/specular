@@ -103,7 +103,7 @@ type DefaultFlagValues struct {
 
 var (
 	DefaultDisseminatorFlagValues = DefaultFlagValues{
-		NumConfirmations:          uint64(10),
+		NumConfirmations:          uint64(6),
 		SafeAbortNonceTooLowCount: uint64(3),
 		FeeLimitMultiplier:        uint64(5),
 		ResubmissionTimeout:       48 * time.Second,

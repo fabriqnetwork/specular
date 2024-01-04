@@ -6,24 +6,12 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-
-SP_GETH_ENV=".sp_geth.env"
-if ! test -f "$SP_GETH_ENV"; then
-  echo "Expected dotenv at $SP_GETH_ENV (does not exist)."
-  exit
-fi
-echo "Using dotenv: $SP_GETH_ENV"
-. $SP_GETH_ENV
+reqdotenv "paths" ".paths.env"
+reqdotenv "sp_geth" ".sp_geth.env"
 
 # Parse args.
 optspec="ch"

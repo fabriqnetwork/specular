@@ -2,6 +2,7 @@ package services
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"time"
 
 	"github.com/specularL2/specular/services/sidecar/utils/log"
@@ -49,29 +50,17 @@ func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse protocol config: %w", err)
 	}
-	var disseminatorAddr common.Address
-	if cliCtx.String(disseminatorEnableFlag.Name) != "" {
-		disseminatorAddr = protocolCfg.Rollup.Genesis.SystemConfig.BatcherAddr
-	}
-	var validatorAddr common.Address
-	if cliCtx.String(validatorEnableFlag.Name) != "" {
-		validatorAddr = common.HexToAddress(cliCtx.String(validatorAddrFlag.Name))
-	}
 	var (
-		l1ChainID            = protocolCfg.GetRollup().L1ChainID
-		disseminatorTxMgrCfg = txmgr.NewConfigFromCLI(cliCtx, disseminatorTxMgrNamespace, l1ChainID, disseminatorAddr)
-		validatorTxMgrCfg    = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, validatorAddr)
-		cfg                  = &SystemConfig{
+		l1ChainID = protocolCfg.GetRollup().L1ChainID
+		cfg       = &SystemConfig{
 			ProtocolConfig:     protocolCfg,
 			L1Config:           newL1ConfigFromCLI(cliCtx),
 			L2Config:           newL2ConfigFromCLI(cliCtx),
-			DisseminatorConfig: newDisseminatorConfigFromCLI(cliCtx, disseminatorTxMgrCfg),
-			ValidatorConfig:    newValidatorConfigFromCLI(cliCtx, validatorTxMgrCfg),
+			DisseminatorConfig: newDisseminatorConfigFromCLI(cliCtx, l1ChainID),
+			ValidatorConfig:    newValidatorConfigFromCLI(cliCtx, l1ChainID),
 			Verbosity:          log.Lvl(cliCtx.Int(VerbosityFlag.Name)),
 		}
 	)
-	disseminatorTxMgrCfg.From = cfg.DisseminatorConfig.AccountAddr
-	validatorTxMgrCfg.From = cfg.ValidatorConfig.AccountAddr
 	// Validate.
 	if err := cfg.validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate config: %w", err)
@@ -80,10 +69,8 @@ func ParseSystemConfig(cliCtx *cli.Context) (*SystemConfig, error) {
 }
 
 // Protocol configuration
-// Basically: fields from `rollup.json` + additional protocol fields
 type ProtocolConfig struct {
-	Rollup     RollupConfig   `toml:"rollup,omitempty"`
-	RollupAddr common.Address `toml:"rollup_addr,omitempty"` // L1 Rollup contract address
+	Rollup RollupConfig `toml:"rollup,omitempty"`
 }
 
 func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
@@ -91,15 +78,12 @@ func newProtocolConfigFromCLI(cliCtx *cli.Context) (ProtocolConfig, error) {
 	if err != nil {
 		return ProtocolConfig{}, err
 	}
-	return ProtocolConfig{
-		Rollup:     *rollupCfg,
-		RollupAddr: common.HexToAddress(cliCtx.String(protocolRollupAddrFlag.Name)),
-	}, nil
+	return ProtocolConfig{Rollup: *rollupCfg}, nil
 }
 
 // TODO: cleanup (consider: exposing parameters via getters in `c.Rollup` directly).
 func (c ProtocolConfig) GetRollup() RollupConfig               { return c.Rollup }
-func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.RollupAddr }
+func (c ProtocolConfig) GetRollupAddr() common.Address         { return c.Rollup.RollupAddress }
 func (c ProtocolConfig) GetSeqWindowSize() uint64              { return c.Rollup.SeqWindowSize }
 func (c ProtocolConfig) GetSequencerInboxAddr() common.Address { return c.Rollup.BatchInboxAddress }
 func (c ProtocolConfig) GetL1ChainID() uint64                  { return c.Rollup.L1ChainID.Uint64() }
@@ -179,14 +163,19 @@ func (c DisseminatorConfig) validate() error {
 	return c.TxMgrCfg.Validate()
 }
 
-func newDisseminatorConfigFromCLI(
-	cliCtx *cli.Context,
-	txMgrCfg txmgr.Config,
-) DisseminatorConfig {
+func newDisseminatorConfigFromCLI(cliCtx *cli.Context, l1ChainID *big.Int) DisseminatorConfig {
+	if !cliCtx.Bool(disseminatorEnableFlag.Name) {
+		return DisseminatorConfig{IsEnabled: false}
+	}
+	var (
+		privateKey = toPrivateKey(cliCtx.String(disseminatorPrivateKeyFlag.Name))
+		address    = crypto.PubkeyToAddress(privateKey.PublicKey)
+		txMgrCfg   = txmgr.NewConfigFromCLI(cliCtx, disseminatorTxMgrNamespace, l1ChainID, address)
+	)
 	return DisseminatorConfig{
 		IsEnabled:             cliCtx.Bool(disseminatorEnableFlag.Name),
-		AccountAddr:           txMgrCfg.From,
-		PrivateKey:            toPrivateKey(cliCtx.String(disseminatorPrivateKeyFlag.Name)),
+		AccountAddr:           address,
+		PrivateKey:            privateKey,
 		ClefEndpoint:          cliCtx.String(disseminatorClefEndpointFlag.Name),
 		DisseminationInterval: time.Duration(cliCtx.Uint(disseminatorIntervalFlag.Name)) * time.Second,
 		SubSafetyMargin:       cliCtx.Uint64(disseminatorSubSafetyMarginFlag.Name),
@@ -231,14 +220,19 @@ func (c ValidatorConfig) validate() error {
 	return c.TxMgrCfg.Validate()
 }
 
-func newValidatorConfigFromCLI(
-	cliCtx *cli.Context,
-	txMgrCfg txmgr.Config,
-) ValidatorConfig {
+func newValidatorConfigFromCLI(cliCtx *cli.Context, l1ChainID *big.Int) ValidatorConfig {
+	if !cliCtx.Bool(validatorEnableFlag.Name) {
+		return ValidatorConfig{IsEnabled: false}
+	}
+	var (
+		privateKey = toPrivateKey(cliCtx.String(validatorPrivateKeyFlag.Name))
+		address    = crypto.PubkeyToAddress(privateKey.PublicKey)
+		txMgrCfg   = txmgr.NewConfigFromCLI(cliCtx, validatorTxMgrNamespace, l1ChainID, address)
+	)
 	return ValidatorConfig{
 		IsEnabled:          cliCtx.Bool(validatorEnableFlag.Name),
-		AccountAddr:        txMgrCfg.From,
-		PrivateKey:         toPrivateKey(cliCtx.String(validatorPrivateKeyFlag.Name)),
+		AccountAddr:        address,
+		PrivateKey:         privateKey,
 		ClefEndpoint:       cliCtx.String(validatorClefEndpointFlag.Name),
 		ValidationInterval: time.Duration(cliCtx.Uint(validatorValidationIntervalFlag.Name)) * time.Second,
 		TxMgrCfg:           txMgrCfg,

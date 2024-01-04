@@ -9,7 +9,6 @@ import (
 
 	"github.com/specularL2/specular/services/sidecar/rollup/derivation"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
-	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
@@ -44,7 +43,7 @@ func NewBatchDisseminator(
 	return &BatchDisseminator{cfg, batchBuilder, l1TxMgr, l1State, l2Client}
 }
 
-func (s *BatchDisseminator) Start(ctx context.Context, eg api.ErrGroup) error {
+func (s *BatchDisseminator) Start(ctx context.Context, eg ErrGroup) error {
 	log.Info("Starting disseminator...")
 	if err := s.l2Client.EnsureDialed(ctx); err != nil {
 		return fmt.Errorf("failed to create L2 client: %w", err)

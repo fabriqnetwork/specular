@@ -31,6 +31,8 @@ func NewBatchV0Encoder(cfg V0Config) *BatchV0Encoder {
 	return &BatchV0Encoder{cfg, []*subBatch{newSubBatch()}, 0}
 }
 
+func (e *BatchV0Encoder) IsEmpty() bool { return e.size() == 0 }
+
 func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 	// Return error if the batch is too small (unless forced).
 	if !force && e.size() < e.cfg.GetTargetBatchSize() {
