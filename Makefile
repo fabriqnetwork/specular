@@ -25,7 +25,7 @@ OPS_BINDINGS_TARGET = $(OPS_DIR)/bindings
 #CLEF_TARGET = $(SIDECAR_BIN)/clef
 
 install: geth magi sidecar ops
-geth: $(GETH_BIN_TARGET)
+geth: ops-bindings $(GETH_BIN_TARGET)
 magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
