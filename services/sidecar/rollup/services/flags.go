@@ -61,16 +61,6 @@ var (
 		Usage:    "The path to the L2 rollup config file",
 		Required: true,
 	}
-	protocolRollupAddrFlag = &cli.StringFlag{
-		Name:     "protocol.rollup-addr",
-		Usage:    "The contract address of L1 rollup",
-		Required: true,
-	}
-	protocolL1OracleAddrFlag = &cli.StringFlag{
-		Name:  "protocol.l1-oracle-addr",
-		Usage: "The address of the L1Oracle contract",
-		Value: "0xff00000000000000000000000000000000000002",
-	}
 	// Disseminator config flags
 	disseminatorEnableFlag = &cli.BoolFlag{
 		Name:  "disseminator",
@@ -102,13 +92,9 @@ var (
 		Name:  "validator",
 		Usage: "Whether this node is a validator",
 	}
-	validatorAddrFlag = &cli.StringFlag{
-		Name:  "validator.addr",
-		Usage: "The validator address",
-	}
 	validatorPrivateKeyFlag = &cli.StringFlag{
 		Name:  "validator.private-key",
-		Usage: "The private key for validator.addr",
+		Usage: "The private key for the validator",
 	}
 	validatorClefEndpointFlag = &cli.StringFlag{
 		Name:  "validator.clef-endpoint",
@@ -116,18 +102,14 @@ var (
 	}
 	validatorValidationIntervalFlag = &cli.UintFlag{
 		Name:  "validator.validation-interval",
-		Usage: "Time between batch validation steps (seconds)",
+		Usage: "Time between validation steps (seconds)",
 		Value: 10,
 	}
 )
 
 var (
-	generalFlags  = []cli.Flag{VerbosityFlag, l1EndpointFlag, l2EndpointFlag}
-	protocolFlags = []cli.Flag{
-		protocolRollupCfgPathFlag,
-		protocolRollupAddrFlag,
-		protocolL1OracleAddrFlag,
-	}
+	generalFlags         = []cli.Flag{VerbosityFlag, l1EndpointFlag, l2EndpointFlag}
+	protocolFlags        = []cli.Flag{protocolRollupCfgPathFlag}
 	disseminatorCLIFlags = []cli.Flag{
 		disseminatorEnableFlag,
 		disseminatorPrivateKeyFlag,
@@ -138,7 +120,6 @@ var (
 	}
 	validatorCLIFlags = []cli.Flag{
 		validatorEnableFlag,
-		validatorAddrFlag,
 		validatorPrivateKeyFlag,
 		validatorClefEndpointFlag,
 		validatorValidationIntervalFlag,

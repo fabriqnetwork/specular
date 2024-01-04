@@ -10,7 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/bridge"
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
-	"github.com/specularL2/specular/services/sidecar/rollup/services/api"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
@@ -53,7 +52,7 @@ func NewValidator(
 	return &Validator{cfg: cfg, l1TxMgr: l1TxMgr, l1BridgeClient: l1BridgeClient, l1State: l1State, l2Client: l2Client}
 }
 
-func (v *Validator) Start(ctx context.Context, eg api.ErrGroup) error {
+func (v *Validator) Start(ctx context.Context, eg ErrGroup) error {
 	log.Info("Starting validator...")
 	if err := v.l2Client.EnsureDialed(ctx); err != nil {
 		return fmt.Errorf("failed to create L2 client: %w", err)
