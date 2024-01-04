@@ -34,13 +34,14 @@ type GenesisConfig struct {
 	L2GenesisBlockBaseFeePerGas *hexutil.Big   `json:"l2GenesisBlockBaseFeePerGas"`
 	L2GenesisBlockExtraData     hexutil.Bytes  `json:"l2GenesisBlockExtraData"`
 
-	L2PredeployOwner        common.Address `json:"l2PredeployOwner"`
-	L1PortalAddress         common.Address `json:"l1PortalAddress,omitempty"`
-	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress,omitempty"`
-	L2FeesWithdrawalAddress common.Address `json:"l2FeesWithdrawalAddress"`
+	L2PredeployOwner             common.Address `json:"l2PredeployOwner"`
+	L1PortalAddress              common.Address `json:"l1PortalAddress,omitempty"`
+	L1StandardBridgeAddress      common.Address `json:"l1StandardBridgeAddress,omitempty"`
+	L2FeesWithdrawalAddress      common.Address `json:"l2FeesWithdrawalAddress"`
+	L2FeesMinimalWithdrwalAmount *hexutil.Big   `json:"l2FeesMinimalWithdrwalAmount"`
 
-	L1FeeOverhead string `json:"l1FeeOverhead"`
-	L1FeeScalar   string `json:"l1FeeScalar"`
+	L1FeeOverhead *hexutil.Big `json:"l1FeeOverhead"`
+	L1FeeScalar   *hexutil.Big `json:"l1FeeScalar"`
 
 	Alloc core.GenesisAlloc `json:"alloc"`
 }
@@ -108,7 +109,7 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"_initializing":       {ProxyValue: false, ImplValue: false},
 				"_owner":              {ProxyValue: config.L2PredeployOwner},
 				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
-				"minWithdrawalAmount": {ProxyValue: 1},
+				"minWithdrawalAmount": {ProxyValue: config.L2FeesMinimalWithdrwalAmount},
 			},
 		},
 		"L2BaseFeeVault": {
@@ -119,7 +120,7 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"_initializing":       {ProxyValue: false, ImplValue: false},
 				"_owner":              {ProxyValue: config.L2PredeployOwner},
 				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
-				"minWithdrawalAmount": {ProxyValue: 1},
+				"minWithdrawalAmount": {ProxyValue: config.L2FeesMinimalWithdrwalAmount},
 			},
 		},
 	}

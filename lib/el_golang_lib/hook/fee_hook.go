@@ -34,7 +34,7 @@ func MakeSpecularEVMPreTransferHook(l2ChainId uint64, l1FeeRecipient common.Addr
 	log.Info("Injected Specular EVM hook")
 
 	feeStorageSlots := getStorageSlots()
-	log.Info("L1Oracle config", "address", L1OracleAddress, "overhead", feeStorageSlots.overheadSlot, "baseFeeSlot", feeStorageSlots.baseFeeSlot, "scalarSlot", feeStorageSlots.scalarSlot)
+	log.Info("L1Oracle config", "address", L1OracleAddress, "overheadSlot", feeStorageSlots.overheadSlot, "baseFeeSlot", feeStorageSlots.baseFeeSlot, "scalarSlot", feeStorageSlots.scalarSlot)
 
 	return func(msg vm.MessageInterface, db vm.StateDB) error {
 		tx := transactionFromMessage(msg, l2ChainId)
@@ -127,7 +127,7 @@ func calculateL1Fee(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 		scalar   = readStorageSlot(db, L1OracleAddress, feeStorageSlots.scalarSlot)
 	)
 
-	log.Info(
+	log.Trace(
 		"calculated l1 fee",
 		"rollupDataGas", rollupDataGas,
 		"overhead", overhead,
@@ -172,7 +172,7 @@ func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, l1FeeRe
 	db.AddBalance(l1FeeRecipient, l1Fee)
 	db.SubBalance(msg.GetFrom(), l1Fee)
 
-	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
+	log.Trace("charged L1 Fee", "fee", l1Fee.Uint64())
 	return nil
 }
 

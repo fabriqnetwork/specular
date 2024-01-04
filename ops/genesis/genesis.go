@@ -169,7 +169,7 @@ func setupProxy(ctx context.Context, db vm.StateDB, name string, config predeplo
 			proxyStorageValues[label] = value.ProxyValue
 		}
 	}
-	log.Info("Setting proxy storage", "name", name, "address", proxyAddr)
+	log.Debug("Setting proxy storage", "name", name, "address", proxyAddr)
 	if err := state.SetStorage(name, proxyAddr, proxyStorageValues, db); err != nil {
 		return err
 	}
