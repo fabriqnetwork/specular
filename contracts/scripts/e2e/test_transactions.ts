@@ -49,6 +49,8 @@ async function main() {
     throw "did not collect L2 base fee";
   }
 
+  console.log({ startBalances, endBalances, totalValue });
+
   const acceptableMargin = ethers.utils.parseEther("0.001");
   if (
     !startBalances.l2Relayer

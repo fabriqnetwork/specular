@@ -44,6 +44,7 @@ cp .contracts.env $CONTRACTS_DIR/.env
 BASE_ROLLUP_CFG_PATH=$(relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR)
 ROLLUP_CFG_PATH=$(relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR)
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
+GENESIS_CFG_PATH=$(relpath $GENESIS_CFG_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
 DEPLOYMENTS_CFG_PATH=$(relpath ".deployments.env" $CONTRACTS_DIR)
 
@@ -72,7 +73,8 @@ npx ts-node scripts/config/create_config.ts \
   --out $ROLLUP_CFG_PATH \
   --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \
   --deployments-config-path $DEPLOYMENTS_CFG_PATH \
-  --genesis $GENESIS_PATH \
+  --genesis-path $GENESIS_PATH \
+  --genesis-config-path $GENESIS_CFG_PATH \
   --genesis-hash-path $GENESIS_EXPORTED_HASH_PATH \
   --l1-network $L1_ENDPOINT
 
