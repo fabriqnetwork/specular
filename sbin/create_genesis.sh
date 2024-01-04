@@ -12,6 +12,7 @@ ROOT_DIR=$SBIN/..
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
+reqdotenv "deployments" ".deployments.env"
 
 echo "Using $OPS_DIR as ops directory."
 # Get relative paths for $OPS_DIR
@@ -27,6 +28,8 @@ FLAGS=(
   "--out $GENESIS_PATH"
   "--l1-rpc-url $L1_ENDPOINT"
   "--export-hash $GENESIS_EXPORTED_HASH_PATH"
+  "--l1-portal-address $L1PORTAL_ADDR"
+  "--l1-standard-bridge-address $L1STANDARD_BRIDGE_ADDR"
   "--alloc $SEQUENCER_ADDRESS,$VALIDATOR_ADDRESS,$DEPLOYER_ADDRESS"
 )
 CMD="$OPS_GENESIS_BIN ${FLAGS[@]}"

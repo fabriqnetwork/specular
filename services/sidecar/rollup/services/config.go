@@ -164,6 +164,9 @@ func (c DisseminatorConfig) validate() error {
 }
 
 func newDisseminatorConfigFromCLI(cliCtx *cli.Context, l1ChainID *big.Int) DisseminatorConfig {
+	if !cliCtx.Bool(disseminatorEnableFlag.Name) {
+		return DisseminatorConfig{IsEnabled: false}
+	}
 	var (
 		privateKey = toPrivateKey(cliCtx.String(disseminatorPrivateKeyFlag.Name))
 		address    = crypto.PubkeyToAddress(privateKey.PublicKey)
@@ -218,6 +221,9 @@ func (c ValidatorConfig) validate() error {
 }
 
 func newValidatorConfigFromCLI(cliCtx *cli.Context, l1ChainID *big.Int) ValidatorConfig {
+	if !cliCtx.Bool(validatorEnableFlag.Name) {
+		return ValidatorConfig{IsEnabled: false}
+	}
 	var (
 		privateKey = toPrivateKey(cliCtx.String(validatorPrivateKeyFlag.Name))
 		address    = crypto.PubkeyToAddress(privateKey.PublicKey)

@@ -37,8 +37,8 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Build node
-        uses: ./.github/actions/node
+      - uses: ./.github/actions/node
+      - uses: ./.github/actions/foundry
 
       - name: Make specular
         run: make

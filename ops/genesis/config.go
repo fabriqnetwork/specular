@@ -35,8 +35,8 @@ type GenesisConfig struct {
 	L2GenesisBlockExtraData     hexutil.Bytes  `json:"l2GenesisBlockExtraData"`
 
 	L2PredeployOwner        common.Address `json:"l2PredeployOwner"`
-	L1PortalAddress         common.Address `json:"l1PortalAddress"`
-	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress"`
+	L1PortalAddress         common.Address `json:"l1PortalAddress,omitempty"`
+	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress,omitempty"`
 	L2FeesWithdrawalAddress common.Address `json:"l2FeesWithdrawalAddress"`
 
 	L1FeeOverhead string `json:"l1FeeOverhead"`
