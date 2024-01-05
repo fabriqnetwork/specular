@@ -39,7 +39,7 @@ reqdotenv() {
     exit 1
   fi
   echo "Using $1 dotenv: $2"
-  . "$2"
+  . $2
 }
 
 # Requires that all env variables named in $@ are set.

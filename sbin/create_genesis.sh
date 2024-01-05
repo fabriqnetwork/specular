@@ -5,7 +5,7 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
-. "$SBIN/utils/utils.sh"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
