@@ -4,7 +4,7 @@ services:
 
   #------- Secrets
   generator:
-    image: specular-platform:specular-latest
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     volumes:
       - /opt/specular/specular/workspace:/specular/workspace
       # - sp_workspace:/specular/workspace
@@ -13,7 +13,7 @@ services:
 
   #------- L1
   l1-geth:
-    image: specular-platform:specular-latest
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     tty: true
     healthcheck:
       test: bash -c "[ -f /tmp/.l1_started.lock ]"
@@ -36,7 +36,7 @@ services:
 
   #------- GETH
   sp-geth:
-    image: specular-platform:specular-latest
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     volumes:
       - /opt/specular/specular/workspace:/specular/workspace
     restart: on-failure
@@ -62,7 +62,7 @@ services:
 
   #------- MAGI
   sp-magi:
-    image: specular-platform:specular-latest
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     restart: on-failure
     depends_on:
       sp-geth:
@@ -82,7 +82,7 @@ services:
 
   #------- SIDECAR
   sidecar:
-    image: specular-platform:specular-latest
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     restart: on-failure
     depends_on:
       sp-magi:

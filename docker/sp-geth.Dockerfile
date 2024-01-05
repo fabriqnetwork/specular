@@ -1,4 +1,4 @@
-FROM specular-platform:e2e-latest as build
+FROM 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-latest as build
 
 FROM golang:bullseye
 
