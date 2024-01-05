@@ -36,14 +36,14 @@ WORKDIR /specular
 RUN npm install -g pnpm
 RUN pnpm install
 
-# COPY --from=build /specular/services /specular/services
 
-RUN echo "bbbbbb"
+COPY --from=build /specular/config/local_docker /specular/workspace
+COPY --from=build /specular/sbin /specular/sbin
 
-# COPY --from=build /specular/config/local_docker /specular/workspace
-# COPY --from=build /specular/sbin /specular/sbin
-COPY ../config/local_docker /specular/workspace
-COPY ../sbin /specular/sbin
+# DEBUG/LOCAL BUILD
+# COPY ../config/local_docker /specular/workspace
+# COPY ../sbin /specular/sbin
+# COPY ../services /specular/services
 
 WORKDIR /specular/workspace
 
@@ -53,8 +53,6 @@ COPY --from=build /specular/ops/build/bin/genesis  /usr/local/bin/genesis
 COPY --from=build /specular/services/cl_clients/magi/target/debug/magi /usr/local/bin/magi
 COPY --from=build /specular/services/el_clients/go-ethereum/build/bin/geth /usr/local/bin/geth
 
-
-RUN echo -e $(pwd)
 
 EXPOSE 4011 4012 4013 8545
 
