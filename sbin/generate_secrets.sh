@@ -1,14 +1,23 @@
 #!/bin/bash
-optspec="d"
+optspec="djy"
 NUM_ACCOUNTS=0
+AUTO_ACCEPT=false
 while getopts "$optspec" optchar; do
   case "${optchar}" in
+  y)
+    AUTO_ACCEPT=true
+    ;;
   d)
     GEN_DEPLOYER=true
     ;;
+  j)
+    GEN_JWT=true
+    ;;
   *)
-    echo "usage: $0 [-d][-h]"
+    echo "usage: $0 [-d][-j][-y][-h]"
     echo "-d : generate deployer"
+    echo "-j : generate jwt secret"
+    echo "-y : auto accept prompts"
     exit
     ;;
   esac
@@ -28,17 +37,17 @@ reqdotenv "sp_magi" ".sp_magi.env"
 reqdotenv "sidecar" ".sidecar.env"
 
 CONTRACTS_ENV=".contracts.env"
-guard_overwrite $CONTRACTS_ENV
+guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
 
 # Generate accounts
 VALIDATOR_ADDRESS=$(generate_wallet $VALIDATOR_PK_PATH)
 echo "Generated account (address=$VALIDATOR_ADDRESS, priv_key_path=$VALIDATOR_PK_PATH)"
 SEQUENCER_ADDRESS=$(generate_wallet $SEQUENCER_PK_FILE)
 echo "Generated account (address=$SEQUENCER_ADDRESS, priv_key_path=$SEQUENCER_PK_FILE)"
-if [ $(realpath "$DISSEMINATOR_PK_PATH") != $(realpath "$SEQUENCER_PK_FILE") ]; then
-  guard_overwrite $DISSEMINATOR_PK_PATH
-  echo "Copying sequencer private key to $DISSEMINATOR_PK_PATH"
-  cp $SEQUENCER_PK_FILE $DISSEMINATOR_PK_PATH
+if [ "$DISSEMINATOR_PK_PATH" != "$SEQUENCER_PK_FILE" ]; then
+  echo "$DISSEMINATOR_PK_PATH" "$SEQUENCER_PK_FILE"
+  guard_overwrite $DISSEMINATOR_PK_PATH $AUTO_ACCEPT
+  cat $SEQUENCER_PK_FILE >$DISSEMINATOR_PK_PATH
 fi
 
 # Write dotenv
@@ -54,4 +63,9 @@ if [ "$GEN_DEPLOYER" = "true" ]; then
   echo "DEPLOYER_ADDRESS=$DEPLOYER_ADDRESS" >>$CONTRACTS_ENV
   echo "DEPLOYER_PRIVATE_KEY=$(cat $deployer_pk_path)" >>$CONTRACTS_ENV
   echo "Wrote address to $CONTRACTS_ENV"
+fi
+
+if [ "$GEN_JWT" = "true" ]; then
+  JWT=$(generate_jwt_secret)
+  echo $JWT > $JWT_SECRET_PATH
 fi

@@ -6,14 +6,16 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-
+L1_WAITFILE=/tmp/.l1_started.lock
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
+AUTO_ACCEPT=false
+AUTO_APPROVE=""
 # Parse args.
-optspec="cds"
+optspec="cdswy"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   c)
@@ -23,18 +25,29 @@ while getopts "$optspec" optchar; do
   d)
     L1_DEPLOY=true
     ;;
+  w)
+    L1_WAIT=true
+    ;;
   s)
     SILENT=true
     ;;
+  y)
+    AUTO_ACCEPT=true
+    ;;
   *)
-    echo "usage: $0 [-c][-d][-s][-h]"
+    echo "usage: $0 [-c][-d][-s][-y][-h]"
     echo "-c : clean before running"
     echo "-d : deploy contracts"
     echo "-s : silent-mode (no log tailing)"
+    echo "-y : auto accept prompts"
+    echo "-w : generate docker-compose wait for file"
     exit
     ;;
   esac
 done
+if [[ $AUTO_ACCEPT = 'true' ]]; then
+  APPROVE_FLAG="-y"
+fi
 
 L1_HOST=$(echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}')
 L1_PORT=$(echo $L1_ENDPOINT | awk -F':' '{print $3}')
@@ -56,6 +69,15 @@ function cleanup() {
     disown $pid
     kill $pid
   done
+
+  # Remove L1_WAITFILE
+  if [ "$L1_WAIT" = "true" ]; then
+    if test -f $L1_WAITFILE; then
+      echo "Removing wait file for docker..."
+      rm $L1_WAITFILE
+    fi
+  fi
+
   # For good measure...
   if [ -n "$L1_PORT" ]; then
     L1_WS_PID=$(lsof -i tcp:${L1_PORT} | awk 'NR!=1 {print $2}')
@@ -122,11 +144,15 @@ fi
 # Optionally deploy the contracts
 if [ "$L1_DEPLOY" = "true" ]; then
   echo "Deploying contracts..."
-  $SBIN/deploy_l1_contracts.sh
+  $SBIN/deploy_l1_contracts.sh $APPROVE_FLAG
 fi
 
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
+  if [ "$L1_WAIT" = "true" ]; then
+    echo "Creating wait file for docker..."
+    touch $L1_WAITFILE
+  fi
   echo "L1 started... (Use ctrl-c to stop)"
   tail -f $LOG_FILE
 fi

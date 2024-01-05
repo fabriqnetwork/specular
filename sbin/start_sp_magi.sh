@@ -8,6 +8,7 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
+MAGI_WAIT=/tmp/sp_magi_started.lock
 
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
@@ -49,4 +50,7 @@ FLAGS="
 
 echo "starting sp-magi with the following flags:"
 echo "$FLAGS"
+echo "Setting wait for file"
+touch $MAGI_WAIT
 $SP_MAGI_BIN $FLAGS
+

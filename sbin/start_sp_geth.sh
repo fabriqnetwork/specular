@@ -8,22 +8,27 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-
+SP_GETH_WAIT=/tmp/.sp_geth_started.lock
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_geth" ".sp_geth.env"
 
 # Parse args.
-optspec="ch"
+optspec="chw"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
+  w)
+    echo "Creating wait file for docker"
+    touch $SP_GETH_WAIT
+    ;;
   c)
     echo "Cleaning..."
     $SBIN/clean_sp_geth.sh
     ;;
   h)
-    echo "usage: $0 [-c][-h]"
+    echo "usage: $0 [-c][-h][-w]"
     echo "-c : clean before running"
+    echo "-w : generate docker-compose wait for file"
     exit
     ;;
   *)
@@ -71,4 +76,10 @@ FLAGS="
 
 echo "Starting sp-geth with the following aruments:"
 echo $FLAGS
+
+# Remove SP_GETH_WAITFILE
+if [ "$SP_GETH_WAIT" = "true" ]; then
+  echo "Adding wait file for docker..."
+    rm $SP_GETH_WAITFILE
+fi
 $SP_GETH_BIN $FLAGS

@@ -5,7 +5,7 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
-. $SBIN/utils/utils.sh
+. "$SBIN/utils/utils.sh"
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
@@ -21,7 +21,7 @@ GENESIS_PATH=$(relpath $GENESIS_PATH $OPS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $OPS_DIR)
 echo "Generating new genesis file at $GENESIS_PATH and exporting hash to $GENESIS_EXPORTED_HASH_PATH"
 cd $OPS_DIR
-guard_overwrite $GENESIS_PATH
+guard_overwrite $GENESIS_PATH $AUTO_ACCEPT
 # Create genesis.json file.
 FLAGS=(
   "--genesis-config $GENESIS_CFG_PATH"
@@ -32,14 +32,21 @@ FLAGS=(
   "--l1-standard-bridge-address $L1STANDARD_BRIDGE_ADDR"
   "--alloc $SEQUENCER_ADDRESS,$VALIDATOR_ADDRESS,$DEPLOYER_ADDRESS"
 )
-CMD="$OPS_GENESIS_BIN ${FLAGS[@]}"
+
+# hoop: I don't have the patience rn to determine why this isn't being sourced
+if [[ -z ${OPS_GENESIS_BIN+x} ]]; then
+  CMD="/usr/local/bin/genesis ${FLAGS[@]}"
+else
+  CMD="$OPS_GENESIS_BIN ${FLAGS[@]}"
+fi
+
 echo "Running $CMD"
 eval $CMD
 
 # Initialize a reference to the config files at
 # "contracts/.genesis" (using relative paths as appropriate).
 CONTRACTS_ENV=$CONTRACTS_DIR/.genesis.env
-guard_overwrite $CONTRACTS_ENV
+guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
 # Write file, using relative paths.
 echo "Initializing contracts genesis dotenv $CONTRACTS_ENV"
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
