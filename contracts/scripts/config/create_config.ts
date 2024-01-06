@@ -1,6 +1,6 @@
 import fs from "fs";
 import { ethers } from "ethers";
-import { parseFlag } from "./utils";
+import { parseFlag, numberStrToPaddedHex } from "./utils";
 
 require("dotenv").config();
 
@@ -8,13 +8,15 @@ require("dotenv").config();
 async function main() {
   const baseConfigPath = parseFlag("--in");
   const configPath = parseFlag("--out");
-  const genesisPath = parseFlag("--genesis");
+  const genesisPath = parseFlag("--genesis-path");
+  const genesisConfigPath = parseFlag("--genesis-config-path");
   const genesisHashPath = parseFlag("--genesis-hash-path");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
   await generateConfigFile(
     configPath,
     baseConfigPath,
     genesisPath,
+    genesisConfigPath,
     genesisHashPath,
     deploymentsPath,
   );
@@ -29,6 +31,7 @@ export async function generateConfigFile(
   configPath: string,
   baseConfigPath: string,
   genesisPath: string,
+  genesisConfigPath: string,
   genesisHashPath: string,
   deploymentsPath: string,
 ) {
@@ -48,6 +51,7 @@ export async function generateConfigFile(
   // Parse genesis and hash file.
   const l2Hash = JSON.parse(fs.readFileSync(genesisHashPath, "utf-8")).hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
+  const genesisConfig = JSON.parse(fs.readFileSync(genesisConfigPath, "utf-8"));
   // Set genesis fields.
   const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"));
   baseConfig.genesis = {
@@ -63,10 +67,8 @@ export async function generateConfigFile(
     system_config: {
       batcherAddr: process.env.SEQUENCER_ADDRESS,
       gasLimit: ethers.BigNumber.from(genesis.gasLimit).toNumber(),
-      overhead:
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      scalar:
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      overhead: numberStrToPaddedHex(genesisConfig.l1FeeOverhead, 32),
+      scalar: numberStrToPaddedHex(genesisConfig.l1FeeScalar, 32),
     },
   };
   // Set other fields.

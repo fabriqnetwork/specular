@@ -33,8 +33,8 @@ type RollupConfig interface {
 func MakeSpecularEVMPreTransferHook(l2ChainId uint64, l1FeeRecipient common.Address) vm.EVMHook {
 	log.Info("Injected Specular EVM hook")
 
-	overheadSlot, baseFeeSlot, scalarSlot := getStorageSlots()
-	log.Info("L1Oracle config", "address", L1OracleAddress, "overhead", overheadSlot, "baseFeeSlot", baseFeeSlot, "scalarSlot", scalarSlot)
+	feeStorageSlots := getStorageSlots()
+	log.Info("L1Oracle config", "address", L1OracleAddress, "overheadSlot", feeStorageSlots.overheadSlot, "baseFeeSlot", feeStorageSlots.baseFeeSlot, "scalarSlot", feeStorageSlots.scalarSlot)
 
 	return func(msg vm.MessageInterface, db vm.StateDB) error {
 		tx := transactionFromMessage(msg, l2ChainId)
@@ -120,11 +120,11 @@ func calculateL1Fee(tx *types.Transaction, db vm.StateDB) (*big.Int, error) {
 		zeroes, ones  = zeroesAndOnes(rlp)
 		rollupDataGas = zeroes*txDataZero + (ones+txSignatureOverhead)*txDataOne
 
-		overheadSlot, baseFeeSlot, scalarSlot = getStorageSlots()
+		feeStorageSlots = getStorageSlots()
 
-		overhead = readStorageSlot(db, L1OracleAddress, common.Hash(overheadSlot))
-		basefee  = readStorageSlot(db, L1OracleAddress, common.Hash(baseFeeSlot))
-		scalar   = readStorageSlot(db, L1OracleAddress, common.Hash(scalarSlot))
+		overhead = readStorageSlot(db, L1OracleAddress, feeStorageSlots.overheadSlot)
+		basefee  = readStorageSlot(db, L1OracleAddress, feeStorageSlots.baseFeeSlot)
+		scalar   = readStorageSlot(db, L1OracleAddress, feeStorageSlots.scalarSlot)
 	)
 
 	log.Trace(
@@ -172,7 +172,7 @@ func chargeL1Fee(l1Fee *big.Int, msg vm.MessageInterface, db vm.StateDB, l1FeeRe
 	db.AddBalance(l1FeeRecipient, l1Fee)
 	db.SubBalance(msg.GetFrom(), l1Fee)
 
-	log.Info("charged L1 Fee", "fee", l1Fee.Uint64())
+	log.Trace("charged L1 Fee", "fee", l1Fee.Uint64())
 	return nil
 }
 
@@ -194,7 +194,13 @@ func zeroesAndOnes(data []byte) (uint64, uint64) {
 	return zeroes, ones
 }
 
-func getStorageSlots() (common.Hash, common.Hash, common.Hash) {
+type feeStorageSlots struct {
+	baseFeeSlot  common.Hash
+	overheadSlot common.Hash
+	scalarSlot   common.Hash
+}
+
+func getStorageSlots() feeStorageSlots {
 	layout, err := bindings.GetStorageLayout("L1Oracle")
 	if err != nil {
 		panic("could not get storage layout for L1Oracle")
@@ -213,7 +219,9 @@ func getStorageSlots() (common.Hash, common.Hash, common.Hash) {
 		panic("could not get scalar storage slot")
 	}
 
-	return common.BigToHash(new(big.Int).SetUint64(uint64(baseFeeEntry.Slot))),
-		common.BigToHash(new(big.Int).SetUint64(uint64(overheadEntry.Slot))),
-		common.BigToHash(new(big.Int).SetUint64(uint64(scalarEntry.Slot)))
+	return feeStorageSlots{
+		baseFeeSlot:  common.BigToHash(new(big.Int).SetUint64(uint64(baseFeeEntry.Slot))),
+		overheadSlot: common.BigToHash(new(big.Int).SetUint64(uint64(overheadEntry.Slot))),
+		scalarSlot:   common.BigToHash(new(big.Int).SetUint64(uint64(scalarEntry.Slot))),
+	}
 }
