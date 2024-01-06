@@ -69,7 +69,6 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"timestamp":     {ProxyValue: block.Time()},
 				"baseFee":       {ProxyValue: block.BaseFee()},
 				"hash":          {ProxyValue: block.Hash()},
-				"stateRoot":     {ProxyValue: block.Root()},
 				"l1FeeOverhead": {ProxyValue: (*big.Int)(config.L1FeeOverhead)},
 				"l1FeeScalar":   {ProxyValue: (*big.Int)(config.L1FeeScalar)},
 			},
