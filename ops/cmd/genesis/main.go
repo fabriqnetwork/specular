@@ -56,6 +56,14 @@ var Flags = []cli.Flag{
 		Name:  "l1-block",
 		Usage: "L1 block number",
 	},
+	&cli.StringFlag{
+		Name:  "l1-portal-address",
+		Usage: "deployed L1Portal contract address",
+	},
+	&cli.StringFlag{
+		Name:  "l1-standard-bridge-address",
+		Usage: "deployed L1StandardBridge contract address",
+	},
 	// TODO: provide a better interface for this.
 	&cli.StringFlag{
 		Name:  "alloc",
@@ -92,6 +100,18 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	config, err := genesis.NewGenesisConfig(genesisConfig)
 	if err != nil {
 		return err
+	}
+	if ctx.IsSet("l1-portal-address") {
+		config.L1PortalAddress = common.HexToAddress(ctx.String("l1-portal-address"))
+	}
+	if config.L1PortalAddress == (common.Address{}) {
+		return fmt.Errorf("L1Portal address not set")
+	}
+	if ctx.IsSet("l1-standard-bridge-address") {
+		config.L1StandardBridgeAddress = common.HexToAddress(ctx.String("l1-standard-bridge-address"))
+	}
+	if config.L1StandardBridgeAddress == (common.Address{}) {
+		return fmt.Errorf("L1StandardBridge address not set")
 	}
 	if ctx.IsSet("alloc") {
 		addresses := strings.Split(ctx.String("alloc"), ",")

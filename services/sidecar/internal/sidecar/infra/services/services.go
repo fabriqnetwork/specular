@@ -36,6 +36,10 @@ func NewDisseminator(
 	cfg *services.SystemConfig,
 	l1State *eth.EthState,
 ) (*disseminatorService.BatchDisseminator, error) {
+	if !cfg.Disseminator().GetIsEnabled() {
+		log.Info("disseminator is not enabled")
+		return nil, nil
+	}
 	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
@@ -53,6 +57,10 @@ func NewValidator(
 	cfg *services.SystemConfig,
 	l1State *eth.EthState,
 ) (*validatorService.Validator, error) {
+	if !cfg.Validator().GetIsEnabled() {
+		log.Info("validator is not enabled")
+		return nil, nil
+	}
 	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Validator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)

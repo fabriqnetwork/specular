@@ -1,6 +1,6 @@
 import fs from "fs";
 import { ethers } from "ethers";
-import { parseFlag } from "./utils";
+import { parseFlag, numberStrToPaddedHex } from "./utils";
 
 require("dotenv").config();
 
@@ -8,18 +8,18 @@ require("dotenv").config();
 async function main() {
   const baseConfigPath = parseFlag("--in");
   const configPath = parseFlag("--out");
-  const deploymentsConfig = parseFlag("--deployments-config-path");
-  const genesisPath = parseFlag("--genesis");
+  const genesisPath = parseFlag("--genesis-path");
+  const genesisConfigPath = parseFlag("--genesis-config-path");
   const genesisHashPath = parseFlag("--genesis-hash-path");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
   await generateConfigFile(
     configPath,
     baseConfigPath,
     genesisPath,
+    genesisConfigPath,
     genesisHashPath,
     deploymentsPath,
   );
-  await generateContractAddresses(deploymentsConfig, deploymentsPath);
 }
 
 /**
@@ -31,6 +31,7 @@ export async function generateConfigFile(
   configPath: string,
   baseConfigPath: string,
   genesisPath: string,
+  genesisConfigPath: string,
   genesisHashPath: string,
   deploymentsPath: string,
 ) {
@@ -50,6 +51,7 @@ export async function generateConfigFile(
   // Parse genesis and hash file.
   const l2Hash = JSON.parse(fs.readFileSync(genesisHashPath, "utf-8")).hash;
   const genesis = JSON.parse(fs.readFileSync(genesisPath, "utf-8"));
+  const genesisConfig = JSON.parse(fs.readFileSync(genesisConfigPath, "utf-8"));
   // Set genesis fields.
   const baseConfig = JSON.parse(fs.readFileSync(baseConfigPath, "utf-8"));
   baseConfig.genesis = {
@@ -65,10 +67,8 @@ export async function generateConfigFile(
     system_config: {
       batcherAddr: process.env.SEQUENCER_ADDRESS,
       gasLimit: ethers.BigNumber.from(genesis.gasLimit).toNumber(),
-      overhead:
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
-      scalar:
-        "0x0000000000000000000000000000000000000000000000000000000000000000",
+      overhead: numberStrToPaddedHex(genesisConfig.l1FeeOverhead, 32),
+      scalar: numberStrToPaddedHex(genesisConfig.l1FeeScalar, 32),
     },
   };
   // Set other fields.
@@ -79,37 +79,6 @@ export async function generateConfigFile(
   // Write out new file.
   fs.writeFileSync(configPath, JSON.stringify(baseConfig, null, 2));
   console.log(`successfully wrote config to: ${configPath}`);
-}
-
-/**
- * Reads the L1 deployment and writes deployments address to the deployments env file
- */
-export async function generateContractAddresses(
-  deploymentsConfigPath: string,
-  deploymentsPath: string,
-) {
-  // check the deployments dir - error out if it is not there
-  const deploymentFiles = fs.readdirSync(deploymentsPath);
-  let result = "";
-  for (const deploymentFile of deploymentFiles) {
-    if (
-      deploymentFile.startsWith("Proxy__") &&
-      deploymentFile.endsWith(".json")
-    ) {
-      const deployment = JSON.parse(
-        fs.readFileSync(`${deploymentsPath}/${deploymentFile}`, "utf-8"),
-      );
-      let contractName = deploymentFile
-        .replace(/^Proxy__/, "")
-        .replace(/\.json$/, "");
-      contractName = contractName
-        .replace(/([a-z])([A-Z])/g, "$1_$2")
-        .toUpperCase();
-      result += `${contractName}_ADDR=${deployment.address}\n`;
-    }
-  }
-  fs.writeFileSync(deploymentsConfigPath, result);
-  console.log(`successfully wrote deployments to: ${deploymentsConfigPath}`);
 }
 
 if (!require.main!.loaded) {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -34,9 +35,14 @@ type GenesisConfig struct {
 	L2GenesisBlockBaseFeePerGas *hexutil.Big   `json:"l2GenesisBlockBaseFeePerGas"`
 	L2GenesisBlockExtraData     hexutil.Bytes  `json:"l2GenesisBlockExtraData"`
 
-	L2PredeployOwner        common.Address `json:"l2PredeployOwner"`
-	L1PortalAddress         common.Address `json:"l1PortalAddress"`
-	L1StandardBridgeAddress common.Address `json:"l1StandardBridgeAddress"`
+	L2PredeployOwner         common.Address `json:"l2PredeployOwner"`
+	L1PortalAddress          common.Address `json:"l1PortalAddress,omitempty"`
+	L1StandardBridgeAddress  common.Address `json:"l1StandardBridgeAddress,omitempty"`
+	L2FeesWithdrawalAddress  common.Address `json:"l2FeesWithdrawalAddress"`
+	L2FeesMinWithdrwalAmount *hexutil.Big   `json:"l2FeesMinWithdrwalAmount"`
+
+	L1FeeOverhead *hexutil.Big `json:"l1FeeOverhead"`
+	L1FeeScalar   *hexutil.Big `json:"l1FeeScalar"`
 
 	Alloc core.GenesisAlloc `json:"alloc"`
 }
@@ -63,7 +69,8 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"timestamp":     {ProxyValue: block.Time()},
 				"baseFee":       {ProxyValue: block.BaseFee()},
 				"hash":          {ProxyValue: block.Hash()},
-				"stateRoot":     {ProxyValue: block.Root()},
+				"l1FeeOverhead": {ProxyValue: (*big.Int)(config.L1FeeOverhead)},
+				"l1FeeScalar":   {ProxyValue: (*big.Int)(config.L1FeeScalar)},
 			},
 		},
 		"L2Portal": {
@@ -92,6 +99,28 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"_owner":         {ProxyValue: config.L2PredeployOwner},
 				"OTHER_BRIDGE":   {ProxyValue: config.L1StandardBridgeAddress},
 				"PORTAL_ADDRESS": {ProxyValue: *predeploys.Predeploys["L2Portal"]},
+			},
+		},
+		"L1FeeVault": {
+			Proxied:     true,
+			Initializer: "initialize",
+			Storages: map[string]predeploys.StorageConfig{
+				"_initialized":        {ProxyValue: InitializedValue, ImplValue: MaxInitializedValue},
+				"_initializing":       {ProxyValue: false, ImplValue: false},
+				"_owner":              {ProxyValue: config.L2PredeployOwner},
+				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
+				"minWithdrawalAmount": {ProxyValue: (*big.Int)(config.L2FeesMinWithdrwalAmount)},
+			},
+		},
+		"L2BaseFeeVault": {
+			Proxied:     true,
+			Initializer: "initialize",
+			Storages: map[string]predeploys.StorageConfig{
+				"_initialized":        {ProxyValue: InitializedValue, ImplValue: MaxInitializedValue},
+				"_initializing":       {ProxyValue: false, ImplValue: false},
+				"_owner":              {ProxyValue: config.L2PredeployOwner},
+				"withdrawalAddress":   {ProxyValue: config.L2FeesWithdrawalAddress},
+				"minWithdrawalAmount": {ProxyValue: (*big.Int)(config.L2FeesMinWithdrwalAmount)},
 			},
 		},
 	}

@@ -16,6 +16,7 @@ jobs:
         uses: fkirc/skip-duplicate-actions@v5
         with:
           concurrent_skipping: same_content_newer
+
   test:
     needs: pre_job
     if: needs.pre_job.outputs.should_skip != 'true'
@@ -27,19 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/node
-
-      - name: Cache Foundry toolchain
-        uses: actions/cache@v2
-        with:
-          path: ~/.foundry
-          key: ${{ runner.os }}-foundry-${{ hashFiles('**/foundry.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-foundry-
-
-      - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
+      - uses: ./.github/actions/foundry
 
       - name: Run forge install
         run: forge install
