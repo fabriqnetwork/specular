@@ -90,6 +90,7 @@ async function main() {
 
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
+      blockNumber,
       depositMessage,
       depositProof.accountProof,
       depositProof.storageProof,
