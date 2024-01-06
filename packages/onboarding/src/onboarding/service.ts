@@ -64,7 +64,11 @@ export class OnboardingService {
     const blockNumber = await this.messenger.getL1OracleBlockNumber();
     const proof = await this.generateDepositProof(depositHash, blockNumber);
     console.log(proof);
-    const tx = await this.messenger.finalizeDeposit(depositTx, proof);
+    const tx = await this.messenger.finalizeDeposit(
+      blockNumber,
+      depositTx,
+      proof
+    );
     return tx.transactionHash;
   }
 }

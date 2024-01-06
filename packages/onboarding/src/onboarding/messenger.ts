@@ -1,4 +1,4 @@
-import { Signer } from "ethers";
+import { BigNumber, Signer } from "ethers";
 import { NonceManager } from "@ethersproject/experimental";
 
 import {
@@ -43,14 +43,16 @@ export class CrossDomainMessenger {
   }
 
   async getL1OracleBlockNumber() {
-    return await this.l1Oracle.blockNumber();
+    return await this.l1Oracle.number();
   }
 
   async finalizeDeposit(
+    l1BlockNumber: BigNumber,
     depositTx: CrossDomainMessage,
     depositProof: MessageProof
   ) {
     const tx = await this.l2Portal.finalizeDepositTransaction(
+      l1BlockNumber,
       depositTx,
       depositProof.accountProof,
       depositProof.storageProof
