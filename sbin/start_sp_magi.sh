@@ -53,4 +53,3 @@ echo "$FLAGS"
 echo "Setting wait for file"
 touch $MAGI_WAIT
 $SP_MAGI_BIN $FLAGS
-

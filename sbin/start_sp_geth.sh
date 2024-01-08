@@ -80,6 +80,6 @@ echo $FLAGS
 # Remove SP_GETH_WAITFILE
 if [ "$SP_GETH_WAIT" = "true" ]; then
   echo "Adding wait file for docker..."
-    rm $SP_GETH_WAITFILE
+  rm $SP_GETH_WAITFILE
 fi
 $SP_GETH_BIN $FLAGS
