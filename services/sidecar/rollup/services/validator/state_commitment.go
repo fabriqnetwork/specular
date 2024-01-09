@@ -9,6 +9,11 @@ import (
 	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
 
+const V0BufSize = 96
+const V0VersionSize = 32
+const V0BlockHashOffset = 32
+const V0StateRootOffset = 64
+
 var (
 	ErrInvalidStateCommitment        = errors.New("invalid state commitment")
 	ErrInvalidStateCommitmentVersion = errors.New("invalid state commitment version")
@@ -36,11 +41,11 @@ func (o *StateCommitmentV0) Version() Bytes32 {
 }
 
 func (o *StateCommitmentV0) Marshal() []byte {
-	var buf [96]byte
+	var buf [V0BufSize]byte
 	version := o.Version()
-	copy(buf[:32], version[:])
-	copy(buf[32:64], o.l2BlockHash[:])
-	copy(buf[64:], o.l2StateRoot[:])
+	copy(buf[:V0VersionSize], version[:])
+	copy(buf[V0BlockHashOffset:V0StateRootOffset], o.l2BlockHash[:])
+	copy(buf[V0StateRootOffset:], o.l2StateRoot[:])
 	return buf[:]
 }
 
@@ -52,11 +57,11 @@ func StateCommitment(stateCommitment VersionedStateCommitment) common.Hash {
 }
 
 func UnmarshalStateCommitment(data []byte) (VersionedStateCommitment, error) {
-	if len(data) < 32 {
+	if len(data) < V0VersionSize {
 		return nil, ErrInvalidStateCommitment
 	}
 	var ver Bytes32
-	copy(ver[:], data[:32])
+	copy(ver[:], data[:V0VersionSize])
 	switch ver {
 	case StateCommitmentVersionV0:
 		return unmarshalStateCommitmentV0(data)
@@ -66,12 +71,12 @@ func UnmarshalStateCommitment(data []byte) (VersionedStateCommitment, error) {
 }
 
 func unmarshalStateCommitmentV0(data []byte) (*StateCommitmentV0, error) {
-	if len(data) != 96 {
+	if len(data) != V0BufSize {
 		return nil, ErrInvalidStateCommitment
 	}
 	var l2State StateCommitmentV0
 	// data[:32] is the version
-	copy(l2State.l2BlockHash[:], data[32:64])
-	copy(l2State.l2StateRoot[:], data[64:])
+	copy(l2State.l2BlockHash[:], data[V0BlockHashOffset:V0StateRootOffset])
+	copy(l2State.l2StateRoot[:], data[V0StateRootOffset:])
 	return &l2State, nil
 }
