@@ -51,12 +51,13 @@ type batchBuilder struct {
 	pendingBlocks []*ethTypes.Block
 	lastEnqueued  types.BlockID
 	lastBuilt     []byte
+	lastL1Block   uint64
 
 	timeout uint64 // L1 epoch at which the batch should be sequenced (soft timeout).
 }
 
 func NewBatchBuilder(cfg Config, encoder VersionedDataEncoder) *batchBuilder {
-	return &batchBuilder{cfg, encoder, nil, types.BlockID{}, nil, 0}
+	return &batchBuilder{cfg, encoder, nil, types.BlockID{}, nil, 0, 0}
 }
 
 func (b *batchBuilder) LastEnqueued() types.BlockID { return b.lastEnqueued }
@@ -102,12 +103,12 @@ func (b *batchBuilder) Advance() {
 
 // Tries to get the current batch.
 func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
-	if b.encoder.IsEmpty() {
+	if b.encoder.IsEmpty() && !(l1Head.GetNumber() >= b.lastL1Block + 14) {
 		return nil, io.EOF
 	}
 	// Force-build batch if necessary (timeout exceeded).
-	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
-	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
+	force := (b.timeout != 0 && l1Head.GetNumber() >= b.timeout) || (l1Head.GetNumber() >= b.lastL1Block + 14) // 14 l1_blocks ~ 84 l2_blocks
+	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "last_l1#", b.lastL1Block, "timeout_l1#", b.timeout, "force?", force)
 	batch, err := b.encoder.Flush(force)
 	if force {
 		// If it's too late to sequence, the batch should just be dropped entirely.
@@ -126,6 +127,7 @@ func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
 	}
 	// Cache last built batch.
 	b.lastBuilt = batch
+	b.lastL1Block = l1Head.GetNumber()
 	return batch, nil
 }
 

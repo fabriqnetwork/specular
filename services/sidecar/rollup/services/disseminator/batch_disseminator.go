@@ -163,6 +163,7 @@ func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
 		// Non-blocking ctx check.
 		select {
 		case <-ctx.Done():
+			log.Info("Done disseminating batches")
 			return nil
 		default:
 			if err := d.disseminateBatch(ctx); err != nil {
