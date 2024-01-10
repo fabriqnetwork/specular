@@ -22,6 +22,7 @@ type Config interface {
 	GetSeqWindowSize() uint64
 	GetSubSafetyMargin() uint64
 	GetMaxSafeLag() uint64
+	GetMaxSafeLagDelta() uint64
 }
 
 type VersionedDataEncoder interface {
@@ -104,9 +105,8 @@ func (b *batchBuilder) Advance() {
 // Tries to get the current batch.
 func (b *batchBuilder) getBatch(l1Head types.BlockID, currentLag uint64) ([]byte, error) {
 	// NOTE: 36 is # of l2 blocks within 6 l1 blocks/the confirmation period
-	lagTooGreat := currentLag + 36 >= b.cfg.GetMaxSafeLag()
-
-	if b.encoder.IsEmpty() {
+	lagTooGreat := currentLag + b.cfg.GetMaxSafeLagDelta() >= b.cfg.GetMaxSafeLag()
+	if b.encoder.IsEmpty() && !lagTooGreat {
 		return nil, io.EOF
 	}
 	// Force-build batch if necessary (timeout exceeded).

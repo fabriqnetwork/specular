@@ -91,6 +91,10 @@ var (
 		Name:  "disseminator.max-safe-lag",
 		Usage: "The maximum, in l2 blocks, that is safe for the disseminator to lag the sequencer",
 	}
+	disseminatorMaxSafeLagDeltaFlag = &cli.Uint64Flag{
+		Name:  "disseminator.max-safe-lag-delta",
+		Usage: "The delta gap, in l2 blocks, to use for forcing a batch when lagging",
+	}
 	// Validator config flags
 	validatorEnableFlag = &cli.BoolFlag{
 		Name:  "validator",
@@ -122,6 +126,7 @@ var (
 		disseminatorSubSafetyMarginFlag,
 		disseminatorTargetBatchSizeFlag,
 		disseminatorMaxSafeLagFlag,
+		disseminatorMaxSafeLagDeltaFlag,
 	}
 	validatorCLIFlags = []cli.Flag{
 		validatorEnableFlag,
