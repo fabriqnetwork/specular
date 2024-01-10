@@ -78,7 +78,11 @@ func (d *BatchDisseminator) start(ctx context.Context) error {
 
 // Attempts to (incrementally) build a batch and disseminate it via L1.
 func (d *BatchDisseminator) step(ctx context.Context) error {
-	if err := d.appendToBuilder(ctx); err != nil {
+	start, end, err := d.pendingL2BlockRange(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get l2 block number: %w", err)
+	}
+	if err := d.appendToBuilder(ctx, start, end); err != nil {
 		if errors.As(err, &L2ReorgDetectedError{}) {
 			log.Error("Reorg detected, reverting to safe state.", "error", err)
 			if err := d.rollback(); err != nil {
@@ -87,7 +91,7 @@ func (d *BatchDisseminator) step(ctx context.Context) error {
 		}
 		return fmt.Errorf("failed to append to batch builder: %w", err)
 	}
-	if err := d.disseminateBatches(ctx); err != nil {
+	if err := d.disseminateBatches(ctx, end-start+1); err != nil {
 		return fmt.Errorf("failed to sequence batches: %w", err)
 	}
 	return nil
@@ -105,11 +109,7 @@ func (d *BatchDisseminator) rollback() error {
 }
 
 // Appends L2 blocks to batch builder.
-func (d *BatchDisseminator) appendToBuilder(ctx context.Context) error {
-	start, end, err := d.pendingL2BlockRange(ctx)
-	if err != nil {
-		return fmt.Errorf("failed to get l2 block number: %w", err)
-	}
+func (d *BatchDisseminator) appendToBuilder(ctx context.Context, start uint64, end uint64) error {
 	if start > end {
 		log.Info("No pending blocks to append", "start", start, "end", end)
 		return nil
@@ -158,7 +158,7 @@ func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 }
 
 // Disseminates batches until batch builder runs out (or signal from `ctx`).
-func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
+func (d *BatchDisseminator) disseminateBatches(ctx context.Context, currentLag uint64) error {
 	for {
 		// Non-blocking ctx check.
 		select {
@@ -166,7 +166,7 @@ func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
 			log.Info("Done disseminating batches")
 			return nil
 		default:
-			if err := d.disseminateBatch(ctx); err != nil {
+			if err := d.disseminateBatch(ctx, currentLag); err != nil {
 				if errors.Is(err, io.EOF) {
 					log.Info("No pending batches to sequence")
 					return nil
@@ -180,9 +180,9 @@ func (d *BatchDisseminator) disseminateBatches(ctx context.Context) error {
 // Fetches a batch from batch builder and disseminates it via L1.
 // Blocking call until batch is sequenced and N confirmations received.
 // Note: this does not guarantee safety (re-org resistance) but should make re-orgs less likely.
-func (d *BatchDisseminator) disseminateBatch(ctx context.Context) error {
+func (d *BatchDisseminator) disseminateBatch(ctx context.Context, currentLag uint64) error {
 	// Construct tx data.
-	data, err := d.batchBuilder.Build(d.l1State.Head())
+	data, err := d.batchBuilder.Build(d.l1State.Head(), currentLag)
 	if err != nil {
 		return fmt.Errorf("failed to build batch: %w", err)
 	}

@@ -87,6 +87,10 @@ var (
 		Name:  "disseminator.target-batch-size",
 		Usage: "The target size of a batch tx submitted to L1 (bytes)",
 	}
+	disseminatorMaxSafeLagFlag = &cli.Uint64Flag{
+		Name:  "disseminator.max-safe-lag",
+		Usage: "The maximum, in l2 blocks, that is safe for the disseminator to lag the sequencer",
+	}
 	// Validator config flags
 	validatorEnableFlag = &cli.BoolFlag{
 		Name:  "validator",
@@ -117,6 +121,7 @@ var (
 		disseminatorIntervalFlag,
 		disseminatorSubSafetyMarginFlag,
 		disseminatorTargetBatchSizeFlag,
+		disseminatorMaxSafeLagFlag,
 	}
 	validatorCLIFlags = []cli.Flag{
 		validatorEnableFlag,
