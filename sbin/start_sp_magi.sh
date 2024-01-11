@@ -8,7 +8,7 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-MAGI_WAIT=/tmp/sp_magi_started.lock
+MAGI_WAIT=$WAIT_DIR/.sp_magi_started.lock
 
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"

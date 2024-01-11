@@ -12,5 +12,5 @@ rm -rf $DATA_DIR
 if test -f .sp_geth_started.lock; then
 
   echo "Removing docker lock file"
-  L1_WAIT=/tmp/.sp_geth_started.lock
+  L1_WAIT=$WAIT_DIR/.sp_geth_started.lock
 fi

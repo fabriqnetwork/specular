@@ -8,7 +8,7 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-SP_GETH_WAIT=/tmp/.sp_geth_started.lock
+SP_GETH_WAIT=$WAIT_DIR/.sp_geth_started.lock
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_geth" ".sp_geth.env"

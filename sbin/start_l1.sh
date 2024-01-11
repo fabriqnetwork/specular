@@ -6,7 +6,7 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-L1_WAITFILE=/tmp/.l1_started.lock
+L1_WAITFILE=$WAIT_DIR/.l1_started.lock
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
