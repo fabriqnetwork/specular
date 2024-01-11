@@ -28,6 +28,7 @@ const DEPLOYER_ADDRESS = process.env.DEPLOYER_ADDRESS ?? wallet.address;
 //   - `specularLocalDev`: network at localhost:4011 (L2 for `localhost`)
 //   - `chiado`: Chiado network (L1 for `specularDev`)
 //   - `specularDev`: Specular Devnet (L2 for `chiado`)
+//   - `sepolia`: Sepolia network (L1)
 
 function createConfig(network: string) {
   // Live networks mean non-localhost networks
@@ -63,6 +64,7 @@ function createConfig(network: string) {
 function getNetworkAccounts(network: string) {
   if (
     network === "goerli" ||
+    network === "sepolia" ||
     network === "chiado" ||
     network === "specularDev"
   ) {
