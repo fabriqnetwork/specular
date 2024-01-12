@@ -150,7 +150,7 @@ fi
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
   if [ "$L1_WAIT" = "true" ]; then
-    echo "Creating wait file for docker..."
+    echo "Creating wait file for docker at $L1_WAITFILE..."
     touch $L1_WAITFILE
   fi
   echo "L1 started... (Use ctrl-c to stop)"
