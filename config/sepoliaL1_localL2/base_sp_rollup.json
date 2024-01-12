@@ -1,0 +1,23 @@
+{
+    "genesis": {
+        "l1": {
+            "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "number": 0
+        },
+        "l2": {
+            "number": 0
+        },
+        "system_config": {
+            "batcherAddr": "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
+            "overhead": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "scalar": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "gasLimit": 30000000
+        }
+    },
+    "block_time": 2,
+    "max_sequencer_drift": 600,
+    "seq_window_size": 3600,
+    "l1_chain_id": 1337,
+    "l2_chain_id": 13527,
+    "batch_inbox_address": "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1"
+}
