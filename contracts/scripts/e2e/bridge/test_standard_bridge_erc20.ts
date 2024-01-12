@@ -5,7 +5,7 @@ import {
   getWithdrawalProof,
   deployTokenPair,
   hexlifyBlockNum,
-  waitUntilStateRoot,
+  waitUntilOracleBlock,
   waitUntilBlockConfirmed,
 } from "../utils";
 
@@ -74,7 +74,7 @@ async function main() {
   const stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
 
   console.log("Initial block", { blockNumber, stateRoot, depositMessage });
-  await waitUntilStateRoot(l1Oracle, stateRoot);
+  await waitUntilOracleBlock(l1Oracle, blockNumber);
 
   console.log({ depositHash: depositEvent.args.depositHash });
   let initiated = await l1Portal.initiatedDeposits(
