@@ -104,7 +104,6 @@ func (b *batchBuilder) Advance() {
 
 // Tries to get the current batch.
 func (b *batchBuilder) getBatch(l1Head types.BlockID, currentLag uint64) ([]byte, error) {
-	// NOTE: 36 is # of l2 blocks within 6 l1 blocks/the confirmation period
 	lagTooGreat := currentLag + b.cfg.GetMaxSafeLagDelta() >= b.cfg.GetMaxSafeLag()
 	if b.encoder.IsEmpty() && !lagTooGreat {
 		return nil, io.EOF
