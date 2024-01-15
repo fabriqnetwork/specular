@@ -21,6 +21,8 @@ type Config interface {
 	GetL1OracleAddr() common.Address
 	GetSeqWindowSize() uint64
 	GetSubSafetyMargin() uint64
+	GetMaxSafeLag() uint64
+	GetMaxSafeLagDelta() uint64
 }
 
 type VersionedDataEncoder interface {
@@ -85,14 +87,14 @@ func (b *batchBuilder) Reset(lastEnqueued types.BlockID) {
 // already built and `Advance` hasn't been called.
 // An l1Head must be provided to allow the encoder to determine if the batch is ready.
 // Returns an `io.EOF` error if there's nothing to build yet.
-func (b *batchBuilder) Build(l1Head types.BlockID) ([]byte, error) {
+func (b *batchBuilder) Build(l1Head types.BlockID, currentLag uint64) ([]byte, error) {
 	if b.lastBuilt != nil {
 		return b.lastBuilt, nil
 	}
 	if err := b.encodePending(); err != nil {
 		return nil, fmt.Errorf("failed to encode pending blocks into a new batch: %w", err)
 	}
-	return b.getBatch(l1Head)
+	return b.getBatch(l1Head, currentLag)
 }
 
 // Advances the builder, clearing the last built batch.
@@ -101,12 +103,13 @@ func (b *batchBuilder) Advance() {
 }
 
 // Tries to get the current batch.
-func (b *batchBuilder) getBatch(l1Head types.BlockID) ([]byte, error) {
-	if b.encoder.IsEmpty() {
+func (b *batchBuilder) getBatch(l1Head types.BlockID, currentLag uint64) ([]byte, error) {
+	lagTooGreat := currentLag + b.cfg.GetMaxSafeLagDelta() >= b.cfg.GetMaxSafeLag()
+	if b.encoder.IsEmpty() && !lagTooGreat {
 		return nil, io.EOF
 	}
 	// Force-build batch if necessary (timeout exceeded).
-	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout
+	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout || lagTooGreat
 	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
 	batch, err := b.encoder.Flush(force)
 	if force {

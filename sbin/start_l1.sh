@@ -73,7 +73,6 @@ function ctrl_c() {
 
 # Start L1 network.
 echo "Starting L1..."
-L1_PERIOD=2
 if [ "$L1_STACK" = "geth" ]; then
   $L1_GETH_BIN \
     --dev \
