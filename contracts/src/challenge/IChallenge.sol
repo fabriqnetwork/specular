@@ -43,11 +43,7 @@ interface IChallenge {
 
     event Completed(address winner, address loser, CompletionReason reason);
 
-    event Bisected(
-        bytes32 challengeState,
-        uint256 challengedSegmentStart,
-        uint256 challengedSegmentLength
-    );
+    event Bisected(bytes32 challengeState, uint256 challengedSegmentStart, uint256 challengedSegmentLength);
 
     // Participant called function while it's not their turn.
     error NotYourTurn();
@@ -128,5 +124,5 @@ interface ISymChallenge is IChallenge {
 
 // Assymetric challenge protocol.
 interface IAsymChallenge is IChallenge {
-    // TODO.
+// TODO.
 }
