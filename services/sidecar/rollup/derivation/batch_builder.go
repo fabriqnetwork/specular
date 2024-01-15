@@ -104,13 +104,16 @@ func (b *batchBuilder) Advance() {
 
 // Tries to get the current batch.
 func (b *batchBuilder) getBatch(l1Head types.BlockID, currentLag uint64) ([]byte, error) {
-	lagTooGreat := currentLag + b.cfg.GetMaxSafeLagDelta() >= b.cfg.GetMaxSafeLag()
-	if b.encoder.IsEmpty() && !lagTooGreat {
+	if b.encoder.IsEmpty() {
 		return nil, io.EOF
 	}
-	// Force-build batch if necessary (timeout exceeded).
-	force := b.timeout != 0 && l1Head.GetNumber() >= b.timeout || lagTooGreat
-	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "force?", force)
+	// Force-build batch if necessary (lag or timeout exceeded).
+	var (
+		timeoutExceeded = b.timeout != 0 && l1Head.GetNumber() >= b.timeout
+		lagExceeded     = b.cfg.GetMaxSafeLag() != 0 && currentLag+b.cfg.GetMaxSafeLagDelta() >= b.cfg.GetMaxSafeLag()
+		force           = timeoutExceeded || lagExceeded
+	)
+	log.Info("Trying to get batch", "curr_l1#", l1Head.GetNumber(), "timeout_l1#", b.timeout, "lag", currentLag, "force?", force)
 	batch, err := b.encoder.Flush(force)
 	if force {
 		// If it's too late to sequence, the batch should just be dropped entirely.
