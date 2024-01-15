@@ -33,6 +33,7 @@ func NewBatchV0Encoder(cfg V0Config) *BatchV0Encoder {
 
 func (e *BatchV0Encoder) IsEmpty() bool { return e.size() == 0 }
 
+// Flushes data queued to the returned byte-array either if the batch is ready, or if forced.
 func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 	// Return error if the batch is too small (unless forced).
 	if !force && e.size() < e.cfg.GetTargetBatchSize() {
@@ -56,10 +57,10 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 		firstL2BlockNum = e.subBatches[0].FirstL2BlockNum
 		lastL2BlockNum  = e.subBatches[lastSubBatchIdx].lastL2BlockNum()
 	)
-	log.Info("Flushing batch...", "first_l2#", firstL2BlockNum, "last_l2#", lastL2BlockNum)
 	if err := rlp.Encode(buf, e.subBatches[:lastSubBatchIdx+1]); err != nil {
-		return nil, fmt.Errorf("failed to encode batch: %w", err)
+		return nil, fmt.Errorf("failed to encode batch (l2# %d-%d): %w", firstL2BlockNum, lastL2BlockNum, err)
 	}
+	log.Info("Flushed batch", "first_l2#", firstL2BlockNum, "last_l2#", lastL2BlockNum, "size (B)", buf.Len())
 	// Delete all sub-batches (except the open one).
 	e.subBatches = e.subBatches[lastSubBatchIdx+1:]
 	e.runningLen = 0
@@ -91,7 +92,7 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 		return nil
 	}
 	// Append a block's txs to the current sub-batch.
-	var currSubBatch = e.subBatches[len(e.subBatches)-1]
+	var currSubBatch = e.getOpenSubBatch()
 	if err := currSubBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
 		return fmt.Errorf("could not append block of txs: %w", err)
 	}
@@ -105,16 +106,35 @@ func (e *BatchV0Encoder) Reset() {
 
 // Returns the data format version (v0).
 func (e *BatchV0Encoder) getVersion() BatchEncoderVersion { return V0 }
+
+// Returns the expected size of the encoded batch.
 func (e *BatchV0Encoder) size() uint64 {
-	return e.runningLen + e.subBatches[len(e.subBatches)-1].size()
+	var (
+		openSubBatch    = e.getOpenSubBatch()
+		openSubBatchLen uint64
+	)
+	if openSubBatch != nil {
+		openSubBatchLen = openSubBatch.size()
+	}
+	return e.runningLen + openSubBatchLen
 }
+
+// Returns the open sub-batch.
+func (e *BatchV0Encoder) getOpenSubBatch() *subBatch {
+	if len(e.subBatches) == 0 {
+		log.Errorf("Unexpected state detected", errors.New("no sub-batches exist"), "running_len", e.runningLen)
+		return nil
+	}
+	return e.subBatches[len(e.subBatches)-1]
+}
+
 func (e *BatchV0Encoder) sizeExceedsTarget() bool {
 	return e.size() > e.cfg.GetTargetBatchSize()
 }
 
-// Closes the current sub-batch.
+// Closes the current sub-batch, if non-empty.
 func (e *BatchV0Encoder) closeSubBatch() {
-	var currSubBatch = e.subBatches[len(e.subBatches)-1]
+	var currSubBatch = e.getOpenSubBatch()
 	// No need to close if it's empty.
 	if currSubBatch.contentSize == 0 {
 		return
