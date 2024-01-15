@@ -1,7 +1,7 @@
 {
   "name": "@specularl2/sdk",
   "version": "0.0.1",
-  "description": "",
+  "description": "Tools for interacting with Specular",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
@@ -15,10 +15,16 @@
     "preinstall": "npx only-allow pnpm",
     "prepublishOnly": "pnpm run gen:binding && pnpm run build"
   },
+  "keywords": [
+    "specular",
+    "ethereum",
+    "sdk"
+  ],
   "author": "Specular contributors",
   "license": "Apache-2.0",
   "devDependencies": {
     "@specularl2/contracts": "workspace:*",
+    "@types/lodash": "^4.14.202",
     "eslint": "^8.56.0",
     "prettier": "^3.1.1",
     "typechain": "^8.1.1",
@@ -26,8 +32,13 @@
   },
   "dependencies": {
     "@ethersproject/abi": "^5.7.0",
+    "@ethersproject/abstract-provider": "^5.7.0",
+    "@ethersproject/abstract-signer": "^5.7.0",
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",
-    "ethers": "^5.7.2"
+    "@ethersproject/transactions": "^5.7.0",
+    "ethers": "^5.7.2",
+    "mocha": "^10.2.0",
+    "vitest": "^1.1.3"
   }
 }
