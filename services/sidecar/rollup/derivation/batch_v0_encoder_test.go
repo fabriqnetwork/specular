@@ -47,11 +47,21 @@ func TestFlush(t *testing.T) {
 		txs          = []*types.Transaction{types.NewTx(&types.LegacyTx{})}
 		block        = types.NewBlock(&types.Header{Number: big.NewInt(0)}, txs, nil, nil, trie.NewStackTrie(nil))
 	)
-	err := enc.ProcessBlock(block, false)
+	// Flush an empty batch (unforced)
+	_, err := enc.Flush(false)
+	require.Equal(t, errBatchTooSmall, err)
+	// Flush an empty batch (forced)
+	batch, err := enc.Flush(true)
+	require.Nil(t, err)
+	require.NotNil(t, batch)
+	require.Equal(t, baselineSize, enc.size())
+	// Process a block
+	err = enc.ProcessBlock(block, false)
 	require.Greater(t, enc.size(), baselineSize)
 	require.Equal(t, len(enc.subBatches), 1)
 	require.Nil(t, err, err)
-	batch, err := enc.Flush(true)
+	// Flush a non-empty batch
+	batch, err = enc.Flush(true)
 	require.Nil(t, err, err)
 	require.NotNil(t, batch)
 	require.Equal(t, baselineSize, enc.size())
