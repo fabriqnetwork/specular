@@ -37,7 +37,7 @@ RUN npm install -g pnpm
 RUN pnpm install
 
 
-COPY --from=build /specular/config/kubernetes /specular/workspace
+COPY --from=build /specular/config/local_docker /specular/workspace
 COPY --from=build /specular/sbin /specular/sbin
 
 # DEBUG/LOCAL BUILD

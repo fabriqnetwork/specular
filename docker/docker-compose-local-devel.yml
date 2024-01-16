@@ -6,7 +6,8 @@ services:
   generator:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     volumes:
-      - sp_workspace:/specular/workspace
+      - ../workspace:/specular/workspace
+      - ../sbin:/specular/sbin
     working_dir: /specular/workspace
     entrypoint: /bin/bash ../sbin/generate_secrets.sh -d -j -y
 
@@ -15,12 +16,13 @@ services:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     tty: true
     healthcheck:
-      test: bash -c "[ -f /tmp/.l1_started.lock ]"
-      retries: 10
+      test: bash -c "[ -f /tmp/.start_l1.sh.lock ]"
+      retries: 60
       interval: 5s
       start_period: 40s
     volumes:
-      - sp_workspace:/specular/workspace
+      - ../workspace:/specular/workspace
+      - ../sbin:/specular/sbin
     working_dir: /specular/workspace
     entrypoint: /bin/bash ../sbin/start_l1.sh -c -d -w -y
     depends_on:
@@ -37,13 +39,14 @@ services:
   sp-geth:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     volumes:
-      - sp_workspace:/specular/workspace
+      - ../workspace:/specular/workspace
+      - ../sbin:/specular/sbin
     restart: on-failure
     depends_on:
       l1-geth:
         condition: service_healthy
     healthcheck:
-      test: bash -c "[ -f /tmp/.sp_geth_started.lock ]"
+      test: bash -c "[ -f /tmp/.start_sp_geth.sh.lock ]"
       retries: 10
       interval: 5s
       start_period: 40s
@@ -67,12 +70,13 @@ services:
       sp-geth:
         condition: service_healthy
     healthcheck:
-      test: bash -c "[ -f /tmp/.sp_magi_started.lock ]"
+      test: bash -c "[ -f /tmp/.start_sp_magi.sh.lock ]"
       retries: 10
       interval: 5s
       start_period: 20s
     volumes:
-      - sp_workspace:/specular/workspace
+      - ../workspace:/specular/workspace
+      - ../sbin:/specular/sbin
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_sp_magi.sh
     networks:
@@ -87,17 +91,13 @@ services:
       sp-magi:
         condition: service_healthy
     volumes:
-      - sp_workspace:/specular/workspace
+      - ../workspace:/specular/workspace
+      - ../sbin:/specular/sbin
     working_dir: /specular/workspace
     entrypoint: bash ../sbin/start_sidecar.sh
     networks:
       specular:
         ipv4_address: 192.168.160.5
-
-#------- Shared Volume and Networks
-volumes:
-  sp_workspace:
-    driver: local # Define the driver and options under the volume name
 
 networks:
   specular:
