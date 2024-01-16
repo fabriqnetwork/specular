@@ -1,0 +1,6 @@
+{
+    "block_time": 2,
+    "max_sequencer_drift": 600,
+    "seq_window_size": 3600,
+    "l1_chain_id": 1337
+}
