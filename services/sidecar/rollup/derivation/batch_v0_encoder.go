@@ -13,14 +13,16 @@ import (
 )
 
 var (
-	errBatchFull     = errors.New("batch full")
-	errBatchTooSmall = errors.New("batch too small")
+	errBatchFull      = errors.New("batch full")
+	errBatchTooSmall  = errors.New("batch too small")
+	emptySubBatchSize = rlp.ListSize(0)
 )
 
 type V0Config interface {
 	GetTargetBatchSize() uint64
 }
 
+// TODO: refactor implementation (somewhat bug-prone).
 type BatchV0Encoder struct {
 	cfg        V0Config
 	subBatches []*subBatch
@@ -31,9 +33,10 @@ func NewBatchV0Encoder(cfg V0Config) *BatchV0Encoder {
 	return &BatchV0Encoder{cfg, []*subBatch{newSubBatch()}, 0}
 }
 
-func (e *BatchV0Encoder) IsEmpty() bool { return e.size() == 0 }
+func (e *BatchV0Encoder) IsEmpty() bool { return e.size() <= emptySubBatchSize }
 
 // Flushes data queued to the returned byte-array either if the batch is ready, or if forced.
+// Note that if forced, an empty batch may be returned.
 func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 	// Return error if the batch is too small (unless forced).
 	if !force && e.size() < e.cfg.GetTargetBatchSize() {
@@ -77,7 +80,7 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 		shouldCloseBatch = e.sizeExceedsTarget()
 		// Should close sub-batch if we're closing the batch entirely, OR...
 		// the block is empty, OR... the block belongs to a new epoch.
-		shouldCloseSubBatch = shouldCloseBatch || shouldSkipBlock || isNewEpoch
+		shouldCloseSubBatch = !e.getOpenSubBatch().isEmpty() && (shouldCloseBatch || shouldSkipBlock || isNewEpoch)
 	)
 	if shouldCloseSubBatch {
 		e.closeSubBatch()
@@ -122,7 +125,7 @@ func (e *BatchV0Encoder) size() uint64 {
 // Returns the open sub-batch.
 func (e *BatchV0Encoder) getOpenSubBatch() *subBatch {
 	if len(e.subBatches) == 0 {
-		log.Errorf("Unexpected state detected", errors.New("no sub-batches exist"), "running_len", e.runningLen)
+		log.Errorf("Unexpected state detected: %w", errors.New("no sub-batches exist"), "running_len", e.runningLen)
 		return nil
 	}
 	return e.subBatches[len(e.subBatches)-1]
@@ -135,12 +138,12 @@ func (e *BatchV0Encoder) sizeExceedsTarget() bool {
 // Closes the current sub-batch, if non-empty.
 func (e *BatchV0Encoder) closeSubBatch() {
 	var currSubBatch = e.getOpenSubBatch()
-	// No need to close if it's empty.
-	if currSubBatch.contentSize == 0 {
-		return
-	}
 	e.runningLen += currSubBatch.size()
-	log.Info("Closing sub-batch...", "running_len", e.runningLen)
+	log.Info("Closing sub-batch...",
+		"first_l2#", currSubBatch.FirstL2BlockNum,
+		"last_l2#", currSubBatch.lastL2BlockNum(),
+		"running_len", e.runningLen,
+	)
 	e.subBatches = append(e.subBatches, newSubBatch())
 }
 
@@ -153,6 +156,7 @@ type subBatch struct {
 type rawTxBlock []hexutil.Bytes
 
 func newSubBatch() *subBatch               { return &subBatch{contentSize: 0} }
+func (s *subBatch) isEmpty() bool          { return s.contentSize == 0 }
 func (s *subBatch) size() uint64           { return rlp.ListSize(s.contentSize) }
 func (s *subBatch) lastL2BlockNum() uint64 { return s.FirstL2BlockNum + uint64(len(s.TxBlocks)) - 1 }
 

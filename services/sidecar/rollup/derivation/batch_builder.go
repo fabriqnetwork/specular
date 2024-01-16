@@ -91,7 +91,7 @@ func (b *batchBuilder) Build(l1Head types.BlockID, currentLag uint64) ([]byte, e
 	if b.lastBuilt != nil {
 		return b.lastBuilt, nil
 	}
-	if err := b.encodePending(); err != nil {
+	if err := b.processPending(); err != nil {
 		return nil, fmt.Errorf("failed to encode pending blocks into a new batch: %w", err)
 	}
 	return b.getBatch(l1Head, currentLag)
@@ -135,8 +135,8 @@ func (b *batchBuilder) getBatch(l1Head types.BlockID, currentLag uint64) ([]byte
 	return batch, nil
 }
 
-// Encodes pending blocks into a new batch, constrained by `maxBatchSize`.
-func (b *batchBuilder) encodePending() error {
+// Processes pending blocks until batch is full.
+func (b *batchBuilder) processPending() error {
 	if len(b.pendingBlocks) == 0 {
 		return nil
 	}
@@ -154,7 +154,7 @@ func (b *batchBuilder) encodePending() error {
 	}
 	// Advance queue.
 	b.pendingBlocks = b.pendingBlocks[numProcessed:]
-	log.Info("Encoded l2 blocks", "num_processed", numProcessed, "num_pending", len(b.pendingBlocks))
+	log.Info("Processed l2 blocks", "num_processed", numProcessed, "num_pending", len(b.pendingBlocks))
 	return nil
 }
 
