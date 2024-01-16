@@ -30,8 +30,7 @@ library Hashing {
      */
     function createStateCommitmentV0(bytes32 l2BlockHash, bytes32 l2StateRoot) internal pure returns (bytes32) {
         // output v0 format is keccak256(version || l2BlockHash || l2StateRoot)
-        bytes memory stateCommitment = new bytes(32); // version 0 is a zero bytes32
-        stateCommitment = bytes.concat(stateCommitment, l2BlockHash, l2StateRoot);
+        bytes memory stateCommitment = bytes.concat(STATE_COMMITMENT_V0, l2BlockHash, l2StateRoot);
         return keccak256(stateCommitment);
     }
 }

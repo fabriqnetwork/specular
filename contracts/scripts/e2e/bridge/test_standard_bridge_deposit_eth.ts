@@ -5,7 +5,7 @@ import {
   getSignersAndContracts,
   getDepositProof,
   hexlifyBlockNum,
-  waitUntilStateRoot,
+  waitUntilOracleBlock,
 } from "../utils";
 
 async function main() {
@@ -43,15 +43,8 @@ async function main() {
     data: depositEvent.args.data,
   };
 
-  let blockNumber = await l1Provider.getBlockNumber();
-  let rawBlock = await l1Provider.send("eth_getBlockByNumber", [
-    ethers.utils.hexValue(blockNumber),
-    false, // We only want the block header
-  ]);
-  let stateRoot = l1Provider.formatter.hash(rawBlock.stateRoot);
-
-  console.log("Initial block", { blockNumber, stateRoot, depositEvent });
-  await waitUntilStateRoot(l1Oracle, stateRoot);
+  let depositBlockNumber = await l1Provider.getBlockNumber();
+  await waitUntilOracleBlock(l1Oracle, depositBlockNumber);
 
   console.log({ depositHash: depositEvent.args.depositHash });
   const initiated = await l1Portal.initiatedDeposits(
@@ -62,11 +55,12 @@ async function main() {
   const depositProof = await getDepositProof(
     l1Portal.address,
     depositEvent.args.depositHash,
-    hexlifyBlockNum(blockNumber),
+    hexlifyBlockNum(depositBlockNumber),
   );
 
   try {
     const finalizeTx = await l2Portal.finalizeDepositTransaction(
+      depositBlockNumber,
       despositMessage,
       depositProof.accountProof,
       depositProof.storageProof,
