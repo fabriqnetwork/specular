@@ -48,7 +48,7 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 		lastSubBatchIdx -= 1
 	} else {
 		// Close the open sub-batch.
-		e.closeSubBatch()
+		e.closeOpenSubBatch()
 	}
 	// Encode version.
 	buf := bytes.NewBuffer(nil)
@@ -70,20 +70,21 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-// Processes a block. If the block is non-empty and fits, add it to the current sub-batch.
-// If the block belongs to a new epoch, close the current sub-batch and start a new one.
+// Processes a block. If the block is non-empty and fits, add it to the open sub-batch.
+// If the block belongs to a new epoch, close the open sub-batch and start a new one.
 func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error {
 	var (
 		// Block is empty
 		shouldSkipBlock = len(block.Transactions()) == 0
-		// Batch would exceed the target size with the current sub-batch.
+		// Batch would exceed the target size with the open sub-batch.
 		shouldCloseBatch = e.sizeExceedsTarget()
 		// Should close sub-batch if we're closing the batch entirely, OR...
 		// the block is empty, OR... the block belongs to a new epoch.
-		shouldCloseSubBatch = !e.getOpenSubBatch().isEmpty() && (shouldCloseBatch || shouldSkipBlock || isNewEpoch)
+		isOpenSubBatchEmpty = e.getOpenSubBatch().isEmpty()
+		shouldCloseSubBatch = !isOpenSubBatchEmpty && (shouldCloseBatch || shouldSkipBlock || isNewEpoch)
 	)
 	if shouldCloseSubBatch {
-		e.closeSubBatch()
+		e.closeOpenSubBatch()
 	}
 	// Enforce soft cap on batch size.
 	if shouldCloseBatch {
@@ -94,9 +95,9 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 		log.Info("Skipping intrinsically-derivable block", "block#", block.NumberU64())
 		return nil
 	}
-	// Append a block's txs to the current sub-batch.
-	var currSubBatch = e.getOpenSubBatch()
-	if err := currSubBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
+	// Append a block's txs to the open sub-batch.
+	var openSubBatch = e.getOpenSubBatch()
+	if err := openSubBatch.appendTxBlock(block.NumberU64(), block.Transactions()); err != nil {
 		return fmt.Errorf("could not append block of txs: %w", err)
 	}
 	return nil
@@ -135,13 +136,13 @@ func (e *BatchV0Encoder) sizeExceedsTarget() bool {
 	return e.size() > e.cfg.GetTargetBatchSize()
 }
 
-// Closes the current sub-batch, if non-empty.
-func (e *BatchV0Encoder) closeSubBatch() {
-	var currSubBatch = e.getOpenSubBatch()
-	e.runningLen += currSubBatch.size()
+// Closes the open sub-batch, if non-empty.
+func (e *BatchV0Encoder) closeOpenSubBatch() {
+	var openSubBatch = e.getOpenSubBatch()
+	e.runningLen += openSubBatch.size()
 	log.Info("Closing sub-batch...",
-		"first_l2#", currSubBatch.FirstL2BlockNum,
-		"last_l2#", currSubBatch.lastL2BlockNum(),
+		"first_l2#", openSubBatch.FirstL2BlockNum,
+		"last_l2#", openSubBatch.lastL2BlockNum(),
 		"running_len", e.runningLen,
 	)
 	e.subBatches = append(e.subBatches, newSubBatch())
