@@ -43,8 +43,8 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 		return nil, errBatchTooSmall
 	}
 	var lastSubBatchIdx = len(e.subBatches) - 1
-	if lastSubBatchIdx > 0 && e.sizeExceedsTarget() {
-		// Ignore the open sub-batch if the batch can't fit it.
+	if lastSubBatchIdx > 0 && (e.sizeExceedsTarget() || e.getOpenSubBatch().isEmpty()) {
+		// Ignore the open sub-batch if the batch can't fit it or there's nothing in it.
 		lastSubBatchIdx -= 1
 	} else {
 		// Close the open sub-batch.
@@ -58,15 +58,18 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 	// Encode all sub-batches (except the open one).
 	var (
 		firstL2BlockNum = e.subBatches[0].FirstL2BlockNum
-		lastL2BlockNum  = e.subBatches[lastSubBatchIdx].lastL2BlockNum()
+		lastL2BlockNum  = e.subBatches[lastSubBatchIdx].lastL2BlockNum
 	)
 	if err := rlp.Encode(buf, e.subBatches[:lastSubBatchIdx+1]); err != nil {
 		return nil, fmt.Errorf("failed to encode batch (l2# %d-%d): %w", firstL2BlockNum, lastL2BlockNum, err)
 	}
 	log.Info("Flushed batch", "first_l2#", firstL2BlockNum, "last_l2#", lastL2BlockNum, "size (B)", buf.Len())
-	// Delete all sub-batches (except the open one).
+	// Delete all sub-batches (except the open one, if any).
 	e.subBatches = e.subBatches[lastSubBatchIdx+1:]
 	e.runningLen = 0
+	if len(e.subBatches) == 0 {
+		e.subBatches = []*subBatch{newSubBatch()}
+	}
 	return buf.Bytes(), nil
 }
 
@@ -142,7 +145,7 @@ func (e *BatchV0Encoder) closeOpenSubBatch() {
 	e.runningLen += openSubBatch.size()
 	log.Info("Closing sub-batch...",
 		"first_l2#", openSubBatch.FirstL2BlockNum,
-		"last_l2#", openSubBatch.lastL2BlockNum(),
+		"last_l2#", openSubBatch.lastL2BlockNum,
 		"running_len", e.runningLen,
 	)
 	e.subBatches = append(e.subBatches, newSubBatch())
@@ -151,17 +154,18 @@ func (e *BatchV0Encoder) closeOpenSubBatch() {
 type subBatch struct {
 	FirstL2BlockNum uint64
 	TxBlocks        []rawTxBlock
+	lastL2BlockNum  uint64 `rlp:"-"` // last L2 block number in the sub-batch
 	contentSize     uint64 `rlp:"-"` // size of sub-batch content (# of bytes)
 }
 
 type rawTxBlock []hexutil.Bytes
 
-func newSubBatch() *subBatch               { return &subBatch{contentSize: 0} }
-func (s *subBatch) isEmpty() bool          { return s.contentSize == 0 }
-func (s *subBatch) size() uint64           { return rlp.ListSize(s.contentSize) }
-func (s *subBatch) lastL2BlockNum() uint64 { return s.FirstL2BlockNum + uint64(len(s.TxBlocks)) - 1 }
+func newSubBatch() *subBatch      { return &subBatch{contentSize: 0} }
+func (s *subBatch) isEmpty() bool { return s.contentSize == 0 }
+func (s *subBatch) size() uint64  { return rlp.ListSize(s.contentSize) }
 
 func (s *subBatch) appendTxBlock(blockNum uint64, txs types.Transactions) error {
+	s.lastL2BlockNum = blockNum
 	// Set the first L2 block number if it hasn't been set yet.
 	if len(s.TxBlocks) == 0 {
 		s.FirstL2BlockNum = blockNum
