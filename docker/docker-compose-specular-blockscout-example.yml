@@ -17,7 +17,7 @@ services:
     extra_hosts:
       - 'host.docker.internal:host-gateway'
     env_file:
-      -  ../config/blockscout_docker/blockscout.env
+      -  ../config/example/blockscout/blockscout.env
     environment:
         ETHEREUM_JSONRPC_VARIANT: 'geth'
         ETHEREUM_JSONRPC_HTTP_URL: http://host.docker.internal:8545/
@@ -62,7 +62,7 @@ services:
 
   frontend:
     env_file:
-      -  ../config/blockscout_docker/frontend.env
+      -  ../config/example/blockscout/frontend.env
     depends_on:
       - backend
     extends:
