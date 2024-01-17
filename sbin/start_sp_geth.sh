@@ -9,15 +9,17 @@ SBIN="$(
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
+
+# Check that the all required dotenv files exists.
+reqdotenv "paths" ".paths.env"
+reqdotenv "sp_geth" ".sp_geth.env"
+
+# Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
 
 if [[ ! -z ${WAIT_DIR+x} ]]; then
   WAITFILE=$WAIT_DIR/.${0##*/}.lock
 fi
-
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "sp_geth" ".sp_geth.env"
 
 # Parse args.
 optspec="chw"
