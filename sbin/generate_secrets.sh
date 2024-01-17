@@ -67,5 +67,5 @@ fi
 
 if [ "$GEN_JWT" = "true" ]; then
   JWT=$(generate_jwt_secret)
-  echo $JWT >$JWT_SECRET_PATH
+  echo $JWT >$"JWT_SECRET_PATH"
 fi
