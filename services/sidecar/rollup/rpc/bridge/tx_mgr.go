@@ -6,8 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth/txmgr"
-	specularTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 )
 
 // Adds bridge contract method bindings to EthTxManager.
@@ -62,8 +62,14 @@ func (m *TxManager) AdvanceStake(ctx context.Context, assertionID *big.Int) (*ty
 	return m.sendRollupTx(ctx, data, 0)
 }
 
-func (m *TxManager) CreateAssertion(ctx context.Context, stateCommitment specularTypes.Bytes32, blockNum *big.Int) (*types.Receipt, error) {
-	data, err := packCreateAssertionInput(stateCommitment, blockNum)
+func (m *TxManager) CreateAssertion(
+	ctx context.Context,
+	stateCommitment common.Hash,
+	blockNum *big.Int,
+	l1Blockhash common.Hash,
+	l1BlockNum *big.Int,
+) (*types.Receipt, error) {
+	data, err := packCreateAssertionInput(stateCommitment, blockNum, l1Blockhash, l1BlockNum)
 	if err != nil {
 		return nil, err
 	}
@@ -80,6 +86,14 @@ func (m *TxManager) ConfirmFirstUnresolvedAssertion(ctx context.Context) (*types
 
 func (m *TxManager) RejectFirstUnresolvedAssertion(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error) {
 	data, err := packRejectFirstUnresolvedAssertionInput(stakerAddress)
+	if err != nil {
+		return nil, err
+	}
+	return m.sendRollupTx(ctx, data, 0)
+}
+
+func (m *TxManager) RemoveStake(ctx context.Context, stakerAddress common.Address) (*types.Receipt, error) {
+	data, err := packRemoveStakeInput(stakerAddress)
 	if err != nil {
 		return nil, err
 	}

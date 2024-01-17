@@ -50,6 +50,7 @@ interface IL2Portal {
      * @param depositProof        Inclusion proof of the deposit in L1Portal contract.
      */
     function finalizeDepositTransaction(
+        uint256 l1BlockNumber,
         Types.CrossDomainMessage memory depositTx,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof

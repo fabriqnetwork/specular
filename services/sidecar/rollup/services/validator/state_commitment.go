@@ -5,52 +5,63 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/specularL2/specular/services/sidecar/rollup/types"
+
+	"github.com/specularL2/specular/services/sidecar/utils/log"
 )
+
+const V0BufSize = 96
+const V0VersionSize = 32
+const V0BlockHashOffset = 32
+const V0StateRootOffset = 64
 
 var (
 	ErrInvalidStateCommitment        = errors.New("invalid state commitment")
 	ErrInvalidStateCommitmentVersion = errors.New("invalid state commitment version")
 
-	StateCommitmentVersionV0 = types.Bytes32{}
+	StateCommitmentVersionV0 = Bytes32{}
 )
+
+type Bytes32 = [32]byte
 
 type VersionedStateCommitment interface {
 	// Version returns the version of the L2 state commitment
-	Version() types.Bytes32
+	Version() Bytes32
 
 	// Marshal a L2 state commitment into a byte slice for hashing
 	Marshal() []byte
 }
 
 type StateCommitmentV0 struct {
-	l2VmHash common.Hash
+	l2BlockHash common.Hash
+	l2StateRoot common.Hash
 }
 
-func (o *StateCommitmentV0) Version() types.Bytes32 {
+func (o *StateCommitmentV0) Version() Bytes32 {
 	return StateCommitmentVersionV0
 }
 
 func (o *StateCommitmentV0) Marshal() []byte {
-	var buf [64]byte
+	var buf [V0BufSize]byte
 	version := o.Version()
-	copy(buf[:32], version[:])
-	copy(buf[32:], o.l2VmHash[:])
+	copy(buf[:V0VersionSize], version[:])
+	copy(buf[V0BlockHashOffset:V0StateRootOffset], o.l2BlockHash[:])
+	copy(buf[V0StateRootOffset:], o.l2StateRoot[:])
 	return buf[:]
 }
 
 // StateCommitment returns the keccak256 hash of the marshaled L2 state commitment
-func StateCommitment(stateCommitment VersionedStateCommitment) types.Bytes32 {
+func StateCommitment(stateCommitment VersionedStateCommitment) common.Hash {
 	marshaled := stateCommitment.Marshal()
-	return types.Bytes32(crypto.Keccak256Hash(marshaled))
+	log.Info("hashed state commitment", "hex", common.Bytes2Hex(crypto.Keccak256(marshaled)))
+	return crypto.Keccak256Hash(marshaled)
 }
 
 func UnmarshalStateCommitment(data []byte) (VersionedStateCommitment, error) {
-	if len(data) < 32 {
+	if len(data) < V0VersionSize {
 		return nil, ErrInvalidStateCommitment
 	}
-	var ver types.Bytes32
-	copy(ver[:], data[:32])
+	var ver Bytes32
+	copy(ver[:], data[:V0VersionSize])
 	switch ver {
 	case StateCommitmentVersionV0:
 		return unmarshalStateCommitmentV0(data)
@@ -60,11 +71,12 @@ func UnmarshalStateCommitment(data []byte) (VersionedStateCommitment, error) {
 }
 
 func unmarshalStateCommitmentV0(data []byte) (*StateCommitmentV0, error) {
-	if len(data) != 64 {
+	if len(data) != V0BufSize {
 		return nil, ErrInvalidStateCommitment
 	}
 	var l2State StateCommitmentV0
 	// data[:32] is the version
-	copy(l2State.l2VmHash[:], data[32:64])
+	copy(l2State.l2BlockHash[:], data[V0BlockHashOffset:V0StateRootOffset])
+	copy(l2State.l2StateRoot[:], data[V0StateRootOffset:])
 	return &l2State, nil
 }

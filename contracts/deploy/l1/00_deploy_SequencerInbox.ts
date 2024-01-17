@@ -4,8 +4,10 @@ import { DeployFunction } from "hardhat-deploy/types";
 import { deployUUPSProxiedContract } from "../utils";
 
 const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
-  const { sequencer, deployer } = await hre.getNamedAccounts();
-  await deployUUPSProxiedContract(hre, deployer, "SequencerInbox", [sequencer]);
+  const { deployer } = await hre.getNamedAccounts();
+  const args = [process.env.SEQUENCER_ADDRESS];
+  console.log("Deploying SequencerInbox with args:", args);
+  await deployUUPSProxiedContract(hre, deployer, "SequencerInbox", args);
 };
 
 export default func;

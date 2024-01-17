@@ -22,11 +22,6 @@ func (e *ErrFailedPermanently) Unwrap() error {
 	return e.LastErr
 }
 
-type pair[T, U any] struct {
-	a T
-	b U
-}
-
 // Do performs the provided Operation up to maxAttempts times
 // with delays in between each retry according to the provided
 // Strategy.

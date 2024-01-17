@@ -27,6 +27,12 @@ if test -f "$ROLLUP_CFG_PATH"; then
   echo "Removing $ROLLUP_CFG_PATH"
   rm $ROLLUP_CFG_PATH
 fi
+DEPLOYMENTS_ENV=".deployments.env"
+if test -f "$DEPLOYMENTS_ENV"; then
+  echo "Removing $DEPLOYMENTS_ENV"
+  rm $DEPLOYMENTS_ENV
+fi
 
-echo "Removing deployment files in $CONTRACTS_DIR"
-rm -rf $CONTRACTS_DIR/deployments/*
+echo "Removing deployment files in $CONTRACTS_DIR/deployments/$L1_NETWORK"
+rm -rf $CONTRACTS_DIR/deployments/$L1_NETWORK
+rm -f .deployed

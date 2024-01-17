@@ -19,6 +19,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
+
 	"github.com/specularL2/specular/services/sidecar/proof/proof"
 )
 

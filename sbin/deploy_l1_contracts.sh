@@ -1,108 +1,98 @@
 #!/bin/bash
 
+WORKSPACE_DIR=$(pwd)
 # the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected paths dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
+reqdotenv "paths" ".paths.env"
+reqdotenv "genesis" ".genesis.env"
+reqdotenv "contracts" ".contracts.env"
 
-GENESIS_ENV=".genesis.env"
-if ! test -f "$GENESIS_ENV"; then
-  echo "Expected dotenv at $GENESIS_ENV (does not exist)."
-  exit
-fi
-echo "Using genesis dotenv: $GENESIS_ENV"
-. $GENESIS_ENV
-
-CONTRACTS_ENV=".contracts.env"
-if ! test -f "$CONTRACTS_ENV"; then
-  echo "Expected dotenv at $CONTRACTS_ENV (does not exist)."
-  exit
-fi
-echo "Using contracts dotenv: $CONTRACTS_ENV"
-. $CONTRACTS_ENV
+AUTO_ACCEPT=""
 
 # Parse args.
-optspec="ch"
+optspec="cy"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
+  y)
+    AUTO_ACCEPT="--yes"
+    ;;
   c)
-    echo "Cleaning..."
+    echo "Cleaning deployment..."
     $SBIN/clean_deployment.sh
     ;;
-  h)
-    echo "usage: $0 [-c][-h]"
-    echo "-c : clean before running"
-    exit
-    ;;
   *)
-    if [ "$OPTERR" != 1 ] || [ "${optspec:0:1}" = ":" ]; then
-      echo "Unknown option: '-${OPTARG}'"
-      exit 1
-    fi
+    echo "usage: $0 [-c][-s][-y][-h]"
+    echo "-c : clean before running"
+    echo "-s: generate and configure secrets"
+    echo "-y : auto accept prompts"
+    exit
     ;;
   esac
 done
 
+rm -f $WORKSPACE_DIR/.deployed
+
 echo "Using $CONTRACTS_DIR as HH proj"
 
-# Define a function to convert a path to be relative to another directory.
-relpath() {
-  echo $(python3 -c "import os.path; print(os.path.relpath('$1', '$2'))")
-}
-
-# Define a function that requests a user to confirm
-# that overwriting file ($1) is okay, if it exists.
-guard_overwrite() {
-  if test -f $1; then
-    read -r -p "Overwrite $1 with a new file? [y/N] " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      rm $1
-    else
-      exit
-    fi
-  fi
-}
-
 # Copy .contracts.env
-guard_overwrite $CONTRACTS_DIR/.env
-cp $CONTRACTS_ENV $CONTRACTS_DIR/.env
+guard_overwrite $CONTRACTS_DIR/.env $AUTO_ACCEPT
+cp .contracts.env $CONTRACTS_DIR/.env
 
-# Get relative paths, since we have to run `create_genesis.ts`
+# Get relative paths, since we have to run `create_genesis.sh`
 # and `create_config.ts` from the HH proj.
 BASE_ROLLUP_CFG_PATH=$(relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR)
 ROLLUP_CFG_PATH=$(relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR)
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
+GENESIS_CFG_PATH=$(relpath $GENESIS_CFG_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
-
-# Generate genesis file
-$SBIN/create_genesis.sh
+DEPLOYMENTS_CFG_PATH=$(relpath ".deployments.env" $CONTRACTS_DIR)
 
 # Deploy contracts
 cd $CONTRACTS_DIR
+# guard "Deploy contracts? [y/N]"
 echo "Deploying l1 contracts..."
 echo $GENESIS_EXPORTED_HASH_PATH
-npx hardhat deploy --network $L1_NETWORK
+npx $AUTO_ACCEPT hardhat deploy --network $L1_NETWORK
+
+echo "Generating deployments config..."
+guard_overwrite $DEPLOYMENTS_CFG_PATH $AUTO_ACCEPT
+npx ts-node scripts/config/create_deployments_config.ts \
+  --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \
+  --deployments-config-path $DEPLOYMENTS_CFG_PATH
+
+# Generate genesis file
+cd $WORKSPACE_DIR
+$SBIN/create_genesis.sh
 
 # Generate rollup config
+cd $CONTRACTS_DIR
 echo "Generating rollup config..."
 guard_overwrite $ROLLUP_CFG_PATH
-npx ts-node scripts/config/create_config.ts \
+npx $AUTO_ACCEPT ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
-  --genesis $GENESIS_PATH \
+  --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \
+  --deployments-config-path $DEPLOYMENTS_CFG_PATH \
+  --genesis-path $GENESIS_PATH \
+  --genesis-config-path $GENESIS_CFG_PATH \
   --genesis-hash-path $GENESIS_EXPORTED_HASH_PATH \
   --l1-network $L1_ENDPOINT
+
+# Add deployment addresses to contracts env file
+cat $DEPLOYMENTS_CFG_PATH >>$CONTRACTS_DIR/.env
+
+echo "Initializing Rollup contract genesis state..."
+npx hardhat run --network $L1_NETWORK scripts/config/set_rollup_genesis_state.ts
+
+# Signal that we're done.
+touch $WORKSPACE_DIR/.deployed
 
 echo "Done."

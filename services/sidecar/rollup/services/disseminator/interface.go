@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/beacon/engine"
 	ethTypes "github.com/ethereum/go-ethereum/core/types"
+
 	"github.com/specularL2/specular/services/sidecar/rollup/rpc/eth"
 	"github.com/specularL2/specular/services/sidecar/rollup/types"
 )
@@ -20,7 +21,7 @@ type BuildPayloadResponse = engine.ForkChoiceResponse
 type BatchBuilder interface {
 	Enqueue(block *ethTypes.Block) error
 	LastEnqueued() types.BlockID
-	Build(l1Head types.BlockID) ([]byte, error)
+	Build(l1Head types.BlockID, currentLag uint64) ([]byte, error)
 	Advance()
 	Reset(lastEnqueued types.BlockID)
 }
@@ -35,3 +36,5 @@ type L2Client interface {
 	BlockByNumber(ctx context.Context, number *big.Int) (*ethTypes.Block, error)
 	HeaderByTag(ctx context.Context, tag eth.BlockTag) (*ethTypes.Header, error)
 }
+
+type ErrGroup interface{ Go(f func() error) }

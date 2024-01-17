@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
+
 	spTypes "github.com/specularL2/specular/services/sidecar/rollup/types"
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
@@ -76,10 +77,13 @@ type RollupConfig struct {
 	L1ChainID *big.Int `json:"l1_chain_id"`
 	// Required to identify the L2 network and create p2p signatures unique for this chain.
 	L2ChainID *big.Int `json:"l2_chain_id"`
+
 	// Note: below addresses are part of the block-derivation process,
 	// and required to be the same network-wide to stay in consensus.
 	// L1 address that batches are sent to.
 	BatchInboxAddress common.Address `json:"batch_inbox_address"`
+	// L1 address of the rollup state contract.
+	RollupAddress common.Address `json:"rollup_address"`
 }
 
 type Genesis struct {
@@ -110,7 +114,7 @@ type systemConfig struct {
 	// More fields can be added for future SystemConfig versions.
 }
 
-// NewDeployConfig reads a config file given a path on the filesystem.
+// NewRollupConfig reads a config file given a path on the filesystem.
 func NewRollupConfig(path string) (*RollupConfig, error) {
 	file, err := os.ReadFile(path)
 	if err != nil {

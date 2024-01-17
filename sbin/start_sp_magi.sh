@@ -6,24 +6,13 @@ SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
+MAGI_WAIT=$WAIT_DIR/.sp_magi_started.lock
 
-# Check that all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-
-SP_MAGI_ENV=".sp_magi.env"
-if ! test -f "$SP_MAGI_ENV"; then
-  echo "Expected dotenv at $SP_MAGI_ENV (does not exist)."
-  exit
-fi
-echo "Using sp_magi dotenv: $SP_MAGI_ENV"
-. $SP_MAGI_ENV
+# Check that the all required dotenv files exists.
+reqdotenv "paths" ".paths.env"
+reqdotenv "sp_magi" ".sp_magi.env"
 
 # Set sync flags.
 SYNC_FLAGS=""
@@ -61,4 +50,6 @@ FLAGS="
 
 echo "starting sp-magi with the following flags:"
 echo "$FLAGS"
+echo "Setting wait for file"
+touch $MAGI_WAIT
 $SP_MAGI_BIN $FLAGS

@@ -36,7 +36,7 @@ const checks: Array<{
     check: (parts: string[]): boolean => {
       return (
         ["succeeds", "reverts", "fails", "benchmark", "works"].includes(
-          parts[parts.length - 1]
+          parts[parts.length - 1],
         ) ||
         (parts[parts.length - 2] === "benchmark" &&
           !isNaN(parseInt(parts[parts.length - 1], 10)))

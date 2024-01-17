@@ -5,8 +5,9 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/specularL2/specular/services/sidecar/utils"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/specularL2/specular/services/sidecar/utils"
 )
 
 // TODO: move to config
@@ -23,7 +24,7 @@ type EthSyncer struct {
 	eg                    errgroup.Group
 }
 
-type syncerEthClient interface {
+type SyncerEthClient interface {
 	HeaderByTag(ctx context.Context, tag BlockTag) (*types.Header, error)
 }
 
@@ -43,22 +44,26 @@ func NewEthSyncer(handler OnNewHandler) *EthSyncer {
 }
 
 // Starts a subscription in a separate goroutine for each commitment level.
-func (s *EthSyncer) Start(ctx context.Context, client syncerEthClient) {
+func (s *EthSyncer) Start(ctx context.Context, client SyncerEthClient) {
 	s.subscribeNewHead(ctx, client, Latest, s.LatestHeaderBroker, s.OnLatest, EthSlotInterval)
 	s.subscribeNewHead(ctx, client, Safe, s.SafeHeaderBroker, s.OnSafe, EthEpochInterval)
 	s.subscribeNewHead(ctx, client, Finalized, s.FinalizedHeaderBroker, s.OnFinalized, EthEpochInterval)
 }
 
-func (s *EthSyncer) Stop(ctx context.Context) {
+func (s *EthSyncer) Stop(ctx context.Context) error {
 	s.LatestHeaderBroker.Stop()
 	s.FinalizedHeaderBroker.Stop()
-	s.eg.Wait()
+	err := s.eg.Wait()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // Starts polling for new headers and publishes them to the broker.
 func (s *EthSyncer) subscribeNewHead(
 	ctx context.Context,
-	client syncerEthClient,
+	client SyncerEthClient,
 	tag BlockTag,
 	broker *utils.Broker[*types.Header],
 	fn func(context.Context, *types.Header) error,

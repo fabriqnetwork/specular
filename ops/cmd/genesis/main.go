@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
@@ -54,10 +56,24 @@ var Flags = []cli.Flag{
 		Name:  "l1-block",
 		Usage: "L1 block number",
 	},
+	&cli.StringFlag{
+		Name:  "l1-portal-address",
+		Usage: "deployed L1Portal contract address",
+	},
+	&cli.StringFlag{
+		Name:  "l1-standard-bridge-address",
+		Usage: "deployed L1StandardBridge contract address",
+	},
+	// TODO: provide a better interface for this.
+	&cli.StringFlag{
+		Name:  "alloc",
+		Usage: "Comma-separated list of addresses to allocate a balance to",
+	},
 }
 
 type exportedHash struct {
-	Hash common.Hash `json:"hash"`
+	BlockHash common.Hash `json:"hash"`
+	StateRoot common.Hash `json:"stateRoot"`
 }
 
 func GenerateSpecularGenesis(ctx *cli.Context) error {
@@ -85,6 +101,25 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if ctx.IsSet("l1-portal-address") {
+		config.L1PortalAddress = common.HexToAddress(ctx.String("l1-portal-address"))
+	}
+	if config.L1PortalAddress == (common.Address{}) {
+		return fmt.Errorf("L1Portal address not set")
+	}
+	if ctx.IsSet("l1-standard-bridge-address") {
+		config.L1StandardBridgeAddress = common.HexToAddress(ctx.String("l1-standard-bridge-address"))
+	}
+	if config.L1StandardBridgeAddress == (common.Address{}) {
+		return fmt.Errorf("L1StandardBridge address not set")
+	}
+	if ctx.IsSet("alloc") {
+		addresses := strings.Split(ctx.String("alloc"), ",")
+		balance := big.NewInt(0).Mul(big.NewInt(1000000000000000000), big.NewInt(100000))
+		for _, addr := range addresses {
+			config.Alloc[common.HexToAddress(addr)] = core.GenesisAccount{Balance: balance}
+		}
+	}
 
 	l2Genesis, err := genesis.BuildL2Genesis(ctx.Context, config, l1StartBlock)
 	if err != nil {
@@ -95,8 +130,10 @@ func GenerateSpecularGenesis(ctx *cli.Context) error {
 	}
 
 	if ctx.IsSet("export-hash") {
-		hash := l2Genesis.ToBlock().Hash()
-		if err := writeGenesisFile(ctx.String("export-hash"), exportedHash{hash}); err != nil {
+		blockHash := l2Genesis.ToBlock().Hash()
+		stateRoot := l2Genesis.ToBlock().Root()
+
+		if err := writeGenesisFile(ctx.String("export-hash"), exportedHash{blockHash, stateRoot}); err != nil {
 			return err
 		}
 	}

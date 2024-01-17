@@ -120,12 +120,7 @@ contract L2Portal is
      * @param _gasLimit Minimum gas limit for executing the message on L1.
      * @param _data     Data to forward to L1 target.
      */
-    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data)
-        public
-        payable
-        onlyProxy
-        whenNotPaused
-    {
+    function initiateWithdrawal(address _target, uint256 _gasLimit, bytes memory _data) public payable whenNotPaused {
         bytes32 withdrawalHash = Hashing.hashCrossDomainMessage(
             Types.CrossDomainMessage({
                 version: 0,
@@ -148,10 +143,12 @@ contract L2Portal is
 
     // @inheritdoc IL2Portal
     function finalizeDepositTransaction(
+        uint256 l1BlockNumber,
         Types.CrossDomainMessage memory depositTx,
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
-    ) external onlyProxy whenNotPaused {
+    ) external whenNotPaused {
+        // TODO: re-add `onlyProxy`
         // Prevent nested deposits within deposits.
         require(l1Sender == DEFAULT_L1_SENDER, "L2Portal: can only trigger one deposit per transaction");
 
@@ -168,7 +165,7 @@ contract L2Portal is
         // Check that this deposit has not already been finalized, this is replay protection.
         require(finalizedDeposits[depositHash] == false, "L2Portal: deposit has already been finalized");
 
-        bytes32 stateRoot = L1Oracle(Predeploys.L1_ORACLE).stateRoot();
+        bytes32 stateRoot = L1Oracle(Predeploys.L1_ORACLE).stateRoots(uint8(l1BlockNumber % 256));
 
         // Verify the account proof.
         bytes32 storageRoot = _verifyAccountInclusion(l1PortalAddress, stateRoot, depositAccountProof);

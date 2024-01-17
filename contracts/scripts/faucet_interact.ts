@@ -7,17 +7,17 @@ dotenv.config({ path: __dirname + "/../.env" });
 const main = async () => {
   const contractAddress = "0x0000000000000000000000000000000000000020";
   const provider = new ethers.providers.JsonRpcProvider(
-    "http://localhost:4011"
+    "http://localhost:4011",
   );
 
   const signer = new ethers.Wallet(
     `0x${process.env.SEQUENCER_PRIVATE_KEY}`,
-    provider
+    provider,
   );
   const contract = new ethers.Contract(
     contractAddress,
     TinyFaucet.abi,
-    provider
+    provider,
   );
   const gasPrice = await provider.getGasPrice();
 

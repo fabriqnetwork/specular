@@ -14,6 +14,14 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/
  */
 contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, PausableUpgradeable {
     /**
+     * @notice The L1 stateRoots known by the L2 system.
+     * @dev The key is the block number mod 256. It is *not* a one-to-one mapping.
+     *      Therefore, state roots saved here is only guaranteed to be correct, but not
+     *      necessarily binded to a specific block number.
+     */
+    mapping(uint8 => bytes32) public stateRoots;
+
+    /**
      * @notice The latest L1 block number known by the L2 system.
      */
     uint256 public number;
@@ -34,9 +42,14 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
     bytes32 public hash;
 
     /**
-     * @notice The latest L1 stateRoot known by the L2 system.
+     * @notice The overhead value applied to the L1 portion of the transaction fee.
      */
-    bytes32 public stateRoot;
+    uint256 public l1FeeOverhead;
+
+    /**
+     * @notice The scalar value applied to the L1 portion of the transaction fee.
+     */
+    uint256 public l1FeeScalar;
 
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
@@ -63,6 +76,13 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
     function _authorizeUpgrade(address) internal override onlyOwner whenPaused {}
 
     /**
+     * @notice The latest L1 stateRoot known by the L2 system.
+     */
+    function stateRoot() public view returns (bytes32) {
+        return stateRoots[uint8(number % 256)];
+    }
+
+    /**
      * @notice Updates the L1 block values.
      *
      * @param _number L1 block number.
@@ -71,17 +91,23 @@ contract L1Oracle is Initializable, UUPSUpgradeable, OwnableUpgradeable, Pausabl
      * @param _hash L1 block hash.
      * @param _stateRoot L1 stateRoot.
      */
-    function setL1OracleValues(uint256 _number, uint256 _timestamp, uint256 _baseFee, bytes32 _hash, bytes32 _stateRoot)
-        external
-        onlyCoinbase
-        whenNotPaused
-    {
+    function setL1OracleValues(
+        uint256 _number,
+        uint256 _timestamp,
+        uint256 _baseFee,
+        bytes32 _hash,
+        bytes32 _stateRoot,
+        uint256 _l1FeeOverhead,
+        uint256 _l1FeeScalar
+    ) external onlyCoinbase whenNotPaused {
         require(number < _number, "Block number must be greater than the current block number.");
         number = _number;
         timestamp = _timestamp;
         baseFee = _baseFee;
         hash = _hash;
-        stateRoot = _stateRoot;
+        l1FeeOverhead = _l1FeeOverhead;
+        l1FeeScalar = _l1FeeScalar;
+        stateRoots[uint8(number % 256)] = _stateRoot;
     }
 
     /**

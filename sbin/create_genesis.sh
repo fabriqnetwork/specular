@@ -1,76 +1,56 @@
 #!/bin/bash
-
-# TODO: can we get rid of this somehow?
-# currently the local sbin paths are relative to the project root
+# Currently the local sbin paths are relative to the project root.
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
   cd "$SBIN"
   pwd
 )"
+. $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-PATHS_ENV=".paths.env"
-if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
-  exit
-fi
-echo "Using paths dotenv: $PATHS_ENV"
-. $PATHS_ENV
-
-GENESIS_ENV=".genesis.env"
-if ! test -f "$GENESIS_ENV"; then
-  echo "Expected dotenv at $GENESIS_ENV (does not exist)."
-  exit
-fi
-echo "Using dotenv: $GENESIS_ENV"
-. $GENESIS_ENV
+reqdotenv "paths" ".paths.env"
+reqdotenv "genesis" ".genesis.env"
+reqdotenv "contracts" ".contracts.env"
+reqdotenv "deployments" ".deployments.env"
 
 echo "Using $OPS_DIR as ops directory."
-
-# Define a function to convert a path to be relative to another directory.
-relpath() {
-  echo $(python3 -c "import os.path; print(os.path.relpath('$1', '$2'))")
-}
-
-# Define a function that requests a user to confirm
-# that overwriting file ($1) is okay, if it exists.
-guard_overwrite() {
-  if test -f $1; then
-    read -r -p "Overwrite $1 with a new file? [y/N] " response
-    if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
-      rm $1
-    else
-      exit
-    fi
-  fi
-}
-
 # Get relative paths for $OPS_DIR
 GENESIS_CFG_PATH=$(relpath $GENESIS_CFG_PATH $OPS_DIR)
 GENESIS_PATH=$(relpath $GENESIS_PATH $OPS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $OPS_DIR)
 echo "Generating new genesis file at $GENESIS_PATH and exporting hash to $GENESIS_EXPORTED_HASH_PATH"
 cd $OPS_DIR
-guard_overwrite $GENESIS_PATH
+guard_overwrite $GENESIS_PATH $AUTO_ACCEPT
 # Create genesis.json file.
-CMD="""
-go run ./cmd/genesis/main.go \
-    --genesis-config $GENESIS_CFG_PATH \
-    --out $GENESIS_PATH \
-    --l1-rpc-url $L1_ENDPOINT \
-    --export-hash $GENESIS_EXPORTED_HASH_PATH
-"""
-echo "Running $CMD"
-exec $CMD
+FLAGS=(
+  "--genesis-config $GENESIS_CFG_PATH"
+  "--out $GENESIS_PATH"
+  "--l1-rpc-url $L1_ENDPOINT"
+  "--export-hash $GENESIS_EXPORTED_HASH_PATH"
+  "--l1-portal-address $L1PORTAL_ADDR"
+  "--l1-standard-bridge-address $L1STANDARD_BRIDGE_ADDR"
+  "--alloc $SEQUENCER_ADDRESS,$VALIDATOR_ADDRESS,$DEPLOYER_ADDRESS"
+)
 
-# Initialize a reference to the genesis file at
+# hoop: I don't have the patience rn to determine why this isn't being sourced
+if [[ -z ${OPS_GENESIS_BIN+x} ]]; then
+  CMD="/usr/local/bin/genesis ${FLAGS[@]}"
+else
+  CMD="$OPS_GENESIS_BIN ${FLAGS[@]}"
+fi
+
+echo "Running $CMD"
+eval $CMD
+
+# Initialize a reference to the config files at
 # "contracts/.genesis" (using relative paths as appropriate).
-CONTRACTS_ENV=$CONTRACTS_DIR/$ENV
-guard_overwrite $CONTRACTS_ENV
+CONTRACTS_ENV=$CONTRACTS_DIR/.genesis.env
+guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
 # Write file, using relative paths.
-echo "Initializing $CONTRACTS_ENV"
+echo "Initializing contracts genesis dotenv $CONTRACTS_ENV"
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
+BASE_ROLLUP_CFG_PATH=$(relpath $BASE_ROLLUP_CFG_PATH $CONTRACTS_DIR)
 echo GENESIS_PATH=$GENESIS_PATH >>$CONTRACTS_ENV
 echo GENESIS_EXPORTED_HASH_PATH=$GENESIS_EXPORTED_HASH_PATH >>$CONTRACTS_ENV
