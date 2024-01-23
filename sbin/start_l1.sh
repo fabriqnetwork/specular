@@ -6,11 +6,20 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-L1_WAITFILE=$WAIT_DIR/.l1_started.lock
+
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
+
+# Generate waitfile for service init (docker/k8)
+WAITFILE="/tmp/.${0##*/}.lock"
+
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+fi
+
+echo "Using dir $WAIT_DIR for $WAITFILE"
 
 AUTO_ACCEPT=false
 AUTO_APPROVE=""
@@ -70,11 +79,11 @@ function cleanup() {
     kill $pid
   done
 
-  # Remove L1_WAITFILE
+  # Remove WAITFILE
   if [ "$L1_WAIT" = "true" ]; then
-    if test -f $L1_WAITFILE; then
+    if test -f $WAITFILE; then
       echo "Removing wait file for docker..."
-      rm $L1_WAITFILE
+      rm $WAITFILE
     fi
   fi
 
@@ -150,8 +159,8 @@ fi
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
   if [ "$L1_WAIT" = "true" ]; then
-    echo "Creating wait file for docker at $L1_WAITFILE..."
-    touch $L1_WAITFILE
+    echo "Creating wait file for docker at $WAITFILE..."
+    touch $WAITFILE
   fi
   echo "L1 started... (Use ctrl-c to stop)"
   tail -f $LOG_FILE

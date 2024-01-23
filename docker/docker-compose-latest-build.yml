@@ -15,7 +15,7 @@ services:
     image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
     tty: true
     healthcheck:
-      test: bash -c "[ -f /tmp/.l1_started.lock ]"
+      test: bash -c "[ -f /tmp/.l1_started.sh.lock ]"
       retries: 10
       interval: 5s
       start_period: 40s
@@ -43,7 +43,7 @@ services:
       l1-geth:
         condition: service_healthy
     healthcheck:
-      test: bash -c "[ -f /tmp/.sp_geth_started.lock ]"
+      test: bash -c "[ -f /tmp/.start_sp_geth.sh.lock ]"
       retries: 10
       interval: 5s
       start_period: 40s
@@ -67,7 +67,7 @@ services:
       sp-geth:
         condition: service_healthy
     healthcheck:
-      test: bash -c "[ -f /tmp/.sp_magi_started.lock ]"
+      test: bash -c "[ -f /tmp/.sp_magi_started.sh.lock ]"
       retries: 10
       interval: 5s
       start_period: 20s
