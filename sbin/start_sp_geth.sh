@@ -9,6 +9,12 @@ SBIN="$(
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
+WAITFILE="/tmp/.${0##*/}.lock"
+
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+fi
+
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_geth" ".sp_geth.env"
