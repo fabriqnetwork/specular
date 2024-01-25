@@ -153,6 +153,7 @@ contract Rollup is RollupBase {
     }
 
     function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+        // verify we have values set to allow contract to unpause
         if (verifier == address(0) || daProvider == address(0) || vault == address(0)) {
             revert ZeroAddress();
         }
