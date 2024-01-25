@@ -19,10 +19,15 @@ if test -f $WAITFILE; then
   echo "Removed $WAITFILE"
 fi
 
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "genesis" ".genesis.env"
-reqdotenv "contracts" ".contracts.env"
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+GENESIS_ENV=$WORKSPACE_DIR/.genesis.env
+CONTRACTS_ENV=$WORKSPACE_DIR/.contracts.env
+
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "genesis" $GENESIS_ENV
+reqdotenv "contracts" $CONTRACTS_ENV
 
 # Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
@@ -116,51 +121,28 @@ function ctrl_c() {
 
 # Start L1 network.
 echo "Starting L1..."
+spc up l1geth &
 
-if [ "$L1_STACK" = "geth" ]; then
-  $L1_GETH_BIN \
-    --dev \
-    --dev.period $L1_PERIOD \
-    --verbosity 0 \
-    --http \
-    --http.api eth,web3,net \
-    --http.addr 0.0.0.0 \
-    --ws \
-    --ws.api eth,net,web3 \
-    --ws.addr 0.0.0.0 \
-    --ws.port $L1_PORT &>$LOG_FILE &
+# Wait for 1 block
+echo "Waiting for chain progression..."
+sleep $L1_PERIOD
 
-  # Wait for 1 block
-  echo "Waiting for chain progression..."
-  sleep $L1_PERIOD
+L1_PID=$!
+echo "L1 PID: $L1_PID"
 
-  L1_PID=$!
-  echo "L1 PID: $L1_PID"
-
-  echo "Funding addresses..."
-  # Add addresses from .contracts.env
-  addresses_to_fund=($SEQUENCER_ADDRESS $VALIDATOR_ADDRESS $DEPLOYER_ADDRESS)
-  # Add addresses from $GENESIS_CFG_PATH
-  addresses_to_fund+=($(python3 -c "import json; print(' '.join(json.load(open('$GENESIS_CFG_PATH'))['alloc']))"))
-  # TODO: consider using cast (more general)
-  for address in "${addresses_to_fund[@]}"; do
-    mycall="eth.sendTransaction({ from: eth.coinbase, to: '"$address"', value: web3.toWei(10000, 'ether') })"
-    $L1_GETH_BIN attach --exec "$mycall" $L1_ENDPOINT
-  done
-  # Wait for 1 block
-  echo "Waiting for chain progression..."
-  sleep $L1_PERIOD
-elif [ "$L1_STACK" = "hardhat" ]; then
-  echo "Using $CONTRACTS_DIR as HH proj"
-  cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &>$LOG_FILE &
-  L1_PID=$!
-  PIDS+=($L1_PID)
-  echo "L1 PID: $L1_PID"
-  sleep 3
-else
-  echo "invalid value for L1_STACK: $L1_STACK"
-  exit 1
-fi
+echo "Funding addresses..."
+# Add addresses from .contracts.env
+addresses_to_fund=($SEQUENCER_ADDRESS $VALIDATOR_ADDRESS $DEPLOYER_ADDRESS)
+# Add addresses from $GENESIS_CFG_PATH
+addresses_to_fund+=($(python3 -c "import json; print(' '.join(json.load(open('$GENESIS_CFG_PATH'))['alloc']))"))
+# TODO: consider using cast (more general)
+for address in "${addresses_to_fund[@]}"; do
+  mycall="eth.sendTransaction({ from: eth.coinbase, to: '"$address"', value: web3.toWei(10000, 'ether') })"
+  $L1_GETH_BIN attach --exec "$mycall" $L1_ENDPOINT
+done
+# Wait for 1 block
+echo "Waiting for chain progression..."
+sleep $L1_PERIOD
 
 # Optionally deploy the contracts
 if [ "$L1_DEPLOY" = "true" ]; then

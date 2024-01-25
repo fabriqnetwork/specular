@@ -37,9 +37,15 @@ SBIN="$(
 . $SBIN/utils/crypto.sh
 ROOT_DIR=$SBIN/..
 
-reqdotenv "sp_magi" ".sp_magi.env"
-reqdotenv "sidecar" ".sidecar.env"
-reqdotenv "paths" ".paths.env"
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+SP_MAGI_ENV=$WORKSPACE_DIR/.sp_magi.env
+SIDECAR_ENV=$WORKSPACE_DIR/.sidecar.env
+
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "sp_magi" $SP_MAGI_ENV
+reqdotenv "sidecar" $SIDECAR_ENV
 
 # Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
@@ -55,7 +61,7 @@ if [ "$WAIT" = "true" ]; then
   fi
 fi
 
-CONTRACTS_ENV=".contracts.env"
+CONTRACTS_ENV=$WORKSPACE_DIR/.contracts.env
 guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
 
 # Generate accounts
@@ -76,7 +82,7 @@ echo "Wrote addresses to $CONTRACTS_ENV"
 
 # Generate deployer account
 if [ "$GEN_DEPLOYER" = "true" ]; then
-  deployer_pk_path=deployer_pk.txt
+  deployer_pk_path=$WORKSPACE_DIR/deployer_pk.txt
   DEPLOYER_ADDRESS=$(generate_wallet $deployer_pk_path)
   echo "Generated account (address=$DEPLOYER_ADDRESS, priv_key_path=$deployer_pk_path)"
   echo "DEPLOYER_ADDRESS=$DEPLOYER_ADDRESS" >>$CONTRACTS_ENV

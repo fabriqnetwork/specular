@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-WORKSPACE_DIR=$(pwd)
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
 # the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
@@ -12,9 +13,13 @@ SBIN="$(
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "genesis" ".genesis.env"
-reqdotenv "contracts" ".contracts.env"
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+GENESIS_ENV=$WORKSPACE_DIR/.genesis.env
+CONTRACTS_ENV=$WORKSPACE_DIR/.contracts.env
+
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "genesis" $GENESIS_ENV
+reqdotenv "contracts" $CONTRACTS_ENV
 
 AUTO_ACCEPT=""
 
@@ -53,7 +58,7 @@ echo "Using $CONTRACTS_DIR as HH proj"
 
 # Copy .contracts.env
 guard_overwrite $CONTRACTS_DIR/.env $AUTO_ACCEPT
-cp .contracts.env $CONTRACTS_DIR/.env
+cp $CONTRACTS_ENV $CONTRACTS_DIR/.env
 
 # Get relative paths, since we have to run `create_genesis.sh`
 # and `create_config.ts` from the HH proj.
@@ -62,7 +67,9 @@ ROLLUP_CFG_PATH=$(relpath $ROLLUP_CFG_PATH $CONTRACTS_DIR)
 GENESIS_PATH=$(relpath $GENESIS_PATH $CONTRACTS_DIR)
 GENESIS_CFG_PATH=$(relpath $GENESIS_CFG_PATH $CONTRACTS_DIR)
 GENESIS_EXPORTED_HASH_PATH=$(relpath $GENESIS_EXPORTED_HASH_PATH $CONTRACTS_DIR)
-DEPLOYMENTS_CFG_PATH=$(relpath ".deployments.env" $CONTRACTS_DIR)
+DEPLOYMENTS_CFG_PATH=$(relpath "$WORKSPACE_DIR/.deployments.env" $CONTRACTS_DIR)
+
+echo $DEPLOYMENTS_CFG_PATH
 
 # Deploy contracts
 cd $CONTRACTS_DIR
