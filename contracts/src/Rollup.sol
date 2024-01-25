@@ -122,13 +122,9 @@ contract Rollup is RollupBase {
     mapping(address => uint256) public withdrawableFunds; // mapping from addresses to withdrawable funds (won in challenge)
     Zombie[] public zombies; // stores stakers that lost a challenge
 
-    function initialize(Config calldata _config) public initializer {
-        if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
-            revert ZeroAddress();
-        }
+    function initialize() public initializer {
         __RollupBase_init();
 
-        vault = _config.vault;
         daProvider = IDAProvider(_config.daProvider);
         verifier = IVerifier(_config.verifier);
 
@@ -286,11 +282,29 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
+    function setVault(address newVault) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (newVault == address(0)) {
+            revert ZeroAddress();
+        }
+        vault = newVault;
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
     function setDAProvider(address newDAProvider) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (lastCreatedAssertionID > lastResolvedAssertionID) {
             revert InvalidConfigChange();
         }
         daProvider = IDAProvider(newDAProvider);
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
+    function setVerifier(address newVerifier) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (newVerifier == address(0)) {
+            revert ZeroAddress();
+        }
+        verifier = IVerifier(newVerifier);
         emit ConfigChanged();
     }
 
