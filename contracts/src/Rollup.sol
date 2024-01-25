@@ -124,19 +124,6 @@ contract Rollup is RollupBase {
 
     function initialize() public initializer {
         __RollupBase_init();
-
-        daProvider = IDAProvider(_config.daProvider);
-        verifier = IVerifier(_config.verifier);
-
-        confirmationPeriod = _config.confirmationPeriod;
-        challengePeriod = _config.challengePeriod;
-        minimumAssertionPeriod = _config.minimumAssertionPeriod;
-        baseStakeAmount = _config.baseStakeAmount;
-
-        // Initialize role based access control
-        for (uint256 i = 0; i < _config.validators.length; i++) {
-            grantRole(VALIDATOR_ROLE, _config.validators[i]);
-        }
     }
 
     function initializeGenesis(InitialRollupState calldata _initialRollupState) external onlyRole(DEFAULT_ADMIN_ROLE) {
