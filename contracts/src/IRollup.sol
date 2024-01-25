@@ -188,6 +188,15 @@ interface IRollup {
     // *** Configuration ***
 
     /**
+     * @notice Sets a new vault address
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newVault New vault address
+     */
+    function setVault(address newVault) external;
+
+    /**
      * @notice Sets a new DA provider
      *
      * Emits: `ConfigChanged` event.
@@ -195,6 +204,15 @@ interface IRollup {
      * @param newDAProvider New DA provider
      */
     function setDAProvider(address newDAProvider) external;
+
+    /**
+     * @notice Sets a new Verifier
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param newVerifier New Verifier
+     */
+    function setVerifier(address newVerifier) external;
 
     /**
      * @notice Sets a new confirmation period
