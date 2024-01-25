@@ -57,7 +57,7 @@ if [ ! -d $DATA_DIR ]; then
   echo "Initializing sp-geth with genesis json at $GENESIS_PATH"
   if [ ! -f $GENESIS_PATH ]; then
     echo "Missing genesis json at $GENESIS_PATH"
-    exit
+    exit 1
   fi
   $SP_GETH_BIN --datadir $DATA_DIR --networkid $NETWORK_ID init $GENESIS_PATH
 fi
