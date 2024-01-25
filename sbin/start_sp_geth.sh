@@ -10,16 +10,19 @@ SBIN="$(
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "sp_geth" ".sp_geth.env"
-
-# Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
 
 if [[ ! -z ${WAIT_DIR+x} ]]; then
   WAITFILE=$WAIT_DIR/.${0##*/}.lock
 fi
+
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+SP_GETH_ENV=$WORKSPACE_DIR/.sp_geth.env
+
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "sp_geth" $SP_GETH_ENV
 
 # Parse args.
 optspec="chw"
@@ -54,53 +57,4 @@ if [ "$WAIT" = "true" ]; then
   fi
 fi
 
-if [ ! -d $DATA_DIR ]; then
-  echo "Initializing sp-geth with genesis json at $GENESIS_PATH"
-  if [ ! -f $GENESIS_PATH ]; then
-    echo "Missing genesis json at $GENESIS_PATH"
-    exit 1
-  fi
-  $SP_GETH_BIN --datadir $DATA_DIR --networkid $NETWORK_ID init $GENESIS_PATH
-fi
-
-# Start sp-geth.
-FLAGS="
-    --datadir $DATA_DIR \
-    --networkid $NETWORK_ID \
-    --http \
-    --http.addr $ADDRESS \
-    --http.port $HTTP_PORT \
-    --http.api engine,personal,eth,net,web3,txpool,miner,debug \
-    --http.corsdomain=* \
-    --http.vhosts=* \
-    --ws \
-    --ws.addr $ADDRESS \
-    --ws.port $WS_PORT \
-    --ws.api engine,personal,eth,net,web3,txpool,miner,debug \
-    --ws.origins=* \
-    --authrpc.vhosts=* \
-    --authrpc.addr $ADDRESS \
-    --authrpc.port $AUTH_PORT \
-    --authrpc.jwtsecret $JWT_SECRET_PATH \
-    --miner.recommit 0 \
-    --nodiscover \
-    --maxpeers 0 \
-    --syncmode full
-"
-
-echo "Starting sp-geth with the following aruments:"
-echo $FLAGS
-
-$SP_GETH_BIN $FLAGS &
-
-PID=$!
-echo "PID: $PID"
-
-sleep 15
-
-if [ "$WAIT" = "true" ]; then
-  echo "Creating wait file for docker at $WAITFILE..."
-  touch $WAITFILE
-fi
-
-wait $PID
+spc up spgeth
