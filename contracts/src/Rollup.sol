@@ -48,17 +48,6 @@ abstract contract RollupData {
         uint256 lastAssertionID;
     }
 
-    struct Config {
-        address vault;
-        address daProvider;
-        address verifier;
-        uint256 confirmationPeriod;
-        uint256 challengePeriod;
-        uint256 minimumAssertionPeriod;
-        uint256 baseStakeAmount;
-        address[] validators;
-    }
-
     struct InitialRollupState {
         uint256 assertionID;
         uint256 l2BlockNum;
@@ -124,6 +113,12 @@ contract Rollup is RollupBase {
 
     function initialize() public initializer {
         __RollupBase_init();
+        // set values to 0, makes sure unpause checks work correctly
+        verifier = address(0);
+        daProvider = address(0);
+        vault = address(0);
+        // initialize in a paused state to prevent core interactions until necessary values are set
+        pause();
     }
 
     function initializeGenesis(InitialRollupState calldata _initialRollupState) external onlyRole(DEFAULT_ADMIN_ROLE) {
@@ -158,6 +153,9 @@ contract Rollup is RollupBase {
     }
 
     function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (verifier == address(0) || daProvider == address(0) || vault == address(0)) {
+            revert ZeroAddress();
+        }
         _unpause();
     }
 
