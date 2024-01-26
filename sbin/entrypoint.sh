@@ -3,11 +3,11 @@ set -ex
 cd /specular/workspace
 
 # remove all locks since this need to run first
-LOCKFILES=`ls .*.lock 2> /dev/null | wc -l`
-if [[ $LOCKFILES -gt 0 ]]; then
-    echo "Removing lockfiles"
-    rm .*.lock
-fi
+# LOCKFILES=`ls .*.lock 2> /dev/null | wc -l`
+# if [[ $LOCKFILES -gt 0 ]]; then
+#     echo "Removing lockfiles"
+#     rm .*.lock
+# fi
 
 
 echo "Setting environment variables"

@@ -14,7 +14,6 @@ ROOT_DIR=$SBIN/..
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_geth" ".sp_geth.env"
 
-printenv
 # Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
 
@@ -92,9 +91,16 @@ FLAGS="
 echo "Starting sp-geth with the following aruments:"
 echo $FLAGS
 
+$SP_GETH_BIN $FLAGS &
+
+PID=$!
+echo "PID: $PID"
+
+sleep 15
+
 if [ "$WAIT" = "true" ]; then
   echo "Creating wait file for docker at $WAITFILE..."
   touch $WAITFILE
 fi
 
-$SP_GETH_BIN $FLAGS
+wait $PID

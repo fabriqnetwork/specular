@@ -16,7 +16,6 @@ services:
     tty: true
     healthcheck:
       test: bash -c "[ -f /tmp/.l1_started.sh.lock ]"
-      test: bash -c "[ -f /tmp/.l1_started.sh.lock ]"
       retries: 10
       interval: 5s
       start_period: 40s

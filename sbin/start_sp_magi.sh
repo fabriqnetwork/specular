@@ -58,9 +58,12 @@ FLAGS="
 echo "starting sp-magi with the following flags:"
 echo "$FLAGS"
 
-if [ "$WAIT" = "true" ]; then
-  echo "Creating wait file for docker at $WAITFILE..."
-  touch $WAITFILE
-fi
+$SP_MAGI_BIN $FLAGS &
 
-$SP_MAGI_BIN $FLAGS
+PID=$!
+echo "PID: $PID"
+
+echo "Creating wait file for docker at $WAITFILE..."
+touch $WAITFILE
+
+wait $PID
