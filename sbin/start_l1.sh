@@ -47,7 +47,7 @@ while getopts "$optspec" optchar; do
     L1_DEPLOY=true
     ;;
   w)
-    L1_WAIT=true
+    WAIT=true
     ;;
   s)
     SILENT=true
@@ -92,7 +92,7 @@ function cleanup() {
   done
 
   # Remove WAITFILE
-  if [ "$L1_WAIT" = "true" ]; then
+  if [ "$WAIT" = "true" ]; then
     if test -f $WAITFILE; then
       echo "Removing wait file for docker..."
       rm $WAITFILE
@@ -170,7 +170,7 @@ fi
 
 # Follow output
 if [ ! "$SILENT" = "true" ]; then
-  if [ "$L1_WAIT" = "true" ]; then
+  if [ "$WAIT" = "true" ]; then
     echo "Creating wait file for docker at $WAITFILE..."
     touch $WAITFILE
   fi

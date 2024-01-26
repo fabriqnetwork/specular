@@ -14,6 +14,7 @@ ROOT_DIR=$SBIN/..
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_geth" ".sp_geth.env"
 
+printenv
 # Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
 
@@ -26,8 +27,7 @@ optspec="chw"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   w)
-    echo "Creating wait file for docker"
-    # touch $WAITFILE
+    WAIT=true
     ;;
   c)
     echo "Cleaning..."
@@ -47,6 +47,13 @@ while getopts "$optspec" optchar; do
     ;;
   esac
 done
+
+if [ "$WAIT" = "true" ]; then
+  if test -f $WAITFILE; then
+    echo "Removing wait file for docker..."
+    rm $WAITFILE
+  fi
+fi
 
 if [ ! -d $DATA_DIR ]; then
   echo "Initializing sp-geth with genesis json at $GENESIS_PATH"
@@ -85,9 +92,9 @@ FLAGS="
 echo "Starting sp-geth with the following aruments:"
 echo $FLAGS
 
-# Remove WAITFILEFILE
-# if [ "$WAITFILE" = "true" ]; then
-  # echo "Removing wait file for docker..."
-  # rm $WAITFILEFILE
-# fi
+if [ "$WAIT" = "true" ]; then
+  echo "Creating wait file for docker at $WAITFILE..."
+  touch $WAITFILE
+fi
+
 $SP_GETH_BIN $FLAGS

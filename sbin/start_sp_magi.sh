@@ -10,22 +10,16 @@ SBIN="$(
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
-WAITFILE="/tmp/.${0##*/}.lock"
-
-if [[ ! -z ${WAIT_DIR+x} ]]; then
-  WAITFILE=$WAIT_DIR/.${0##*/}.lock
-fi
-
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_magi" ".sp_magi.env"
 
 # Generate waitfile for service init (docker/k8)
-# WAITFILE="/tmp/.${0##*/}.lock"
+WAITFILE="/tmp/.${0##*/}.lock"
 
-# if [[ ! -z ${WAIT_DIR+x} ]]; then
-#   WAITFILE=$WAIT_DIR/.${0##*/}.lock
-# fi
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+fi
 
 # Set sync flags.
 SYNC_FLAGS=""
@@ -63,6 +57,10 @@ FLAGS="
 
 echo "starting sp-magi with the following flags:"
 echo "$FLAGS"
-# echo "Setting wait for file"
-# touch $WAITFILE
+
+if [ "$WAIT" = "true" ]; then
+  echo "Creating wait file for docker at $WAITFILE..."
+  touch $WAITFILE
+fi
+
 $SP_MAGI_BIN $FLAGS
