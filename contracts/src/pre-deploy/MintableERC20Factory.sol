@@ -6,7 +6,7 @@
 
 pragma solidity ^0.8.4;
 
-import {MintableERC20} from "./MintableERC20.sol";
+import {MintableERC20} from "../bridge/mintable/MintableERC20.sol";
 
 /// @title MintableERC20Factory
 /// @notice MintableERC20Factory is a factory contract that generates MintableERC20
