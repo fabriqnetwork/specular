@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # currently the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
@@ -8,12 +9,6 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-
-WAITFILE="/tmp/.${0##*/}.lock"
-
-if [[ ! -z ${WAIT_DIR+x} ]]; then
-  WAITFILE=$WAIT_DIR/.${0##*/}.lock
-fi
 
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
@@ -32,7 +27,7 @@ while getopts "$optspec" optchar; do
   case "${optchar}" in
   w)
     echo "Creating wait file for docker"
-    touch $WAITFILE
+    # touch $WAITFILE
     ;;
   c)
     echo "Cleaning..."
@@ -91,8 +86,8 @@ echo "Starting sp-geth with the following aruments:"
 echo $FLAGS
 
 # Remove WAITFILEFILE
-if [ "$WAITFILE" = "true" ]; then
-  echo "Removing wait file for docker..."
-  rm $WAITFILEFILE
-fi
+# if [ "$WAITFILE" = "true" ]; then
+  # echo "Removing wait file for docker..."
+  # rm $WAITFILEFILE
+# fi
 $SP_GETH_BIN $FLAGS
