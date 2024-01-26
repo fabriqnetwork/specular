@@ -90,7 +90,7 @@ npx $AUTO_ACCEPT ts-node scripts/config/create_config.ts \
 cat $DEPLOYMENTS_CFG_PATH >>$CONTRACTS_DIR/.env
 
 echo "Initializing Rollup contract genesis state..."
-npx hardhat run --network $L1_NETWORK scripts/config/set_rollup_genesis_state.ts
+npx hardhat run --network $L1_NETWORK scripts/config/initialize_rollup.ts
 
 # Signal that we're done.
 touch $WORKSPACE_DIR/.deployed
