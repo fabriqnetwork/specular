@@ -14,7 +14,7 @@ while getopts "$optspec" optchar; do
     GEN_JWT=true
     ;;
   w)
-    L1_WAIT=true
+    WAIT=true
     ;;
   *)
     echo "usage: $0 [-d][-j][-y][-h][-w]"
@@ -48,7 +48,7 @@ if [[ ! -z ${WAIT_DIR+x} ]]; then
   WAITFILE=$WAIT_DIR/.${0##*/}.lock
 fi
 
-if [ "$L1_WAIT" = "true" ]; then
+if [ "$WAIT" = "true" ]; then
   if test -f $WAITFILE; then
     echo "Removing wait file for docker..."
     rm $WAITFILE
@@ -89,7 +89,7 @@ if [ "$GEN_JWT" = "true" ]; then
   echo $JWT >"$JWT_SECRET_PATH"
 fi
 
-if [ "$L1_WAIT" = "true" ]; then
+if [ "$WAIT" = "true" ]; then
   echo "Creating wait file for docker at $WAITFILE..."
   touch $WAITFILE
 fi

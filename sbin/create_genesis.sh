@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 # Currently the local sbin paths are relative to the project root.
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(

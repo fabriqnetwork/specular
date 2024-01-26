@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # currently the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
@@ -8,12 +9,6 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-
-WAITFILE="/tmp/.${0##*/}.lock"
-
-if [[ ! -z ${WAIT_DIR+x} ]]; then
-  WAITFILE=$WAIT_DIR/.${0##*/}.lock
-fi
 
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
@@ -31,8 +26,7 @@ optspec="chw"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   w)
-    echo "Creating wait file for docker"
-    touch $WAITFILE
+    WAIT=true
     ;;
   c)
     echo "Cleaning..."
@@ -53,11 +47,18 @@ while getopts "$optspec" optchar; do
   esac
 done
 
+if [ "$WAIT" = "true" ]; then
+  if test -f $WAITFILE; then
+    echo "Removing wait file for docker..."
+    rm $WAITFILE
+  fi
+fi
+
 if [ ! -d $DATA_DIR ]; then
   echo "Initializing sp-geth with genesis json at $GENESIS_PATH"
   if [ ! -f $GENESIS_PATH ]; then
     echo "Missing genesis json at $GENESIS_PATH"
-    exit
+    exit 1
   fi
   $SP_GETH_BIN --datadir $DATA_DIR --networkid $NETWORK_ID init $GENESIS_PATH
 fi
@@ -90,9 +91,16 @@ FLAGS="
 echo "Starting sp-geth with the following aruments:"
 echo $FLAGS
 
-# Remove WAITFILEFILE
-if [ "$WAITFILE" = "true" ]; then
-  echo "Removing wait file for docker..."
-  rm $WAITFILEFILE
+$SP_GETH_BIN $FLAGS &
+
+PID=$!
+echo "PID: $PID"
+
+sleep 15
+
+if [ "$WAIT" = "true" ]; then
+  echo "Creating wait file for docker at $WAITFILE..."
+  touch $WAITFILE
 fi
-$SP_GETH_BIN $FLAGS
+
+wait $PID

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 WORKSPACE_DIR=$(pwd)
 # the local sbin paths are relative to the project root
@@ -27,6 +28,7 @@ while getopts "$optspec" optchar; do
   c)
     echo "Cleaning deployment..."
     $SBIN/clean_deployment.sh
+    REDEPLOY="true"
     ;;
   *)
     echo "usage: $0 [-c][-s][-y][-h]"
@@ -38,7 +40,14 @@ while getopts "$optspec" optchar; do
   esac
 done
 
-rm -f $WORKSPACE_DIR/.deployed
+if test -f $WORKSPACE_DIR/.deployed; then
+  if [[ ! -z ${REDEPLOY+x} ]]; then
+    rm -f $WORKSPACE_DIR/.deployed
+  else
+    echo "Already Deployed"
+    exit 0
+  fi
+fi
 
 echo "Using $CONTRACTS_DIR as HH proj"
 
