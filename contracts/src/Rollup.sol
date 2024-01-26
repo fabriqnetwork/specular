@@ -114,8 +114,8 @@ contract Rollup is RollupBase {
     function initialize() public initializer {
         __RollupBase_init();
         // set values to 0, makes sure unpause checks work correctly
-        verifier = address(0);
-        daProvider = address(0);
+        verifier = IVerifier(address(0));
+        daProvider = IDAProvider(address(0));
         vault = address(0);
         // initialize in a paused state to prevent core interactions until necessary values are set
         pause();
@@ -154,7 +154,7 @@ contract Rollup is RollupBase {
 
     function unpause() public onlyRole(DEFAULT_ADMIN_ROLE) {
         // verify we have values set to allow contract to unpause
-        if (verifier == address(0) || daProvider == address(0) || vault == address(0)) {
+        if (verifier == IVerifier(address(0)) || daProvider == IDAProvider(address(0)) || vault == address(0)) {
             revert ZeroAddress();
         }
         _unpause();

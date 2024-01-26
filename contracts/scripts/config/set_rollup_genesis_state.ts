@@ -9,8 +9,8 @@ const CONTRACTS_DIR = path.join(__dirname, "/../../");
 require("dotenv").config({ path: path.join(CONTRACTS_DIR, ".genesis.env") });
 const EXPORTED_PATH = process.env.GENESIS_EXPORTED_HASH_PATH || "";
 const ROLLUP_ADDR = process.env.ROLLUP_ADDR || "invalid address";
-const SEQUENCER_ADDR = process.env.SEQUENCER_ADDRESS || "invalid address";
-const VERIFIER_ADDR = process.env.VERIFIER_ADDRESS || "invalid address";
+const SEQUENCER_ADDR = process.env.SEQUENCER_INBOX_ADDR || "invalid address";
+const VERIFIER_ADDR = process.env.VERIFIER_ADDR || "invalid address";
 const VAULT_ADDR = process.env.DEPLOYER_ADDRESS || "invalid address";
 const VALIDATOR_ADDR = process.env.VALIDATOR_ADDRESS || "invalid address";
 
@@ -39,7 +39,7 @@ async function main() {
   const { deployer } = await hre.getNamedAccounts();
   const RollupFactory = await ethers.getContractFactory("Rollup", deployer);
   const rollup = RollupFactory.attach(ROLLUP_ADDR);
-  const tx = await rollup.initializeGenesis(initialRollupState);
+  var tx = await rollup.initializeGenesis(initialRollupState);
   await tx.wait();
   console.log("initialized genesis state on rollup contract");
 
@@ -49,39 +49,35 @@ async function main() {
   const minimumAssertionPeriod = 0;
   const baseStakeAmount = 0;
 
-  const tx = await rollup.setDAProvider(SEQUENCER_ADDR);
+  tx = await rollup.setDAProvider(SEQUENCER_ADDR);
   await tx.wait();
   console.log("set DA Provider");
 
-  const tx = await rollup.setVerifier(VERIFIER_ADDR);
+  tx = await rollup.setVerifier(VERIFIER_ADDR);
   await tx.wait();
   console.log("set verifier");
 
-  const tx = await rollup.setVault(VAULT_ADDR);
+  tx = await rollup.setVault(VAULT_ADDR);
   await tx.wait();
   console.log("set vault");
 
-  const tx = await rollup.setConfirmationPeriod(confirmationPeriod);
+  tx = await rollup.setConfirmationPeriod(confirmationPeriod);
   await tx.wait();
   console.log("set confirmation period");
 
-  const tx = await rollup.setChallengePeriod(challengePeriod);
+  tx = await rollup.setChallengePeriod(challengePeriod);
   await tx.wait();
   console.log("set challenge period");
 
-  const tx = await rollup.setMinimumAssertionPeriod(minimumAssertionPeriod);
+  tx = await rollup.setMinimumAssertionPeriod(minimumAssertionPeriod);
   await tx.wait();
   console.log("set minimum assertion period");
 
-  const tx = await rollup.setBaseStakeAmount(baseStateAmount);
+  tx = await rollup.setBaseStakeAmount(baseStakeAmount);
   await tx.wait();
   console.log("set base stake amount");
 
-  const tx = await rollup.setBaseStakeAmount(baseStateAmount);
-  await tx.wait();
-  console.log("set base stake amount");
-
-  const tx = await rollup.addValidator([VALIDATOR_ADDR]);
+  tx = await rollup.addValidator(VALIDATOR_ADDR);
   await tx.wait();
   console.log("set validator");
 

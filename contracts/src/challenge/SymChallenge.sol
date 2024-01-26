@@ -83,7 +83,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         if (turn != Turn.NoChallenge || bisectionHash != 0) {
             revert AlreadyInitialized();
         }
-        if (_defender == address(0) || _challenger == address(0) || verifier == address(0) || daProvider == address(0)) {
+        if (_defender == address(0) || _challenger == address(0) || verifier == IVerifier(address(0)) || daProvider == IDAProvider(address(0))) {
             revert ZeroAddress();
         }
         defender = _defender;
