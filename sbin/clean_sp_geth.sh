@@ -3,16 +3,16 @@
 set -e
 
 # Check that a dotenv exists.
-geth_env=".sp_geth.env"
-if ! test -f "$geth_env"; then
-  echo "Error: expected dotenv at ./$geth_env (does not exist); could not clean current working directory."
+dotenv_file=".sp_geth.env"
+if ! test -f "$dotenv_file"; then
+  echo "Error: expected dotenv at ./$dotenv_file (does not exist); could not clean current working directory."
   exit
 fi
-source $geth_env
+source $dotenv_file
 echo "Removing sp-geth data directory: $DATA_DIR"
 rm -rf $DATA_DIR
 
 if test -f .start_sp_geth.sh.lock; then
+  lock_file=".start_sp_geth.sh.lock"
   echo "Removing docker lock file"
-  lock_file=$WAIT_DIR/.start_sp_geth.sh.lock
 fi
