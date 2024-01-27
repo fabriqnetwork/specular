@@ -651,7 +651,7 @@ contract Rollup is RollupBase {
     }
 
     function newAssertionDeadline() private view returns (uint256) {
-        // TODO: account for prev assertion, gas
+        // TODO(#314): account for prev assertion, gas
         return block.number + confirmationPeriod;
     }
 
