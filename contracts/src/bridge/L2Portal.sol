@@ -148,7 +148,7 @@ contract L2Portal is
         bytes[] calldata depositAccountProof,
         bytes[] calldata depositProof
     ) external whenNotPaused {
-        // TODO: re-add `onlyProxy`
+        // TODO(#316): re-add `onlyProxy`
         // Prevent nested deposits within deposits.
         require(l1Sender == DEFAULT_L1_SENDER, "L2Portal: can only trigger one deposit per transaction");
 
