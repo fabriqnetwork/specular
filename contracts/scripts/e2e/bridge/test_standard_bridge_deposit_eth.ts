@@ -18,7 +18,7 @@ async function main() {
     l1Oracle,
   } = await getSignersAndContracts();
 
-  // TODO: portal should be funded as part of pre-deploy pipeline
+  // TODO(#305): portal should be funded as part of pre-deploy pipeline
   const donateTx = await l2Portal.donateETH({
     value: ethers.utils.parseEther("1"),
   });
