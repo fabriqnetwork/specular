@@ -1,17 +1,17 @@
 #!/bin/bash
 
-# the local sbin paths are relative to the project root
-SBIN=$(dirname "$(readlink -f "$0")")
-SBIN="$(
-  cd "$SBIN"
+set -e
+
+SBIN_DIR=$(dirname "$(readlink -f "$0")")
+SBIN_DIR="$(
+  cd "$SBIN_DIR"
   pwd
 )"
-. $SBIN/utils/utils.sh
-ROOT_DIR=$SBIN/..
+. $SBIN_DIR/utils/utils.sh
+ROOT_DIR=$SBIN_DIR/..
 
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "sidecar" ".sidecar.env"
+require_dotenv "paths" ".paths.env"
+require_dotenv "sidecar" ".sidecar.env"
 
 FLAGS=(
   "--l1.endpoint $L1_ENDPOINT"
@@ -19,9 +19,7 @@ FLAGS=(
   "--protocol.rollup-cfg-path $ROLLUP_CFG_PATH"
 )
 
-# Set disseminator flags.
 if [ "$DISSEMINATOR" = true ]; then
-  echo "Enabling disseminator."
   DISSEMINATOR_PRIV_KEY=$(cat "$DISSEMINATOR_PK_PATH")
   FLAGS+=(
     "--disseminator"
@@ -32,9 +30,8 @@ if [ "$DISSEMINATOR" = true ]; then
     "--disseminator.max-safe-lag-delta $DISSEMINATOR_MAX_SAFE_LAG_DELTA"
   )
 fi
-# Set validator flags.
+
 if [ "$VALIDATOR" = true ]; then
-  echo "Enabling validator."
   VALIDATOR_PRIV_KEY=$(cat "$VALIDATOR_PK_PATH")
   FLAGS+=(
     "--validator"
@@ -42,6 +39,5 @@ if [ "$VALIDATOR" = true ]; then
   )
 fi
 
-echo "starting sidecar with the following flags:"
-echo "${FLAGS[@]}"
-$SIDECAR_BIN ${FLAGS[@]}
+echo "Executing: $SIDECAR_BIN \${FLAGS[@]}"  # Logging the command to be executed
+$SIDECAR_BIN ${FLAGS[@]}  # Executing the command
