@@ -413,7 +413,7 @@ contract Rollup is RollupBase {
         if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
         }
-        // TODO: allow arbitrary descendant of current staked assertionID, not just child.
+        // TODO(#312): allow arbitrary descendant of current staked assertionID, not just child.
         if (staker.assertionID != assertions[assertionID].parent) {
             revert ParentAssertionUnstaked();
         }
