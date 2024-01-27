@@ -498,7 +498,7 @@ contract Rollup is RollupBase {
         requireUnchallengedStaker(defender);
         requireUnchallengedStaker(challenger);
 
-        // TODO: Calculate upper limit for allowed node proposal time.
+        // TODO(#313): Calculate upper limit for allowed node proposal time.
 
         // Initialize challenge.
         SymChallenge challenge = new SymChallenge();
