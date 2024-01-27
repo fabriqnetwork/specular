@@ -285,7 +285,7 @@ interface IRollup {
      * @notice Advances msg.sender's existing stake to assertionID.
      * @notice Only callable by whitelisted validators.
      * @param assertionID ID of assertion to advance stake to. Currently this must be a child of the current assertion.
-     * TODO: generalize to arbitrary descendants.
+     * TODO(#311): generalize to arbitrary descendants.
      */
     function advanceStake(uint256 assertionID) external;
 
