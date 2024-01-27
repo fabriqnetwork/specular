@@ -50,7 +50,7 @@ contract L2Portal is
     /**
      * @notice Address of the L2Portal deployed on L1.
      */
-    address public l1PortalAddress; // TODO: store the hash instead
+    address public l1PortalAddress; // TODO(#315): store the hash instead
 
     /**
      * @notice Address of the L1 account which initiated a deposit in this transaction. If the
