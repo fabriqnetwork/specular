@@ -190,7 +190,7 @@ contract SymChallenge is ChallengeBase, ISymChallenge {
         emit Bisected(bisectionHash, challengedSegmentStart, challengedSegmentLength);
     }
 
-    // TODO: If bisection is not executed because both have commited to the same hash at the same `numStep`, verify
+    // TODO(#318): If bisection is not executed because both have commited to the same hash at the same `numStep`, verify
     // there are no additional ops on the stack after the last step.
     function verifyOneStepProof(
         bytes calldata oneStepProof,
