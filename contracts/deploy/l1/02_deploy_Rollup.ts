@@ -17,7 +17,7 @@ const func: DeployFunction = async function (hre: HardhatRuntimeEnvironment) {
     vault: process.env.DEPLOYER_ADDRESS,
     daProvider: sequencerInboxProxyAddress,
     verifier: verifierProxyAddress,
-    confirmationPeriod: 12, // TODO: move to config
+    confirmationPeriod: 12, // TODO(#302): move to config
     challengePeriod: 0,
     minimumAssertionPeriod: 0,
     baseStakeAmount: 0,

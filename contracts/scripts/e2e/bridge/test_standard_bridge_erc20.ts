@@ -27,7 +27,7 @@ async function main() {
   const { l1Token, l2Token } = await deployTokenPair(l1Bridger, l2Relayer);
   console.log(`Deployed tokens ${l1Token.address}, ${l2Token.address}`);
 
-  // TODO: portal should be funded as part of pre-deploy pipeline
+  // TODO(#306): portal should be funded as part of pre-deploy pipeline
   await Promise.all([
     l1Portal.donateETH({ value: ethers.utils.parseEther("1") }),
     l2Portal.donateETH({ value: ethers.utils.parseEther("1") }),

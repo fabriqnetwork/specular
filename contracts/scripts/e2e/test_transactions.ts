@@ -14,7 +14,7 @@ async function main() {
     l2BaseFeeRecipient: await l2Provider.getBalance(l2BaseFeeRecipient),
   };
 
-  // TODO: should we randomize numTx and value?
+  // TODO(#308): should we randomize numTx and value?
   const numTx = 5;
   for (let i = 0; i < numTx; i++) {
     const tx = await l2Relayer.sendTransaction({
@@ -38,7 +38,7 @@ async function main() {
     throw `balance after transaction does not match the transaction amount on L2Bridge`;
   }
 
-  // TODO: more precise check
+  // TODO(#309): more precise check
   if (!endBalances.l1FeeRecipient.gt(startBalances.l1FeeRecipient)) {
     console.log({ startBalances, endBalances, totalValue });
     throw "did not collect L1 fee";

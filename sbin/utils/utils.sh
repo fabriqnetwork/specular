@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # Converts a path to be relative to another directory.
-relpath() {
+relative_path() {
   echo $(python3 -c "import os.path; print(os.path.relpath('$1', '$2'))")
 }
 
 # Requests a user to confirm the given prompt ($1).
-guard() {
+confirm() {
   read -r -p "$1 " response
   if ! [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
     exit 1
@@ -15,11 +15,9 @@ guard() {
 
 # Requests a user to confirm that overwriting
 # file ($1) is okay, if it exists.
-# doesn't ask if -y is set
-guard_overwrite() {
-
+# Doesn't ask if -y is set.
+confirm_overwrite() {
   if test -f $1; then
-
     if [[ "$2" = "false" ]]; then
       read -r -p "Overwrite $1 with a new file? [y/N] " response
       if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
@@ -33,7 +31,7 @@ guard_overwrite() {
 }
 
 # Requires that a dotenv named $1 exists at a path ($2).
-reqdotenv() {
+require_dotenv() {
   if ! test -f "$2"; then
     echo "Expected $1 dotenv at $2 (not found)."
     exit 1
@@ -43,7 +41,7 @@ reqdotenv() {
 }
 
 # Requires that all env variables named in $@ are set.
-reqenv() {
+require_env() {
   for var in "$@"; do
     if [ -z ${!var+x} ]; then
       echo "$var is required but not set"

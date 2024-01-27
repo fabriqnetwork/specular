@@ -413,7 +413,7 @@ contract Rollup is RollupBase {
         if (assertionID <= staker.assertionID || assertionID > lastCreatedAssertionID) {
             revert AssertionOutOfRange();
         }
-        // TODO: allow arbitrary descendant of current staked assertionID, not just child.
+        // TODO(#312): allow arbitrary descendant of current staked assertionID, not just child.
         if (staker.assertionID != assertions[assertionID].parent) {
             revert ParentAssertionUnstaked();
         }
@@ -498,7 +498,7 @@ contract Rollup is RollupBase {
         requireUnchallengedStaker(defender);
         requireUnchallengedStaker(challenger);
 
-        // TODO: Calculate upper limit for allowed node proposal time.
+        // TODO(#313): Calculate upper limit for allowed node proposal time.
 
         // Initialize challenge.
         SymChallenge challenge = new SymChallenge();
@@ -651,7 +651,7 @@ contract Rollup is RollupBase {
     }
 
     function newAssertionDeadline() private view returns (uint256) {
-        // TODO: account for prev assertion, gas
+        // TODO(#314): account for prev assertion, gas
         return block.number + confirmationPeriod;
     }
 

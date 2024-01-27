@@ -1,38 +1,40 @@
 #!/bin/bash
-SBIN=$(dirname "$(readlink -f "$0")")
-ROOT_DIR=$SBIN/..
 
+set -e
+
+# Get the current script's directory
+SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
+ROOT_DIR=$SCRIPT_DIR/..
+
+# Load environment variables from .paths.env
 PATHS_ENV=".paths.env"
 if ! test -f "$PATHS_ENV"; then
-  echo "Expected dotenv at $PATHS_ENV (does not exist)."
+  echo "Error: $PATHS_ENV not found"
   exit
 fi
 echo "Using dotenv: $PATHS_ENV"
 . $PATHS_ENV
 
+# Load environment variables from .genesis.env if it exists
 GENESIS_ENV=".genesis.env"
 if test -f "$GENESIS_ENV"; then
   . $GENESIS_ENV
 fi
 
-if test -f "$GENESIS_PATH"; then
-  echo "Removing $GENESIS_PATH"
-  rm $GENESIS_PATH
-fi
-if test -f "$GENESIS_EXPORTED_HASH_PATH"; then
-  echo "Removing $GENESIS_EXPORTED_HASH_PATH"
-  rm $GENESIS_EXPORTED_HASH_PATH
-fi
-if test -f "$ROLLUP_CFG_PATH"; then
-  echo "Removing $ROLLUP_CFG_PATH"
-  rm $ROLLUP_CFG_PATH
-fi
-DEPLOYMENTS_ENV=".deployments.env"
-if test -f "$DEPLOYMENTS_ENV"; then
-  echo "Removing $DEPLOYMENTS_ENV"
-  rm $DEPLOYMENTS_ENV
-fi
+# Clean up existing files if they exist
+cleanup_file() {
+  if test -f "$1"; then
+    echo "Removing $1"
+    rm $1
+  fi
+}
 
+cleanup_file "$GENESIS_PATH"
+cleanup_file "$GENESIS_EXPORTED_HASH_PATH"
+cleanup_file "$ROLLUP_CFG_PATH"
+cleanup_file "$DEPLOYMENTS_ENV"
+
+# Remove deployment files and .deployed file
 echo "Removing deployment files in $CONTRACTS_DIR/deployments/$L1_NETWORK"
 rm -rf $CONTRACTS_DIR/deployments/$L1_NETWORK
 rm -f .deployed
