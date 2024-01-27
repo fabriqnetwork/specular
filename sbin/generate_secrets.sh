@@ -47,8 +47,8 @@ require_dotenv "paths" ".paths.env"
 # Generate waitfile for service init (docker/k8)
 waitfile="/tmp/.${0##*/}.lock"
 
-if [[ ! -z ${wait_dir+x} ]]; then
-  waitfile=$wait_dir/.${0##*/}.lock
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  waitfile=$WAIT_DIR/.${0##*/}.lock
 fi
 
 if [ "$wait_flag" = "true" ]; then
