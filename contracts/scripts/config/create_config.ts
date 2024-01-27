@@ -4,7 +4,7 @@ import { parseFlag, numberStrToPaddedHex } from "./utils";
 
 require("dotenv").config();
 
-// TODO: consider moving to golang (ops).
+// TODO(#303): consider moving to golang (ops).
 async function main() {
   const baseConfigPath = parseFlag("--in");
   const configPath = parseFlag("--out");
