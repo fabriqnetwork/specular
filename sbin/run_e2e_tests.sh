@@ -43,8 +43,8 @@ function ctrl_c() {
 }
 
 # Check that all required dotenv files exist
-reqdotenv "paths" ".paths.env"
-reqdotenv "sidecar" ".sidecar.env"
+require_dotenv "paths" ".paths.env"
+require_dotenv "sidecar" ".sidecar.env"
 
 # Set workspace directory
 WORKSPACE_DIR=./workspace-test
@@ -75,7 +75,7 @@ until [ -f ".deployed" ]; do
 done
 
 # Check that deployments dotenv file exists
-reqdotenv "deployments" ".deployments.env"
+require_dotenv "deployments" ".deployments.env"
 
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &>proc.out &
