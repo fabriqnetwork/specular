@@ -3,25 +3,25 @@
 set -e
 
 # Get the directory of the script
-SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
-SCRIPT_DIR="$(
-  cd "$SCRIPT_DIR"
+script_dir=$(dirname "$(readlink -f "$0")")
+script_dir="$(
+  cd "$script_dir"
   pwd
 )"
-# Sourcing utility scripts
-. $SCRIPT_DIR/utils/utils.sh
-. $SCRIPT_DIR/utils/crypto.sh
+# Source utility scripts
+. $script_dir/utils/utils.sh
+. $script_dir/utils/crypto.sh
 
-# Setting the root directory
-ROOT_DIR=$SCRIPT_DIR/..
+# Set the root directory
+root_dir=$script_dir/..
 
-# Generating JWT secret
-JWT_SECRET=$(generate_jwt_secret)
+# Generate JWT secret
+jwt_secret=$(generate_jwt_secret)
 
 # Write JWT secret to sp-magi's expected path
 require_dotenv "sp_magi" ".sp_magi.env"
-echo $JWT_SECRET >$JWT_SECRET_PATH
+echo $jwt_secret >$JWT_SECRET_PATH
 
 # Write JWT secret to sp-geth's expected path
-require_dotenv "sp_magi" ".sp_geth.env"
-echo $JWT_SECRET >$JWT_SECRET_PATH
+require_dotenv "sp_geth" ".sp_geth.env"
+echo $jwt_secret >$JWT_SECRET_PATH
