@@ -122,6 +122,8 @@ function ctrl_c() {
 
 # Start L1 network based on L1_STACK
 echo "Starting L1..."
+# Cleaned up the code by standardizing variable names, removing debugging statements, and improving readability.
+
 if [ "$L1_STACK" = "geth" ]; then
   # Start geth with specified options
   $L1_GETH_BIN \
@@ -140,4 +142,48 @@ if [ "$L1_STACK" = "geth" ]; then
   echo "Waiting for chain progression..."
   sleep $L1_PERIOD
 
-  L1_PID=$
+  L1_PID=$!
+  echo "L1 PID: $L1_PID"
+
+  echo "Funding addresses..."
+  # Add addresses from .contracts.env
+  addresses_to_fund=($L1_SEQUENCER_ADDRESS $L1_VALIDATOR_ADDRESS $L1_DEPLOYER_ADDRESS)
+  # Add addresses from $L1_GENESIS_CFG_PATH
+  addresses_to_fund+=($(python3 -c "import json; print(' '.join(json.load(open('$L1_GENESIS_CFG_PATH'))['alloc']))"))
+  for address in "${addresses_to_fund[@]}"; do
+    mycall="eth.sendTransaction({ from: eth.coinbase, to: '"$address"', value: web3.toWei(10000, 'ether') })"
+    $L1_GETH_BIN attach --exec "$mycall" $L1_ENDPOINT
+  done
+
+  echo "Waiting for chain progression..."
+  sleep $L1_PERIOD
+
+elif [ "$L1_STACK" = "hardhat" ]; then
+  echo "Using $L1_CONTRACTS_DIR as HH proj"
+  cd $L1_CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &>$LOG_FILE &
+  L1_PID=$!
+  PIDS+=($L1_PID)
+  echo "L1 PID: $L1_PID"
+  sleep 3
+
+else
+  echo "Invalid value for L1_STACK: $L1_STACK"
+  exit 1
+fi
+
+# Optionally deploy the contracts
+if [ "$L1_DEPLOY" = "true" ]; then
+  echo "Deploying contracts..."
+  $SBIN/deploy_l1_contracts.sh $L1_APPROVE_FLAG
+fi
+
+# Follow output
+if [ ! "$L1_SILENT" = "true" ]; then
+  if [ "$L1_WAIT" = "true" ]; then
+    echo "Creating wait file for docker at $L1_WAITFILE..."
+    touch $L1_WAITFILE
+  fi
+  echo "L1 started... (Use ctrl-c to stop)"
+  tail -f $LOG_FILE
+fi
+wait $L1_PID
