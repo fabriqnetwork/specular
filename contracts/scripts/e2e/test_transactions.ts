@@ -38,7 +38,7 @@ async function main() {
     throw `balance after transaction does not match the transaction amount on L2Bridge`;
   }
 
-  // TODO: more precise check
+  // TODO(#309): more precise check
   if (!endBalances.l1FeeRecipient.gt(startBalances.l1FeeRecipient)) {
     console.log({ startBalances, endBalances, totalValue });
     throw "did not collect L1 fee";
