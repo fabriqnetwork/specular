@@ -1,20 +1,23 @@
 #!/bin/bash
+
+set -e
+
 optspec="djyw"
-NUM_ACCOUNTS=0
-AUTO_ACCEPT=false
+num_accounts=0
+auto_accept=false
 while getopts "$optspec" optchar; do
   case "${optchar}" in
   y)
-    AUTO_ACCEPT=true
+    auto_accept=true
     ;;
   d)
-    GEN_DEPLOYER=true
+    gen_deployer=true
     ;;
   j)
-    GEN_JWT=true
+    gen_jwt=true
     ;;
   w)
-    WAIT=true
+    wait_flag=true
     ;;
   *)
     echo "usage: $0 [-d][-j][-y][-h][-w]"
@@ -28,68 +31,67 @@ while getopts "$optspec" optchar; do
 done
 
 # the local sbin paths are relative to the project root
-SBIN=$(dirname "$(readlink -f "$0")")
-SBIN="$(
-  cd "$SBIN"
+sbin=$(dirname "$(readlink -f "$0")")
+sbin="$(
+  cd "$sbin"
   pwd
 )"
-. $SBIN/utils/utils.sh
-. $SBIN/utils/crypto.sh
-ROOT_DIR=$SBIN/..
+. $sbin/utils/utils.sh
+. $sbin/utils/crypto.sh
+root_dir=$sbin/..
 
-reqdotenv "sp_magi" ".sp_magi.env"
-reqdotenv "sidecar" ".sidecar.env"
-reqdotenv "paths" ".paths.env"
+require_dotenv "sp_magi" ".sp_magi.env"
+require_dotenv "sidecar" ".sidecar.env"
+require_dotenv "paths" ".paths.env"
 
 # Generate waitfile for service init (docker/k8)
-WAITFILE="/tmp/.${0##*/}.lock"
+waitfile="/tmp/.${0##*/}.lock"
 
-if [[ ! -z ${WAIT_DIR+x} ]]; then
-  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+if [[ ! -z ${wait_dir+x} ]]; then
+  waitfile=$wait_dir/.${0##*/}.lock
 fi
 
-if [ "$WAIT" = "true" ]; then
-  if test -f $WAITFILE; then
+if [ "$wait_flag" = "true" ]; then
+  if test -f $waitfile; then
     echo "Removing wait file for docker..."
-    rm $WAITFILE
+    rm $waitfile
   fi
 fi
 
-CONTRACTS_ENV=".contracts.env"
-guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
+contracts_env=".contracts.env"
+confirm_overwrite $contracts_env $auto_accept
 
 # Generate accounts
-VALIDATOR_ADDRESS=$(generate_wallet $VALIDATOR_PK_PATH)
-echo "Generated account (address=$VALIDATOR_ADDRESS, priv_key_path=$VALIDATOR_PK_PATH)"
-SEQUENCER_ADDRESS=$(generate_wallet $SEQUENCER_PK_FILE)
-echo "Generated account (address=$SEQUENCER_ADDRESS, priv_key_path=$SEQUENCER_PK_FILE)"
-if [ "$DISSEMINATOR_PK_PATH" != "$SEQUENCER_PK_FILE" ]; then
-  echo "$DISSEMINATOR_PK_PATH" "$SEQUENCER_PK_FILE"
-  guard_overwrite $DISSEMINATOR_PK_PATH $AUTO_ACCEPT
-  cat $SEQUENCER_PK_FILE >$DISSEMINATOR_PK_PATH
+validator_address=$(generate_wallet $validator_pk_path)
+echo "Generated account (address=$validator_address, priv_key_path=$validator_pk_path)"
+sequencer_address=$(generate_wallet $sequencer_pk_file)
+echo "Generated account (address=$sequencer_address, priv_key_path=$sequencer_pk_file)"
+if [ "$disseminator_pk_path" != "$sequencer_pk_file" ]; then
+  confirm_overwrite $disseminator_pk_path $auto_accept
+  cat $sequencer_pk_file >$disseminator_pk_path
 fi
 
 # Write dotenv
-echo "VALIDATOR_ADDRESS=$VALIDATOR_ADDRESS" >$CONTRACTS_ENV
-echo "SEQUENCER_ADDRESS=$SEQUENCER_ADDRESS" >>$CONTRACTS_ENV
-echo "Wrote addresses to $CONTRACTS_ENV"
+echo "VALIDATOR_ADDRESS=$validator_address" >$contracts_env
+echo "SEQUENCER_ADDRESS=$sequencer_address" >>$contracts_env
+echo "Wrote addresses to $contracts_env"
 
 # Generate deployer account
-if [ "$GEN_DEPLOYER" = "true" ]; then
+if [ "$gen_deployer" = "true" ]; then
   deployer_pk_path=deployer_pk.txt
-  DEPLOYER_ADDRESS=$(generate_wallet $deployer_pk_path)
-  echo "Generated account (address=$DEPLOYER_ADDRESS, priv_key_path=$deployer_pk_path)"
-  echo "DEPLOYER_ADDRESS=$DEPLOYER_ADDRESS" >>$CONTRACTS_ENV
-  echo "DEPLOYER_PRIVATE_KEY=$(cat $deployer_pk_path)" >>$CONTRACTS_ENV
-  echo "Wrote address to $CONTRACTS_ENV"
+  deployer_address=$(generate_wallet $deployer_pk_path)
+  echo "Generated account (address=$deployer_address, priv_key_path=$deployer_pk_path)"
+  echo "DEPLOYER_ADDRESS=$deployer_address" >>$contracts_env
+  echo "DEPLOYER_PRIVATE_KEY=$(cat $deployer_pk_path)" >>$contracts_env
+  echo "Wrote address to $contracts_env"
 fi
 
-if [ "$GEN_JWT" = "true" ]; then
-  JWT=$(generate_jwt_secret)
-  echo $JWT >"$JWT_SECRET_PATH"
+if [ "$gen_jwt" = "true" ]; then
+  jwt=$(generate_jwt_secret)
+  echo $jwt >"$jwt_secret_path"
 fi
 
-if [ "$WAIT" = "true" ]; then
-  echo "Creating wait file for docker at $WAITFILE..."
-  touch $WAITFILE
+if [ "$wait_flag" = "true" ]; then
+  echo "Creating wait file for docker at $waitfile..."
+  touch $waitfile
 fi
