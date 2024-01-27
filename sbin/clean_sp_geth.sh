@@ -1,16 +1,18 @@
 #!/bin/bash
+
+set -e
+
 # Check that a dotenv exists.
-GETH_ENV=".sp_geth.env"
-if ! test -f "$GETH_ENV"; then
-  echo "expected dotenv at ./$GETH_ENV (does not exist); could not clean cwd."
+geth_env=".sp_geth.env"
+if ! test -f "$geth_env"; then
+  echo "Error: expected dotenv at ./$geth_env (does not exist); could not clean current working directory."
   exit
 fi
-. $GETH_ENV
-echo "Removing sp-geth data dir $DATA_DIR"
+source $geth_env
+echo "Removing sp-geth data directory: $DATA_DIR"
 rm -rf $DATA_DIR
 
 if test -f .start_sp_geth.sh.lock; then
-
   echo "Removing docker lock file"
-  L1_WAIT=$WAIT_DIR/.start_sp_geth.sh.lock
+  lock_file=$WAIT_DIR/.start_sp_geth.sh.lock
 fi
