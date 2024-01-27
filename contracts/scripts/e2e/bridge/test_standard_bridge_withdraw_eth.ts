@@ -16,7 +16,7 @@ async function main() {
     rollup,
   } = await getSignersAndContracts();
 
-  // TODO: portal should be funded as part of deploy pipeline
+  // TODO(#307): portal should be funded as part of deploy pipeline
   const donateTx = await l1Portal.donateETH({
     value: ethers.utils.parseEther("1"),
   });
