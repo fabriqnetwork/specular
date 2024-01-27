@@ -3,7 +3,7 @@ import { parseFlag } from "./utils";
 
 require("dotenv").config();
 
-// TODO: consider moving to golang (ops).
+// TODO(#304): consider moving to golang (ops).
 async function main() {
   const deploymentsConfig = parseFlag("--deployments-config-path");
   const deploymentsPath = parseFlag("--deployments", "./deployments/localhost");
