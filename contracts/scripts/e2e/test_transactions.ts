@@ -14,7 +14,7 @@ async function main() {
     l2BaseFeeRecipient: await l2Provider.getBalance(l2BaseFeeRecipient),
   };
 
-  // TODO: should we randomize numTx and value?
+  // TODO(#308): should we randomize numTx and value?
   const numTx = 5;
   for (let i = 0; i < numTx; i++) {
     const tx = await l2Relayer.sendTransaction({
