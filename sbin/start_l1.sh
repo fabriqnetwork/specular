@@ -1,41 +1,40 @@
 #!/bin/bash
 set -e
+
+# Get the absolute path of the script directory
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
   cd "$SBIN"
   pwd
 )"
+# Sourcing the utility functions
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
-WAITFILE="/tmp/.${0##*/}.lock"
+# Check that all required dotenv files exist
+require_dotenv "paths" ".paths.env"
+require_dotenv "genesis" ".genesis.env"
+require_dotenv "contracts" ".contracts.env"
 
+# Generate waitfile for service init (docker/k8)
+# Update the waitfile path if WAIT_DIR is set
+WAITFILE="/tmp/.${0##*/}.lock"
 if [[ ! -z ${WAIT_DIR+x} ]]; then
   WAITFILE=$WAIT_DIR/.${0##*/}.lock
 fi
+echo "Using dir $WAIT_DIR for $WAITFILE"
 
+# Remove the waitfile if it exists
 if test -f $WAITFILE; then
   rm $WAITFILE
   echo "Removed $WAITFILE"
 fi
 
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "genesis" ".genesis.env"
-reqdotenv "contracts" ".contracts.env"
-
-# Generate waitfile for service init (docker/k8)
-WAITFILE="/tmp/.${0##*/}.lock"
-
-if [[ ! -z ${WAIT_DIR+x} ]]; then
-  WAITFILE=$WAIT_DIR/.${0##*/}.lock
-fi
-
-echo "Using dir $WAIT_DIR for $WAITFILE"
-
+# Set default values for flags
 AUTO_ACCEPT=false
 AUTO_APPROVE=""
-# Parse args.
+
+# Parse arguments
 optspec="cdswy"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
@@ -66,22 +65,29 @@ while getopts "$optspec" optchar; do
     ;;
   esac
 done
+
+trap ctrl_c INT
+
+# Set the APPROVE_FLAG if AUTO_ACCEPT is true
 if [[ $AUTO_ACCEPT = 'true' ]]; then
   APPROVE_FLAG="-y"
 fi
 
+# Parse the L1_HOST and L1_PORT from L1_ENDPOINT
 L1_HOST=$(echo $L1_ENDPOINT | awk -F':' '{print substr($2, 3)}')
 L1_PORT=$(echo $L1_ENDPOINT | awk -F':' '{print $3}')
 echo "Parsed endpoint ($L1_HOST) and port: $L1_PORT from $L1_ENDPOINT"
 
+# Set the log file name
 LOG_FILE="l1.log"
 
-###### PID handling ######
+# Function to handle interrupt signal
 trap ctrl_c INT
 
-# Active PIDs
+# Array to store active PIDs
 PIDS=()
 
+# Function to cleanup l1 processes
 function cleanup() {
   echo "Cleaning up l1 processes..."
   rm -f $LOG_FILE
@@ -91,7 +97,7 @@ function cleanup() {
     kill $pid
   done
 
-  # Remove WAITFILE
+  # Remove WAITFILE if WAIT is true
   if [ "$WAIT" = "true" ]; then
     if test -f $WAITFILE; then
       echo "Removing wait file for docker..."
@@ -99,7 +105,7 @@ function cleanup() {
     fi
   fi
 
-  # For good measure...
+  # Kill the process on L1_PORT if it exists
   if [ -n "$L1_PORT" ]; then
     L1_WS_PID=$(lsof -i tcp:${L1_PORT} | awk 'NR!=1 {print $2}')
     if [ -n "$L1_WS_PID" ]; then
@@ -109,15 +115,15 @@ function cleanup() {
   fi
 }
 
+# Function to handle interrupt signal
 function ctrl_c() {
   cleanup
 }
-##########################
 
-# Start L1 network.
+# Start L1 network based on L1_STACK
 echo "Starting L1..."
-
 if [ "$L1_STACK" = "geth" ]; then
+  # Start geth with specified options
   $L1_GETH_BIN \
     --dev \
     --dev.period $L1_PERIOD \
@@ -134,47 +140,4 @@ if [ "$L1_STACK" = "geth" ]; then
   echo "Waiting for chain progression..."
   sleep $L1_PERIOD
 
-  L1_PID=$!
-  echo "L1 PID: $L1_PID"
-
-  echo "Funding addresses..."
-  # Add addresses from .contracts.env
-  addresses_to_fund=($SEQUENCER_ADDRESS $VALIDATOR_ADDRESS $DEPLOYER_ADDRESS)
-  # Add addresses from $GENESIS_CFG_PATH
-  addresses_to_fund+=($(python3 -c "import json; print(' '.join(json.load(open('$GENESIS_CFG_PATH'))['alloc']))"))
-  # TODO: consider using cast (more general)
-  for address in "${addresses_to_fund[@]}"; do
-    mycall="eth.sendTransaction({ from: eth.coinbase, to: '"$address"', value: web3.toWei(10000, 'ether') })"
-    $L1_GETH_BIN attach --exec "$mycall" $L1_ENDPOINT
-  done
-  # Wait for 1 block
-  echo "Waiting for chain progression..."
-  sleep $L1_PERIOD
-elif [ "$L1_STACK" = "hardhat" ]; then
-  echo "Using $CONTRACTS_DIR as HH proj"
-  cd $CONTRACTS_DIR && npx hardhat node --no-deploy --hostname $L1_HOST --port $L1_PORT &>$LOG_FILE &
-  L1_PID=$!
-  PIDS+=($L1_PID)
-  echo "L1 PID: $L1_PID"
-  sleep 3
-else
-  echo "invalid value for L1_STACK: $L1_STACK"
-  exit 1
-fi
-
-# Optionally deploy the contracts
-if [ "$L1_DEPLOY" = "true" ]; then
-  echo "Deploying contracts..."
-  $SBIN/deploy_l1_contracts.sh $APPROVE_FLAG
-fi
-
-# Follow output
-if [ ! "$SILENT" = "true" ]; then
-  if [ "$WAIT" = "true" ]; then
-    echo "Creating wait file for docker at $WAITFILE..."
-    touch $WAITFILE
-  fi
-  echo "L1 started... (Use ctrl-c to stop)"
-  tail -f $LOG_FILE
-fi
-wait $L1_PID
+  L1_PID=$
