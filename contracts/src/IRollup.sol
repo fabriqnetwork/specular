@@ -35,7 +35,7 @@ interface IRollup {
 
     event StakerStaked(address stakerAddr, uint256 assertionID);
 
-    // TODO: Include errors thrown in function documentation.
+    // TODO(#310): Include errors thrown in function documentation.
 
     /// @dev Thrown when the new config parameter is invalid (configuration methods).
     error InvalidConfigChange();
