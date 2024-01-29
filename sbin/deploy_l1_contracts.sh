@@ -15,17 +15,24 @@ reqdotenv "paths" ".paths.env"
 reqdotenv "genesis" ".genesis.env"
 reqdotenv "contracts" ".contracts.env"
 
+AUTO_ACCEPT=""
+
 # Parse args.
-optspec="c"
+optspec="cy"
 while getopts "$optspec" optchar; do
   case "${optchar}" in
+  y)
+    AUTO_ACCEPT="--yes"
+    ;;
   c)
     echo "Cleaning deployment..."
     $SBIN/clean_deployment.sh
     ;;
   *)
-    echo "usage: $0 [-c][-h]"
+    echo "usage: $0 [-c][-s][-y][-h]"
     echo "-c : clean before running"
+    echo "-s: generate and configure secrets"
+    echo "-y : auto accept prompts"
     exit
     ;;
   esac
@@ -36,7 +43,7 @@ rm -f $WORKSPACE_DIR/.deployed
 echo "Using $CONTRACTS_DIR as HH proj"
 
 # Copy .contracts.env
-guard_overwrite $CONTRACTS_DIR/.env
+guard_overwrite $CONTRACTS_DIR/.env $AUTO_ACCEPT
 cp .contracts.env $CONTRACTS_DIR/.env
 
 # Get relative paths, since we have to run `create_genesis.sh`
@@ -50,12 +57,13 @@ DEPLOYMENTS_CFG_PATH=$(relpath ".deployments.env" $CONTRACTS_DIR)
 
 # Deploy contracts
 cd $CONTRACTS_DIR
-guard "Deploy contracts? [y/N]"
+# guard "Deploy contracts? [y/N]"
 echo "Deploying l1 contracts..."
-npx hardhat deploy --network $L1_NETWORK
+echo $GENESIS_EXPORTED_HASH_PATH
+npx $AUTO_ACCEPT hardhat deploy --network $L1_NETWORK
 
 echo "Generating deployments config..."
-guard_overwrite $DEPLOYMENTS_CFG_PATH
+guard_overwrite $DEPLOYMENTS_CFG_PATH $AUTO_ACCEPT
 npx ts-node scripts/config/create_deployments_config.ts \
   --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \
   --deployments-config-path $DEPLOYMENTS_CFG_PATH
@@ -68,7 +76,7 @@ $SBIN/create_genesis.sh
 cd $CONTRACTS_DIR
 echo "Generating rollup config..."
 guard_overwrite $ROLLUP_CFG_PATH
-npx ts-node scripts/config/create_config.ts \
+npx $AUTO_ACCEPT ts-node scripts/config/create_config.ts \
   --in $BASE_ROLLUP_CFG_PATH \
   --out $ROLLUP_CFG_PATH \
   --deployments $CONTRACTS_DIR/deployments/$L1_NETWORK \

@@ -21,7 +21,7 @@ type BuildPayloadResponse = engine.ForkChoiceResponse
 type BatchBuilder interface {
 	Enqueue(block *ethTypes.Block) error
 	LastEnqueued() types.BlockID
-	Build(l1Head types.BlockID) ([]byte, error)
+	Build(l1Head types.BlockID, currentLag uint64) ([]byte, error)
 	Advance()
 	Reset(lastEnqueued types.BlockID)
 }

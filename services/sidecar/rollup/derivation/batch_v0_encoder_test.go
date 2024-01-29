@@ -56,3 +56,15 @@ func TestFlush(t *testing.T) {
 	require.NotNil(t, batch)
 	require.Equal(t, baselineSize, enc.size())
 }
+
+func TestIsEmpty(t *testing.T) {
+	var (
+		enc   = NewBatchV0Encoder(config{})
+		txs   = []*types.Transaction{types.NewTx(&types.LegacyTx{})}
+		block = types.NewBlock(&types.Header{Number: big.NewInt(0)}, txs, nil, nil, trie.NewStackTrie(nil))
+	)
+	require.True(t, enc.IsEmpty())
+	err := enc.ProcessBlock(block, false)
+	require.Nil(t, err, err)
+	require.False(t, enc.IsEmpty())
+}

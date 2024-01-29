@@ -130,6 +130,10 @@ type DisseminatorConfig struct {
 	DisseminationInterval time.Duration `toml:"dissemination_interval,omitempty"`
 	// The safety margin for batch tx submission (in # of L1 blocks)
 	SubSafetyMargin uint64 `toml:"sub_safety_margin,omitempty"`
+	// The maximum number of blocks that the sequencer will sequence after a safe block
+	MaxSafeLag uint64 `toml:"max_safe_lag,omitempty"`
+	// The delta from the maximum number of blocks that the sequencer will sequence after a safe block
+	MaxSafeLagDelta uint64 `toml:"max_safe_lag_delta,omitempty"`
 	// The target size of a batch tx submitted to L1 (bytes).
 	TargetBatchSize uint64 `toml:"max_l1_tx_size,omitempty"`
 	// Transaction manager configuration
@@ -142,6 +146,8 @@ func (c DisseminatorConfig) GetPrivateKey() *ecdsa.PrivateKey        { return c.
 func (c DisseminatorConfig) GetClefEndpoint() string                 { return c.ClefEndpoint }
 func (c DisseminatorConfig) GetDisseminationInterval() time.Duration { return c.DisseminationInterval }
 func (c DisseminatorConfig) GetSubSafetyMargin() uint64              { return c.SubSafetyMargin }
+func (c DisseminatorConfig) GetMaxSafeLag() uint64                   { return c.MaxSafeLag }
+func (c DisseminatorConfig) GetMaxSafeLagDelta() uint64              { return c.MaxSafeLagDelta }
 func (c DisseminatorConfig) GetTargetBatchSize() uint64              { return c.TargetBatchSize }
 func (c DisseminatorConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
 
@@ -179,6 +185,8 @@ func newDisseminatorConfigFromCLI(cliCtx *cli.Context, l1ChainID *big.Int) Disse
 		ClefEndpoint:          cliCtx.String(disseminatorClefEndpointFlag.Name),
 		DisseminationInterval: time.Duration(cliCtx.Uint(disseminatorIntervalFlag.Name)) * time.Second,
 		SubSafetyMargin:       cliCtx.Uint64(disseminatorSubSafetyMarginFlag.Name),
+		MaxSafeLag:            cliCtx.Uint64(disseminatorMaxSafeLagFlag.Name),
+		MaxSafeLagDelta:       cliCtx.Uint64(disseminatorMaxSafeLagDeltaFlag.Name),
 		TargetBatchSize:       cliCtx.Uint64(disseminatorTargetBatchSizeFlag.Name),
 		TxMgrCfg:              txMgrCfg,
 	}

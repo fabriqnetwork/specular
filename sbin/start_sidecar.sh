@@ -28,6 +28,8 @@ if [ "$DISSEMINATOR" = true ]; then
     "--disseminator.private-key $DISSEMINATOR_PRIV_KEY"
     "--disseminator.sub-safety-margin $DISSEMINATOR_SUB_SAFETY_MARGIN"
     "--disseminator.target-batch-size $DISSEMINATOR_TARGET_BATCH_SIZE"
+    "--disseminator.max-safe-lag $DISSEMINATOR_MAX_SAFE_LAG"
+    "--disseminator.max-safe-lag-delta $DISSEMINATOR_MAX_SAFE_LAG_DELTA"
   )
 fi
 # Set validator flags.
