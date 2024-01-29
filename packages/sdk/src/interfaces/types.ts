@@ -13,13 +13,15 @@ import { Contract, BigNumber } from 'ethers'
 export enum L1ChainID {
   MAINNET = 1,
   SEPOLIA = 11155111,
+  HARDHAT_LOCAL = 31337
 }
 
 /**
  * L2 network chain IDs
  */
 export enum L2ChainID {
-  SPECULAR = 93481
+  SPECULAR = 93481,
+  SPECULAR_HARDHAT_LOCAL = 31337,
 }
 
 
@@ -234,3 +236,29 @@ export type AddressLike = string | Contract
  * Stuff that can be coerced into a number.
  */
 export type NumberLike = string | number | BigNumber
+
+/**
+ * L1 contract references.
+ */
+export interface L1Contracts {
+  L1Portal: AddressLike
+  L1StandardBridge: AddressLike
+  L1Rollup: AddressLike
+}
+
+/**
+ * L2 contract references.
+ */
+export interface L2Contracts {
+  UUPSPlaceholder: AddressLike
+  L1Oracle: AddressLike
+  L2Portal: AddressLike
+  L2StandardBridge: AddressLike
+  L1FeeVault: AddressLike
+  L2BaseFeeVault: AddressLike
+}
+export interface ContractsLike {
+  l1: L1Contracts
+  l2: L2Contracts
+}
+

@@ -1,3 +1,415 @@
-export class CrossChainMessenger{
+import {
+    Provider,
+    BlockTag,
+    TransactionReceipt,
+    TransactionResponse,
+    TransactionRequest,
+} from '@ethersproject/abstract-provider'
+
+import { Signer } from '@ethersproject/abstract-signer'
+import {
+    ethers,
+    BigNumber,
+    Overrides,
+    CallOverrides,
+    Contract,
+} from 'ethers'
+import { AddressLike, CrossChainMessageRequest, MessageDirection, NumberLike, SignerOrProviderLike } from './interfaces/types'
+import { toNumber, toSignerOrProvider } from './utils'
+import { getDepositProof, getWithdrawalProof, delay, getStorageKey, waitUntilBlockConfirmed, waitUntilStateRoot, hexlifyBlockNum } from './utils/helpers'
+
+import { CONTRACT_ADDRESSES, DEFAULT_L2_CONTRACT_ADDRESSES, getL1ContractsByNetworkId } from './utils/constants'
+
+import {
+    L2Portal,
+    L2Portal__factory,
+    L1Portal,
+    L1Portal__factory
+    L1Oracle,
+    L1Oracle__factory,
+    L1StandardBridge__factory,
+    L1StandardBridge,
+    MintableERC20Factory__factory,
+    IMintableERC20,
+    IMintableERC20__factory
+} from "./types/contracts";
+import { l2PortalAddress } from './constants'
+import { JsonRpcProvider } from '@ethersproject/providers'
+
+//get the bindings 
+
+export class CrossChainMessenger {
+
+    /**
+     * Provider connected to the L1 chain.
+     */
+    public l1SignerOrProvider: Signer | Provider
+
+    /**
+     * Provider connected to the L2 chain.
+     */
+    public l2SignerOrProvider: Signer | Provider
+
+    /**
+     * Chain ID for the L1 network.
+     */
+    public l1ChainId: number
+
+    /**
+     * Chain ID for the L2 network.
+     */
+    public l2ChainId: number
+
+    readonly l1Oracle: L1Oracle;
+    readonly l2Portal: L2Portal;
+    readonly l1Portal: L1Portal;
+    readonly l1StandardBridge: L1StandardBridge;
+
+    public l1RPCprovider: JsonRpcProvider
+
+    /**
+       * Creates a new Messenger instance.
+       *
+       * @param opts Options for the provider.
+       * @param opts.l1SignerOrProvider Signer or Provider for the L1 chain, or a JSON-RPC url.
+       * @param opts.l2SignerOrProvider Signer or Provider for the L2 chain, or a JSON-RPC url.
+       * @param opts.l1ChainId Chain ID for the L1 chain.
+       * @param opts.l2ChainId Chain ID for the L2 chain.
+       */
+    constructor(opts: {
+        l1SignerOrProvider: SignerOrProviderLike
+        l2SignerOrProvider: SignerOrProviderLike
+        l1ChainId: NumberLike
+        l2ChainId: NumberLike
+    }) {
+
+        this.l1SignerOrProvider = toSignerOrProvider(opts.l1SignerOrProvider)
+        this.l2SignerOrProvider = toSignerOrProvider(opts.l2SignerOrProvider)
+        this.l1RPCprovider = new ethers.providers.JsonRpcProvider(
+            "http://localhost:8545",
+        );
+
+        try {
+            this.l1ChainId = toNumber(opts.l1ChainId)
+        } catch (err) {
+            throw new Error(`L1 chain ID is missing or invalid: ${opts.l1ChainId}`)
+        }
+
+        try {
+            this.l2ChainId = toNumber(opts.l2ChainId)
+        } catch (err) {
+            throw new Error(`L2 chain ID is missing or invalid: ${opts.l2ChainId}`)
+        }
+
+        const L1StandardBridgeAddress = getL1ContractsByNetworkId(this.l1ChainId).L1StandardBridge.toString()
+        const L1PortalAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Portal.toString()
+
+
+        this.l1StandardBridge = L1StandardBridge__factory.connect(L1StandardBridgeAddress, this.l2SignerOrProvider);
+        this.l1Portal = L1Portal__factory.connect(L1PortalAddress, this.l2SignerOrProvider)
+        this.l1Oracle = L1Oracle__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L1Oracle.toString(), this.l2SignerOrProvider);
+        this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
+
+    }
+
+    async getL1OracleBlockNumber() {
+        return await this.l1Oracle.number();
+    }
+    /**
+     * Provider connected to the L1 chain.
+     */
+    get l1Provider(): Provider {
+        if (Provider.isProvider(this.l1SignerOrProvider)) {
+            return this.l1SignerOrProvider
+        } else {
+            return this.l1SignerOrProvider.provider
+        }
+    }
+
+    /**
+     * Provider connected to the L2 chain.
+     */
+    get l2Provider(): Provider {
+        if (Provider.isProvider(this.l2SignerOrProvider)) {
+            return this.l2SignerOrProvider
+        } else {
+            return this.l2SignerOrProvider.provider
+        }
+    }
+    /**
+ * Signer connected to the L1 chain.
+ */
+    get l1Signer(): Signer {
+        if (Provider.isProvider(this.l1SignerOrProvider)) {
+            throw new Error(`messenger has no L1 signer`)
+        } else {
+            return this.l1SignerOrProvider
+        }
+    }
+
+    /**
+     * Signer connected to the L2 chain.
+     */
+    get l2Signer(): Signer {
+        if (Provider.isProvider(this.l2SignerOrProvider)) {
+            throw new Error(`messenger has no L2 signer`)
+        } else {
+            return this.l2SignerOrProvider
+        }
+    }
+
+
+    /**
+    * Return the status of the message; 
+    * 
+    * @returns String
+    */
+    public async getMessageStatus(bridgeTxLogs: TransactionReceipt): Promise<String> {
+
+        const initialBlockNumber = bridgeTxLogs.blockNumber;
+
+        const l1OracleBlockNumber = waitUntilStateRoot(this.l1Oracle, stateRoot)
+
+        if (initialBlockNumber <= l1OracleBlockNumber) {
+            return 'ready'
+        } else {
+            return 'waiting';
+
+        }
+    }
+
+
+    /**
+    * Deposits ETH into the L2 chain.
+    *
+    * @param amount Amount of ETH to deposit (in wei).
+    * @param opts Additional options.
+    * @param opts.signer Optional signer to use to send the transaction.
+    * @param opts.recipient Optional address to receive the funds on L2. Defaults to sender.
+    * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
+    * @returns Transaction response for the deposit transaction.
+    */
+    public async depositETH(
+        amount: NumberLike,
+        opts?: {
+            recipient?: AddressLike
+            signer?: Signer
+            l2GasLimit?: NumberLike
+        }
+    ): Promise<TransactionResponse> {
+        return (opts?.signer || this.l1Signer).sendTransaction(
+            await this.populateTransaction.depositETH(amount, opts)
+        )
+    }
+
+    /**
+     * Approves a specific token deposit or withrdaw on l1 or l2.
+     *
+     * @param l1Token The L1 or L2 token address.
+     * @param amount Amount of the token to approve.
+     * @param opts Additional options.
+     * @param opts.signer Optional signer to use to send the transaction.
+     * @returns Transaction response for the approval transaction.
+     */
+    public async approveERC20() {
+
+
+    }
+
+    /**
+    * Deposits ERC20 tokens into the L2 chain.
+    *
+    * @param l1Token Address of the L1 token.
+    * @param l2Token Address of the L2 token.
+    * @param amount Amount to deposit.
+    * @param opts Additional options.
+    * @param opts.signer Optional signer to use to send the transaction.
+    * @param opts.recipient Optional address to receive the funds on L2. Defaults to sender.
+    * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
+    * @returns Transaction response for the deposit transaction.
+    */
+    public async depositERC20(
+        l1Token: AddressLike,
+        l2Token: AddressLike,
+        amount: NumberLike,
+        opts?: {
+            signer?: Signer
+            l2GasLimit?: NumberLike
+        }
+    ): Promise<TransactionResponse> {
+        return (opts?.signer || this.l1Signer).sendTransaction(
+            await this.populateTransaction.depositERC20(
+                l1Token,
+                l2Token,
+                amount,
+                opts
+            )
+        )
+    }
+
+
+    /**
+    * Finalizes the deposit on the L2 chain.
+    *
+    * @param bridgeTxLogs Deposit transaction receipt
+    * @param opts Additional options.
+    * @param opts.signer Optional signer to use to send the transaction.
+    * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
+    * 
+    * @returns Transaction response for the finalizeDeposit transaction.
+    */
+    public async finalizeDeposit(bridgeTxLogs: TransactionReceipt,
+        opts?: {
+            signer?: Signer
+            l2GasLimit?: NumberLike
+        }): Promise<TransactionResponse> {
+
+        return (opts?.signer || this.l1Signer).sendTransaction(
+            await this.populateTransaction.finalizeDeposit(bridgeTxLogs)
+        )
+
+    }
+
+
+    /**
+     * Object that holds the functions that generate transactions to be signed by the user.
+     * Follows the pattern used by ethers.js.
+     */
+    populateTransaction = {
+
+        /**
+         * Generates a transaction for depositing some ETH into the L2 chain.
+         *
+         * @param amount Amount of ETH to deposit.
+         * @param opts Additional options.
+         * @param opts.recipient Optional address to receive the funds on L2. Defaults to sender.
+         * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
+         * @returns Transaction that can be signed and executed to deposit the ETH.
+         */
+        depositETH: async (
+            amount: NumberLike,
+            opts?: {
+                recipient?: AddressLike
+                l2GasLimit?: NumberLike
+            },
+        ): Promise<TransactionRequest> => {
+
+            const bridgeTx = await this.l1StandardBridge.populateTransaction.bridgeETH(200_000, [], {
+                value: amount,
+            });
+
+            return bridgeTx;
+        },
+
+        /**
+         * Generates a transaction for approving L1 and L2 tokens.
+         *
+         * @param Token L1 or L2 token address.
+         * @param amount Amount of the token to approve.
+         * @returns Transaction response for the approval transaction.
+         */
+        approveERC20: async (
+            Token: AddressLike,
+            amount: NumberLike,
+            chainId: NumberLike
+        ): Promise<TransactionRequest> => {
+
+
+            const l1StandardBridgeAddress = getL1ContractsByNetworkId(this.l1ChainId).L1StandardBridge.toString()
+            const l2StandardBridgeAddress = DEFAULT_L2_CONTRACT_ADDRESSES.L2StandardBridge;
+
+
+            // get the l1 token contract
+            // get the l2 token contract
+
+
+            // check on which chain to do the aproval
+            if (chainId == l1) {
+                return l1Token.populateTransaction.approve(l1StandardBridge, amount)
+
+            } else {
+                return l2Token.populateTransaction.approve(l1StandardBridge, amount)
+
+            }
+
+        },
+
+
+        depositERC20: async (
+            l1Token: AddressLike,
+            l2Token: AddressLike,
+            amount: NumberLike,
+            opts?: {
+                recipient?: AddressLike
+                l2GasLimit?: NumberLike
+            }
+        ): Promise<TransactionRequest> => {
+
+            const bridgeTx = await this.l1StandardBridge.populateTransaction.bridgeERC20(l1Token.toString(), l2Token.toString(), amount, 200_000, []);
+            return bridgeTx;
+        },
+
+
+        /**
+         * Generates a transaction for finalizing the deposit on the L2 chain.
+         *
+         * @param amount Amount of ETH to deposit.
+         * @param opts Additional options.
+         * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
+         * @returns Transaction that can be signed and executed to deposit the ETH.
+         */
+        finalizeDeposit: async (
+            bridgeTx: TransactionReceipt,
+        ): Promise<TransactionRequest> => {
+
+            let finalizeTx: TransactionRequest;
+
+            const depositEvent = this.l1Portal.interface.parseLog(bridgeTx.logs[1]);
+
+            const despositMessage = {
+                version: 0,
+                nonce: depositEvent.args.nonce,
+                sender: depositEvent.args.sender,
+                target: depositEvent.args.target,
+                value: depositEvent.args.value,
+                gasLimit: depositEvent.args.gasLimit,
+                data: depositEvent.args.data,
+            };
+
+            // Get initial block number
+            const initialBlockNumber = bridgeTx.blockNumber;
+
+
+            // get L1 deposit proof
+            const depositProof = await getDepositProof(
+                this.l1Portal.address,
+                depositEvent.args.depositHash,
+                hexlifyBlockNum(initialBlockNumber),
+                this.l1RPCprovider
+            );
+
+            // get the current block number on L1Oracle
+            const l1OracleBlockNumber = waitUntilStateRoot(this.l1Oracle, stateRoot)
+
+            // If the number of the Oracle block if bigger or equal the transaction is settled on L2
+            if (!(initialBlockNumber <= l1OracleBlock)) {
+                throw new Error(`The deposit transaction can't be finalized, check it's status.`)
+
+            } else {
+
+                finalizeTx = await this.l2Portal.populateTransaction.finalizeDepositTransaction(
+                    initialBlockNumber,
+                    despositMessage,
+                    depositProof.accountProof,
+                    depositProof.storageProof,
+                )
+                return finalizeTx;
+
+            }
+
+
+
+        }
+    }
 
 }
