@@ -10,9 +10,19 @@ SBIN="$(
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
 
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "sp_magi" ".sp_magi.env"
+WAITFILE="/tmp/.${0##*/}.lock"
+
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+fi
+
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+SP_MAGI_ENV=$WORKSPACE_DIR/.sp_magi.env
+
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "sp_magi" $SP_MAGI_ENV
 
 # Generate waitfile for service init (docker/k8)
 WAITFILE="/tmp/.${0##*/}.lock"
@@ -24,7 +34,8 @@ fi
 # Set sync flags.
 SYNC_FLAGS=""
 if [ $SYNC_MODE = "checkpoint" ]; then
-  SYNC_FLAGS="--checkpoint-sync-url $CHECKPOINT_SYNC_URL --checkpoint-hash $CHECKPOINT_HASH"
+  echo "Enabling checkpoint."
+  SYNC_FLAGS="--checkpoint"
 fi
 
 # Set devnet flags.
@@ -38,32 +49,7 @@ fi
 SEQUENCER_FLAGS=""
 if [ "$SEQUENCER" = true ]; then
   echo "Enabling local sequencer."
-  SEQUENCER_FLAGS="
-        --sequencer \
-        --sequencer-max-safe-lag $SEQUENCER_MAX_SAFE_LAG \
-        --sequencer-pk-file $SEQUENCER_PK_FILE"
+  SEQUENCER_FLAGS="--sequencer"
 fi
 
-# TODO: use array for flags
-FLAGS="
-    --network $NETWORK \
-    --l1-rpc-url $L1_RPC_URL \
-    --l2-rpc-url $L2_RPC_URL \
-    --sync-mode $SYNC_MODE \
-    --l2-engine-url $L2_ENGINE_URL \
-    --jwt-file $JWT_SECRET_PATH \
-    --rpc-port $RPC_PORT \
-    $SYNC_FLAGS $DEVNET_FLAGS $SEQUENCER_FLAGS $@"
-
-echo "starting sp-magi with the following flags:"
-echo "$FLAGS"
-
-$SP_MAGI_BIN $FLAGS &
-
-PID=$!
-echo "PID: $PID"
-
-echo "Creating wait file for docker at $WAITFILE..."
-touch $WAITFILE
-
-wait $PID
+spc up spmagi $SYNC_FLAGS $DEVNET_FLAGS $SEQUENCER_FLAGS
