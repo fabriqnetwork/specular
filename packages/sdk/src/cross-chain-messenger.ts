@@ -349,17 +349,17 @@ export class CrossChainMessenger {
     /** 
      * Finalizes the withdrawal on the L1 chain.
      */
-    public async finalizeWithdrawal(
-        bridgeTxLogs: TransactionReceipt,
-        opts?: {
-            signer?: Signer
-            l2GasLimit?: NumberLike
-        }): Promise<TransactionResponse> {
+    // public async finalizeWithdrawal(
+    //     bridgeTxLogs: TransactionReceipt,
+    //     opts?: {
+    //         signer?: Signer
+    //         l2GasLimit?: NumberLike
+    //     }): Promise<TransactionResponse> {
 
-        return (opts?.signer || this.l1Signer).sendTransaction(
-            await this.populateTransaction.finalizeWithdrawal(bridgeTxLogs)
-        )
-    }
+    //     return (opts?.signer || this.l1Signer).sendTransaction(
+    //         await this.populateTransaction.finalizeWithdrawal(bridgeTxLogs)
+    //     )
+    // }
 
     /**
      * Object that holds the functions that generate transactions to be signed by the user.
@@ -467,6 +467,7 @@ export class CrossChainMessenger {
             }
         ): Promise<TransactionRequest> => {
 
+            // check if the withdrawer has the sufficient Ether amount
             const bridgeTx = await this.l2StandardBridge.populateTransaction.bridgeETH(200_000, [], {
                 value: amount,
             });
@@ -492,7 +493,6 @@ export class CrossChainMessenger {
                 recipient?: AddressLike
             }
         ): Promise<TransactionRequest> => {
-
 
             const withdrawalTx = await this.l2StandardBridge.populateTransaction.bridgeERC20(
                 l2Token.toString(),
@@ -562,10 +562,11 @@ export class CrossChainMessenger {
          * @param bridgeTx Withdrawal transaction receipt
          * @returns Transaction that can be signed and executed to finalize the withdrawal on L1.
          */
-        finalizeWithdrawal: async (bridgeTx: TransactionReceipt,
-        ): Promise<TransactionRequest> => {
+        // finalizeWithdrawal: async (bridgeTx: TransactionReceipt,
+        // ): Promise<TransactionRequest> => {
 
-        }
+
+        // }
     }
 
 }
