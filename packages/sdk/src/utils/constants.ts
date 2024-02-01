@@ -23,6 +23,10 @@ const l1RollupAddresses = {
     hardhat_local: '0x9D0B223A3e37F053C610a024b452676A82F558f2'
 }
 
+export const l1ChainIds = [1337, 11155111]
+
+export const l2ChainIds = [13527]
+
 
 export const DEPOSIT_CONFIRMATION_BLOCKS: {
     [ChainID in L2ChainID]: number

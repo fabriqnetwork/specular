@@ -6,6 +6,8 @@ import {
     TransactionRequest,
 } from '@ethersproject/abstract-provider'
 
+import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
+
 import { Signer } from '@ethersproject/abstract-signer'
 import {
     ethers,
@@ -16,19 +18,21 @@ import {
 } from 'ethers'
 import { AddressLike, CrossChainMessageRequest, MessageDirection, NumberLike, SignerOrProviderLike } from './interfaces/types'
 import { toNumber, toSignerOrProvider } from './utils'
-import { getDepositProof, getWithdrawalProof, delay, getStorageKey, waitUntilBlockConfirmed, waitUntilStateRoot, hexlifyBlockNum } from './utils/helpers'
+import { getDepositProof, getWithdrawalProof, delay, getStorageKey, waitUntilBlockConfirmed, waitUntilOracleBlock, hexlifyBlockNum } from './utils/helpers'
 
-import { CONTRACT_ADDRESSES, DEFAULT_L2_CONTRACT_ADDRESSES, getL1ContractsByNetworkId } from './utils/constants'
+import { CONTRACT_ADDRESSES, DEFAULT_L2_CONTRACT_ADDRESSES, getL1ContractsByNetworkId, l1ChainIds, l2ChainIds } from './utils/constants'
 
 import {
     L2Portal,
     L2Portal__factory,
     L1Portal,
-    L1Portal__factory
+    L1Portal__factory,
     L1Oracle,
     L1Oracle__factory,
     L1StandardBridge__factory,
     L1StandardBridge,
+    L2StandardBridge,
+    L2StandardBridge__factory,
     MintableERC20Factory__factory,
     IMintableERC20,
     IMintableERC20__factory
@@ -64,8 +68,12 @@ export class CrossChainMessenger {
     readonly l2Portal: L2Portal;
     readonly l1Portal: L1Portal;
     readonly l1StandardBridge: L1StandardBridge;
+    readonly l2StandardBridge: L2StandardBridge;
+
 
     public l1RPCprovider: JsonRpcProvider
+    public l2RPCprovider: JsonRpcProvider
+
 
     /**
        * Creates a new Messenger instance.
@@ -86,7 +94,10 @@ export class CrossChainMessenger {
         this.l1SignerOrProvider = toSignerOrProvider(opts.l1SignerOrProvider)
         this.l2SignerOrProvider = toSignerOrProvider(opts.l2SignerOrProvider)
         this.l1RPCprovider = new ethers.providers.JsonRpcProvider(
-            "http://localhost:8545",
+            "http://l1-geth:8545",
+        );
+        this.l2RPCprovider = new ethers.providers.JsonRpcProvider(
+            "http://sp-geth:401'",
         );
 
         try {
@@ -105,9 +116,11 @@ export class CrossChainMessenger {
         const L1PortalAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Portal.toString()
 
 
-        this.l1StandardBridge = L1StandardBridge__factory.connect(L1StandardBridgeAddress, this.l2SignerOrProvider);
+        this.l1StandardBridge = L1StandardBridge__factory.connect(L1StandardBridgeAddress, this.l1SignerOrProvider);
+        this.l2StandardBridge = L2StandardBridge__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2StandardBridge.toString(), this.l2SignerOrProvider);
         this.l1Portal = L1Portal__factory.connect(L1PortalAddress, this.l2SignerOrProvider)
         this.l1Oracle = L1Oracle__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L1Oracle.toString(), this.l2SignerOrProvider);
+        this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
         this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
 
     }
@@ -166,15 +179,14 @@ export class CrossChainMessenger {
     */
     public async getMessageStatus(bridgeTxLogs: TransactionReceipt): Promise<String> {
 
-        const initialBlockNumber = bridgeTxLogs.blockNumber;
+        const desiredBlockNumber = bridgeTxLogs.blockNumber;
+        let currentOracleBlockNumber = await this.l1Oracle.number();
 
-        const l1OracleBlockNumber = waitUntilStateRoot(this.l1Oracle, stateRoot)
 
-        if (initialBlockNumber <= l1OracleBlockNumber) {
+        if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
             return 'ready'
         } else {
             return 'waiting';
-
         }
     }
 
@@ -203,17 +215,30 @@ export class CrossChainMessenger {
     }
 
     /**
-     * Approves a specific token deposit or withrdaw on l1 or l2.
+     * Approves spending of a specific token.
      *
-     * @param l1Token The L1 or L2 token address.
+     * @param token The L1 or L2 token address.
      * @param amount Amount of the token to approve.
      * @param opts Additional options.
      * @param opts.signer Optional signer to use to send the transaction.
      * @returns Transaction response for the approval transaction.
      */
-    public async approveERC20() {
-
-
+    public async approveERC20(
+        token: AddressLike,
+        amount: NumberLike,
+        chainId: number,
+        opts?: {
+            signer?: Signer
+        },
+    ): Promise<TransactionResponse> {
+        return (opts?.signer || this.l1Signer).sendTransaction(
+            await this.populateTransaction.approveERC20(
+                token,
+                amount,
+                chainId,
+                opts,
+            )
+        )
     }
 
     /**
@@ -247,6 +272,56 @@ export class CrossChainMessenger {
         )
     }
 
+    /**
+     * Withdraws ETH back to the L1 chain.
+     *
+     * @param amount Amount of ETH to withdraw.
+     * @param opts Additional options.
+     * @param opts.signer Optional signer to use to send the transaction.
+     * @param opts.recipient Optional address to receive the funds on L1. Defaults to sender.
+     * @returns Transaction response for the withdraw transaction.
+     */
+    public async withdrawETH(
+        amount: NumberLike,
+        opts?: {
+            recipient?: AddressLike
+            signer?: Signer
+        }
+    ): Promise<TransactionResponse> {
+        return (opts?.signer || this.l2Signer).sendTransaction(
+            await this.populateTransaction.withdrawETH(amount, opts)
+        )
+    }
+
+    /**
+     * Withdraws ERC20 tokens back to the L1 chain.
+     *
+     * @param l1Token Address of the L1 token.
+     * @param l2Token Address of the L2 token.
+     * @param amount Amount to withdraw.
+     * @param opts Additional options.
+     * @param opts.signer Optional signer to use to send the transaction.
+     * @param opts.recipient Optional address to receive the funds on L1. Defaults to sender.
+     * @returns Transaction response for the withdraw transaction.
+     */
+    public async withdrawERC20(
+        l1Token: AddressLike,
+        l2Token: AddressLike,
+        amount: NumberLike,
+        opts?: {
+            recipient?: AddressLike
+            signer?: Signer
+        }
+    ): Promise<TransactionResponse> {
+        return (opts?.signer || this.l2Signer).sendTransaction(
+            await this.populateTransaction.withdrawERC20(
+                l1Token,
+                l2Token,
+                amount,
+                opts
+            )
+        )
+    }
 
     /**
     * Finalizes the deposit on the L2 chain.
@@ -258,7 +333,8 @@ export class CrossChainMessenger {
     * 
     * @returns Transaction response for the finalizeDeposit transaction.
     */
-    public async finalizeDeposit(bridgeTxLogs: TransactionReceipt,
+    public async finalizeDeposit(
+        bridgeTxLogs: TransactionReceipt,
         opts?: {
             signer?: Signer
             l2GasLimit?: NumberLike
@@ -270,6 +346,20 @@ export class CrossChainMessenger {
 
     }
 
+    /** 
+     * Finalizes the withdrawal on the L1 chain.
+     */
+    public async finalizeWithdrawal(
+        bridgeTxLogs: TransactionReceipt,
+        opts?: {
+            signer?: Signer
+            l2GasLimit?: NumberLike
+        }): Promise<TransactionResponse> {
+
+        return (opts?.signer || this.l1Signer).sendTransaction(
+            await this.populateTransaction.finalizeWithdrawal(bridgeTxLogs)
+        )
+    }
 
     /**
      * Object that holds the functions that generate transactions to be signed by the user.
@@ -302,39 +392,51 @@ export class CrossChainMessenger {
         },
 
         /**
-         * Generates a transaction for approving L1 and L2 tokens.
+         * Generates a transaction for approval of spending.
          *
-         * @param Token L1 or L2 token address.
+         * @param token L1 or L2 token address.
          * @param amount Amount of the token to approve.
          * @returns Transaction response for the approval transaction.
          */
         approveERC20: async (
-            Token: AddressLike,
+            token: AddressLike,
             amount: NumberLike,
-            chainId: NumberLike
+            chainId: number,
+            opts?: {
+                signer?: Signer
+            }
         ): Promise<TransactionRequest> => {
 
 
             const l1StandardBridgeAddress = getL1ContractsByNetworkId(this.l1ChainId).L1StandardBridge.toString()
             const l2StandardBridgeAddress = DEFAULT_L2_CONTRACT_ADDRESSES.L2StandardBridge;
 
+            // check on which chain to do the approval
+            if (l1ChainIds.includes(chainId)) {
 
-            // get the l1 token contract
-            // get the l2 token contract
-
-
-            // check on which chain to do the aproval
-            if (chainId == l1) {
-                return l1Token.populateTransaction.approve(l1StandardBridge, amount)
+                const tokenContract = new Contract(token.toString(), ERC20.abi, this.l1RPCprovider);
+                return tokenContract.populateTransaction.approve(this.l1StandardBridge.address, amount);
 
             } else {
-                return l2Token.populateTransaction.approve(l1StandardBridge, amount)
+
+                const tokenContract = new Contract(token.toString(), ERC20.abi, this.l2RPCprovider)
+                return tokenContract.populateTransaction.approve(this.l2StandardBridge.address, amount)
 
             }
 
         },
 
-
+        /**
+         * Generates a transaction for depositing some ERC20 tokens into the L2 chain.
+         *
+         * @param l1Token Address of the L1 token.
+         * @param l2Token Address of the L2 token.
+         * @param amount Amount to deposit.
+         * @param opts Additional options.
+         * @param opts.recipient Optional address to receive the funds on L2. Defaults to sender.
+         * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
+         * @returns Transaction that can be signed and executed to deposit the tokens.
+         */
         depositERC20: async (
             l1Token: AddressLike,
             l2Token: AddressLike,
@@ -349,23 +451,70 @@ export class CrossChainMessenger {
             return bridgeTx;
         },
 
+        /**
+         * Generates a transaction for withdrawing some ETH back to the L1 chain.
+         *
+         * @param amount Amount of ETH to withdraw.
+         * @param opts Additional options.
+         * @param opts.recipient Optional address to receive the funds on L1. Defaults to sender.
+         * @returns Transaction that can be signed and executed to withdraw the ETH.
+         */
+        withdrawETH: async (
+            amount: NumberLike,
+            opts?: {
+                recipient?: AddressLike
+                overrides?: Overrides
+            }
+        ): Promise<TransactionRequest> => {
+
+            const bridgeTx = await this.l2StandardBridge.populateTransaction.bridgeETH(200_000, [], {
+                value: amount,
+            });
+
+            return bridgeTx;
+        },
+
+        /**
+         * Generates a transaction for withdrawing some ERC20 tokens back to the L1 chain.
+         *
+         * @param l1Token Address of the L1 token.
+         * @param l2Token Address of the L2 token.
+         * @param amount Amount to withdraw.
+         * @param opts Additional options.
+         * @param opts.recipient Optional address to receive the funds on L1. Defaults to sender.
+         * @returns Transaction that can be signed and executed to withdraw the tokens.
+         */
+        withdrawERC20: async (
+            l1Token: AddressLike,
+            l2Token: AddressLike,
+            amount: NumberLike,
+            opts?: {
+                recipient?: AddressLike
+            }
+        ): Promise<TransactionRequest> => {
+
+
+            const withdrawalTx = await this.l2StandardBridge.populateTransaction.bridgeERC20(
+                l2Token.toString(),
+                l1Token.toString(),
+                amount,
+                200_000,
+                [],
+            );
+            return withdrawalTx
+        },
 
         /**
          * Generates a transaction for finalizing the deposit on the L2 chain.
          *
-         * @param amount Amount of ETH to deposit.
-         * @param opts Additional options.
-         * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
-         * @returns Transaction that can be signed and executed to deposit the ETH.
+         * @param bridgeTx Deposit transaction receipt
+         * @returns Transaction that can be signed and executed to finalizethe deposit on L2.
          */
         finalizeDeposit: async (
             bridgeTx: TransactionReceipt,
         ): Promise<TransactionRequest> => {
 
-            let finalizeTx: TransactionRequest;
-
             const depositEvent = this.l1Portal.interface.parseLog(bridgeTx.logs[1]);
-
             const despositMessage = {
                 version: 0,
                 nonce: depositEvent.args.nonce,
@@ -388,16 +537,14 @@ export class CrossChainMessenger {
                 this.l1RPCprovider
             );
 
-            // get the current block number on L1Oracle
-            const l1OracleBlockNumber = waitUntilStateRoot(this.l1Oracle, stateRoot)
+            waitUntilBlockConfirmed(this.l1Oracle, initialBlockNumber)
 
+            const currentBlockNumber = (await this.l1Oracle.number()).toNumber()
             // If the number of the Oracle block if bigger or equal the transaction is settled on L2
-            if (!(initialBlockNumber <= l1OracleBlock)) {
+            if (!(initialBlockNumber <= currentBlockNumber)) {
                 throw new Error(`The deposit transaction can't be finalized, check it's status.`)
-
             } else {
-
-                finalizeTx = await this.l2Portal.populateTransaction.finalizeDepositTransaction(
+                const finalizeTx = await this.l2Portal.populateTransaction.finalizeDepositTransaction(
                     initialBlockNumber,
                     despositMessage,
                     depositProof.accountProof,
@@ -407,7 +554,16 @@ export class CrossChainMessenger {
 
             }
 
+        },
 
+        /**
+         * Generates a transaction for finalizing the withdrawal on the L1 chain.
+         *
+         * @param bridgeTx Withdrawal transaction receipt
+         * @returns Transaction that can be signed and executed to finalize the withdrawal on L1.
+         */
+        finalizeWithdrawal: async (bridgeTx: TransactionReceipt,
+        ): Promise<TransactionRequest> => {
 
         }
     }

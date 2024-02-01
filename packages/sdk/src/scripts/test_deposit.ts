@@ -28,7 +28,6 @@ async function main() {
 
 
 
-
     const depositETHResponse = await crossChainMessenger.depositETH(200);
     // 2 block confirmations
     const depositETHReceipt = await depositETHResponse.wait(2);

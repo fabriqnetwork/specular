@@ -56,24 +56,20 @@ export function getStorageKey(messageHash: string) {
 }
 
 
-//change to waitUntilStateBlock
 /**
- * Blocking function that only exits once the L1 state root has been relayed by L1Oracle
- * Note that it is possible for the oracle to skip L1 blocks, in this case this function never exits
+ * Blocking function that only exits once the block relayed by L1Oracle is >= the blockNumber
  * @param {Contract} l1Oracle - the oracle contract deployed on L2
- * @param {string} stateRoot - the state root we are waiting for
+ * @param {number} blockNumber - the block we are waiting for
  */
-export async function waitUntilStateRoot(
+export async function waitUntilOracleBlock(
     l1Oracle: Contract,
-    stateRoot: string,
-
+    blockNumber: number,
 ) {
-    console.log(`Waiting for L2 state root ${stateRoot}...`);
-
-    let oracleStateRoot = await l1Oracle.stateRoot();
-    while (oracleStateRoot !== stateRoot) {
-        oracleStateRoot = await l1Oracle.stateRoot();
+    console.log(`Waiting for L1Oracle to relay block #${blockNumber}...`);
+    let oracleBlockNumber = await l1Oracle.number();
+    while (oracleBlockNumber < blockNumber) {
         await delay(500);
+        oracleBlockNumber = await l1Oracle.number();
     }
 }
 
