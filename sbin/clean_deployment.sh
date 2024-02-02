@@ -2,7 +2,13 @@
 SBIN=$(dirname "$(readlink -f "$0")")
 ROOT_DIR=$SBIN/..
 
-PATHS_ENV=".paths.env"
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+GENESIS_ENV=$WORKSPACE_DIR/.genesis.env
+CONTRACTS_ENV=$WORKSPACE_DIR/.contracts.env
+DEPLOYMENTS_ENV=$WORKSPACE_DIR/.deployments.env
+
 if ! test -f "$PATHS_ENV"; then
   echo "Expected dotenv at $PATHS_ENV (does not exist)."
   exit
@@ -10,7 +16,6 @@ fi
 echo "Using dotenv: $PATHS_ENV"
 . $PATHS_ENV
 
-GENESIS_ENV=".genesis.env"
 if test -f "$GENESIS_ENV"; then
   . $GENESIS_ENV
 fi
@@ -27,7 +32,6 @@ if test -f "$ROLLUP_CFG_PATH"; then
   echo "Removing $ROLLUP_CFG_PATH"
   rm $ROLLUP_CFG_PATH
 fi
-DEPLOYMENTS_ENV=".deployments.env"
 if test -f "$DEPLOYMENTS_ENV"; then
   echo "Removing $DEPLOYMENTS_ENV"
   rm $DEPLOYMENTS_ENV
