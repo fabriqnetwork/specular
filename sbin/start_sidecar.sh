@@ -17,19 +17,4 @@ SIDECAR_ENV=$WORKSPACE_DIR/.sidecar.env
 reqdotenv "paths" $PATHS_ENV
 reqdotenv "sidecar" $SIDECAR_ENV
 
-# Set disseminator flags.
-if [ "$DISSEMINATOR" = true ]; then
-  echo "Enabling disseminator."
-  FLAGS+=(
-    "--disseminator"
-  )
-fi
-# Set validator flags.
-if [ "$VALIDATOR" = true ]; then
-  echo "Enabling validator."
-  FLAGS+=(
-    "--validator"
-  )
-fi
-
-spc up sidecar --verbosity debug --validator # ${FLAGS[@]}
+spc up sidecar --validator --disseminator

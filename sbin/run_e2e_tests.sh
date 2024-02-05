@@ -42,13 +42,9 @@ function ctrl_c() {
 
 WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
 
-echo "Cleaning $WORKSPACE_DIR"
-# TODO: use spc tooling for cleaning and setting up the workspace
-$SBIN/clean.sh
-
-# Copy config files to cwd.
-echo "Copying local_devnet config files to cwd..."
-cp -a $SBIN/../config/spc/. $WORKSPACE_DIR
+# Copy config files to workspace.
+spc workspace download --config-path "config/spc?ref=siosw/spc-integration" --name e2e
+spc workspace set e2e
 
 PATHS_ENV=$WORKSPACE_DIR/.paths.env
 SIDECAR_ENV=$WORKSPACE_DIR/.sidecar.env
