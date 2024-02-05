@@ -11,8 +11,6 @@ async function main() {
     // TODO: put me in a .env file
     const l1Url = 'http://l1-geth:8545'
     const l2Url = 'http://sp-geth:4011'
-
-
     const l1RpcProvider = new ethers.providers.JsonRpcProvider(l1Url)
     const l2RpcProvider = new ethers.providers.JsonRpcProvider(l2Url)
 
