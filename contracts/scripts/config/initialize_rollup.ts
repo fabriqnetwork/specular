@@ -83,6 +83,11 @@ async function main() {
 
   console.log("configured rollup contract");
 
+  tx = await rollup.unpause();
+  await tx.wait();
+
+  console.log("rollup contract ready");
+
 }
 
 if (!require.main!.loaded) {
