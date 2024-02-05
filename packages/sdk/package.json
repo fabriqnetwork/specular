@@ -37,7 +37,7 @@
     "@ethersproject/bytes": "^5.7.0",
     "@ethersproject/providers": "^5.7.2",
     "@ethersproject/transactions": "^5.7.0",
-    "@openzeppelin/contracts": "^4.9.3",
+    "@openzeppelin/contracts": "^4.9.5",
     "ethers": "^5.7.2",
     "mocha": "^10.2.0",
     "vitest": "^1.1.3"

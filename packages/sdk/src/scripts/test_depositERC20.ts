@@ -1,4 +1,3 @@
-import { BigNumber } from "ethers";
 import { ethers } from "ethers";
 import { formatEther } from "ethers/lib/utils";
 
@@ -15,6 +14,7 @@ async function main() {
     const l1RpcProvider = new ethers.providers.JsonRpcProvider(l1Url)
     const l2RpcProvider = new ethers.providers.JsonRpcProvider(l2Url)
 
+    console.log(l1RpcProvider)
 
     const crossChainMessenger = new CrossChainMessenger({
         l1ChainId: 1337,

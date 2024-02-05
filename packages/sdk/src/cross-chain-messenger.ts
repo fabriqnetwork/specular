@@ -33,9 +33,8 @@ import {
     L1StandardBridge,
     L2StandardBridge,
     L2StandardBridge__factory,
-    MintableERC20Factory__factory,
-    IMintableERC20,
-    IMintableERC20__factory
+    Rollup,
+    Rollup__factory,
 } from "./types/contracts";
 import { l2PortalAddress } from './constants'
 import { JsonRpcProvider } from '@ethersproject/providers'
@@ -67,6 +66,8 @@ export class CrossChainMessenger {
     readonly l1Oracle: L1Oracle;
     readonly l2Portal: L2Portal;
     readonly l1Portal: L1Portal;
+    readonly l1Rollup: Rollup;
+
     readonly l1StandardBridge: L1StandardBridge;
     readonly l2StandardBridge: L2StandardBridge;
 
@@ -93,11 +94,13 @@ export class CrossChainMessenger {
 
         this.l1SignerOrProvider = toSignerOrProvider(opts.l1SignerOrProvider)
         this.l2SignerOrProvider = toSignerOrProvider(opts.l2SignerOrProvider)
+
+
         this.l1RPCprovider = new ethers.providers.JsonRpcProvider(
             "http://l1-geth:8545",
         );
         this.l2RPCprovider = new ethers.providers.JsonRpcProvider(
-            "http://sp-geth:401'",
+            "http://sp-geth:4011",
         );
 
         try {
@@ -114,6 +117,7 @@ export class CrossChainMessenger {
 
         const L1StandardBridgeAddress = getL1ContractsByNetworkId(this.l1ChainId).L1StandardBridge.toString()
         const L1PortalAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Portal.toString()
+        const l1RollupAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Rollup.toString()
 
 
         this.l1StandardBridge = L1StandardBridge__factory.connect(L1StandardBridgeAddress, this.l1SignerOrProvider);
@@ -122,6 +126,7 @@ export class CrossChainMessenger {
         this.l1Oracle = L1Oracle__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L1Oracle.toString(), this.l2SignerOrProvider);
         this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
         this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
+        this.l1Rollup = Rollup__factory.connect(l1RollupAddress, this.l1SignerOrProvider)
 
     }
 
@@ -131,22 +136,31 @@ export class CrossChainMessenger {
     /**
      * Provider connected to the L1 chain.
      */
-    get l1Provider(): Provider {
-        if (Provider.isProvider(this.l1SignerOrProvider)) {
-            return this.l1SignerOrProvider
+    get l1Provider(): Provider | undefined {
+        if (this.l1SignerOrProvider) {
+            if (Provider.isProvider(this.l1SignerOrProvider)) {
+                return this.l1SignerOrProvider;
+            } else {
+                return this.l1SignerOrProvider.provider;
+            }
         } else {
-            return this.l1SignerOrProvider.provider
+            return undefined;
         }
     }
+
 
     /**
      * Provider connected to the L2 chain.
      */
-    get l2Provider(): Provider {
-        if (Provider.isProvider(this.l2SignerOrProvider)) {
-            return this.l2SignerOrProvider
+    get l2Provider(): Provider | undefined {
+        if (this.l2SignerOrProvider) {
+            if (Provider.isProvider(this.l2SignerOrProvider)) {
+                return this.l2SignerOrProvider;
+            } else {
+                return this.l2SignerOrProvider.provider;
+            }
         } else {
-            return this.l2SignerOrProvider.provider
+            return undefined;
         }
     }
     /**
@@ -348,18 +362,23 @@ export class CrossChainMessenger {
 
     /** 
      * Finalizes the withdrawal on the L1 chain.
+     * 
+     * @param bridgeTxLogs Withdrawal transaction receipt
+     * @param opts Additional options.
+     * @param opts.signer Optional signer to use to send the transaction.
+     * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
      */
-    // public async finalizeWithdrawal(
-    //     bridgeTxLogs: TransactionReceipt,
-    //     opts?: {
-    //         signer?: Signer
-    //         l2GasLimit?: NumberLike
-    //     }): Promise<TransactionResponse> {
+    public async finalizeWithdrawal(
+        bridgeTxLogs: TransactionReceipt,
+        opts?: {
+            signer?: Signer
+            l2GasLimit?: NumberLike
+        }): Promise<TransactionResponse> {
 
-    //     return (opts?.signer || this.l1Signer).sendTransaction(
-    //         await this.populateTransaction.finalizeWithdrawal(bridgeTxLogs)
-    //     )
-    // }
+        return (opts?.signer || this.l1Signer).sendTransaction(
+            await this.populateTransaction.finalizeWithdrawal(bridgeTxLogs)
+        )
+    }
 
     /**
      * Object that holds the functions that generate transactions to be signed by the user.
@@ -383,6 +402,7 @@ export class CrossChainMessenger {
                 l2GasLimit?: NumberLike
             },
         ): Promise<TransactionRequest> => {
+
 
             const bridgeTx = await this.l1StandardBridge.populateTransaction.bridgeETH(200_000, [], {
                 value: amount,
@@ -537,8 +557,6 @@ export class CrossChainMessenger {
                 this.l1RPCprovider
             );
 
-            waitUntilBlockConfirmed(this.l1Oracle, initialBlockNumber)
-
             const currentBlockNumber = (await this.l1Oracle.number()).toNumber()
             // If the number of the Oracle block if bigger or equal the transaction is settled on L2
             if (!(initialBlockNumber <= currentBlockNumber)) {
@@ -562,11 +580,60 @@ export class CrossChainMessenger {
          * @param bridgeTx Withdrawal transaction receipt
          * @returns Transaction that can be signed and executed to finalize the withdrawal on L1.
          */
-        // finalizeWithdrawal: async (bridgeTx: TransactionReceipt,
-        // ): Promise<TransactionRequest> => {
+        finalizeWithdrawal: async (bridgeTx: TransactionReceipt,
+        ): Promise<TransactionRequest> => {
 
 
-        // }
+            const withdrawTxBlockNum = bridgeTx.blockNumber;
+
+            const withdrawEvent = this.l2Portal.interface.parseLog(bridgeTx.logs[1]);
+
+            const withdrawMessage = {
+                version: 0,
+                nonce: withdrawEvent.args.nonce,
+                sender: withdrawEvent.args.sender,
+                target: withdrawEvent.args.target,
+                value: withdrawEvent.args.value,
+                gasLimit: withdrawEvent.args.gasLimit,
+                data: withdrawEvent.args.data,
+            };
+
+            const withdrawalHash = withdrawEvent.args.withdrawalHash;
+
+
+            const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(
+                this.l1Rollup,
+                withdrawTxBlockNum,
+            );
+
+            // Get withdraw proof for the block the assertion committed to.
+            const withdrawProof = await getWithdrawalProof(
+                this.l2Portal.address,
+                withdrawalHash,
+                hexlifyBlockNum(assertionBlockNum),
+                this.l2RPCprovider
+            );
+            // Get block for the block the assertion committed to.
+            let rawBlock = await this.l2RPCprovider.send("eth_getBlockByNumber", [
+                ethers.utils.hexValue(assertionBlockNum),
+                false, // We only want the block header
+            ]);
+            let l2BlockHash = this.l2RPCprovider.formatter.hash(rawBlock.hash);
+            let l2StateRoot = this.l2RPCprovider.formatter.hash(rawBlock.stateRoot);
+
+
+            const finalizeTx = await this.l1Portal.populateTransaction.finalizeWithdrawalTransaction(
+                withdrawMessage,
+                assertionId,
+                l2BlockHash,
+                l2StateRoot,
+                withdrawProof.accountProof,
+                withdrawProof.storageProof,
+            );
+            return finalizeTx;
+
+
+        }
     }
 
 }

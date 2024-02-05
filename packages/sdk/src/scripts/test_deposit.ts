@@ -1,8 +1,6 @@
-import { BigNumber } from "ethers";
 import { ethers } from "ethers";
 import { formatEther } from "ethers/lib/utils";
-
-import { CrossChainMessenger } from "../cross-chain-messenger";
+import { CrossChainMessenger } from '../cross-chain-messenger';
 
 async function main() {
 
@@ -19,6 +17,7 @@ async function main() {
     const l2RpcProvider = new ethers.providers.JsonRpcProvider(l2Url)
 
 
+    console.log({ l1RpcProvider })
     const crossChainMessenger = new CrossChainMessenger({
         l1ChainId: 1337,
         l2ChainId: 13527,
@@ -27,13 +26,16 @@ async function main() {
     });
 
 
-
     const depositETHResponse = await crossChainMessenger.depositETH(200);
-    // 2 block confirmations
+
+    // // 2 block confirmations
     const depositETHReceipt = await depositETHResponse.wait(2);
 
-    const finalizeReceipt = crossChainMessenger.finalizeDeposit(depositETHReceipt);
+    const finalizeDepositResponse = await crossChainMessenger.finalizeDeposit(depositETHReceipt);
 
+    const finalizeDepositReceipt = finalizeDepositResponse.wait()
+
+    console.log({ finalizeDepositReceipt });
 
 }
 

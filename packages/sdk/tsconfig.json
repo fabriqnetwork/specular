@@ -11,6 +11,8 @@
     "declaration": true,
     "outDir": "./dist"
   },
-  "include": ["./src"]
+  "include": [
+    "./src",
+    "src/scripts/test_deposit.ts"
+  ]
 }
-  
