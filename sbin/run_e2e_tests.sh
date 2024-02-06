@@ -52,9 +52,9 @@ reqdotenv "paths" $PATHS_ENV
 reqdotenv "sidecar" $SIDECAR_ENV
 
 # Start L1
-yes | $SBIN/generate_secrets.sh -dj
+$SBIN/generate_secrets.sh -dj
 echo "starting l1"
-yes | $SBIN/start_l1.sh -d &>$WORKSPACE_DIR/l1.out &
+$SBIN/start_l1.sh -d &>$WORKSPACE_DIR/l1.out &
 
 echo "waiting for host"
 
