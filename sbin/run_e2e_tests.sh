@@ -74,15 +74,15 @@ reqdotenv "deployments" $DEPLOYMENTS_ENV
 
 # Start sp-geth
 $SBIN/start_sp_geth.sh -c &>$WORKSPACE_DIR/sp_geth.out &
-sleep 2
+sleep 4
 
 # Start sp-magi
 $SBIN/start_sp_magi.sh &>$WORKSPACE_DIR/sp_magi.out &
-sleep 2
+sleep 4
 
 # Start sidecar
 $SBIN/start_sidecar.sh &>$WORKSPACE_DIR/sidecar.out &
-sleep 2
+sleep 4
 
 cd $CONTRACTS_DIR
 echo "Running test: $1"
