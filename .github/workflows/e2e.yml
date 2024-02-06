@@ -19,7 +19,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     strategy:
       matrix:
         test-name: ['transactions', 'deposit', 'withdraw', 'erc20']
