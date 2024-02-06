@@ -53,6 +53,7 @@ FLAGS="
     --l2-engine-url $L2_ENGINE_URL \
     --jwt-file $JWT_SECRET_PATH \
     --rpc-port $RPC_PORT \
+    --watcher-delay $WATCHER_DELAY \
     $SYNC_FLAGS $DEVNET_FLAGS $SEQUENCER_FLAGS $@"
 
 echo "starting sp-magi with the following flags:"
