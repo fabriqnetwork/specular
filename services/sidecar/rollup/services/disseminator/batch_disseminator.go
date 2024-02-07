@@ -23,9 +23,9 @@ type BatchDisseminator struct {
 	l2Client     L2Client
 }
 
-type unexpectedSystemStateError struct{ msg string }
+type recoverableSystemStateError struct{ msg string }
 
-func (e unexpectedSystemStateError) Error() string {
+func (e recoverableSystemStateError) Error() string {
 	return fmt.Sprintf("service entered unexpected state: %s", e.msg)
 }
 
@@ -55,7 +55,7 @@ func (s *BatchDisseminator) Start(ctx context.Context, eg ErrGroup) error {
 
 func (d *BatchDisseminator) start(ctx context.Context) error {
 	// Start with latest safe state.
-	if err := d.rollback(); err != nil {
+	if err := d.rollback(ctx); err != nil {
 		return err
 	}
 	var ticker = time.NewTicker(d.cfg.GetDisseminationInterval())
@@ -64,10 +64,11 @@ func (d *BatchDisseminator) start(ctx context.Context) error {
 		select {
 		case <-ticker.C:
 			if err := d.step(ctx); err != nil {
-				if errors.As(err, &unexpectedSystemStateError{}) {
-					return fmt.Errorf("aborting: %w", err)
-				}
 				log.Errorf("Failed to step: %w", err)
+				if errors.As(err, &recoverableSystemStateError{}) {
+					d.rollback(ctx)
+					// return fmt.Errorf("aborting: %w", err)
+				}
 			}
 		case <-ctx.Done():
 			log.Info("Aborting.")
@@ -85,7 +86,7 @@ func (d *BatchDisseminator) step(ctx context.Context) error {
 	if err := d.appendToBuilder(ctx, start, end); err != nil {
 		if errors.As(err, &L2ReorgDetectedError{}) {
 			log.Error("Reorg detected, reverting to safe state.", "error", err)
-			if err := d.rollback(); err != nil {
+			if err := d.rollback(ctx); err != nil {
 				return err
 			}
 		}
@@ -98,8 +99,8 @@ func (d *BatchDisseminator) step(ctx context.Context) error {
 }
 
 // Rolls back the disseminator state to the last safe L2 header.
-func (d *BatchDisseminator) rollback() error {
-	head, err := d.l2Client.HeaderByTag(context.Background(), eth.Safe)
+func (d *BatchDisseminator) rollback(ctx context.Context) error {
+	head, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
 	if err != nil {
 		return fmt.Errorf("failed to get last safe header: %w", err)
 	}
@@ -148,8 +149,8 @@ func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 		// First time running; use safe (assumes local chain fork-choice is in sync...)
 		start = safeBlockNum + 1
 	} else if safeBlockNum > lastEnqueued.GetNumber() {
-		// This should currently not be possible (single sequencer). TODO: handle restart case?
-		return 0, 0, 0, &unexpectedSystemStateError{
+		// This should currently not be possible (single sequencer).
+		return 0, 0, 0, &recoverableSystemStateError{
 			msg: fmt.Sprintf("safe header exceeds last appended header (safe=%d, last=%d)", safeBlockNum, lastEnqueued.GetNumber()),
 		}
 	}
