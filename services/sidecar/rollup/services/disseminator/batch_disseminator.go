@@ -149,7 +149,9 @@ func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 		start = safeBlockNum + 1
 	} else if safeBlockNum > lastEnqueued.GetNumber() {
 		// This should currently not be possible (single sequencer). TODO: handle restart case?
-		return 0, 0, 0, &unexpectedSystemStateError{msg: "Safe header exceeds last appended header"}
+		return 0, 0, 0, &unexpectedSystemStateError{
+			msg: fmt.Sprintf("safe header exceeds last appended header (safe=%d, last=%d)", safeBlockNum, lastEnqueued.GetNumber()),
+		}
 	}
 	end, err := d.l2Client.BlockNumber(ctx)
 	if err != nil {
