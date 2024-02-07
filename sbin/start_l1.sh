@@ -121,14 +121,14 @@ function ctrl_c() {
 
 # Start L1 network.
 echo "Starting L1..."
-spc up l1geth &
+L1_PERIOD=$L1_PERIOD spc up l1geth &
+
+L1_PID=$!
+echo "L1 PID: $L1_PID"
 
 # Wait for 1 block
 echo "Waiting for chain progression..."
 sleep $L1_PERIOD
-
-L1_PID=$!
-echo "L1 PID: $L1_PID"
 
 echo "Funding addresses..."
 # Add addresses from .contracts.env
