@@ -35,17 +35,18 @@ async function main() {
     console.log('depositETHReceipt: ', depositETHReceipt)
 
 
-    const messageStatus = await serviceBridge.getDepositStatus(depositETHReceipt)
+    let messageStatus = await serviceBridge.getDepositStatus(depositETHReceipt)
 
     while (!(messageStatus == 1)) {
         await delay(500);
         console.log("...Waiting for the TX to be ready for finalization...")
+        messageStatus = await serviceBridge.getDepositStatus(depositETHReceipt)
 
     }
 
     const finalizeDepositResponse = await serviceBridge.finalizeDeposit(depositETHReceipt);
 
-    const finalizeDepositReceipt = finalizeDepositResponse.wait()
+    const finalizeDepositReceipt = await finalizeDepositResponse.wait()
 
     console.log({ finalizeDepositReceipt });
 

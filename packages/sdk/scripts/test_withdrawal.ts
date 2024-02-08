@@ -27,18 +27,20 @@ async function main() {
 
 
     const withdrawalETHResponse = await serviceBridge.withdrawETH(200);
+    console.log('withdrawalETHResponse', withdrawalETHResponse)
 
 
     // // 2 block confirmations
     const withdrawalETHReceipt = await withdrawalETHResponse.wait(2);
 
-    console.log(withdrawalETHReceipt)
+    console.log('withdrawalETHReceipt', withdrawalETHReceipt)
 
-    const messageStatus = await serviceBridge.getDepositStatus(withdrawalETHReceipt)
+    let messageStatus = await serviceBridge.getWithdrawalStatus(withdrawalETHReceipt)
 
     while (!(messageStatus == 1)) {
         await delay(500);
         console.log("...Waiting for the TX to be ready for finalization...")
+        messageStatus = await serviceBridge.getWithdrawalStatus(withdrawalETHReceipt);
     }
 
     const finalizeWithdrawalResponse = await serviceBridge.finalizeWithdrawal(withdrawalETHReceipt);

@@ -201,11 +201,8 @@ export class ServiceBridge {
         const depositEvent = this.l1Portal.interface.parseLog(bridgeTxLogs.logs[1]);
         const depositHash = depositEvent.args.depositHash;
 
-        console.log("depositHash: ", depositHash)
 
         const depositFinalized = await this.l2Portal.finalizedDeposits(depositHash)
-
-        console.log("depositFinalized: ", depositFinalized)
 
         if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
             return MessageStatus.READY;
@@ -229,9 +226,7 @@ export class ServiceBridge {
 
         const withdrawalEvent = this.l2Portal.interface.parseLog(bridgeTxLogs.logs[1]);
         const withdrawalHash = withdrawalEvent.args.withdrawalHash;
-        console.log("withdrawalHash:", withdrawalHash)
         const withdrawalFinalized = await this.l1Portal.finalizedWithdrawals(withdrawalHash)
-        console.log("withdrawalFinalized", withdrawalFinalized)
 
 
         if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
