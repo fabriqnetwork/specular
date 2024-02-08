@@ -13,6 +13,6 @@
   },
   "include": [
     "./src",
-    "src/scripts/test_deposit.ts"
+    "scripts",
   ]
 }

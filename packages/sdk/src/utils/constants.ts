@@ -7,20 +7,22 @@ import {
     ContractsLike
 } from '../interfaces'
 
+// Docker
 // L1_RPC_URL = http://l1-geth:8545
 // L2_RPC_URL = http://sp-geth:4011
 
+
 const l1portalAddresses = {
     sepolia: '0x457818a300BBa8E998889FAb2e8453BDebA238E0',
-    hardhat_local: '0x6FfcAf7eDC12164d5f4651674f2957842f50a548'
+    hardhat_local: '0x8760B3ebDFfC96C58d62D89038FfedF0ACce75Cc'
 }
 const l1StandardBridgeAddresses = {
     sepolia: '0x06B8bF239246Cc0B08B77E743d816A690C7b1325',
-    hardhat_local: '0xF60BE49fe797Dec1e3d8A084C86cb500211e74a7'
+    hardhat_local: '0xb74Ec333C5Fc036df868687D5b5E8312E70ce3aA'
 }
 const l1RollupAddresses = {
     sepolia: '0x849eB65348360a6a5f33Bce19249763fFc426D5C',
-    hardhat_local: '0x9D0B223A3e37F053C610a024b452676A82F558f2'
+    hardhat_local: '0x8FF3e2054223204F3Fd2C14F4cdB36cC99A5A81C'
 }
 
 export const l1ChainIds = [1337, 11155111]
@@ -79,9 +81,7 @@ export const getL1ContractsByNetworkId = (network: number): L1Contracts => {
 }
 
 /**
- * Mapping of L1 chain IDs to the appropriate contract addresses for the 
- * given network. Simplifies the process of getting the correct contract addresses for a given
- * contract name.
+ * Maps L1 chain IDs to the appropriate contract addresses of the given network.
  */
 export const CONTRACT_ADDRESSES: {
     [ChainID in L2ChainID]: ContractsLike

@@ -1,6 +1,5 @@
 import {
     Provider,
-    BlockTag,
     TransactionReceipt,
     TransactionResponse,
     TransactionRequest,
@@ -16,7 +15,7 @@ import {
     CallOverrides,
     Contract,
 } from 'ethers'
-import { AddressLike, CrossChainMessageRequest, MessageDirection, NumberLike, SignerOrProviderLike } from './interfaces/types'
+import { AddressLike, MessageStatus, NumberLike, SignerOrProviderLike } from './interfaces/types'
 import { toNumber, toSignerOrProvider } from './utils'
 import { getDepositProof, getWithdrawalProof, delay, getStorageKey, waitUntilBlockConfirmed, waitUntilOracleBlock, hexlifyBlockNum } from './utils/helpers'
 
@@ -41,7 +40,7 @@ import { JsonRpcProvider } from '@ethersproject/providers'
 
 //get the bindings 
 
-export class CrossChainMessenger {
+export class ServiceBridge {
 
     /**
      * Provider connected to the L1 chain.
@@ -95,12 +94,11 @@ export class CrossChainMessenger {
         this.l1SignerOrProvider = toSignerOrProvider(opts.l1SignerOrProvider)
         this.l2SignerOrProvider = toSignerOrProvider(opts.l2SignerOrProvider)
 
-
         this.l1RPCprovider = new ethers.providers.JsonRpcProvider(
-            "http://l1-geth:8545",
+            "http://localhost:8545",
         );
         this.l2RPCprovider = new ethers.providers.JsonRpcProvider(
-            "http://sp-geth:4011",
+            "http://localhost:4011",
         );
 
         try {
@@ -118,6 +116,10 @@ export class CrossChainMessenger {
         const L1StandardBridgeAddress = getL1ContractsByNetworkId(this.l1ChainId).L1StandardBridge.toString()
         const L1PortalAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Portal.toString()
         const l1RollupAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Rollup.toString()
+
+        console.log('L1StandardBridgeAddress', L1StandardBridgeAddress)
+        console.log('L1PortalAddress', L1PortalAddress)
+        console.log('l1RollupAddress', l1RollupAddress)
 
 
         this.l1StandardBridge = L1StandardBridge__factory.connect(L1StandardBridgeAddress, this.l1SignerOrProvider);
@@ -148,7 +150,6 @@ export class CrossChainMessenger {
         }
     }
 
-
     /**
      * Provider connected to the L2 chain.
      */
@@ -163,9 +164,10 @@ export class CrossChainMessenger {
             return undefined;
         }
     }
+
     /**
- * Signer connected to the L1 chain.
- */
+     * Signer connected to the L1 chain.
+     */
     get l1Signer(): Signer {
         if (Provider.isProvider(this.l1SignerOrProvider)) {
             throw new Error(`messenger has no L1 signer`)
@@ -187,23 +189,59 @@ export class CrossChainMessenger {
 
 
     /**
-    * Return the status of the message; 
+    * Return the status of the deposit message; 
     * 
-    * @returns String
+    * @returns MessageStatus 
     */
-    public async getMessageStatus(bridgeTxLogs: TransactionReceipt): Promise<String> {
+    public async getDepositStatus(bridgeTxLogs: TransactionReceipt): Promise<MessageStatus> {
 
         const desiredBlockNumber = bridgeTxLogs.blockNumber;
         let currentOracleBlockNumber = await this.l1Oracle.number();
 
+        const depositEvent = this.l1Portal.interface.parseLog(bridgeTxLogs.logs[1]);
+        const depositHash = depositEvent.args.depositHash;
+
+        console.log("depositHash: ", depositHash)
+
+        const depositFinalized = await this.l2Portal.finalizedDeposits(depositHash)
+
+        console.log("depositFinalized: ", depositFinalized)
 
         if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
-            return 'ready'
+            return MessageStatus.READY;
+        } else if (depositFinalized) {
+            return MessageStatus.DONE;
         } else {
-            return 'waiting';
+            return MessageStatus.PENDING;
         }
     }
 
+
+    /**
+    * Return the status of the withdrawal message; 
+    * 
+    * @returns MessageStatus 
+    */
+    public async getWithdrawalStatus(bridgeTxLogs: TransactionReceipt): Promise<MessageStatus> {
+
+        const desiredBlockNumber = bridgeTxLogs.blockNumber;
+        let currentOracleBlockNumber = await this.l1Oracle.number();
+
+        const withdrawalEvent = this.l2Portal.interface.parseLog(bridgeTxLogs.logs[1]);
+        const withdrawalHash = withdrawalEvent.args.withdrawalHash;
+        console.log("withdrawalHash:", withdrawalHash)
+        const withdrawalFinalized = await this.l1Portal.finalizedWithdrawals(withdrawalHash)
+        console.log("withdrawalFinalized", withdrawalFinalized)
+
+
+        if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
+            return MessageStatus.READY;
+        } else if (withdrawalFinalized) {
+            return MessageStatus.DONE;
+        } else {
+            return MessageStatus.PENDING;
+        }
+    }
 
     /**
     * Deposits ETH into the L2 chain.
@@ -223,6 +261,7 @@ export class CrossChainMessenger {
             l2GasLimit?: NumberLike
         }
     ): Promise<TransactionResponse> {
+
         return (opts?.signer || this.l1Signer).sendTransaction(
             await this.populateTransaction.depositETH(amount, opts)
         )
@@ -403,11 +442,9 @@ export class CrossChainMessenger {
             },
         ): Promise<TransactionRequest> => {
 
-
             const bridgeTx = await this.l1StandardBridge.populateTransaction.bridgeETH(200_000, [], {
                 value: amount,
             });
-
             return bridgeTx;
         },
 
@@ -534,7 +571,12 @@ export class CrossChainMessenger {
             bridgeTx: TransactionReceipt,
         ): Promise<TransactionRequest> => {
 
+
+            const tXwithLogs = await this.l1Provider?.getTransactionReceipt(bridgeTx.transactionHash)
+            console.log('tXwithLogs', tXwithLogs)
+
             const depositEvent = this.l1Portal.interface.parseLog(bridgeTx.logs[1]);
+
             const despositMessage = {
                 version: 0,
                 nonce: depositEvent.args.nonce,
@@ -556,6 +598,11 @@ export class CrossChainMessenger {
                 hexlifyBlockNum(initialBlockNumber),
                 this.l1RPCprovider
             );
+            const blockno = await this.l1Oracle.number()
+            console.log("blockno", blockno.toNumber())
+
+            await waitUntilOracleBlock(this.l1Oracle, initialBlockNumber);
+
 
             const currentBlockNumber = (await this.l1Oracle.number()).toNumber()
             // If the number of the Oracle block if bigger or equal the transaction is settled on L2
