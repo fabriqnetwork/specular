@@ -1,0 +1,108 @@
+version: '3.8'
+
+services:
+
+  #------- Secrets
+  generator:
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    volumes:
+      - sp_workspace:/specular/workspace
+    working_dir: /specular/workspace
+    entrypoint: /bin/bash ../sbin/generate_secrets.sh -d -j -y
+
+  #------- L1
+  l1-geth:
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    tty: true
+    healthcheck:
+      test: bash -c "[ -f /tmp/.l1_started.sh.lock ]"
+      retries: 10
+      interval: 5s
+      start_period: 40s
+    volumes:
+      - sp_workspace:/specular/workspace
+    working_dir: /specular/workspace
+    entrypoint: /bin/bash ../sbin/start_l1.sh -c -d -w -y
+    depends_on:
+      generator:
+        condition: service_completed_successfully
+    networks:
+      specular:
+        ipv4_address: 192.168.160.2
+    ports:
+      - "8545:8545"
+
+
+  #------- GETH
+  sp-geth:
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    volumes:
+      - sp_workspace:/specular/workspace
+    restart: on-failure
+    depends_on:
+      l1-geth:
+        condition: service_healthy
+    healthcheck:
+      test: bash -c "[ -f /tmp/.sp_geth_started.sh.lock ]"
+      retries: 10
+      interval: 5s
+      start_period: 40s
+    working_dir: /specular/workspace
+    entrypoint: ../sbin/start_sp_geth.sh -c -w
+    networks:
+      specular:
+        ipv4_address: 192.168.160.3
+    ports:
+      - "4011:4011"
+      - "4012:4012"
+      - "4013:4013"
+
+
+
+  #------- MAGI
+  sp-magi:
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    restart: on-failure
+    depends_on:
+      sp-geth:
+        condition: service_healthy
+    healthcheck:
+      test: bash -c "[ -f /tmp/.sp_magi_started.sh.lock ]"
+      test: bash -c "[ -f /tmp/.sp_magi_started.sh.lock ]"
+      retries: 10
+      interval: 5s
+      start_period: 20s
+    volumes:
+      - sp_workspace:/specular/workspace
+    working_dir: /specular/workspace
+    entrypoint: bash ../sbin/start_sp_magi.sh
+    networks:
+      specular:
+        ipv4_address: 192.168.160.4
+
+  #------- SIDECAR
+  sidecar:
+    image: 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:specular-latest
+    restart: on-failure
+    depends_on:
+      sp-magi:
+        condition: service_healthy
+    volumes:
+      - sp_workspace:/specular/workspace
+    working_dir: /specular/workspace
+    entrypoint: bash ../sbin/start_sidecar.sh
+    networks:
+      specular:
+        ipv4_address: 192.168.160.5
+
+#------- Shared Volume and Networks
+volumes:
+  sp_workspace:
+    driver: local # Define the driver and options under the volume name
+
+networks:
+  specular:
+    name: sp_network
+    ipam:
+      config:
+        - subnet: 192.168.160.0/24

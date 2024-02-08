@@ -1,5 +1,5 @@
 #!/bin/bash
-optspec="djy"
+optspec="djyw"
 NUM_ACCOUNTS=0
 AUTO_ACCEPT=false
 while getopts "$optspec" optchar; do
@@ -13,11 +13,15 @@ while getopts "$optspec" optchar; do
   j)
     GEN_JWT=true
     ;;
+  w)
+    WAIT=true
+    ;;
   *)
-    echo "usage: $0 [-d][-j][-y][-h]"
+    echo "usage: $0 [-d][-j][-y][-h][-w]"
     echo "-d : generate deployer"
     echo "-j : generate jwt secret"
     echo "-y : auto accept prompts"
+    echo "-w : generate docker-compose wait for file"
     exit
     ;;
   esac
@@ -35,6 +39,21 @@ ROOT_DIR=$SBIN/..
 
 reqdotenv "sp_magi" ".sp_magi.env"
 reqdotenv "sidecar" ".sidecar.env"
+reqdotenv "paths" ".paths.env"
+
+# Generate waitfile for service init (docker/k8)
+WAITFILE="/tmp/.${0##*/}.lock"
+
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+fi
+
+if [ "$WAIT" = "true" ]; then
+  if test -f $WAITFILE; then
+    echo "Removing wait file for docker..."
+    rm $WAITFILE
+  fi
+fi
 
 CONTRACTS_ENV=".contracts.env"
 guard_overwrite $CONTRACTS_ENV $AUTO_ACCEPT
@@ -67,5 +86,10 @@ fi
 
 if [ "$GEN_JWT" = "true" ]; then
   JWT=$(generate_jwt_secret)
-  echo $JWT >$JWT_SECRET_PATH
+  echo $JWT >"$JWT_SECRET_PATH"
+fi
+
+if [ "$WAIT" = "true" ]; then
+  echo "Creating wait file for docker at $WAITFILE..."
+  touch $WAITFILE
 fi

@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # the local sbin paths are relative to the project root
 SBIN=$(dirname "$(readlink -f "$0")")
@@ -8,11 +9,17 @@ SBIN="$(
 )"
 . $SBIN/utils/utils.sh
 ROOT_DIR=$SBIN/..
-MAGI_WAIT=$WAIT_DIR/.sp_magi_started.lock
 
 # Check that the all required dotenv files exists.
 reqdotenv "paths" ".paths.env"
 reqdotenv "sp_magi" ".sp_magi.env"
+
+# Generate waitfile for service init (docker/k8)
+WAITFILE="/tmp/.${0##*/}.lock"
+
+if [[ ! -z ${WAIT_DIR+x} ]]; then
+  WAITFILE=$WAIT_DIR/.${0##*/}.lock
+fi
 
 # Set sync flags.
 SYNC_FLAGS=""
@@ -50,6 +57,13 @@ FLAGS="
 
 echo "starting sp-magi with the following flags:"
 echo "$FLAGS"
-echo "Setting wait for file"
-touch $MAGI_WAIT
-$SP_MAGI_BIN $FLAGS
+
+$SP_MAGI_BIN $FLAGS &
+
+PID=$!
+echo "PID: $PID"
+
+echo "Creating wait file for docker at $WAITFILE..."
+touch $WAITFILE
+
+wait $PID

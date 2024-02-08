@@ -7,7 +7,7 @@ generate_wallet() {
   address=$(echo "$wallet" | awk '/Address/ { print $2 }')
   priv_key=$(echo "$wallet" | awk '/Private key/ { print $3 }')
   guard_overwrite $1
-  echo $priv_key | tr -d '\n' >$1
+  echo $priv_key | tr -d '\n' >"$1"
   echo "$address"
 }
 
