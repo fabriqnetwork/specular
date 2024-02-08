@@ -66,6 +66,7 @@ func (d *BatchDisseminator) start(ctx context.Context) error {
 			if err := d.step(ctx); err != nil {
 				log.Errorf("Failed to step: %w", err)
 				if errors.As(err, &recoverableSystemStateError{}) {
+					log.Info("rollback: %w", err)
 					d.rollback(ctx)
 					// return fmt.Errorf("aborting: %w", err)
 				}
