@@ -11,39 +11,22 @@ import {
 // L1_RPC_URL = http://l1-geth:8545
 // L2_RPC_URL = http://sp-geth:4011
 
-
 const l1portalAddresses = {
     sepolia: '0x457818a300BBa8E998889FAb2e8453BDebA238E0',
-    hardhat_local: '0x8760B3ebDFfC96C58d62D89038FfedF0ACce75Cc'
+    hardhat_local: '0x56d989E71d7B001cb4BB9892A1cA27f13651e799'
 }
 const l1StandardBridgeAddresses = {
     sepolia: '0x06B8bF239246Cc0B08B77E743d816A690C7b1325',
-    hardhat_local: '0xb74Ec333C5Fc036df868687D5b5E8312E70ce3aA'
+    hardhat_local: '0x8557b2667f896e4e80732157DE2665C80643c00C'
 }
 const l1RollupAddresses = {
     sepolia: '0x849eB65348360a6a5f33Bce19249763fFc426D5C',
-    hardhat_local: '0x8FF3e2054223204F3Fd2C14F4cdB36cC99A5A81C'
+    hardhat_local: '0x11FF7c2d1a6115Ba9864d706Ca0163b15c10DC69'
 }
 
 export const l1ChainIds = [1337, 11155111]
 
 export const l2ChainIds = [13527]
-
-
-export const DEPOSIT_CONFIRMATION_BLOCKS: {
-    [ChainID in L2ChainID]: number
-} = {
-    [L2ChainID.SPECULAR]: 2 as const,
-    [L2ChainID.SPECULAR_HARDHAT_LOCAL]: 1 as const,
-}
-
-export const CHAIN_BLOCK_TIMES: {
-    [ChainID in L1ChainID]: number
-} = {
-    [L1ChainID.MAINNET]: 13 as const,
-    [L1ChainID.SEPOLIA]: 15 as const,
-    [L1ChainID.HARDHAT_LOCAL]: 1 as const,
-}
 
 
 /**
