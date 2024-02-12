@@ -27,8 +27,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/specularL2/specular/ops/bindings/ast"
-	"github.com/specularL2/specular/ops/bindings/gen/hardhat"
+	"github.com/specularL2/specular/bindings/ast"
+	"github.com/specularL2/specular/bindings/gen/hardhat"
 )
 
 type flags struct {
@@ -180,7 +180,7 @@ package {{.Package}}
 import (
 	"encoding/json"
 
-	"github.com/specularL2/specular/ops/bindings/solc"
+	"github.com/specularL2/specular/bindings/solc"
 )
 
 const {{.Name}}StorageLayoutJSON = "{{.StorageLayout}}"
