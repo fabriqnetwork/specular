@@ -105,6 +105,10 @@ erc20)
   npx hardhat run scripts/e2e/bridge/test_standard_bridge_erc20.ts
   RESULT=$?
   ;;
+fuzzer)
+  spc test fuzzer --num-tx 100
+  RESULT=$?
+  ;;
 *)
   echo "unknown test"
   RESULT=1
