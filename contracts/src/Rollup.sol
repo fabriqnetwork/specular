@@ -268,6 +268,28 @@ contract Rollup is RollupBase {
     }
 
     /// @inheritdoc IRollup
+    function setConfig(Config calldata _config) external override onlyRole(DEFAULT_ADMIN_ROLE) {
+        if (_config.vault == address(0) || _config.daProvider == address(0) || _config.verifier == address(0)) {
+            revert ZeroAddress();
+        }
+
+        vault = _config.vault;
+        daProvider = IDAProvider(_config.daProvider);
+        verifier = IVerifier(_config.verifier);
+
+        confirmationPeriod = _config.confirmationPeriod;
+        challengePeriod = _config.challengePeriod;
+        minimumAssertionPeriod = _config.minimumAssertionPeriod;
+        baseStakeAmount = _config.baseStakeAmount;
+
+        // Initialize role based access control
+        for (uint256 i = 0; i < _config.validators.length; i++) {
+            grantRole(VALIDATOR_ROLE, _config.validators[i]);
+        }
+        emit ConfigChanged();
+    }
+
+    /// @inheritdoc IRollup
     function setVault(address newVault) external override onlyRole(DEFAULT_ADMIN_ROLE) {
         if (newVault == address(0)) {
             revert ZeroAddress();

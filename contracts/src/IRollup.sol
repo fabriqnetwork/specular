@@ -139,6 +139,17 @@ interface IRollup {
         uint256 childBlockNum; // child assertion inbox state
     }
 
+    struct Config {
+        address vault;
+        address daProvider;
+        address verifier;
+        uint256 confirmationPeriod;
+        uint256 challengePeriod;
+        uint256 minimumAssertionPeriod;
+        uint256 baseStakeAmount;
+        address[] validators;
+    }
+
     // *** Getters ***
 
     /**
@@ -186,6 +197,15 @@ interface IRollup {
     function requireFirstUnresolvedAssertionIsRejectable(address stakerAddress) external view;
 
     // *** Configuration ***
+
+    /**
+     * @notice Sets a ne configuration, generally run at initialization time.
+     *
+     * Emits: `ConfigChanged` event.
+     *
+     * @param _config A new Config
+     */
+    function setConfig(Config calldata _config) external;
 
     /**
      * @notice Sets a new vault address
