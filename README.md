@@ -45,27 +45,40 @@ This section will walk you through how to set up a local L2 devnet (containing a
 
 **Configure network**
 
+The most convenient way to manage the network configuration is using the Specular CLI Tool (spc).
+To install, run the appropriate script below:
+
+```
+# linux
+sudo wget -O /usr/local/bin/spc https://github.com/SpecularL2/specular-cli/releases/download/v0.0.10/spc-linux-amd64
+
+# macos
+sudo wget -O /usr/local/bin/spc https://github.com/SpecularL2/specular-cli/releases/download/v0.0.10/spc-macos-arm64
+```
+
 To configure a local devnet, you can just use an existing example from <a href="./config/">config</a> as-is.
 ```sh
-mkdir workspace
-cp -a config/local_devnet/. workspace/ # copy all config files
+spc workspace download --config-path "config/spc" --name local
+spc workspace set local
 ```
+
+To manually change configuration edit the files in `~/.spc/workspaces`.
 
 **Start L1**
 
 Run the below scripts to initialize a new local L1 chain.
 ```sh
-cd workspace
-../sbin/generate_secrets.sh -d && ../sbin/start_l1.sh -c -d # Terminal 1
+
+./sbin/generate_secrets.sh -d && ./sbin/start_l1.sh -c -d # Terminal 1
 ```
 
 **Start an L2 node**
 
 Deploy the L1 contracts on the newly started chain, and spin up all services required to run an L2 node.
 ```sh
-../sbin/start_sp_geth.sh # Terminal 2
-../sbin/start_sp_magi.sh # Terminal 3
-../sbin/start_sidecar.sh # Terminal 4
+./sbin/start_sp_geth.sh # Terminal 2
+./sbin/start_sp_magi.sh # Terminal 3
+./sbin/start_sidecar.sh # Terminal 4
 ```
 
 At this point, you'll have two chains started with the following parameters
