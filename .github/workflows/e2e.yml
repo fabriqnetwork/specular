@@ -47,7 +47,7 @@ jobs:
         run: make
 
       - name: Download spc
-        run: sudo wget -O /usr/local/bin/spc https://github.com/SpecularL2/specular-cli/releases/download/v0.0.9/spc-linux-amd64 && sudo chmod +x /usr/local/bin/spc
+        run: sudo wget -O /usr/local/bin/spc https://github.com/SpecularL2/specular-cli/releases/download/v0.0.10/spc-linux-amd64 && sudo chmod +x /usr/local/bin/spc
 
       - name: Run tests
         run: ./sbin/run_e2e_tests.sh ${{ matrix.test-name }}
