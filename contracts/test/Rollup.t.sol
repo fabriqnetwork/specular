@@ -26,7 +26,7 @@ import {PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/security/
 import {StringsUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 
 import {Utils} from "./utils/Utils.sol";
-import {IRollup} from "../src/IRollup.sol";
+import {IRollup, RollupData} from "../src/IRollup.sol";
 import {Verifier} from "../src/challenge/verifier/Verifier.sol";
 import {Rollup, RollupData} from "../src/Rollup.sol";
 import {ISequencerInbox} from "../src/ISequencerInbox.sol";

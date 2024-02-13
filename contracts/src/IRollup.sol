@@ -22,7 +22,37 @@
 
 pragma solidity ^0.8.0;
 
-interface IRollup {
+interface RollupData {
+    struct AssertionState {
+        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
+        mapping(bytes32 => bool) childStateCommitments; // child state commitments
+    }
+
+    struct Zombie {
+        address stakerAddress;
+        uint256 lastAssertionID;
+    }
+
+    struct InitialRollupState {
+        uint256 assertionID;
+        uint256 l2BlockNum;
+        bytes32 l2BlockHash;
+        bytes32 l2StateRoot;
+    }
+
+    struct Config {
+        address vault;
+        address daProvider;
+        address verifier;
+        uint256 confirmationPeriod;
+        uint256 challengePeriod;
+        uint256 minimumAssertionPeriod;
+        uint256 baseStakeAmount;
+        address[] validators;
+    }
+}
+
+interface IRollup is RollupData {
     event ConfigChanged();
 
     event AssertionCreated(uint256 assertionID, address asserterAddr, bytes32 vmHash);
@@ -137,17 +167,6 @@ interface IRollup {
         uint256 numStakers; // total number of stakers that have ever staked on this assertion. increasing only.
         // Child state
         uint256 childBlockNum; // child assertion inbox state
-    }
-
-    struct Config {
-        address vault;
-        address daProvider;
-        address verifier;
-        uint256 confirmationPeriod;
-        uint256 challengePeriod;
-        uint256 minimumAssertionPeriod;
-        uint256 baseStakeAmount;
-        address[] validators;
     }
 
     // *** Getters ***

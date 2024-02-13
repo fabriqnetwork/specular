@@ -37,28 +37,8 @@ import "./libraries/Errors.sol";
 import "./IDAProvider.sol";
 import "./IRollup.sol";
 
-abstract contract RollupData {
-    struct AssertionState {
-        mapping(address => bool) stakers; // all stakers that have ever staked on this assertion.
-        mapping(bytes32 => bool) childStateCommitments; // child state commitments
-    }
-
-    struct Zombie {
-        address stakerAddress;
-        uint256 lastAssertionID;
-    }
-
-    struct InitialRollupState {
-        uint256 assertionID;
-        uint256 l2BlockNum;
-        bytes32 l2BlockHash;
-        bytes32 l2StateRoot;
-    }
-}
-
 abstract contract RollupBase is
     IRollup,
-    RollupData,
     IChallengeResultReceiver,
     Initializable,
     UUPSUpgradeable,
