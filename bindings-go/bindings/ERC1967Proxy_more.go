@@ -6,7 +6,7 @@ package bindings
 import (
 	"encoding/json"
 
-	"github.com/specularL2/specular/bindings/solc"
+	"github.com/specularL2/specular/bindings-go/solc"
 )
 
 const ERC1967ProxyStorageLayoutJSON = "{\"storage\":null,\"types\":{}}"

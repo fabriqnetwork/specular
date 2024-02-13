@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/specularL2/specular/bindings/solc"
+	"github.com/specularL2/specular/bindings-go/bindings/solc"
 )
 
 var remapTypeRe = regexp.MustCompile(`^(t_[\w_]+\([\w]+\))([\d]+)(_[\w]+)?$`)

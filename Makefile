@@ -3,7 +3,6 @@
 SIDECAR_DIR = services/sidecar
 SIDECAR_BIN_SRC = ./cmd/sidecar # relative to SIDECAR_DIR
 SIDECAR_BIN_TARGET = ./build/bin/sidecar # relative to SIDECAR_DIR
-SIDECAR_BINDINGS_TARGET = $(SIDECAR_DIR)/bindings
 
 CONTRACTS_DIR = contracts/
 CONTRACTS_SRC = $(CONTRACTS_DIR)/src
@@ -18,7 +17,7 @@ MAGI_BIN_TARGET = services/cl_clients/magi/target/debug/magi
 OPS_DIR = ops
 OPS_BIN_TARGET = ./build/bin/genesis # relative to OPS_DIR
 OPS_BIN_SRC = ./cmd/genesis/ # relative to OPS_DIR
-OPS_BINDINGS_TARGET = $(OPS_DIR)/bindings
+OPS_BINDINGS_TARGET = ./bindings-go
 
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 #CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
@@ -30,15 +29,10 @@ magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
-# `touch` ensures the target is newer than preqreqs.
-# This is required since `go generate` may not add/delete files.
-bindings: $(CONTRACTS_TARGET)
-	cd $(SIDECAR_DIR) && go generate ./...
-	touch $(SIDECAR_BINDINGS_TARGET)
-
 ops: ops-bindings
 	cd $(OPS_DIR) && go build -o $(OPS_BIN_TARGET) $(OPS_BIN_SRC)
-ops-bindings: $(CONTRACTS_TARGET)
+
+bindings: $(CONTRACTS_TARGET)
 	GOFLAGS="-buildvcs=false" make -C $(OPS_BINDINGS_TARGET)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
@@ -48,7 +42,6 @@ contracts: $(CONTRACTS_TARGET) # for back-compat
 # - contracts (this has to happen after bindings)
 # - geth and clef
 clean:
-	rm -f $(SIDECAR_BINDINGS_TARGET)/I*.go
 	cd $(CONTRACTS_DIR) && npx hardhat clean
 	rm -rf $(SIDECAR_BIN_TARGET)
 	rm -rf $(GETH_BIN_TARGET)

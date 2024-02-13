@@ -1,4 +1,4 @@
-module github.com/specularL2/specular/bindings
+module github.com/specularL2/specular/bindings-go/bindings
 
 go 1.20
 

@@ -23,7 +23,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/specularL2/specular/bindings/solc"
+	"github.com/specularL2/specular/bindings-go/bindings/solc"
 )
 
 type Artifact struct {
