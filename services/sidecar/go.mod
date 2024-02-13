@@ -8,9 +8,10 @@ replace github.com/specularL2/specular/bindings-go => ../../bindings-go
 
 require (
 	github.com/avast/retry-go/v4 v4.3.3
-    github.com/ethereum/go-ethereum v0.0.0-00010101000000-000000000000
+	github.com/ethereum/go-ethereum v1.10.26
 	github.com/google/wire v0.5.0
 	github.com/pkg/errors v0.9.1
+	github.com/specularL2/specular/bindings-go v0.0.0-00010101000000-000000000000
 	github.com/spf13/viper v1.3.2
 	github.com/stretchr/testify v1.8.4
 	github.com/urfave/cli/v2 v2.25.7
@@ -28,9 +29,8 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/cockroachdb/errors v1.9.1 // indirect
 	github.com/cockroachdb/logtags v0.0.0-20230118201751-21c54148d20b // indirect
-	github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593 // indirect
+	github.com/cockroachdb/pebble v0.0.0-20230906160148-46873a6a7a06 // indirect
 	github.com/cockroachdb/redact v1.1.3 // indirect
-	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/consensys/bavard v0.1.13 // indirect
 	github.com/consensys/gnark-crypto v0.12.1 // indirect
 	github.com/cpuguy83/go-md2man/v2 v2.0.2 // indirect
@@ -74,7 +74,6 @@ require (
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible // indirect
-	github.com/specularL2/specular/bindings-go v0.0.0-00010101000000-000000000000 // indirect
 	github.com/spf13/afero v1.1.2 // indirect
 	github.com/spf13/cast v1.3.0 // indirect
 	github.com/spf13/jwalterweatherman v1.0.0 // indirect

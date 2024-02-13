@@ -9,13 +9,15 @@ BINARY_NAME=bindings
 PKG="bindings"
 MONOREPO_BASE=`git rev-parse --show-toplevel | xargs`
 CONTRACTS_DIR="${MONOREPO_BASE}/contracts"
+GETH_DIR := "${MONOREPO_BASE}/services/el_clients/go-ethereum"
 
 .PHONY: all # Run all necessary steps and generate bindings
 all: bindings
 
 .PHONY: abigen # Install latest abigen command binary
 abigen:
-	@go install github.com/ethereum/go-ethereum/cmd/abigen@latest
+	cd "${GETH_DIR}" && \
+		go run build/ci.go install ./cmd/abigen
 
 .PHONY: compile # Compile contracts from the monorepo
 compile:
@@ -40,7 +42,7 @@ bindings: compile abigen
 		-contracts ./artifacts.json \
 		-package "${PKG}" \
 		-contract-dir "${CONTRACTS_DIR}" \
-		-abigen-bin abigen
+		-abigen-bin "${GETH_DIR}/build/bin/abigen"
 
 .PHONY: lint-test # Run lint-tests
 lint-test:
