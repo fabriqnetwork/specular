@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/specularL2/specular/ops/bindings/bindings"
+	"github.com/specularL2/specular/bindings-go/bindings"
 )
 
 // TODO: maybe move these constants to the rollup config or a separate file
