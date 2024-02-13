@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/specularL2/specular/ops/bindings/solc"
+	"github.com/specularL2/specular/bindings-go/solc"
 )
 
 // AddressAsLeftPaddedHash converts an address to a hash by left-padding it with zeros.

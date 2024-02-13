@@ -29,9 +29,6 @@ magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
-ops: ops-bindings
-	cd $(OPS_DIR) && go build -o $(OPS_BIN_TARGET) $(OPS_BIN_SRC)
-
 bindings: $(CONTRACTS_TARGET)
 	GOFLAGS="-buildvcs=false" make -C $(OPS_BINDINGS_TARGET)
 

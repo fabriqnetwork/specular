@@ -8,7 +8,7 @@ replace github.com/specularL2/specular/bindings-go => ../../bindings-go
 
 require (
 	github.com/avast/retry-go/v4 v4.3.3
-	github.com/ethereum/go-ethereum v1.12.2
+    github.com/ethereum/go-ethereum v0.0.0-00010101000000-000000000000
 	github.com/google/wire v0.5.0
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/viper v1.3.2

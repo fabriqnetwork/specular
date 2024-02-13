@@ -7,7 +7,7 @@ replace github.com/ethereum/go-ethereum => ../../services/el_clients/go-ethereum
 replace github.com/specularL2/specular/bindings-go => ../../bindings-go
 
 require (
-	github.com/ethereum/go-ethereum v1.13.12
+	github.com/ethereum/go-ethereum v0.0.0-00010101000000-000000000000
 	github.com/specularL2/specular/bindings-go v0.0.0-00010101000000-000000000000
 )
 
