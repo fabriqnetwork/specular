@@ -1,8 +1,10 @@
-module github.com/specularL2/specular/bindings-go/bindings
+module github.com/specularL2/specular/bindings-go
 
 go 1.20
 
-require github.com/ethereum/go-ethereum v1.13.12
+replace github.com/ethereum/go-ethereum => ../services/el_clients/go-ethereum
+
+require github.com/ethereum/go-ethereum v0.0.0-00010101000000-000000000000
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect
@@ -15,8 +17,9 @@ require (
 	github.com/deckarep/golang-set/v2 v2.1.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v0.4.0 // indirect
-	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
+	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/holiman/uint256 v1.2.4 // indirect

@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 
 	"github.com/specularL2/specular/bindings-go/bindings"
+
 	"github.com/specularL2/specular/services/sidecar/utils/fmt"
 )
 

@@ -27,8 +27,8 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/specularL2/specular/bindings-go/bindings/ast"
-	"github.com/specularL2/specular/bindings-go/bindings/gen/hardhat"
+	"github.com/specularL2/specular/bindings-go/ast"
+	"github.com/specularL2/specular/bindings-go/gen/hardhat"
 )
 
 type flags struct {
@@ -99,76 +99,89 @@ func main() {
 	for _, contract := range contracts {
 		log.Printf("generating code for %s\n", contract)
 
-		name := contract[strings.LastIndex(contract, "/")+1 : len(contract)-4] // remove .sol
-
-		artifactPath := path.Join(f.ContractDir, "artifacts", contract, name+".json")
-		artifact, err := hardhat.ReadArtifact(artifactPath)
+		entriesPath := path.Join(f.ContractDir, "artifacts", contract)
+		entries, err := os.ReadDir(entriesPath)
 		if err != nil {
-			log.Fatalf("error reading artifact: %v\n", err)
+			log.Fatal(err)
 		}
 
-		abi := artifact.Abi
-		rawAbi, err := json.Marshal(abi)
-		if err != nil {
-			log.Fatalf("error marshaling abi: %v\n", err)
-		}
-		abiFile := path.Join(dir, name+".abi")
-		if err := os.WriteFile(abiFile, rawAbi, 0o600); err != nil {
-			log.Fatalf("error writing file: %v\n", err)
-		}
-		rawBytecode := artifact.Bytecode.String()
-		bytecodeFile := path.Join(dir, name+".bin")
-		if err := os.WriteFile(bytecodeFile, []byte(rawBytecode), 0o600); err != nil {
-			log.Fatalf("error writing file: %v\n", err)
-		}
+		for _, e := range entries {
+			item := e.Name()
+			if strings.Contains(item, ".dbg.") {
+				continue
+			}
+			name := item[strings.LastIndex(item, "/")+1 : len(item)-5] // remove .json
+			log.Printf("contract found: %s\n", name)
 
-		cwd, err := os.Getwd()
-		if err != nil {
-			log.Fatalf("error getting cwd: %v\n", err)
-		}
+			artifactPath := path.Join(f.ContractDir, "artifacts", contract, name+".json")
+			artifact, err := hardhat.ReadArtifact(artifactPath)
+			if err != nil {
+				log.Fatalf("error reading artifact: %v\n", err)
+			}
 
-		outFile := path.Join(cwd, f.Package, name+".go")
+			abi := artifact.Abi
+			rawAbi, err := json.Marshal(abi)
+			if err != nil {
+				log.Fatalf("error marshaling abi: %v\n", err)
+			}
+			abiFile := path.Join(dir, name+".abi")
+			if err := os.WriteFile(abiFile, rawAbi, 0o600); err != nil {
+				log.Fatalf("error writing file: %v\n", err)
+			}
+			rawBytecode := artifact.Bytecode.String()
+			bytecodeFile := path.Join(dir, name+".bin")
+			if err := os.WriteFile(bytecodeFile, []byte(rawBytecode), 0o600); err != nil {
+				log.Fatalf("error writing file: %v\n", err)
+			}
 
-		cmd := exec.Command(f.AbigenBin, "--abi", abiFile, "--bin", bytecodeFile, "--pkg", f.Package, "--type", name, "--out", outFile)
-		cmd.Stdout = os.Stdout
+			cwd, err := os.Getwd()
+			if err != nil {
+				log.Fatalf("error getting cwd: %v\n", err)
+			}
 
-		if err := cmd.Run(); err != nil {
-			log.Fatalf("error running abigen: %v\n", err)
-		}
+			outFile := path.Join(cwd, f.Package, name+".go")
 
-		storageLayout, err := hardhat.GetStorageLayout(name, buildInfos[name])
-		if err != nil {
-			log.Fatalf("error getting storage layout: %v\n", err)
-		}
-		canonicalStorage := ast.CanonicalizeASTIDs(storageLayout, filepath.Join(f.ContractDir, ".."))
-		ser, err := json.Marshal(canonicalStorage)
-		if err != nil {
-			log.Fatalf("error marshaling storage: %v\n", err)
-		}
-		serStr := strings.Replace(string(ser), "\"", "\\\"", -1)
+			cmd := exec.Command(f.AbigenBin, "--abi", abiFile, "--bin", bytecodeFile, "--pkg", f.Package, "--type", name, "--out", outFile)
+			cmd.Stdout = os.Stdout
 
-		d := data{
-			Name:          name,
-			StorageLayout: serStr,
-			DeployedBin:   artifact.DeployedBytecode.String(),
-			Package:       f.Package,
-		}
+			if err := cmd.Run(); err != nil {
+				log.Fatalf("error running abigen: %v\n", err)
+			}
 
-		fname := filepath.Join(f.OutDir, name+"_more.go")
-		outfile, err := os.OpenFile(
-			fname,
-			os.O_RDWR|os.O_CREATE|os.O_TRUNC,
-			0o600,
-		)
-		if err != nil {
-			log.Fatalf("error opening %s: %v\n", fname, err)
-		}
+			storageLayout, err := hardhat.GetStorageLayout(name, buildInfos[name])
+			if err != nil {
+				log.Fatalf("error getting storage layout: %v\n", err)
+			}
+			canonicalStorage := ast.CanonicalizeASTIDs(storageLayout, filepath.Join(f.ContractDir, ".."))
+			ser, err := json.Marshal(canonicalStorage)
+			if err != nil {
+				log.Fatalf("error marshaling storage: %v\n", err)
+			}
+			serStr := strings.Replace(string(ser), "\"", "\\\"", -1)
 
-		if err := t.Execute(outfile, d); err != nil {
-			log.Fatalf("error writing template %s: %v", outfile.Name(), err)
+			d := data{
+				Name:          name,
+				StorageLayout: serStr,
+				DeployedBin:   artifact.DeployedBytecode.String(),
+				Package:       f.Package,
+			}
+
+			fname := filepath.Join(f.OutDir, name+"_more.go")
+			outfile, err := os.OpenFile(
+				fname,
+				os.O_RDWR|os.O_CREATE|os.O_TRUNC,
+				0o600,
+			)
+			if err != nil {
+				log.Fatalf("error opening %s: %v\n", fname, err)
+			}
+
+			if err := t.Execute(outfile, d); err != nil {
+				log.Fatalf("error writing template %s: %v", outfile.Name(), err)
+			}
+			outfile.Close()
+			log.Printf("wrote file %s\n", outfile.Name())
 		}
-		outfile.Close()
-		log.Printf("wrote file %s\n", outfile.Name())
 	}
 }
 
