@@ -17,20 +17,24 @@ MAGI_BIN_TARGET = services/cl_clients/magi/target/debug/magi
 OPS_DIR = ops
 OPS_BIN_TARGET = ./build/bin/genesis # relative to OPS_DIR
 OPS_BIN_SRC = ./cmd/genesis/ # relative to OPS_DIR
-OPS_BINDINGS_TARGET = ./bindings-go
+
+BINDINGS_TARGET = ./bindings-go
 
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 #CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
 #CLEF_TARGET = $(SIDECAR_BIN)/clef
 
 install: geth magi sidecar ops
-geth: $(GETH_BIN_TARGET)
+geth: bindings $(GETH_BIN_TARGET)
 magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
 bindings: $(CONTRACTS_TARGET)
-	GOFLAGS="-buildvcs=false" make -C $(OPS_BINDINGS_TARGET)
+	GOFLAGS="-buildvcs=false" make -C $(BINDINGS_TARGET)
+
+ops: bindings
+	cd $(OPS_DIR) && go build -o $(OPS_BIN_TARGET) $(OPS_BIN_SRC)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
 
