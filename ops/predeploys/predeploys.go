@@ -98,6 +98,10 @@ func BuildPredeployImpls(ctx context.Context, backend *backends.SimulatedBackend
 		{
 			Name: "L2BaseFeeVault",
 		},
+		{
+			Name: "MintableERC20Factory",
+			Args: []any{predeploys["MintableERC20Factory"].ConstructorValues["_bridge"]},
+		},
 	}
 	deployments, err := deployer.Deploy(backend, implConstructors, l2Deployer)
 	if err != nil {
@@ -213,6 +217,12 @@ func l2Deployer(backend *backends.SimulatedBackend, opts *bind.TransactOpts, dep
 		_, tx, _, err = bindings.DeployL1FeeVault(opts, backend)
 	case "L2BaseFeeVault":
 		_, tx, _, err = bindings.DeployL2BaseFeeVault(opts, backend)
+	case "MintableERC20Factory":
+		bridgeAddr, ok := deployment.Args[0].(common.Address)
+		if !ok {
+			return nil, fmt.Errorf("invalid type for implAddr")
+		}
+		_, tx, _, err = bindings.DeployMintableERC20Factory(opts, backend, bridgeAddr)
 	default:
 		return tx, fmt.Errorf("unknown contract: %s", deployment.Name)
 	}

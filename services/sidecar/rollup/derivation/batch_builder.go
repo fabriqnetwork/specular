@@ -80,7 +80,7 @@ func (b *batchBuilder) Reset(lastEnqueued types.BlockID) {
 	b.encoder.Reset()
 	b.pendingBlocks = []*ethTypes.Block{}
 	b.lastEnqueued = lastEnqueued
-	b.lastBuilt = nil
+	b.Advance()
 }
 
 // This short-circuits the build process if a batch is
@@ -100,6 +100,7 @@ func (b *batchBuilder) Build(l1Head types.BlockID, currentLag uint64) ([]byte, e
 // Advances the builder, clearing the last built batch.
 func (b *batchBuilder) Advance() {
 	b.lastBuilt = nil
+	b.timeout = 0
 }
 
 // Tries to get the current batch.
