@@ -6,7 +6,7 @@ const L1_ORACLE_ADDRESS = "0x2A00000000000000000000000000000000000010";
 program
   .option("--l1-rpc <string>")
   .option("--l2-rpc <string>")
-  .option("--interval <number>")
+  .option("--interval <number>");
 
 async function main() {
   program.parse(process.argv);
@@ -19,10 +19,12 @@ async function main() {
   const providers = {
     l1: new ethers.providers.JsonRpcProvider(options.l1Rpc),
     l2: new ethers.providers.JsonRpcProvider(options.l2Rpc),
-  }
+  };
 
   const l1OracleFactory = await ethers.getContractFactory("L1Oracle");
-  const l1Oracle = l1OracleFactory.attach(L1_ORACLE_ADDRESS).connect(providers.l2);
+  const l1Oracle = l1OracleFactory
+    .attach(L1_ORACLE_ADDRESS)
+    .connect(providers.l2);
 
   while (true) {
     const log = {
@@ -30,11 +32,11 @@ async function main() {
       l1BlockLatest: await providers.l1.getBlockNumber(),
       l2BlockLatest: await providers.l2.getBlockNumber(),
       l1OracleBlock: (await l1Oracle.number()).toNumber(),
-    }
+    };
 
-    console.log(JSON.stringify(log))
+    console.log(JSON.stringify(log));
 
-    await new Promise(r => setTimeout(r, options.interval));
+    await new Promise((r) => setTimeout(r, options.interval));
   }
 }
 
