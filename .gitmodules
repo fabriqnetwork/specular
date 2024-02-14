@@ -6,7 +6,7 @@
 	url = https://github.com/SpecularL2/blockscout
 [submodule "services/el_clients/go-ethereum"]
 	path = services/el_clients/go-ethereum
-	url = https://github.com/specularL2/go-ethereum
+	url = https://github.com/SpecularL2/go-ethereum.git
 [submodule "services/cl_clients/magi"]
 	path = services/cl_clients/magi
 	url = https://github.com/specularl2/magi
