@@ -9,7 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/specularL2/specular/ops/backends"
-	"github.com/specularL2/specular/ops/bindings/bindings"
+	"github.com/specularL2/specular/bindings-go/bindings"
 	"github.com/specularL2/specular/ops/deployer"
 )
 

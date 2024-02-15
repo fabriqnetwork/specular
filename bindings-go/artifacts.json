@@ -6,5 +6,9 @@
     "src/pre-deploy/UUPSPlaceholder.sol",
     "src/pre-deploy/L2BaseFeeVault.sol",
     "src/pre-deploy/L1FeeVault.sol",
-    "src/pre-deploy/MintableERC20Factory.sol"
+    "src/pre-deploy/MintableERC20Factory.sol",
+    "src/bridge/L1Oracle.sol",
+    "src/challenge/IChallenge.sol",
+    "src/IRollup.sol",
+    "src/ISequencerInbox.sol"
 ]
