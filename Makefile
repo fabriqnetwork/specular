@@ -29,7 +29,7 @@ BINDINGS_TARGET = bindings-go
 install: geth magi sidecar ops
 geth: bindings $(GETH_BIN_TARGET)
 magi: $(MAGI_BIN_TARGET)
-sidecar: $(shell find $(SIDECAR_DIR) -type f -name "*.go")
+sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
 ops: bindings
