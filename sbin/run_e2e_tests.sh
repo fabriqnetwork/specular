@@ -43,7 +43,7 @@ function ctrl_c() {
 WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
 
 # Copy config files to workspace.
-# spc workspace download --config-path "config/spc?ref=siosw/spc-integration" --name e2e
+spc workspace download --config-path "config/spc?ref=siosw/oracle-drift" --name e2e
 spc workspace set e2e
 
 PATHS_ENV=$WORKSPACE_DIR/.paths.env
