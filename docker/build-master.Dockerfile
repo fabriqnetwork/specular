@@ -13,7 +13,7 @@ RUN echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesourc
 
 RUN apt-get update && apt-get install nodejs -y
 
-RUN apt install -y libudev-dev build-essential ca-certificates clang libpq-dev libssl-dev pkg-config lsof lld bash python3 make g++ musl-dev git pgrep
+RUN apt install -y libudev-dev build-essential ca-certificates clang libpq-dev libssl-dev pkg-config lsof lld bash python3 make g++ musl-dev git pcregrep
 
 RUN apt install -y linux-headers-generic wget
 RUN npm install -g pnpm
