@@ -58,6 +58,43 @@ export async function getWithdrawalProof(
         storageProof: proof.storageProof[0].proof,
     };
 }
+// export async function deployTokenPair(l1Bridger: Wallet, l2Relayer: Wallet) {
+//     const TestTokenFactory = new ethers.ContractFactory(
+//         "TestToken",
+//         l1Bridger,
+//     );
+//     const l1Token = await TestTokenFactory.deploy();
+
+//     const MintableERC20FactoryFactory = new ethers.ContractFactory(
+//         "MintableERC20Factory",
+//         l2Relayer,
+//     );
+//     const mintableERC20Factory = await MintableERC20FactoryFactory.deploy(
+//         addresses.l2StandardBridgeAddress,
+//     );
+//     const deployTx = await mintableERC20Factory.createMintableERC20(
+//         l1Token.address,
+//         "TestToken",
+//         "TT",
+//     );
+//     const deployTxWithLogs = await deployTx.wait();
+//     console.log(deployTxWithLogs);
+//     const deployEvent = mintableERC20Factory.interface.parseLog(
+//         deployTxWithLogs.logs[0],
+//     );
+//     const l2TokenAddr = deployEvent.args.localToken;
+
+//     const MintableERC20Factory = await ethers.getContractFactory(
+//         "MintableERC20",
+//         l2Relayer,
+//     );
+//     const l2Token = MintableERC20Factory.attach(l2TokenAddr);
+
+//     return {
+//         l1Token,
+//         l2Token,
+//     };
+// }
 
 /** 
 * Enforces a milisecond delay. 
@@ -93,6 +130,27 @@ export async function waitUntilOracleBlock(
         await delay(500);
         oracleBlockNumber = await l1Oracle.number();
     }
+}
+
+
+export async function getCurrentL1Assertion(rollup: Contract): Promise<[number, number]> {
+    return new Promise<[number, number]>((resolve, reject) => {
+        rollup.on(rollup.filters.AssertionConfirmed(), async (id: BigNumber) => {
+            try {
+                const assertionId = id.toNumber();
+                const assertion = await rollup.getAssertion(assertionId);
+                const assertionBlockNum = assertion.blockNum.toNumber();
+                console.log({
+                    msg: "AssertionConfirmed",
+                    id: assertionId,
+                    blockNum: assertionBlockNum,
+                });
+                resolve([assertionId, assertionBlockNum]);
+            } catch (error) {
+                reject(error); // Reject promise if there's an error
+            }
+        });
+    });
 }
 
 /**

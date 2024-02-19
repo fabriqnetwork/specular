@@ -13,7 +13,11 @@
     "build": "tsc --build",
     "gen:binding": "typechain --target ethers-v5 --out-dir src/types/contracts \"./node_modules/@specularl2/contracts/artifacts/src/**/*[!dbg].json\"",
     "preinstall": "npx only-allow pnpm",
-    "prepublishOnly": "pnpm run gen:binding && pnpm run build"
+    "prepublishOnly": "pnpm run gen:binding && pnpm run build",
+    "test:deposit": "ts-node scripts/test_deposit.ts",
+    "test:depositERC": "ts-node scripts/test_depositeERC20.ts",
+    "test:withdraw": "ts-node scripts/test_withdrawal.ts",
+    "test:withdrawERC": "ts-node scripts/test_withdrawalERC20.ts"
   },
   "keywords": [
     "specular",

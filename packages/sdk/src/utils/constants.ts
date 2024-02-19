@@ -13,15 +13,15 @@ import {
 
 const l1portalAddresses = {
     sepolia: '0x457818a300BBa8E998889FAb2e8453BDebA238E0',
-    hardhat_local: '0x56d989E71d7B001cb4BB9892A1cA27f13651e799'
+    hardhat_local: '0x42bB391bd8A51f024E1D59726888186b15E08359'
 }
 const l1StandardBridgeAddresses = {
     sepolia: '0x06B8bF239246Cc0B08B77E743d816A690C7b1325',
-    hardhat_local: '0x8557b2667f896e4e80732157DE2665C80643c00C'
+    hardhat_local: '0x6eE4BBa799CB77004CD3f21AE074f061194b2C20'
 }
 const l1RollupAddresses = {
     sepolia: '0x849eB65348360a6a5f33Bce19249763fFc426D5C',
-    hardhat_local: '0x11FF7c2d1a6115Ba9864d706Ca0163b15c10DC69'
+    hardhat_local: '0xD2BaAdF3f3E5e8868F8aEE6E564D1ceB56461040'
 }
 
 export const l1ChainIds = [1337, 11155111]

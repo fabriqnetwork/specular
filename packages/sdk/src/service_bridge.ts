@@ -12,12 +12,11 @@ import {
     ethers,
     BigNumber,
     Overrides,
-    CallOverrides,
     Contract,
 } from 'ethers'
 import { AddressLike, MessageStatus, NumberLike, SignerOrProviderLike } from './interfaces/types'
 import { toNumber, toSignerOrProvider } from './utils'
-import { getDepositProof, getWithdrawalProof, delay, getStorageKey, waitUntilBlockConfirmed, waitUntilOracleBlock, hexlifyBlockNum } from './utils/helpers'
+import { getDepositProof, getWithdrawalProof, waitUntilBlockConfirmed, hexlifyBlockNum, getCurrentL1Assertion } from './utils/helpers'
 
 import { CONTRACT_ADDRESSES, DEFAULT_L2_CONTRACT_ADDRESSES, getL1ContractsByNetworkId, l1ChainIds, l2ChainIds } from './utils/constants'
 
@@ -66,7 +65,7 @@ export class ServiceBridge {
     readonly l2Portal: L2Portal;
     readonly l1Portal: L1Portal;
     readonly l1Rollup: Rollup;
-
+    readonly l1RollupContract: Contract;
     readonly l1StandardBridge: L1StandardBridge;
     readonly l2StandardBridge: L2StandardBridge;
 
@@ -117,19 +116,13 @@ export class ServiceBridge {
         const L1PortalAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Portal.toString()
         const l1RollupAddress = getL1ContractsByNetworkId(this.l1ChainId).L1Rollup.toString()
 
-        console.log('L1StandardBridgeAddress', L1StandardBridgeAddress)
-        console.log('L1PortalAddress', L1PortalAddress)
-        console.log('l1RollupAddress', l1RollupAddress)
-
-
+        this.l1Rollup = Rollup__factory.connect(l1RollupAddress, this.l1SignerOrProvider)
         this.l1StandardBridge = L1StandardBridge__factory.connect(L1StandardBridgeAddress, this.l1SignerOrProvider);
         this.l2StandardBridge = L2StandardBridge__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2StandardBridge.toString(), this.l2SignerOrProvider);
-        this.l1Portal = L1Portal__factory.connect(L1PortalAddress, this.l2SignerOrProvider)
+        this.l1Portal = L1Portal__factory.connect(L1PortalAddress, this.l1SignerOrProvider)
         this.l1Oracle = L1Oracle__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L1Oracle.toString(), this.l2SignerOrProvider);
         this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
-        this.l2Portal = L2Portal__factory.connect(DEFAULT_L2_CONTRACT_ADDRESSES.L2Portal.toString(), this.l2SignerOrProvider);
-        this.l1Rollup = Rollup__factory.connect(l1RollupAddress, this.l1SignerOrProvider)
-
+        this.l1RollupContract = new Contract(l1RollupAddress, this.l1Rollup.interface, this.l1RPCprovider)
     }
 
     async getL1OracleBlockNumber() {
@@ -201,18 +194,15 @@ export class ServiceBridge {
         const depositEvent = this.l1Portal.interface.parseLog(bridgeTxLogs.logs[1]);
         const depositHash = depositEvent.args.depositHash;
 
-
         const depositFinalized = await this.l2Portal.finalizedDeposits(depositHash)
-
-        if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
-            return MessageStatus.READY;
-        } else if (depositFinalized) {
+        if (depositFinalized) {
             return MessageStatus.DONE;
+        } else if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
+            return MessageStatus.READY;
         } else {
             return MessageStatus.PENDING;
         }
     }
-
 
     /**
     * Return the status of the withdrawal message; 
@@ -222,17 +212,17 @@ export class ServiceBridge {
     public async getWithdrawalStatus(bridgeTxLogs: TransactionReceipt): Promise<MessageStatus> {
 
         const desiredBlockNumber = bridgeTxLogs.blockNumber;
-        let currentOracleBlockNumber = await this.l1Oracle.number();
+        const [assertionId, assertionBlockNum] = await getCurrentL1Assertion(this.l1RollupContract)
 
-        const withdrawalEvent = this.l2Portal.interface.parseLog(bridgeTxLogs.logs[1]);
-        const withdrawalHash = withdrawalEvent.args.withdrawalHash;
-        const withdrawalFinalized = await this.l1Portal.finalizedWithdrawals(withdrawalHash)
+        const withdrawEvent = this.l2Portal.interface.parseLog(bridgeTxLogs.logs[1]);
+        const withdrawalHash = withdrawEvent.args.withdrawalHash;
 
+        const withdrawalFinalized = await this.l1Portal.finalizedWithdrawals(withdrawalHash);
 
-        if (desiredBlockNumber <= currentOracleBlockNumber.toNumber()) {
-            return MessageStatus.READY;
-        } else if (withdrawalFinalized) {
+        if (withdrawalFinalized) {
             return MessageStatus.DONE;
+        } else if (assertionBlockNum >= desiredBlockNumber) {
+            return MessageStatus.READY;
         } else {
             return MessageStatus.PENDING;
         }
@@ -566,9 +556,7 @@ export class ServiceBridge {
             bridgeTx: TransactionReceipt,
         ): Promise<TransactionRequest> => {
 
-
             const tXwithLogs = await this.l1Provider?.getTransactionReceipt(bridgeTx.transactionHash)
-            console.log('tXwithLogs', tXwithLogs)
 
             const depositEvent = this.l1Portal.interface.parseLog(bridgeTx.logs[1]);
 
@@ -593,11 +581,6 @@ export class ServiceBridge {
                 hexlifyBlockNum(initialBlockNumber),
                 this.l1RPCprovider
             );
-            const blockno = await this.l1Oracle.number()
-            console.log("blockno", blockno.toNumber())
-
-            await waitUntilOracleBlock(this.l1Oracle, initialBlockNumber);
-
 
             const currentBlockNumber = (await this.l1Oracle.number()).toNumber()
             // If the number of the Oracle block if bigger or equal the transaction is settled on L2
@@ -611,7 +594,6 @@ export class ServiceBridge {
                     depositProof.storageProof,
                 )
                 return finalizeTx;
-
             }
 
         },
@@ -625,9 +607,7 @@ export class ServiceBridge {
         finalizeWithdrawal: async (bridgeTx: TransactionReceipt,
         ): Promise<TransactionRequest> => {
 
-
             const withdrawTxBlockNum = bridgeTx.blockNumber;
-
             const withdrawEvent = this.l2Portal.interface.parseLog(bridgeTx.logs[1]);
 
             const withdrawMessage = {
@@ -639,14 +619,13 @@ export class ServiceBridge {
                 gasLimit: withdrawEvent.args.gasLimit,
                 data: withdrawEvent.args.data,
             };
-
             const withdrawalHash = withdrawEvent.args.withdrawalHash;
 
 
-            const [assertionId, assertionBlockNum] = await waitUntilBlockConfirmed(
+            const [assertionId, assertionBlockNum] = await getCurrentL1Assertion(
                 this.l1Rollup,
-                withdrawTxBlockNum,
             );
+
 
             // Get withdraw proof for the block the assertion committed to.
             const withdrawProof = await getWithdrawalProof(
@@ -655,6 +634,7 @@ export class ServiceBridge {
                 hexlifyBlockNum(assertionBlockNum),
                 this.l2RPCprovider
             );
+
             // Get block for the block the assertion committed to.
             let rawBlock = await this.l2RPCprovider.send("eth_getBlockByNumber", [
                 ethers.utils.hexValue(assertionBlockNum),
@@ -663,7 +643,6 @@ export class ServiceBridge {
             let l2BlockHash = this.l2RPCprovider.formatter.hash(rawBlock.hash);
             let l2StateRoot = this.l2RPCprovider.formatter.hash(rawBlock.stateRoot);
 
-
             const finalizeTx = await this.l1Portal.populateTransaction.finalizeWithdrawalTransaction(
                 withdrawMessage,
                 assertionId,
@@ -671,6 +650,7 @@ export class ServiceBridge {
                 l2StateRoot,
                 withdrawProof.accountProof,
                 withdrawProof.storageProof,
+
             );
             return finalizeTx;
 
