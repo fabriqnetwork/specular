@@ -37,8 +37,8 @@ async function main() {
 
     let messageStatus = await serviceBridge.getDepositStatus(depositETHReceipt)
 
-    while (!(messageStatus == 1)) {
-        await delay(500);
+    while (messageStatus == 0) {
+        await delay(5000);
         console.log("...Waiting for the TX to be ready for finalization...")
         messageStatus = await serviceBridge.getDepositStatus(depositETHReceipt)
 
