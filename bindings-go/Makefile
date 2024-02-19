@@ -7,7 +7,7 @@ DIST=dist
 BINARY_NAME=bindings
 
 PKG="bindings"
-MONOREPO_BASE=`git rev-parse --show-toplevel | xargs`
+MONOREPO_BASE="$(shell dirname $(realpath .))"
 CONTRACTS_DIR="${MONOREPO_BASE}/contracts"
 GETH_DIR := "${MONOREPO_BASE}/services/el_clients/go-ethereum"
 
