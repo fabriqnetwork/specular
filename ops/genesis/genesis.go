@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/specularL2/specular/ops/bindings/bindings"
+	"github.com/specularL2/specular/bindings-go/bindings"
 	"github.com/specularL2/specular/ops/predeploys"
 	"github.com/specularL2/specular/ops/state"
 )

@@ -123,6 +123,12 @@ func GeneratePredeployConfig(config *GenesisConfig, block *types.Block) predeplo
 				"minWithdrawalAmount": {ProxyValue: (*big.Int)(config.L2FeesMinWithdrwalAmount)},
 			},
 		},
+		"MintableERC20Factory": {
+			Proxied: false,
+			ConstructorValues: map[string]any{
+				"_bridge": predeploys.MintableERC20FactoryAddr,
+			},
+		},
 	}
 	return predeployConfigs
 }

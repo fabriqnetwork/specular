@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/specularL2/specular/ops/bindings/solc"
+	"github.com/specularL2/specular/bindings-go/solc"
 )
 
 // layouts respresents the set of storage layouts. It is populated in an init function.

@@ -51,6 +51,7 @@
     "@openzeppelin/contracts": "^4.9.3",
     "@openzeppelin/contracts-upgradeable": "^4.9.3",
     "@openzeppelin/hardhat-upgrades": "^1.22.1",
+    "commander": "^11.1.0",
     "ethereumjs-util": "^7.1.5",
     "glob": "^10.2.3",
     "lint-staged": "^13.1.3"

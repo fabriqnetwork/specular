@@ -71,8 +71,13 @@ func (app *Application) Run() error {
 	return err
 }
 
-func (app *Application) ShutdownAndCleanup() {
-	app.log.Info("app shutting down")
+func (app *Application) ShutdownAndCleanup(exitCode int) {
+	if exitCode == 0 {
+		app.log.Info("app shutting down")
+	} else {
+		app.log.Crit("app shutting down due to error, exit code: %i", exitCode)
+	}
+	os.Exit(exitCode)
 }
 
 func (app *Application) GetLogger() log.Logger {

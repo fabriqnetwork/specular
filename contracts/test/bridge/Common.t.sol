@@ -15,7 +15,7 @@ import {L1StandardBridge} from "../../src/bridge/L1StandardBridge.sol";
 import {L2StandardBridge} from "../../src/bridge/L2StandardBridge.sol";
 import {Predeploys} from "../../src/libraries/Predeploys.sol";
 import {MintableERC20} from "../../src/bridge/mintable/MintableERC20.sol";
-import {MintableERC20Factory} from "../../src/bridge/mintable/MintableERC20Factory.sol";
+import {MintableERC20Factory} from "../../src/pre-deploy/MintableERC20Factory.sol";
 
 contract UUPSProxy is ERC1967Proxy {
     constructor(address _implementation, bytes memory _data) ERC1967Proxy(_implementation, _data) {}
