@@ -1,2 +1,2 @@
-export * from './interfaces'
-export * from './service_bridge'
+export * from "./interfaces";
+export * from "./service_bridge";
