@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - develop
+      - macwis/release-artifacts
 
 jobs:
   build:
