@@ -14,6 +14,8 @@ import {
   MessageStatus,
   NumberLike,
   SignerOrProviderLike,
+  L2ChainID,
+  L1ChainID,
 } from "./interfaces/types";
 import { toNumber, toSignerOrProvider } from "./utils";
 import {
@@ -28,8 +30,6 @@ import {
   CONTRACT_ADDRESSES,
   DEFAULT_L2_CONTRACT_ADDRESSES,
   getL1ContractsByNetworkId,
-  l1ChainIds,
-  l2ChainIds,
 } from "./utils/constants";
 
 import {
@@ -487,7 +487,7 @@ export class ServiceBridge {
         DEFAULT_L2_CONTRACT_ADDRESSES.L2StandardBridge;
 
       // check on which chain to do the approval
-      if (l1ChainIds.includes(chainId)) {
+      if (Object.values(L1ChainID).includes(this.l1ChainId)) {
         const tokenContract = new Contract(
           token.toString(),
           ERC20.abi,
