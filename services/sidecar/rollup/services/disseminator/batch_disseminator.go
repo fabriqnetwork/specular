@@ -66,7 +66,7 @@ func (d *BatchDisseminator) start(ctx context.Context) error {
 			if err := d.step(ctx); err != nil {
 				log.Errorf("Failed to step: %w", err)
 				if errors.As(err, &recoverableSystemStateError{}) {
-					log.Info("rollback: %w", err)
+					log.Info("Rollback from recoverable error", "error", err)
 					d.rollback(ctx)
 					// return fmt.Errorf("aborting: %w", err)
 				}
@@ -141,11 +141,11 @@ func (d *BatchDisseminator) pendingL2BlockRange(ctx context.Context) (uint64, ui
 		start        = lastEnqueued.GetNumber() + 1 // TODO: fix assumption
 	)
 	safe, err := d.l2Client.HeaderByTag(ctx, eth.Safe)
-	safeBlockNum := safe.Number.Uint64()
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("failed to get l2 safe header: %w", err)
 	}
-	log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash)
+	log.Info("Retrieved safe head", "number", safe.Number, "hash", safe.Hash())
+	safeBlockNum := safe.Number.Uint64()
 	if lastEnqueued == types.EmptyBlockID {
 		// First time running; use safe (assumes local chain fork-choice is in sync...)
 		start = safeBlockNum + 1

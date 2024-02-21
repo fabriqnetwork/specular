@@ -22,11 +22,14 @@ OPS_BINDINGS_TARGET = $(OPS_DIR)/bindings
 
 BINDINGS_TARGET = bindings-go
 
+ARTIFACTS_DIR = artifacts
+CHECKSUM_FILE = SHA512SUMS
+
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 #CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
 #CLEF_TARGET = $(SIDECAR_BIN)/clef
 
-install: geth magi sidecar ops
+install: geth magi sidecar ops artifacts
 geth: bindings $(GETH_BIN_TARGET)
 magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
@@ -47,6 +50,7 @@ clean:
 	cd $(CONTRACTS_DIR) && npx hardhat clean
 	rm -rf $(SIDECAR_BIN_TARGET)
 	rm -rf $(GETH_BIN_TARGET)
+	rm -rf $(ARTIFACTS_DIR)
 	#rm -rf $(CLEF_TARGET)
 
 # prereqs: all new/deleted files in contracts/ AND existing solidity files
@@ -63,3 +67,14 @@ $(MAGI_BIN_TARGET): $(shell find $(MAGI_DIR) -type f -name "*.rs")
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)
 	#@echo "Done building clef."
 	##@echo "Run \"$(GOBIN)/clef\" to launch clef."
+
+artifacts:
+	@rm -rf $(ARTIFACTS_DIR)
+	@mkdir -p $(ARTIFACTS_DIR)
+	@tar -czf $(ARTIFACTS_DIR)/geth.tar.gz $(GETH_SRC)/$(GETH_BIN_TARGET)
+	@tar -czf $(ARTIFACTS_DIR)/magi.tar.gz $(MAGI_BIN_TARGET)
+	@tar -czf $(ARTIFACTS_DIR)/sidecar.tar.gz $(SIDECAR_DIR)/$(SIDECAR_BIN_TARGET)
+	@tar -czf $(ARTIFACTS_DIR)/genesis.tar.gz $(OPS_DIR)/$(OPS_BIN_TARGET)
+	@echo -n "" > $(ARTIFACTS_DIR)/$(CHECKSUM_FILE)
+	@cd $(ARTIFACTS_DIR) && sha512sum * >> $(CHECKSUM_FILE)
+	@echo "Binaries and checksums saved in $(ARTIFACTS_DIR)/$(CHECKSUM_FILE)"
