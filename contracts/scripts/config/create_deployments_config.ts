@@ -35,6 +35,7 @@ export async function generateContractAddresses(
         .replace(/([a-z])([A-Z])/g, "$1_$2")
         .toUpperCase();
       result += `${contractName}_ADDR=${deployment.address}\n`;
+      result += `${contractName}_DEPLOYED_BLOCK=${deployment.receipt.blockNumber}\n`;
     }
   }
   fs.writeFileSync(deploymentsConfigPath, result);
