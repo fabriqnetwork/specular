@@ -8,8 +8,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/specularL2/specular/ops/bindings/bindings"
-	"github.com/specularL2/specular/ops/bindings/solc"
+	"github.com/specularL2/specular/bindings-go/bindings"
+	"github.com/specularL2/specular/bindings-go/solc"
 )
 
 var (

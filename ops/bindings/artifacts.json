@@ -1,9 +1,0 @@
-[
-    "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol",
-    "src/bridge/L1Oracle.sol",
-    "src/bridge/L2Portal.sol",
-    "src/bridge/L2StandardBridge.sol",
-    "src/pre-deploy/UUPSPlaceholder.sol",
-    "src/pre-deploy/L2BaseFeeVault.sol",
-    "src/pre-deploy/L1FeeVault.sol"
-]

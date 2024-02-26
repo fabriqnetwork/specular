@@ -31,6 +31,9 @@ if [ "$DISSEMINATOR" = true ]; then
     "--disseminator.max-safe-lag $DISSEMINATOR_MAX_SAFE_LAG"
     "--disseminator.max-safe-lag-delta $DISSEMINATOR_MAX_SAFE_LAG_DELTA"
   )
+  if [ -n "$DISSEMINATOR_INTERVAL" ]; then
+    FLAGS+=("--disseminator.interval $DISSEMINATOR_INTERVAL")
+  fi
 fi
 # Set validator flags.
 if [ "$VALIDATOR" = true ]; then

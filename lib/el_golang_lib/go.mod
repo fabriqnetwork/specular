@@ -4,11 +4,11 @@ go 1.20
 
 replace github.com/ethereum/go-ethereum => ../../services/el_clients/go-ethereum
 
-replace github.com/specularL2/specular/ops => ../../ops
+replace github.com/specularL2/specular/bindings-go => ../../bindings-go
 
 require (
 	github.com/ethereum/go-ethereum v1.13.2
-	github.com/specularL2/specular/ops v0.0.0-20231129092153-13f66846bd07
+	github.com/specularL2/specular/bindings-go v0.0.0-00010101000000-000000000000
 )
 
 require (

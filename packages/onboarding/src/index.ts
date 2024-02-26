@@ -13,9 +13,7 @@ export default async function main() {
     l1ProviderEndpoint: process.env.L1_PROVIDER_ENDPOINT!,
     l2ProviderEndpoint: process.env.L2_PROVIDER_ENDPOINT!,
     l2FunderPrivateKey: process.env.L2_FUNDER_PRIVATE_KEY!,
-
     l1PortalAddress: process.env.L1_PORTAL_ADDRESS!,
-
     depositFundingThreshold: process.env.DEPOSIT_FUNDING_THRESHOLD
       ? BigNumber.from(process.env.DEPOSIT_FUNDING_THRESHOLD)
       : ethers.utils.parseEther("0.01"),

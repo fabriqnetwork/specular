@@ -20,26 +20,25 @@ OPS_BIN_TARGET = ./build/bin/genesis # relative to OPS_DIR
 OPS_BIN_SRC = ./cmd/genesis/ # relative to OPS_DIR
 OPS_BINDINGS_TARGET = $(OPS_DIR)/bindings
 
+BINDINGS_TARGET = bindings-go
+
+ARTIFACTS_DIR = artifacts
+CHECKSUM_FILE = SHA512SUMS
+
 # TODO add clef back in when moving to services/el_clients/go-ethereum
 #CLEF_SRC = $(SIDECAR_DIR)/cmd/clef/
 #CLEF_TARGET = $(SIDECAR_BIN)/clef
 
-install: geth magi sidecar ops
-geth: ops-bindings $(GETH_BIN_TARGET)
+install: geth magi sidecar ops artifacts
+geth: bindings $(GETH_BIN_TARGET)
 magi: $(MAGI_BIN_TARGET)
 sidecar: bindings $(shell find $(SIDECAR_DIR) -type f -name "*.go")
 	cd $(SIDECAR_DIR) && go build -o $(SIDECAR_BIN_TARGET) $(SIDECAR_BIN_SRC)
 
-# `touch` ensures the target is newer than preqreqs.
-# This is required since `go generate` may not add/delete files.
-bindings: $(CONTRACTS_TARGET)
-	cd $(SIDECAR_DIR) && go generate ./...
-	touch $(SIDECAR_BINDINGS_TARGET)
-
-ops: ops-bindings
+ops: bindings
 	cd $(OPS_DIR) && go build -o $(OPS_BIN_TARGET) $(OPS_BIN_SRC)
-ops-bindings: $(CONTRACTS_TARGET)
-	GOFLAGS="-buildvcs=false" make -C $(OPS_BINDINGS_TARGET)
+bindings: $(CONTRACTS_TARGET)
+	GOFLAGS="-buildvcs=false" make -C $(BINDINGS_TARGET)
 
 contracts: $(CONTRACTS_TARGET) # for back-compat
 
@@ -48,10 +47,10 @@ contracts: $(CONTRACTS_TARGET) # for back-compat
 # - contracts (this has to happen after bindings)
 # - geth and clef
 clean:
-	rm -f $(SIDECAR_BINDINGS_TARGET)/I*.go
 	cd $(CONTRACTS_DIR) && npx hardhat clean
 	rm -rf $(SIDECAR_BIN_TARGET)
 	rm -rf $(GETH_BIN_TARGET)
+	rm -rf $(ARTIFACTS_DIR)
 	#rm -rf $(CLEF_TARGET)
 
 # prereqs: all new/deleted files in contracts/ AND existing solidity files
@@ -68,3 +67,14 @@ $(MAGI_BIN_TARGET): $(shell find $(MAGI_DIR) -type f -name "*.rs")
 	#go build -o ./$(CLEF_TARGET) ./$(CLEF_SRC)
 	#@echo "Done building clef."
 	##@echo "Run \"$(GOBIN)/clef\" to launch clef."
+
+artifacts:
+	@rm -rf $(ARTIFACTS_DIR)
+	@mkdir -p $(ARTIFACTS_DIR)
+	@tar -czf $(ARTIFACTS_DIR)/geth.tar.gz $(GETH_SRC)/$(GETH_BIN_TARGET)
+	@tar -czf $(ARTIFACTS_DIR)/magi.tar.gz $(MAGI_BIN_TARGET)
+	@tar -czf $(ARTIFACTS_DIR)/sidecar.tar.gz $(SIDECAR_DIR)/$(SIDECAR_BIN_TARGET)
+	@tar -czf $(ARTIFACTS_DIR)/genesis.tar.gz $(OPS_DIR)/$(OPS_BIN_TARGET)
+	@echo -n "" > $(ARTIFACTS_DIR)/$(CHECKSUM_FILE)
+	@cd $(ARTIFACTS_DIR) && sha512sum * >> $(CHECKSUM_FILE)
+	@echo "Binaries and checksums saved in $(ARTIFACTS_DIR)/$(CHECKSUM_FILE)"

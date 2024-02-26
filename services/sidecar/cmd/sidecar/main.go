@@ -22,7 +22,7 @@ func main() {
 		<-application.GetContext().Done()
 
 		application.GetLogger().Info("application context canceled, cleaning up")
-		application.ShutdownAndCleanup()
+		application.ShutdownAndCleanup(exitCode)
 	}()
 
 	if err := application.Run(); err != nil {
