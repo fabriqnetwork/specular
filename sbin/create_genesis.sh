@@ -27,6 +27,7 @@ guard_overwrite $GENESIS_PATH $AUTO_ACCEPT
 FLAGS=(
   "--genesis-config $GENESIS_CFG_PATH"
   "--out $GENESIS_PATH"
+  "--l1-block $SEQUENCER_INBOX_DEPLOYED_BLOCK"
   "--l1-rpc-url $L1_ENDPOINT"
   "--export-hash $GENESIS_EXPORTED_HASH_PATH"
   "--l1-portal-address $L1PORTAL_ADDR"
