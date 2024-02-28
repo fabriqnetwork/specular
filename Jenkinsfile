@@ -27,6 +27,7 @@ pipeline {
                     }
                 }
 
+
                 // env files
                 fileOperations([fileCopyOperation(
                         excludes: '',
