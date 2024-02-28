@@ -36,17 +36,18 @@ pipeline {
                         targetLocation: "workspace"
                 )])
 
-                // login to ecr
-                sh "aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin 792926601177.dkr.ecr.us-east-2.amazonaws.com"
             }
         }
         stage('create build image') {
             steps{
                 script {
-                    dockerImage = docker.build(
-                        registry + ":e2e-pr-$BUILD_NUMBER",
-                        "-f docker/e2e.Dockerfile ."
-                    )
+                    docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
+                        docker.build(
+                            registry + ":e2e-pr-$BUILD_NUMBER",
+                            "-f docker/e2e.Dockerfile ."
+                        )
+                    }
+
                 }
             }
         }
@@ -54,22 +55,39 @@ pipeline {
             parallel {
                 stage('transactions') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh transactions"
+                      script {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                          c -> sh "../sbin/run_e2e_tests.sh transactions"
+                        }
+                      }
+
                     }
                 }
                 stage('deposit') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh deposit"
+                      script {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                          c -> sh "../sbin/run_e2e_tests.sh deposit"
+                        }
+                      }
                     }
                 }
                 stage('erc20') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh erc20"
+                      script {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                          c -> sh "../sbin/run_e2e_tests.sh erc20"
+                        }
+                      }
                     }
                 }
                 stage('withdraw') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh withdraw"
+                      script {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                          c -> sh "../sbin/run_e2e_tests.sh withdraw"
+                        }
+                      }
                     }
                 }
             }
