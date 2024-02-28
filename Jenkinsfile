@@ -28,15 +28,16 @@ pipeline {
                 }
 
                 sh 'ls -la'
-                sh 'ls -la config'
+
                 // env files
                 fileOperations([fileCopyOperation(
                         excludes: '',
                         flattenFiles: false,
-                        includes: 'config/local_docker/[.?]',
+                        includes: 'config/local_docker',
                         targetLocation: "workspace"
                 )])
 
+                sh 'ls -la workspace'
             }
         }
         // stage('create build image') {
