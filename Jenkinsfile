@@ -33,8 +33,8 @@ pipeline {
                 fileOperations([fileCopyOperation(
                         excludes: '',
                         flattenFiles: false,
-                        includes: 'config/local_docker/*',
-                        targetLocation: "workspace/"
+                        includes: 'config/local_docker/[.?]*',
+                        targetLocation: "workspace"
                 )])
 
                 sh 'ls -la workspace'
