@@ -8,6 +8,11 @@ pipeline {
         stage('prepare workspace') {
             steps {
 
+                script {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").inside("-w /specular/workspace") {
+                          c -> sh "pwd"
+                        }
+                }
                 // checkout git
                 checkout scmGit(
                     userRemoteConfigs: [
