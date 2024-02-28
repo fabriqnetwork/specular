@@ -33,7 +33,7 @@ pipeline {
                 fileOperations([fileCopyOperation(
                         excludes: '',
                         flattenFiles: false,
-                        includes: 'config/local_docker/**',
+                        includes: 'config/local_docker/*',
                         targetLocation: "workspace/"
                 )])
 
