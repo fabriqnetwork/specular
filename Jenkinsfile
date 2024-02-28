@@ -18,27 +18,13 @@ pipeline {
 
                 // submodules
                 sh "git submodule update --init --recursive"
-                sh "rm -rf workspace && mkdir workspace"
+
                 // make our workspace dir
-                script {
-                    if(!fileExists("workspace")) {
-                        fileOperations([folderCreateOperation('workspace')])
-
-                    }
-                }
-
-                sh 'ls -la config/local_docker'
+                sh "rm -rf workspace && mkdir workspace"
+                sh 'cp -a config/local_docker/. workspace/'
 
                 // env files
-                fileOperations([fileCopyOperation(
-                        excludes: '',
-                        flattenFiles: false,
-                        includes: 'config/local_docker/*',
-                        targetLocation: "workspace"
-                )])
-
                 sh 'ls -la workspace'
-                sh 'ls -la workspace/config'
             }
         }
         // stage('create build image') {
