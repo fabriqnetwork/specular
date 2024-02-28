@@ -38,18 +38,18 @@ pipeline {
 
             }
         }
-        stage('create build image') {
-            steps{
-                script {
-                    docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
-                        docker.build(
-                            registry + ":e2e-pr-10",
-                            "-f docker/e2e.Dockerfile ."
-                        )
-                    }
-                }
-            }
-        }
+        // stage('create build image') {
+        //     steps{
+        //         script {
+        //             docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
+        //                 docker.build(
+        //                     registry + ":e2e-pr-10",
+        //                     "-f docker/e2e.Dockerfile ."
+        //                 )
+        //             }
+        //         }
+        //     }
+        // }
         stage('e2e-test') {
             parallel {
                 stage('transactions') {
