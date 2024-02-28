@@ -13,7 +13,7 @@ pipeline {
                     userRemoteConfigs: [
                         [ credentialsId: 'jenkins-specular', url: 'github.com:SpecularL2/specular.git']
                     ],
-                    branches: [[name: '*/develop/*']]
+                    branches: [[name: '*/PR-*']]
                 )
 
                 // submodules
