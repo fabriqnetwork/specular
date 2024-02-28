@@ -1,8 +1,5 @@
 pipeline {
     agent any
-    triggers {
-      pullRequestReview(reviewStates: ['pending'])
-    }
     environment{
         registry = "792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform"
     }
