@@ -27,7 +27,8 @@ pipeline {
                     }
                 }
 
-
+                sh 'ls -la'
+                sh 'ls -la config'
                 // env files
                 fileOperations([fileCopyOperation(
                         excludes: '',
