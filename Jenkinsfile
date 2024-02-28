@@ -21,31 +21,30 @@ pipeline {
 
                 // make our workspace dir
                 sh "rm -rf workspace && mkdir workspace"
-                sh 'cp -a config/local_docker/. workspace/'
 
                 // env files
-                sh 'ls -la workspace'
+                sh 'cp -a config/local_docker/. workspace/'
             }
         }
-        // stage('create build image') {
-        //     steps{
-        //         script {
-        //             docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
-        //                 docker.build(
-        //                     registry + ":e2e-pr-10",
-        //                     "-f docker/e2e.Dockerfile ."
-        //                 )
-        //             }
-        //         }
-        //     }
-        // }
+        stage('create build image') {
+            steps{
+                script {
+                    docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
+                        docker.build(
+                            registry + ":e2e-pr-10",
+                            "-f docker/e2e.Dockerfile ."
+                        )
+                    }
+                }
+            }
+        }
         stage('e2e-test') {
             parallel {
                 stage('transactions') {
                     steps {
                       script {
                         docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-10").inside("-w /specular/workspace") {
-                          c -> sh "cd /specular/workspace && ls -la && ../sbin/run_e2e_tests.sh transactions"
+                          c -> sh "cd /specular/workspace && ../sbin/run_e2e_tests.sh transactions"
                         }
                       }
 
