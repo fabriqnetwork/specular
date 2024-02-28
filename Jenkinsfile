@@ -56,7 +56,7 @@ pipeline {
                 stage('transactions') {
                     steps {
                       script {
-                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").inside("-w /specular/workspace") {
                           c -> sh "../sbin/run_e2e_tests.sh transactions"
                         }
                       }
@@ -66,7 +66,7 @@ pipeline {
                 stage('deposit') {
                     steps {
                       script {
-                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").inside("-w /specular/workspace") {
                           c -> sh "../sbin/run_e2e_tests.sh deposit"
                         }
                       }
@@ -75,7 +75,7 @@ pipeline {
                 stage('erc20') {
                     steps {
                       script {
-                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").inside("-w /specular/workspace") {
                           c -> sh "../sbin/run_e2e_tests.sh erc20"
                         }
                       }
@@ -84,7 +84,7 @@ pipeline {
                 stage('withdraw') {
                     steps {
                       script {
-                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").withRun("-w /specular/workspace") {
+                        docker.image("792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER").inside("-w /specular/workspace") {
                           c -> sh "../sbin/run_e2e_tests.sh withdraw"
                         }
                       }
