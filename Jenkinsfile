@@ -27,14 +27,14 @@ pipeline {
                     }
                 }
 
-                sh 'ls -la'
+                sh 'ls -la config/local_docker'
 
                 // env files
                 fileOperations([fileCopyOperation(
                         excludes: '',
                         flattenFiles: false,
-                        includes: 'config/local_docker',
-                        targetLocation: "workspace"
+                        includes: 'config/local_docker/**',
+                        targetLocation: "workspace/"
                 )])
 
                 sh 'ls -la workspace'
