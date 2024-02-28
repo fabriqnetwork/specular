@@ -37,7 +37,6 @@ pipeline {
                         targetLocation: "workspace"
                 )])
 
-                sh 'tree workspace'
                 sh 'ls -la workspace'
                 sh 'ls -la workspace/config'
             }
