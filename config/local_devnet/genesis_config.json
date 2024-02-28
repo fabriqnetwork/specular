@@ -12,5 +12,9 @@
     "l2FeesMinWithdrwalAmount": "0x0",
     "l1FeeOverhead": "0x1",
     "l1FeeScalar": "0x1",
-    "alloc": {}
+    "alloc": {
+        "2a00000000000000000000000000000000000011": {
+            "balance": "1000000000000000000000000000"
+        }
+    }
 }
