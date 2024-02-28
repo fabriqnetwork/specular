@@ -46,12 +46,12 @@ jobs:
       - name: Make specular
         run: make
 
-      - name: Setup workspace
-        run: mkdir workspace && cp -a config/e2e_test/. workspace/
+      - name: Download spc
+        run: sudo wget -O /usr/local/bin/spc https://github.com/SpecularL2/specular-cli/releases/download/v0.0.9/spc-linux-amd64 && sudo chmod +x /usr/local/bin/spc
 
       - name: Run tests
-        run: cd workspace && ../sbin/run_e2e_tests.sh ${{ matrix.test-name }}
+        run: ./sbin/run_e2e_tests.sh ${{ matrix.test-name }}
 
       - name: Print log
         if: failure()
-        run: cd workspace/workspace-test && cat proc.*
+        run: cat ~/.spc/workspaces/active_workspace/*.out

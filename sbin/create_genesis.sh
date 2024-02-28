@@ -1,5 +1,8 @@
 #!/bin/bash
 set -e
+
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+
 # Currently the local sbin paths are relative to the project root.
 SBIN=$(dirname "$(readlink -f "$0")")
 SBIN="$(
@@ -10,10 +13,15 @@ SBIN="$(
 ROOT_DIR=$SBIN/..
 
 # Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "genesis" ".genesis.env"
-reqdotenv "contracts" ".contracts.env"
-reqdotenv "deployments" ".deployments.env"
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+GENESIS_ENV=$WORKSPACE_DIR/.genesis.env
+CONTRACTS_ENV=$WORKSPACE_DIR/.contracts.env
+DEPLOYMENTS_ENV=$WORKSPACE_DIR/.deployments.env
+
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "genesis" $GENESIS_ENV
+reqdotenv "contracts" $CONTRACTS_ENV
+reqdotenv "deployments" $DEPLOYMENTS_ENV
 
 echo "Using $OPS_DIR as ops directory."
 # Get relative paths for $OPS_DIR

@@ -1,8 +1,10 @@
 #!/bin/bash
 # Check that a dotenv exists.
-GETH_ENV=".sp_geth.env"
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
+GETH_ENV="$WORKSPACE_DIR/.sp_geth.env"
+
 if ! test -f "$GETH_ENV"; then
-  echo "expected dotenv at ./$GETH_ENV (does not exist); could not clean cwd."
+  echo "expected dotenv at $GETH_ENV (does not exist); could not clean cwd."
   exit
 fi
 . $GETH_ENV

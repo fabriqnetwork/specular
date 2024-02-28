@@ -40,50 +40,53 @@ function ctrl_c() {
 
 ##############################
 
-# Check that the all required dotenv files exists.
-reqdotenv "paths" ".paths.env"
-reqdotenv "sidecar" ".sidecar.env"
+WORKSPACE_DIR=$HOME/.spc/workspaces/active_workspace
 
-WORKSPACE_DIR=./workspace-test
-mkdir -p $WORKSPACE_DIR
-cd $WORKSPACE_DIR
+# Copy config files to workspace.
+spc workspace download --config-path "config/spc?ref=siosw/spc-integration" --name e2e
+spc workspace set e2e
 
-echo "Cleaning $WORKSPACE_DIR"
-$SBIN/clean.sh
-# Copy config files to cwd.
-echo "Copying local_devnet config files to cwd..."
-cp -a $CONFIG_DIR/e2e_test/. .
+PATHS_ENV=$WORKSPACE_DIR/.paths.env
+SIDECAR_ENV=$WORKSPACE_DIR/.sidecar.env
+reqdotenv "paths" $PATHS_ENV
+reqdotenv "sidecar" $SIDECAR_ENV
 
 # Start L1
-yes | $SBIN/generate_secrets.sh -d
-yes | $SBIN/start_l1.sh -d -s &
+$SBIN/generate_secrets.sh -dj
+echo "starting l1"
+$SBIN/start_l1.sh -d &>$WORKSPACE_DIR/l1.out &
+
+echo "waiting for host"
 
 # Parse url into host:port
 L1_HOST_AND_PORT=${L1_ENDPOINT#*://}
+echo $L1_HOST_AND_PORT
 # Wait for services
 $SBIN/wait-for-it.sh -t 60 $L1_HOST_AND_PORT | sed "s/^/[WAIT] /"
 echo "L1 endpoint is available"
-until [ -f ".deployed" ]; do
+
+DEPLOYMENTS_ENV=$WORKSPACE_DIR/.deployments.env
+until [ -f $DEPLOYMENTS_ENV ]; do
   echo "waiting for L1 to be fully deployed..."
   sleep 4
 done
-
-reqdotenv "deployments" ".deployments.env"
+reqdotenv "deployments" $DEPLOYMENTS_ENV
 
 # Start sp-geth
-$SBIN/start_sp_geth.sh -c &>proc.out &
-sleep 1
+$SBIN/start_sp_geth.sh -c &>$WORKSPACE_DIR/sp_geth.out &
+sleep 4
 
 # Start sp-magi
-$SBIN/start_sp_magi.sh &>proc2.out &
-sleep 1
+$SBIN/start_sp_magi.sh &>$WORKSPACE_DIR/sp_magi.out &
+sleep 4
 
 # Start sidecar
-$SBIN/start_sidecar.sh &>proc3.out &
-sleep 1
+$SBIN/start_sidecar.sh &>$WORKSPACE_DIR/sidecar.out &
+sleep 4
 
 cd $CONTRACTS_DIR
 echo "Running test: $1"
+echo $(pwd)
 # Run testing script
 case $1 in
 transactions)

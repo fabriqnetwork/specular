@@ -1,0 +1,29 @@
+{
+    "l2ChainID": 13527,
+    "l2GenesisBlockNonce": "0x0",
+    "l2GenesisBlockGasLimit": "0x0",
+    "l2GenesisBlockDifficulty": "0x0",
+    "l2GenesisBlockNumber": "0x0",
+    "l2GenesisBlockGasUsed": "0x0",
+    "l2GenesisBlockBaseFeePerGas": "0x1",
+    "l2GenesisBlockExtraData": "0x",
+    "l2PredeployOwner": "0x000000000000000000000000000000000000dEaD",
+    "l2FeesWithdrawalAddress": "0x000000000000000000000000000000000000dEaD",
+    "l2FeesMinWithdrwalAmount": "0x0",
+    "l1FeeOverhead": "0x1",
+    "l1FeeScalar": "0x1",
+    "alloc": {
+        "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266": {
+            "balance": "10000000000000000000"
+        },
+        "0x70997970c51812dc3a010c7d01b50e0d17dc79c8": {
+            "balance": "10000000000000000000"
+        },
+        "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc": {
+            "balance": "10000000000000000000"
+        },
+        "0x90F79bf6EB2c4f870365E785982E1f101E93b906": {
+            "balance": "10000000000000000000"
+        }
+    }
+}
