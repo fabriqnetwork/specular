@@ -20,6 +20,7 @@ var (
 
 type V0Config interface {
 	GetTargetBatchSize() uint64
+	GetMaxBatchSize() uint64
 }
 
 // TODO: refactor implementation (somewhat bug-prone).
@@ -43,7 +44,7 @@ func (e *BatchV0Encoder) Flush(force bool) ([]byte, error) {
 		return nil, errBatchTooSmall
 	}
 	var lastSubBatchIdx = len(e.subBatches) - 1
-	if lastSubBatchIdx > 0 && (e.sizeExceedsTarget() || e.getOpenSubBatch().isEmpty()) {
+	if lastSubBatchIdx > 0 && (e.sizeExceedsMaximum() || e.getOpenSubBatch().isEmpty()) {
 		// Ignore the open sub-batch if the batch can't fit it or there's nothing in it.
 		lastSubBatchIdx -= 1
 	} else {
@@ -79,8 +80,8 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 	var (
 		// Block is empty
 		shouldSkipBlock = len(block.Transactions()) == 0
-		// Batch would exceed the target size with the open sub-batch.
-		shouldCloseBatch = e.sizeExceedsTarget()
+		// Batch would exceed the maximum size with the open sub-batch.
+		shouldCloseBatch = e.sizeExceedsMaximum()
 		// Should close sub-batch if we're closing the batch entirely, OR...
 		// the block is empty, OR... the block belongs to a new epoch.
 		isOpenSubBatchEmpty = e.getOpenSubBatch().isEmpty()
@@ -135,8 +136,8 @@ func (e *BatchV0Encoder) getOpenSubBatch() *subBatch {
 	return e.subBatches[len(e.subBatches)-1]
 }
 
-func (e *BatchV0Encoder) sizeExceedsTarget() bool {
-	return e.size() > e.cfg.GetTargetBatchSize()
+func (e *BatchV0Encoder) sizeExceedsMaximum() bool {
+	return e.size() > e.cfg.GetMaxBatchSize()
 }
 
 // Closes the open sub-batch, if non-empty.

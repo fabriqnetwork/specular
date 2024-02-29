@@ -12,6 +12,7 @@ import (
 type config struct{}
 
 func (c config) GetTargetBatchSize() uint64 { return 10 }
+func (c config) GetMaxBatchSize() uint64    { return 20 }
 
 func TestProcessEmptyBlock(t *testing.T) {
 	var (
@@ -35,7 +36,10 @@ func TestProcessBlock(t *testing.T) {
 	err := enc.ProcessBlock(block, false)
 	require.Greater(t, enc.size(), baselineSize)
 	require.Nil(t, err, err)
-	// Test failure case
+	// Test successful case (reaches target size but not maximum size)
+	err = enc.ProcessBlock(block, false)
+	require.Nil(t, err, err)
+	// Test failure case (reaches maximum size)
 	err = enc.ProcessBlock(block, false)
 	require.Equal(t, err, errBatchFull)
 }

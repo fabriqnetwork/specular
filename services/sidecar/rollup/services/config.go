@@ -135,7 +135,9 @@ type DisseminatorConfig struct {
 	// The delta from the maximum number of blocks that the sequencer will sequence after a safe block
 	MaxSafeLagDelta uint64 `toml:"max_safe_lag_delta,omitempty"`
 	// The target size of a batch tx submitted to L1 (bytes).
-	TargetBatchSize uint64 `toml:"max_l1_tx_size,omitempty"`
+	TargetBatchSize uint64 `toml:"target_l1_tx_size,omitempty"`
+	// The maximum size of a batch tx submitted to L1 (bytes).
+	MaxBatchSize uint64 `toml:"max_l1_tx_size,omitempty"`
 	// Transaction manager configuration
 	TxMgrCfg txmgr.Config `toml:"txmgr,omitempty"`
 }
@@ -149,6 +151,7 @@ func (c DisseminatorConfig) GetSubSafetyMargin() uint64              { return c.
 func (c DisseminatorConfig) GetMaxSafeLag() uint64                   { return c.MaxSafeLag }
 func (c DisseminatorConfig) GetMaxSafeLagDelta() uint64              { return c.MaxSafeLagDelta }
 func (c DisseminatorConfig) GetTargetBatchSize() uint64              { return c.TargetBatchSize }
+func (c DisseminatorConfig) GetMaxBatchSize() uint64                 { return c.MaxBatchSize }
 func (c DisseminatorConfig) GetTxMgrCfg() txmgr.Config               { return c.TxMgrCfg }
 
 // Validates the configuration.
@@ -165,6 +168,13 @@ func (c DisseminatorConfig) validate() error {
 	// Enforce sensible values.
 	if c.TargetBatchSize < 128 {
 		return fmt.Errorf("target batch size must be at least 128B")
+	}
+	// Enforce sensible values.
+	if c.MaxBatchSize < 128 {
+		return fmt.Errorf("max batch size must be at least 128B")
+	}
+	if c.MaxBatchSize < c.TargetBatchSize {
+		return fmt.Errorf("max batch size must be at least target batch size")
 	}
 	return c.TxMgrCfg.Validate()
 }
@@ -188,6 +198,7 @@ func newDisseminatorConfigFromCLI(cliCtx *cli.Context, l1ChainID *big.Int) Disse
 		MaxSafeLag:            cliCtx.Uint64(disseminatorMaxSafeLagFlag.Name),
 		MaxSafeLagDelta:       cliCtx.Uint64(disseminatorMaxSafeLagDeltaFlag.Name),
 		TargetBatchSize:       cliCtx.Uint64(disseminatorTargetBatchSizeFlag.Name),
+		MaxBatchSize:          cliCtx.Uint64(disseminatorMaxBatchSizeFlag.Name),
 		TxMgrCfg:              txMgrCfg,
 	}
 }
