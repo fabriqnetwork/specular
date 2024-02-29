@@ -88,7 +88,7 @@ FLAGS="
     --syncmode full
 "
 
-if [[ ! -z ${GCMODE+x} ]]; then
+if [[ ! -z ${ARCHIVE_NODE+x} ]]; then
   FLAGS="$FLAGS --gcmode archive"
 fi
 
