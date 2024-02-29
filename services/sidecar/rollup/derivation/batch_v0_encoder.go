@@ -80,7 +80,7 @@ func (e *BatchV0Encoder) ProcessBlock(block *types.Block, isNewEpoch bool) error
 	var (
 		// Block is empty
 		shouldSkipBlock = len(block.Transactions()) == 0
-		// Batch would exceed the target size with the open sub-batch.
+		// Batch would exceed the maximum size with the open sub-batch.
 		shouldCloseBatch = e.sizeExceedsMaximum()
 		// Should close sub-batch if we're closing the batch entirely, OR...
 		// the block is empty, OR... the block belongs to a new epoch.
