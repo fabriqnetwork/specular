@@ -28,7 +28,7 @@ pipeline {
                 script {
                     docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
                         docker.build(
-                            registry + ":e2e-pr-$BUILD_NUMBER",
+                            registry + ":e2e-pr-$GIT_COMMIT",
                             "-f docker/e2e.Dockerfile ."
                         )
                     }
@@ -40,26 +40,37 @@ pipeline {
             parallel {
                 stage('transactions') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh transactions"
+                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$GIT_COMMIT ../sbin/run_e2e_tests.sh transactions"
                     }
                 }
                 stage('deposit') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh deposit"
+                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$GIT_COMMIT ../sbin/run_e2e_tests.sh deposit"
                     }
                 }
                 stage('erc20') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh erc20"
+                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$GIT_COMMIT ../sbin/run_e2e_tests.sh erc20"
                     }
                 }
                 stage('withdraw') {
                     steps {
-                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$BUILD_NUMBER ../sbin/run_e2e_tests.sh withdraw"
+                        sh "docker run -w /specular/workspace 792926601177.dkr.ecr.us-east-2.amazonaws.com/specular-platform:e2e-pr-$GIT_COMMIT ../sbin/run_e2e_tests.sh withdraw"
                     }
                 }
             }
         }
-
+        stage('publish images') {
+            when {
+              branch "develop"
+            }
+            steps {
+                script {
+                    docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
+                        docker.image(registry + ":e2e-pr-$GIT_COMMIT").tag("e2latest").push()
+                    }
+                }
+            }
+        }
     }
 }
