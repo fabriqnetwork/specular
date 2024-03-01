@@ -88,6 +88,10 @@ FLAGS="
     --syncmode full
 "
 
+if [[ ! -z ${ARCHIVE_NODE+x} ]]; then
+  FLAGS="$FLAGS --gcmode archive"
+fi
+
 echo "Starting sp-geth with the following aruments:"
 echo $FLAGS
 
