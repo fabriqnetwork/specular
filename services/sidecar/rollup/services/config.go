@@ -95,11 +95,15 @@ func (c ProtocolConfig) GetL1OracleAddr() common.Address {
 
 // L1 configuration
 type L1Config struct {
-	Endpoint string `toml:"endpoint,omitempty"` // L1 API endpoint
+	Endpoint           string `toml:"endpoint,omitempty"` // L1 API endpoint
+	SubmissionEndpoint string `toml:"submission_endpoint,omitempty"`
 }
 
 func newL1ConfigFromCLI(cliCtx *cli.Context) L1Config {
-	return L1Config{Endpoint: cliCtx.String(l1EndpointFlag.Name)}
+	return L1Config{
+		Endpoint:           cliCtx.String(l1EndpointFlag.Name),
+		SubmissionEndpoint: cliCtx.String(l1SubmissionEndpointFlag.Name),
+	}
 }
 
 func (c L1Config) GetEndpoint() string { return c.Endpoint }

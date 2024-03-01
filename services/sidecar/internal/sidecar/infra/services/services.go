@@ -40,7 +40,13 @@ func NewDisseminator(
 		log.Info("disseminator is not enabled")
 		return nil, nil
 	}
-	l1TxMgr, err := createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
+	var l1TxMgr *bridge.TxManager
+	var err error
+	if cfg.L1().SubmissionEndpoint != "" {
+		l1TxMgr, err = createTxManager(ctx, "disseminator", cfg.L1().SubmissionEndpoint, cfg.Protocol(), cfg.Disseminator())
+	} else {
+		l1TxMgr, err = createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
+	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
