@@ -60,6 +60,17 @@ pipeline {
                 }
             }
         }
-
+        stage('publish images') {
+            when {
+              branch "develop"
+            }
+            steps {
+                script {
+                    docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
+                        docker.image(registry + ":e2e-pr-$BUILD_NUMBER").push()
+                    }
+                }
+            }
+        }
     }
 }
