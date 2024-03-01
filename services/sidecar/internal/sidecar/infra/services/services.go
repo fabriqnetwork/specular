@@ -40,13 +40,13 @@ func NewDisseminator(
 		log.Info("disseminator is not enabled")
 		return nil, nil
 	}
-	var l1TxMgr *bridge.TxManager
-	var err error
+	var endpoint string
 	if cfg.L1().SubmissionEndpoint != "" {
-		l1TxMgr, err = createTxManager(ctx, "disseminator", cfg.L1().SubmissionEndpoint, cfg.Protocol(), cfg.Disseminator())
+		endpoint = cfg.L1().SubmissionEndpoint
 	} else {
-		l1TxMgr, err = createTxManager(ctx, "disseminator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Disseminator())
+		endpoint = cfg.L1().Endpoint
 	}
+	l1TxMgr, err := createTxManager(ctx, "disseminator", endpoint, cfg.Protocol(), cfg.Disseminator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
@@ -67,7 +67,13 @@ func NewValidator(
 		log.Info("validator is not enabled")
 		return nil, nil
 	}
-	l1TxMgr, err := createTxManager(ctx, "validator", cfg.L1().Endpoint, cfg.Protocol(), cfg.Validator())
+	var endpoint string
+	if cfg.L1().SubmissionEndpoint != "" {
+		endpoint = cfg.L1().SubmissionEndpoint
+	} else {
+		endpoint = cfg.L1().Endpoint
+	}
+	l1TxMgr, err := createTxManager(ctx, "validator", endpoint, cfg.Protocol(), cfg.Validator())
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize l1 tx manager: %w", err)
 	}
