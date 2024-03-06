@@ -80,7 +80,6 @@ pipeline {
                         docker.image(registry + ":e2e-pr-$GIT_COMMIT").tag("e2e-latest").tag("e2e-$GIT_COMMIT").push()
                         docker.build(registry + ":$GIT_COMMIT", "-f docker/specular.Dockerfile .").push()
                     }
-                    }
                 }
             }
         }
@@ -93,5 +92,6 @@ pipeline {
             sh "helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT"
           }
         }
+
     }
 }
