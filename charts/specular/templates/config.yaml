@@ -1,0 +1,16 @@
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: specular-config
+data:
+{{- range $i, $value := .Values.configMaps }}
+    {{ $i }}: |
+        {{- range $ii, $item := $value }}
+        {{ $item.name }}={{ $item.value }}
+        {{- end }}
+{{- end }}
+{{- range $name, $value := .Values.jsonMaps }}
+    {{ $name }}: |
+      {{ $value | toJson }}
+{{- end }}

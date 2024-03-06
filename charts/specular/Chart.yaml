@@ -1,0 +1,6 @@
+name: specular
+description: Specular L2 Network
+version: 0.0.1
+apiVersion: v2
+keywords:
+  - specular

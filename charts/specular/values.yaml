@@ -1,0 +1,213 @@
+## Define the specular image to work with - these are for devnet
+## please override with helm install -n specular specular . -f values-testnet.yaml
+
+environment: devnet
+efsHandle: fs-01f3b83e0ef40fe2d
+enabled:
+  txFuzz: true
+  l1Geth: true
+  generator: true
+  infura: false
+  debug: true
+
+generator:
+  command: "../sbin/generate_secrets.sh -d -j -y -w"
+  deploy: true
+
+image:
+  name: specular-platform
+  tag: 55826901e8116c4da3cbb47e73c1815edcec7579
+  registry: 792926601177.dkr.ecr.us-east-2.amazonaws.com
+
+tx_fuzz_image:
+  name: specular-platform
+  tag: tx-fuzz-004
+  registry: 792926601177.dkr.ecr.us-east-2.amazonaws.com
+
+default_resources:
+  requests:
+    memory: "128Mi"
+    cpu: "250m"
+  limits:
+    memory: "1024Mi"
+    cpu: "2000m"
+
+volume:
+  efs:
+    mountPath: /specular/workspace
+    name: sp-workspace
+  configVolumeMounts:
+    name: specular-config
+    paths:
+      - .sidecar.env
+      - .sp_magi.env
+      - .paths.env
+      - .genesis.env
+      # - .contracts.env
+      - .sp_geth.env
+      - genesis_config.json
+      - base_sp_rollup.json
+  secrets:
+    - name: INFURA_KEY
+      file: infura_pk.txt
+
+    - name: DEPLOYER_PRIVATE_KEY
+      file: deployer_pk.txt
+
+    - name: SEQUENCER_PRIVATE_KEY
+      file: sequencer_pk.txt
+
+    - name: VALIDATOR_PRIV_KEY
+      file: validator_pk.txt
+
+configMaps:
+  .sp_geth.env:
+    - name: NETWORK_ID
+      value: "13527"
+    - name: ADDRESS
+      value: "0.0.0.0"
+    - name: HTTP_PORT
+      value: "4011"
+    - name: WS_PORT
+      value: "4012"
+    - name: AUTH_PORT
+      value: "4013"
+    - name: GENESIS_PATH
+      value: "./genesis.json"
+    - name: DATA_DIR
+      value: "./sp_geth-data/"
+    - name: JWT_SECRET_PATH
+      value: "./jwt_secret.txt"
+
+  .sp_magi.env:
+    - name: NETWORK
+      value: "./sp_rollup.json"
+    - name: JWT_SECRET_PATH
+      value: "./jwt_secret.txt"
+    - name: L1_RPC_URL
+      value: "http://$L1_GETH_SERVICE_HOST:$L1_GETH_SERVICE_PORT_8545"
+    - name: L2_RPC_URL
+      value: "http://$SP_GETH_SERVICE_HOST:$SP_GETH_SERVICE_PORT_4011"
+    - name: L2_ENGINE_URL
+      value: "http://$SP_GETH_SERVICE_HOST:$SP_GETH_SERVICE_PORT_4013"
+    - name: RPC_PORT
+      value: "10500"
+    - name: SYNC_MODE
+      value: "full"
+    - name: DEVNET
+      value: "true"
+    - name: SEQUENCER
+      value: "true"
+    - name: SEQUENCER_MAX_SAFE_LAG
+      value: "200"
+    - name: SEQUENCER_PK_FILE
+      value: "./sequencer_pk.txt"
+    - name: WATCHER_DELAY
+      value: "4000"
+
+  .contracts.env:
+    - name: SEQUENCER_ADDRESS
+      value: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+    - name: VALIDATOR_ADDRESS
+      value: "0x70997970c51812dc3a010c7d01b50e0d17dc79c8"
+    - name: DEPLOYER_ADDRESS
+      value: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC"
+
+  .genesis.env:
+    - name: GENESIS_CFG_PATH
+      value: "./genesis_config.json"
+    - name: GENESIS_PATH
+      value: "./genesis.json"
+    - name: BASE_ROLLUP_CFG_PATH
+      value: "./base_sp_rollup.json"
+    - name: ROLLUP_CFG_PATH
+      value: "./sp_rollup.json"
+    - name: GENESIS_EXPORTED_HASH_PATH
+      value: "./genesis_hash.json"
+    - name: L1_NETWORK
+      value: "localhost"
+    - name: L1_STACK
+      value: "geth"
+    - name: L1_ENDPOINT
+      value: "ws://$L1_GETH_SERVICE_HOST:$L1_GETH_SERVICE_PORT_8546"
+    - name: L1_PERIOD
+      value: "12"
+
+  .paths.env:
+    - name: BIN_DIR
+      value: "/usr/local/bin"
+    - name: CONTRACTS_DIR
+      value: "/specular/contracts"
+    - name: CONFIG_DIR
+      value: "/specular/config"
+    - name: OPS_GENESIS_BIN
+      value: "/usr/local/bin/genesis"
+    - name: OPS_DIR
+      value: "/specular/ops"
+    - name: L1_GETH_BIN
+      value: "/usr/local/bin/geth"
+    - name: SP_GETH_BIN
+      value: "/usr/local/bin/geth"
+    - name: SP_MAGI_BIN
+      value: "/usr/local/bin/magi"
+    - name: SIDECAR_BIN
+      value: "/usr/local/bin/sidecar"
+    - name: WAIT_DIR
+      value: "/specular/workspace"
+
+  .sidecar.env:
+    - name: ROLLUP_CFG_PATH
+      value: "./sp_rollup.json"
+    - name: L1_ENDPOINT
+      value: "ws://$L1_GETH_SERVICE_HOST:$L1_GETH_SERVICE_PORT_8546"
+    - name: L2_ENDPOINT
+      value: "http://$SP_GETH_SERVICE_HOST:$SP_GETH_SERVICE_PORT_4011"
+    - name: DISSEMINATOR
+      value: "true"
+    - name: DISSEMINATOR_PK_PATH
+      value: "./sequencer_pk.txt"
+    - name: DISSEMINATOR_SUB_SAFETY_MARGIN
+      value: "8"
+    - name: DISSEMINATOR_TARGET_BATCH_SIZE
+      value: "4096"
+    - name: DISSEMINATOR_MAX_BATCH_SIZE
+      value: 120000
+    - name: VALIDATOR
+      value: "true"
+    - name: VALIDATOR_PK_PATH
+      value: "./validator_pk.txt"
+    - name: DISSEMINATOR_MAX_SAFE_LAG
+      value: 400
+    - name: DISSEMINATOR_MAX_SAFE_LAG_DELTA
+      value: 100
+    - name: DISSEMINATOR_INTERVAL
+      value: 1
+
+jsonMaps:
+  base_sp_rollup.json:
+    block_time: 2
+    max_sequencer_drift: 600
+    seq_window_size: 3600
+    l1_chain_id: 1337
+
+  genesis_config.json:
+    l2ChainID: 13527
+    l2GenesisBlockNonce: "0x0"
+    l2GenesisBlockGasLimit: "0x0"
+    l2GenesisBlockDifficulty: "0x0"
+    l2GenesisBlockNumber: "0x0"
+    l2GenesisBlockGasUsed: "0x0"
+    l2GenesisBlockBaseFeePerGas: "0x1"
+    l2GenesisBlockExtraData: 0x
+    l2PredeployOwner: "0x000000000000000000000000000000000000dEaD"
+    l2FeesWithdrawalAddress: "0x000000000000000000000000000000000000dEaD"
+    l2FeesMinWithdrwalAmount: "0x0"
+    l1FeeOverhead: "0x1"
+    l1FeeScalar: "0x1"
+    alloc:
+      "0x2a00000000000000000000000000000000000011":
+        balance: "1000000000000000000000000000"
+      "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc":
+        balance: "1000000000000000000000000000"
+      "0x90F79bf6EB2c4f870365E785982E1f101E93b906":
+        balance: "1000000000000000000000000000"

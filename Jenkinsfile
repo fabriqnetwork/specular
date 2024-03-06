@@ -24,6 +24,11 @@ pipeline {
             }
         }
         stage('create build image') {
+            when {
+                not {
+                    branch 'develop'
+                }
+            }
             steps{
                 script {
                     docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
@@ -37,6 +42,11 @@ pipeline {
             }
         }
         stage('e2e-test') {
+            when {
+                not {
+                    branch 'develop'
+                }
+            }
             parallel {
                 stage('transactions') {
                     steps {
@@ -67,10 +77,21 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
-                        docker.image(registry + ":e2e-pr-$GIT_COMMIT").tag("e2latest").push()
+                        docker.image(registry + ":e2e-pr-$GIT_COMMIT").tag("e2e-latest").tag("e2e-$GIT_COMMIT").push()
+                        docker.build(registry + ":$GIT_COMMIT", "-f docker/specular.Dockerfile .").push()
+                    }
                     }
                 }
             }
+        }
+        stage('upgrade helm') {
+            when {
+              branch "develop"
+            }
+          steps {
+            cd "charts/specular"
+            sh "helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT"
+          }
         }
     }
 }
