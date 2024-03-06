@@ -88,8 +88,11 @@ pipeline {
               branch "develop"
             }
           steps {
-            cd "charts/specular"
-            sh "helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT"
+            withCredentials('builder') {
+              cd "charts/specular"
+              sh "aws eks update-kubeconfig --name specular-staging-eks"
+              sh "helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT"
+            }
           }
         }
     }
