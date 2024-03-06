@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    io.specular.network/sp-network: "true"
+    io.specular.service: sp-geth
+  name: sp-geth
+spec:
+  initContainers:
+{{- if .Values.enabled.l1Geth }}
+    - name: wait-for-l1
+      image: busybox:latest
+      command: ["sh", "-c", "until [ -f /tmp/.start_l1.sh.lock ]; do sleep 2; done"]
+      volumeMounts:
+        - mountPath: /tmp
+          name: {{ .Values.volume.efs.name }}
+{{- end }}
+    - name: wait-for-sp-generator
+      image: busybox:latest
+      command: ["sh", "-c", "until [ -f /tmp/.generate_secrets.sh.lock ]; do sleep 2; done"]
+      volumeMounts:
+        - mountPath: /tmp
+          name: {{ .Values.volume.efs.name }}
+  containers:
+    - name: sp-geth
+      command: ["bash", "-c", "../sbin/entrypoint.sh start start_sp_geth.sh -c -w"]
+      image: "{{ .Values.image.registry }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+      livenessProbe:
+        exec:
+          command: ["sh", "-c", "test -e /specular/workspace/.start_sp_geth.sh.lock"]
+        failureThreshold: 300
+        initialDelaySeconds: 20
+        periodSeconds: 1
+      lifecycle:
+        preStop:
+          exec:
+            command: ["sh", "-c", "rm -f /specular/workspace/.start_sp_geth.sh.lock"]
+      ports:
+        - containerPort: 4011
+          hostPort: 4011
+          protocol: TCP
+        - containerPort: 4012
+          hostPort: 4012
+          protocol: TCP
+        - containerPort: 4013
+          hostPort: 4013
+          protocol: TCP
+      resources:
+        {{- .Values.default_resources |  toYaml | nindent 10 }}
+      volumeMounts:
+        - mountPath: {{ .Values.volume.efs.mountPath }}
+          name: {{ .Values.volume.efs.name }}
+{{- range $i, $value := .Values.volume.configVolumeMounts.paths }}
+        - name: {{ $.Values.volume.configVolumeMounts.name }}
+          mountPath: {{ $.Values.volume.efs.mountPath }}/{{ $value }}
+          subPath: {{ $value }}
+{{- end }}
+{{- if not .Values.generator.deploy }}
+  {{- range $i, $value := .Values.volume.secrets }}
+        - name: secret-volume
+          mountPath: {{ $.Values.volume.efs.mountPath }}/{{ $value.file }}
+          subPath: {{ $value.file }}
+          readOnly: true
+  {{- end }}
+{{- end }}
+      workingDir: {{ .Values.volume.efs.mountPath }}
+  terminationGracePeriodSeconds: 15
+  restartPolicy: OnFailure
+  volumes:
+    - name: {{ .Values.volume.efs.name }}
+      persistentVolumeClaim:
+        claimName: {{ .Values.volume.efs.name }}
+    - name: {{ .Values.volume.configVolumeMounts.name }}
+      configMap:
+        name: {{ .Values.volume.configVolumeMounts.name }}
+{{- if not .Values.generator.deploy }}
+    - name: secret-volume
+      secret:
+        secretName: l2-secrets
+{{- end }}
+status: {}
