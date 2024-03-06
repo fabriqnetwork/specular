@@ -92,6 +92,5 @@ pipeline {
             sh "helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT"
           }
         }
-
     }
 }
