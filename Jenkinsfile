@@ -23,7 +23,7 @@ pipeline {
                 sh 'chmod -R 777 workspace'
             }
         }
-        stage('create build image') {
+        stage('create build image for pr') {
             when {
                 not {
                     branch 'develop'
@@ -36,6 +36,22 @@ pipeline {
                             registry + ":e2e-pr-$GIT_COMMIT",
                             "-f docker/e2e.Dockerfile ."
                         )
+                    }
+
+                }
+            }
+        }
+        stage('create build image for devnet') {
+            when {
+              branch 'develop'
+            }
+            steps{
+                script {
+                    docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
+                        docker.build(
+                            registry + ":e2e-$GIT_COMMIT",
+                            "-f docker/e2e.Dockerfile ."
+                        ).tag("e2e-latest").push()
                     }
 
                 }
@@ -77,7 +93,6 @@ pipeline {
             steps {
                 script {
                     docker.withRegistry('https://792926601177.dkr.ecr.us-east-2.amazonaws.com', 'ecr:us-east-2:builder') {
-                        docker.image(registry + ":e2e-pr-$GIT_COMMIT").tag("e2e-latest").tag("e2e-$GIT_COMMIT").push()
                         docker.build(registry + ":$GIT_COMMIT", "-f docker/specular.Dockerfile .").push()
                     }
                 }
