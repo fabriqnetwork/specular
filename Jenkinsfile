@@ -103,7 +103,13 @@ pipeline {
               branch "develop"
             }
           steps {
-            withCredentials('builder') {
+            withCredentials([[
+                $class: 'AmazonWebServicesCredentialsBinding',
+                credentialsId: "builder",
+                accessKeyVariable: 'AWS_ACCESS_KEY_ID',
+                secretKeyVariable: 'AWS_SECRET_ACCESS_KEY'
+            ]]) {
+              sh 'echo $AWS_ACCESS_KEY_ID'
               cd "charts/specular"
               sh "aws eks update-kubeconfig --name specular-staging-eks"
               sh "helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT"
