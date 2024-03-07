@@ -1,0 +1,169 @@
+environment: testnet
+efsHandle: fs-0c92a9d4cfc864548
+
+enabled:
+  txFuzz: false
+  l1Geth: false
+  generator: true
+  infura: true
+  debug: true
+
+generator:
+  command: "../sbin/entrypoint.sh deploy"
+  deploy: false
+
+configMaps:
+  .sp_geth.env:
+    - name: NETWORK_ID
+      value: "93481"
+    - name: ADDRESS
+      value: "0.0.0.0"
+    - name: HTTP_PORT
+      value: "4011"
+    - name: WS_PORT
+      value: "4012"
+    - name: AUTH_PORT
+      value: "4013"
+    - name: GENESIS_PATH
+      value: "./genesis.json"
+    - name: DATA_DIR
+      value: "./sp-geth-data/"
+    - name: JWT_SECRET_PATH
+      value: "./jwt_secret.txt"
+    - name: GETH_LOG_FORMAT
+      value: "json"
+    - name: ARCHIVE_NODE
+      value: "true"
+
+  .sp_magi.env:
+    - name: NETWORK
+      value: "./sp_rollup.json"
+    - name: JWT_SECRET_PATH
+      value: "./jwt_secret.txt"
+    - name: L1_RPC_URL
+      value: "http://l1.sepolia.specular.network:8545"
+    - name: L2_RPC_URL
+      value: "http://$SP_GETH_SERVICE_HOST:$SP_GETH_SERVICE_PORT_4011"
+    - name: L2_ENGINE_URL
+      value: "http://$SP_GETH_SERVICE_HOST:$SP_GETH_SERVICE_PORT_4013"
+    - name: RPC_PORT
+      value: "10500"
+    - name: SYNC_MODE
+      value: "full"
+    - name: DEVNET
+      value: "false"
+    - name: SEQUENCER
+      value: "true"
+    - name: SEQUENCER_MAX_SAFE_LAG
+      value: 400
+    - name: SEQUENCER_PK_FILE
+      value: "./sequencer_pk.txt"
+    - name: WATCHER_DELAY
+      value: 4000
+
+  .contracts.env:
+    - name: SEQUENCER_ADDRESS
+      value: "0x09855Fcb2c3e81D6bd1d0e5Ef8539FE7633D86F8"
+    - name: VALIDATOR_ADDRESS
+      value: "0x67332221f1Fe840bBeBF8abe665C19ba7898d9A7"
+    - name: DEPLOYER_ADDRESS
+      value: "0xDB12435226eB458F66F598A817a68CfD44D90F65"
+
+  .genesis.env:
+    - name: GENESIS_CFG_PATH
+      value: "./genesis_config.json"
+    - name: GENESIS_PATH
+      value: "./genesis.json"
+    - name: BASE_ROLLUP_CFG_PATH
+      value: "./base_sp_rollup.json"
+    - name: ROLLUP_CFG_PATH
+      value: "./sp_rollup.json"
+    - name: GENESIS_EXPORTED_HASH_PATH
+      value: "./genesis_hash.json"
+    - name: L1_NETWORK
+      value: "sepolia"
+    - name: L1_STACK
+      value: "geth"
+    - name: L1_ENDPOINT
+      value: "ws://l1.sepolia.specular.network:8546"
+    - name: L1_PERIOD
+      value: "12"
+
+  .paths.env:
+    - name: BIN_DIR
+      value: "/usr/local/bin"
+    - name: CONTRACTS_DIR
+      value: "/specular/contracts"
+    - name: CONFIG_DIR
+      value: "/specular/config"
+    - name: OPS_GENESIS_BIN
+      value: "/usr/local/bin/genesis"
+    - name: OPS_DIR
+      value: "/specular/ops"
+    - name: L1_GETH_BIN
+      value: "/usr/local/bin/geth"
+    - name: SP_GETH_BIN
+      value: "/usr/local/bin/geth"
+    - name: SP_MAGI_BIN
+      value: "/usr/local/bin/magi"
+    - name: SIDECAR_BIN
+      value: "/usr/local/bin/sidecar"
+    - name: WAIT_DIR
+      value: "/specular/workspace"
+
+  .sidecar.env:
+    - name: ROLLUP_CFG_PATH
+      value: "./sp_rollup.json"
+    - name: L1_ENDPOINT
+      value: "ws://l1.sepolia.specular.network:8546"
+    - name: L2_ENDPOINT
+      value: "http://$SP_GETH_SERVICE_HOST:$SP_GETH_SERVICE_PORT_4011"
+    - name: DISSEMINATOR
+      value: "true"
+    - name: DISSEMINATOR_PK_PATH
+      value: "./sequencer_pk.txt"
+    - name: DISSEMINATOR_SUB_SAFETY_MARGIN
+      value: "8"
+    - name: DISSEMINATOR_TARGET_BATCH_SIZE
+      value: "4096"
+    - name: DISSEMINATOR_MAX_BATCH_SIZE
+      value: 120000
+    - name: VALIDATOR
+      value: "true"
+    - name: VALIDATOR_PK_PATH
+      value: "./validator_pk.txt"
+    - name: DISSEMINATOR_MAX_SAFE_LAG
+      value: 400
+    - name: DISSEMINATOR_MAX_SAFE_LAG_DELTA
+      value: 100
+    - name: DISSEMINATOR_INTERVAL
+      value: 1
+
+jsonMaps:
+  base_sp_rollup.json:
+    block_time: 2
+    max_sequencer_drift: 600
+    seq_window_size: 3600
+    l1_chain_id: 11155111
+
+  genesis_config.json:
+    l2ChainID: 93481
+    l2GenesisBlockNonce: "0x0"
+    l2GenesisBlockGasLimit: "0x0"
+    l2GenesisBlockDifficulty: "0x0"
+    l2GenesisBlockNumber: "0x0"
+    l2GenesisBlockGasUsed: "0x0"
+    l2GenesisBlockBaseFeePerGas: "0x1"
+    l2GenesisBlockExtraData: 0x
+    l2PredeployOwner: "0x000000000000000000000000000000000000dEaD"
+    l2FeesWithdrawalAddress: "0x000000000000000000000000000000000000dEaD"
+    l2FeesMinWithdrwalAmount: "0x0"
+    l1FeeOverhead: "0x1"
+    l1FeeScalar: "0x1"
+    alloc:
+      "2a00000000000000000000000000000000000011":
+        balance: "1000000000000000000000000000"
+      "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc":
+        balance: "1000000000000000000000000000"
+      "0x90F79bf6EB2c4f870365E785982E1f101E93b906":
+        balance: "1000000000000000000000000000"

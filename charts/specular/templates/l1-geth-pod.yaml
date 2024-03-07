@@ -1,0 +1,65 @@
+{{- if .Values.enabled.l1Geth -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    io.specular.network/sp-network: "true"
+    io.specular.service: l1-geth
+  name: l1-geth
+spec:
+  initContainers:
+    - name: wait-for-sp-generator
+      image: busybox:latest
+      command: ["sh", "-c", "until [ -f /tmp/.generate_secrets.sh.lock ]; do sleep 2; done"]
+      volumeMounts:
+        - mountPath: /tmp
+          name: {{ .Values.volume.efs.name }}
+  containers:
+    - name: l1-geth
+      command: ["bash", "-c", "../sbin/entrypoint.sh start start_l1.sh -c -d -w -y"]
+      image: "{{ .Values.image.registry }}/{{ .Values.image.name }}:{{ .Values.image.tag }}"
+      livenessProbe:
+        exec:
+          command: ["sh", "-c", "test -e /specular/workspace/.start_l1.sh.lock"]
+        failureThreshold: 300
+        initialDelaySeconds: 60
+        periodSeconds: 1
+      lifecycle:
+        preStop:
+          exec:
+            command: ["sh", "-c", "rm -f /specular/workspace/.*.lock"]
+      ports:
+        - containerPort: 8545
+          hostPort: 8545
+          protocol: TCP
+      resources:
+        {{- .Values.default_resources |  toYaml | nindent 10 }}
+      tty: true
+      volumeMounts:
+        - mountPath: {{ .Values.volume.efs.mountPath }}
+          name: {{ .Values.volume.efs.name }}
+{{- range $i, $value := .Values.volume.configVolumeMounts.paths }}
+        - name: {{ $.Values.volume.configVolumeMounts.name }}
+          mountPath: {{ $.Values.volume.efs.mountPath }}/{{ $value }}
+          subPath: {{ $value }}
+{{- end }}
+{{- if not .Values.generator.deploy }}
+  {{- range $i, $value := .Values.volume.secrets }}
+        - name: secret-volume
+          mountPath: {{ $.Values.volume.efs.mountPath }}/{{ $value.file }}
+          subPath: {{ $value.file }}
+          readOnly: true
+  {{- end }}
+{{- end }}
+      workingDir: {{ .Values.volume.efs.mountPath }}
+  restartPolicy: Always
+  volumes:
+    - name: {{ .Values.volume.efs.name }}
+      persistentVolumeClaim:
+        claimName: {{ .Values.volume.efs.name }}
+    - name: {{ .Values.volume.configVolumeMounts.name }}
+      configMap:
+        name: {{ .Values.volume.configVolumeMounts.name }}
+status: {}
+{{- end -}}
