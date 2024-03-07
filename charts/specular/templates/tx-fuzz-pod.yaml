@@ -1,0 +1,35 @@
+{{- if .Values.enabled.txFuzz -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: null
+  labels:
+    io.specular.network/sp-network: "true"
+    io.specular.service: tx-fuzz
+  name: tx-fuzz
+spec:
+  initContainers:
+    - name: wait-for-sp-magi
+      image: busybox:latest
+      command: ["sh", "-c", "until [ -f /tmp/.start_sp_magi.sh.lock ]; do sleep 2; done"]
+      volumeMounts:
+        - mountPath: /tmp
+          name: {{ .Values.volume.efs.name }}
+  containers:
+    - name: tx-fuzz
+      command: ["sh", "-c", "/entrypoint.sh"]
+      image: "{{ .Values.tx_fuzz_image.registry }}/{{ .Values.tx_fuzz_image.name }}:{{ .Values.tx_fuzz_image.tag }}"
+      resources:
+        {{- .Values.default_resources |  toYaml | nindent 10 }}
+      tty: true
+      volumeMounts:
+        - mountPath: /tmp
+          name: {{ .Values.volume.efs.name }}
+      workingDir: /tmp
+  restartPolicy: Always
+  volumes:
+    - name: {{ .Values.volume.efs.name }}
+      persistentVolumeClaim:
+        claimName: {{ .Values.volume.efs.name }}
+status: {}
+{{- end -}}

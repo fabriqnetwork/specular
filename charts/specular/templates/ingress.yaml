@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: specular-ingress
+  namespace: specular
+  annotations:
+
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: {{ .Values.environment }}.specular.network
+    http:
+      paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: sp-geth
+              port:
+                number: 4011
+        - path: /ws
+          pathType: Prefix
+          backend:
+            service:
+              name: sp-geth
+              port:
+                number: 4012

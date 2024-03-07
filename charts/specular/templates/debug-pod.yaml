@@ -1,0 +1,49 @@
+{{- if .Values.enabled.debug -}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: debug-container
+  namespace: specular
+spec:
+  # initContainers:
+  #   - name: wait-for-sp-geth
+  #     image: busybox:latest
+  #     command: ["sh", "-c", "echo '{{ .Values.image.tag }}' > /tmp/release"]
+  #     volumeMounts:
+  #       - mountPath: /tmp
+  #         name: {{ .Values.volume.efs.name }}
+  containers:
+    - name: debug-container
+      image: nginx
+      volumeMounts:
+        - mountPath: /tmp/workspace
+          name: {{ .Values.volume.efs.name }}
+{{- range $i, $value := .Values.volume.configVolumeMounts.paths }}
+        - name: {{ $.Values.volume.configVolumeMounts.name }}
+          mountPath: /tmp/workspace/{{ $value }}
+          subPath: {{ $value }}
+{{- end }}
+{{- if not .Values.generator.deploy }}
+  {{- range $i, $value := .Values.volume.secrets }}
+        - name: secret-volume
+          mountPath: /tmp/workspace/{{ $value.file }}
+          subPath: {{ $value.file }}
+          readOnly: true
+  {{- end }}
+{{- end }}
+      workingDir: /tmp/workspace
+  restartPolicy: OnFailure
+  volumes:
+    - name: {{ .Values.volume.efs.name }}
+      persistentVolumeClaim:
+        claimName: {{ .Values.volume.efs.name }}
+    - name: {{ .Values.volume.configVolumeMounts.name }}
+      configMap:
+        name: {{ .Values.volume.configVolumeMounts.name }}
+{{- if not .Values.generator.deploy }}
+    - name: secret-volume
+      secret:
+        secretName: l2-secrets
+{{- end }}
+status: {}
+{{- end -}}

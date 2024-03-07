@@ -1,0 +1,19 @@
+{{- if .Values.enabled.l1Geth -}}
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    io.specular.service: l1-geth
+  name: l1-geth
+spec:
+  ports:
+    - name: "8545"
+      port: 8545
+      targetPort: 8545
+    - name: "8546"
+      port: 8546
+      targetPort: 8546
+  selector:
+    io.specular.service: l1-geth
+{{- end -}}
