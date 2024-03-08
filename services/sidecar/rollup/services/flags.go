@@ -49,6 +49,11 @@ var (
 		Usage:    "The L1 API endpoint",
 		Required: true,
 	}
+	l1SubmissionEndpointFlag = &cli.StringFlag{
+		Name:     "l1.submission-endpoint",
+		Usage:    "The L1 API submission endpoint",
+		Required: false,
+	}
 	// L2 config flags
 	l2EndpointFlag = &cli.StringFlag{
 		Name:     "l2.endpoint",
@@ -120,7 +125,7 @@ var (
 )
 
 var (
-	generalFlags         = []cli.Flag{VerbosityFlag, l1EndpointFlag, l2EndpointFlag}
+	generalFlags         = []cli.Flag{VerbosityFlag, l1EndpointFlag, l1SubmissionEndpointFlag, l2EndpointFlag}
 	protocolFlags        = []cli.Flag{protocolRollupCfgPathFlag}
 	disseminatorCLIFlags = []cli.Flag{
 		disseminatorEnableFlag,
