@@ -16,7 +16,7 @@ generator:
 
 image:
   name: specular-platform
-  tag: 55826901e8116c4da3cbb47e73c1815edcec7579
+  tag: c2a7ccf6fcb3f9e087a13b03900e070da36df751
   registry: 792926601177.dkr.ecr.us-east-2.amazonaws.com
 
 tx_fuzz_image:

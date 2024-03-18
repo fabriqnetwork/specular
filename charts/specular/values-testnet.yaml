@@ -2,11 +2,39 @@ environment: testnet
 efsHandle: fs-0c92a9d4cfc864548
 
 enabled:
-  txFuzz: false
+  txFuzz: true
   l1Geth: false
   generator: true
   infura: true
   debug: true
+
+volume:
+  efs:
+    mountPath: /specular/workspace
+    name: sp-workspace
+  configVolumeMounts:
+    name: specular-config
+    paths:
+      - .sidecar.env
+      - .sp_magi.env
+      - .paths.env
+      - .genesis.env
+      - .contracts.env
+      - .sp_geth.env
+      - genesis_config.json
+      - base_sp_rollup.json
+  secrets:
+    - name: INFURA_KEY
+      file: infura_pk.txt
+
+    - name: DEPLOYER_PRIVATE_KEY
+      file: deployer_pk.txt
+
+    - name: SEQUENCER_PRIVATE_KEY
+      file: sequencer_pk.txt
+
+    - name: VALIDATOR_PRIV_KEY
+      file: validator_pk.txt
 
 generator:
   command: "../sbin/entrypoint.sh deploy"

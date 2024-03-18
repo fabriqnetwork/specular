@@ -120,6 +120,8 @@ pipeline {
                     kubectl config use-context arn:aws:eks:us-east-2:792926601177:cluster/specular-staging-eks
                     helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT'''
                 }
+                discordSend description: "Jenkins Pipeline Build", footer: "Footer Text", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "Webhook URL"
+
               }
             }
           }
