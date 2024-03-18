@@ -102,6 +102,10 @@ erc20)
   npx hardhat run scripts/e2e/bridge/test_standard_bridge_erc20.ts
   RESULT=$?
   ;;
+idle)
+  while true; do sleep 86400; done
+  RESULT=$?
+  ;;
 *)
   echo "unknown test"
   RESULT=1
