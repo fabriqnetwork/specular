@@ -93,3 +93,31 @@ export interface ContractsLike {
   l1: L1Contracts;
   l2: L2Contracts;
 }
+
+export enum MessageType {
+  DEPOSIT = "Deposit",
+  WITHDRAWAL = "Withdrawal",
+}
+
+export type Message = {
+  version: bigint;
+  nonce: bigint;
+  sender: AddressLike;
+  target: AddressLike;
+  value: bigint;
+  gasLimit: bigint;
+  data: string;
+};
+
+export type BridgeTransaction = {
+  messageHash: string;
+  block: NumberLike;
+  amount: bigint;
+  type: MessageType;
+  action: {
+    status: MessageStatus;
+    message: Message;
+    contract: any;
+    chain: any;
+  };
+};

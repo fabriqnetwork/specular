@@ -16,15 +16,15 @@ import {
 
 const l1portalAddresses = {
   sepolia: "0x457818a300BBa8E998889FAb2e8453BDebA238E0",
-  hardhat_local: "0x786021c3df87dFd51710e5AC777090eFA63f84AB",
+  hardhat_local: "0xDD82cA583E76aeDE3b050ab01C4aE3A834Eef683",
 };
 const l1StandardBridgeAddresses = {
   sepolia: "0x06B8bF239246Cc0B08B77E743d816A690C7b1325",
-  hardhat_local: "0xe63bdcff991ddA9E812724d8a09d4284A2a9b51b",
+  hardhat_local: "0x94fCb90624FEf50984077A93808859B16bcEF44A",
 };
 const l1RollupAddresses = {
   sepolia: "0x849eB65348360a6a5f33Bce19249763fFc426D5C",
-  hardhat_local: "0x5062a9aaA167292285ef0DeDa8bF6263b5031DaE",
+  hardhat_local: "0xC1DE463BA76396eCB27A8392bbdFEf6c641b2755",
 };
 
 /**

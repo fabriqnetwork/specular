@@ -5,8 +5,14 @@ import {
   TransactionRequest,
 } from "@ethersproject/abstract-provider";
 
+import L1OracleABI from "./abis/L1Oracle.json";
+import L1PortalABI from "./abis/L1Portal.json";
+import L1StandardBridgeABI from "./abis/L1StandardBridge.json";
+import L2PortalABI from "./abis/L2Portal.json";
+import RollupABI from "./abis/Rollup.json";
+import L2StandarBridgeABI from "./abis/L2StandardBridge.json";
+import { BridgeTransaction } from "./interfaces/types";
 import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
-
 import { Signer } from "@ethersproject/abstract-signer";
 import { ethers, BigNumber, Overrides, Contract } from "ethers";
 import {
@@ -16,6 +22,7 @@ import {
   SignerOrProviderLike,
   L2ChainID,
   L1ChainID,
+  MessageType,
 } from "./interfaces/types";
 import { toNumber, toSignerOrProvider } from "./utils";
 import {
@@ -215,7 +222,7 @@ export class ServiceBridge {
   }
 
   /**
-   * Return the status of the deposit message;
+   * Return the status of the deposit message.
    *
    * @returns MessageStatus
    */
@@ -239,7 +246,7 @@ export class ServiceBridge {
   }
 
   /**
-   * Return the status of the withdrawal message;
+   * Return the status of the withdrawal message.
    *
    * @returns MessageStatus
    */
@@ -266,6 +273,159 @@ export class ServiceBridge {
     } else {
       return MessageStatus.PENDING;
     }
+  }
+  /**
+   * Returns the last X transactions from a specific address on both L1 and L2
+   *
+   * @returns MessageStatus
+   */
+  public async getLastTransactionsFromAddress(
+    account: string,
+    txsNumber: number,
+  ): Promise<BridgeTransaction[]> {
+    const txs: BridgeTransaction[] = [];
+
+    const latestL1BlockNumber = await this.l1RPCprovider.getBlockNumber();
+
+    // Create filter for the ETHBridgeInitiated event
+    const bridgeInitiatedFilter = {
+      address: this.l1StandardBridge.address,
+      topics: [
+        ethers.utils.id("ETHBridgeInitiated(address,address,uint256,bytes)"), // Event signature with parameter types only
+        ethers.utils.hexZeroPad(account, 32),
+      ],
+      fromBlock: 0, // You can set this to a specific block number if you want to start searching from a specific block
+      toBlock: latestL1BlockNumber,
+    };
+
+    // Fetch logs matching the filter
+    const depositBridgeLogs = await this.l1RPCprovider.getLogs(
+      bridgeInitiatedFilter,
+    );
+
+    for (const log of depositBridgeLogs) {
+      const portalDepositFilter = {
+        address: this.l2Portal.address,
+        topics: [
+          ethers.utils.id(
+            "DepositInitiated(uint256,address,address,uint256,uint256,bytes,bytes32)",
+          ),
+          ethers.utils.hexZeroPad(account, 32),
+        ],
+        fromBlock: 0,
+        toBlock: latestL1BlockNumber,
+      };
+
+      const portalLogs = await this.l1RPCprovider.getLogs(portalDepositFilter);
+
+      const depositLog = portalLogs.find(
+        (p) => p.args.value === log.args.amount,
+      );
+      const depositHash = depositLog?.args.depositHash;
+      const depositAmount = log.args.amount;
+
+      const message = {
+        version: 0n,
+        nonce: depositLog?.args.nonce as bigint,
+        sender: depositLog?.args.sender as AddressLike,
+        target: depositLog?.args.target as AddressLike,
+        value: depositLog?.args.value as bigint,
+        gasLimit: depositLog?.args.gasLimit as bigint,
+        data: depositLog?.args.data,
+      };
+
+      txs.push({
+        messageHash: depositHash,
+        amount: depositAmount,
+        block: log.blockNumber,
+        type: MessageType.DEPOSIT,
+        action: {
+          status: MessageStatus.READY,
+          message,
+          contract: this.l1StandardBridge.address,
+          chain: this.l1ChainId,
+        },
+      });
+    }
+
+    const latestL2BlockNumber = await this.l2RPCprovider.getBlockNumber();
+
+    const withdrawalInitiatedFilter = {
+      address: this.l2StandardBridge.address,
+      topics: [
+        ethers.utils.id("ETHBridgeInitiated(address,address,uint256,bytes)"), // Event signature with parameter types only
+        ethers.utils.hexZeroPad(account, 32),
+      ],
+      fromBlock: 0, // You can set this to a specific block number if you want to start searching from a specific block
+      toBlock: latestL2BlockNumber,
+    };
+
+    // Fetch logs matching the filter
+    const withdrawalBridgeLogs = await this.l2RPCprovider.getLogs(
+      withdrawalInitiatedFilter,
+    );
+
+    for (const log of withdrawalBridgeLogs) {
+      const portalWithdrawalFilter = {
+        address: this.l1Portal.address,
+        topics: [
+          ethers.utils.id(
+            "WithdrawalInitiated(uint256,address,address,uint256,uint256,bytes,bytes32)",
+          ),
+          ethers.utils.hexZeroPad(account, 32),
+        ],
+        fromBlock: 0,
+        toBlock: latestL2BlockNumber,
+      };
+
+      const portalLogsWithdrawal = await this.l2RPCprovider.getLogs(
+        portalWithdrawalFilter,
+      );
+
+      const withdrawalLog = portalLogsWithdrawal.find(
+        (p) => p.args.value === log.args.amount,
+      );
+      const withdrawalHash = withdrawalLog?.args.depositHash;
+      const withdrawalAmount = log.args.amount;
+
+      const message = {
+        version: 0n,
+        nonce: withdrawalLog?.args.nonce as bigint,
+        sender: withdrawalLog?.args.sender as AddressLike,
+        target: withdrawalLog?.args.target as AddressLike,
+        value: withdrawalLog?.args.value as bigint,
+        gasLimit: withdrawalLog?.args.gasLimit as bigint,
+        data: withdrawalLog?.args.data,
+      };
+
+      txs.push({
+        messageHash: withdrawalHash,
+        amount: withdrawalAmount,
+        block: log.blockNumber,
+        type: MessageType.WITHDRAWAL,
+        action: {
+          status: MessageStatus.READY,
+          message,
+          contract: this.l2StandardBridge.address,
+          chain: this.l2ChainId,
+        },
+      });
+    }
+
+    return txs.sort((a, b) => {
+      if (a.action.status === MessageStatus.READY) {
+        return -1;
+      }
+
+      if (
+        a.action.status === MessageStatus.PENDING &&
+        b.action.status === MessageStatus.DONE
+      ) {
+        return -1;
+      }
+
+      return 1;
+    });
   }
 
   /**
@@ -398,7 +558,7 @@ export class ServiceBridge {
   /**
    * Finalizes the deposit on the L2 chain.
    *
-   * @param bridgeTxLogs Deposit transaction receipt
+   * @param bridgeTxLogs Deposit transaction receipt.
    * @param opts Additional options.
    * @param opts.signer Optional signer to use to send the transaction.
    * @param opts.l2GasLimit Optional gas limit to use for the transaction on L2.
@@ -486,7 +646,7 @@ export class ServiceBridge {
       const l2StandardBridgeAddress =
         DEFAULT_L2_CONTRACT_ADDRESSES.L2StandardBridge;
 
-      // check on which chain to do the approval
+      // check on which chain to do the approval.
       if (Object.values(L1ChainID).includes(this.l1ChainId)) {
         const tokenContract = new Contract(
           token.toString(),
@@ -556,7 +716,7 @@ export class ServiceBridge {
         overrides?: Overrides;
       },
     ): Promise<TransactionRequest> => {
-      // check if the withdrawer has the sufficient Ether amount
+      // check if the withdrawer has the sufficient Ether amount.
       const bridgeTx =
         await this.l2StandardBridge.populateTransaction.bridgeETH(200_000, [], {
           value: amount,
@@ -597,7 +757,7 @@ export class ServiceBridge {
     /**
      * Generates a transaction for finalizing the deposit on the L2 chain.
      *
-     * @param bridgeTx Deposit transaction receipt
+     * @param bridgeTx Deposit transaction receipt.
      * @returns Transaction that can be signed and executed to finalizethe deposit on L2.
      */
     finalizeDeposit: async (
@@ -619,10 +779,10 @@ export class ServiceBridge {
         data: depositEvent.args.data,
       };
 
-      // Get initial block number
+      // Get initial block number.
       const initialBlockNumber = bridgeTx.blockNumber;
 
-      // get L1 deposit proof
+      // get L1 deposit proof.
       const depositProof = await getDepositProof(
         this.l1Portal.address,
         depositEvent.args.depositHash,
@@ -631,7 +791,7 @@ export class ServiceBridge {
       );
 
       const currentBlockNumber = (await this.l1Oracle.number()).toNumber();
-      // If the number of the Oracle block if bigger or equal the transaction is settled on L2
+      // If the number of the Oracle block if bigger or equal the transaction is settled on L2.
       if (!(initialBlockNumber <= currentBlockNumber)) {
         throw new Error(
           `The deposit transaction can't be finalized, check it's status.`,
@@ -651,7 +811,7 @@ export class ServiceBridge {
     /**
      * Generates a transaction for finalizing the withdrawal on the L1 chain.
      *
-     * @param bridgeTx Withdrawal transaction receipt
+     * @param bridgeTx Withdrawal transaction receipt.
      * @returns Transaction that can be signed and executed to finalize the withdrawal on L1.
      */
     finalizeWithdrawal: async (
