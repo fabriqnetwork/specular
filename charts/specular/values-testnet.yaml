@@ -40,6 +40,34 @@ generator:
   command: "../sbin/entrypoint.sh deploy"
   deploy: false
 
+volume:
+  efs:
+    mountPath: /specular/workspace
+    name: sp-workspace
+  configVolumeMounts:
+    name: specular-config
+    paths:
+      - .sidecar.env
+      - .sp_magi.env
+      - .paths.env
+      - .genesis.env
+      - .contracts.env
+      - .sp_geth.env
+      - genesis_config.json
+      - base_sp_rollup.json
+  secrets:
+    - name: INFURA_KEY
+      file: infura_pk.txt
+
+    - name: DEPLOYER_PRIVATE_KEY
+      file: deployer_pk.txt
+
+    - name: SEQUENCER_PRIVATE_KEY
+      file: sequencer_pk.txt
+
+    - name: VALIDATOR_PRIV_KEY
+      file: validator_pk.txt
+
 configMaps:
   .sp_geth.env:
     - name: NETWORK_ID
