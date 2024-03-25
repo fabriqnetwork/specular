@@ -102,13 +102,15 @@ func (v *Validator) start(ctx context.Context) error {
 
 // Attempts to create a new assertion and confirm an existing assertion.
 func (v *Validator) step(ctx context.Context) error {
+	// resolve assertions first - when the contracts are paused creating assertions will fail
+	// but we still want to be able to resolve the remaining unresolved assertions
+	if err := v.resolveFirstUnresolvedAssertion(ctx); err != nil {
+		return fmt.Errorf("failed to resolve assertion: %w", err)
+	}
 	// Try to create a new assertion.
 	// TODO: do this only if configured to be an active validator.
 	if err := v.tryCreateAssertion(ctx); err != nil {
 		return fmt.Errorf("failed to create assertion: %w", err)
-	}
-	if err := v.resolveFirstUnresolvedAssertion(ctx); err != nil {
-		return fmt.Errorf("failed to resolve assertion: %w", err)
 	}
 	return nil
 }

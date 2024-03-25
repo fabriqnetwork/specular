@@ -1,113 +1,69 @@
-import { ethers } from "hardhat";
-import * as addresses from "./e2e/addresses";
+import { Contract, ethers, Wallet } from "ethers";
+import { getSignersAndContracts } from "./e2e/utils";
 
-const rollupAddr = process.env.ROLLUP_ADDR;
-const rollupPrKey = process.env.ROLLUP_PRIVATE_KEY;
+async function main() {
+  const { l1Provider, rollup, inbox, l1StandardBridge, l1Portal } =
+    await getSignersAndContracts();
 
-const sequencerAddr = process.env.SEQUENCER_ADDR;
-const sequencerPrKey = process.env.SEQUENCER_PRIVATE_KEY;
+  const lastConfirmed = await rollup.lastConfirmedAssertionID();
+  const lastCreated = await rollup.lastCreatedAssertionID();
 
-const l1BridgeAddr = process.env.L1STANDARD_BRIDGE;
-const l1BridgePrKey = process.env.L1_BRIDGE_PRIVATE_KEY;
+  console.log({ lastConfirmed, lastCreated });
+  return;
 
-const l1OraclePrKey = process.env.L1_ORACLE_PRIVATE_KEY;
+  if (!process.env.OWNER_PRIVATE_KEY) {
+    throw new Error("no private key provided for contract owner");
+  }
+  const owner = new ethers.Wallet(process.env.OWNER_PRIVATE_KEY, l1Provider);
 
-const l1PortalAddr = process.env.L1_PORTAL_ADDR;
-const l1PortalPrKey = process.env.L1_PORTAL_PRIVATE_KEY;
+  // TODO: should this also pause L2 contracts?
+  const contracts = [rollup, inbox, l1StandardBridge, l1Portal];
 
-const faucetAddr = process.env.FAUCET_ADDR;
+  if (process.env.UNPAUSE) {
+    await unpauseContracts(contracts, owner);
+    return;
+  }
 
-const l1RPCAddr = process.env.L1_RPC_ADDRESS;
-const l1Provider = new ethers.providers.JsonRpcProvider(l1RPCAddr);
-
-const l2RPCAddr = process.env.L2_RPC_ADDRESS;
-const l2Provider = new ethers.providers.JsonRpcProvider(l2RPCAddr);
-
-async function pauseContract(
-  contract: string,
-  address: string,
-  provider: ethers.providers.JsonRpcProvider,
-  privateKey: string,
-) {
-  const owner = new ethers.Wallet(privateKey, provider);
-  const factory = await ethers.getContractFactory(contract, address);
-  const c = factory.attach(address);
-  const tx = c.pause();
-  await tx.wait();
+  await pauseContracts(contracts, owner);
 }
 
-async function unpauseContract(
-  contract: string,
-  address: string,
-  provider: ethers.providers.JsonRpcProvider,
-  privateKey: string,
-) {
-  const owner = new ethers.Wallet(privateKey, provider);
-  const factory = await ethers.getContractFactory(contract, address);
-  const c = factory.attach(address);
-  const tx = c.unpause();
-  await tx.wait();
+async function pauseContracts(contracts: Contract[], owner: Wallet) {
+  for (let contract of contracts) {
+    const tx = await pauseContract(contract, owner);
+    await tx.wait();
+  }
 }
 
-async function pauseContracts() {
-  // Pause L1 Contracts
-  pauseContract("Rollup", rollupAddr, l1Provider, rollupPrKey);
-  pauseContract("SequencerInbox", sequencerAddr, l1Provider, sequencerPrKey);
-  pauseContract("L1StandardBridge", l1BridgeAddr, l1Provider, l1BridgePrKey);
-  pauseContract(
-    "L1Oracle",
-    addresses.l1OracleAddress,
-    l1Provider,
-    l1OraclePrKey,
-  );
-  pauseContract("L1Portal", l1PortalAddr, l1Provider, l1PortalPrKey);
-
-  // Pause L2 Contracts
-  pauseContract(
-    "L2StandardBridge",
-    addresses.l2StandardBridgeAddress,
-    l2Provider,
-    l2BridgePrKey,
-  );
-  pauseContract(
-    "L2Portal",
-    addresses.l2PortalAddress,
-    l2Provider,
-    l2PortalPrKey,
-  );
-  pauseContract("Faucet", faucetAddr, l2Provider, faucetPrKey);
+async function unpauseContracts(contracts: Contract[], owner: Wallet) {
+  for (let contract of contracts) {
+    const tx = await unpauseContract(contract, owner);
+    await tx.wait();
+  }
 }
 
-async function unpauseContracts() {
-  // Unpause L1 Contracts
-  unpauseContract("Rollup", rollupAddr, l1Provider, rollupPrKey);
-  unpauseContract("SequencerInbox", sequencerAddr, l1Provider, sequencerPrKey);
-  unpauseContract("L1StandardBridge", l1BridgeAddr, l1Provider, l1BridgePrKey);
-  unpauseContract(
-    "L1Oracle",
-    addresses.l1OracleAddress,
-    l1Provider,
-    l1OraclePrKey,
-  );
-  unpauseContract("L1Portal", l1PortalAddr, l1Provider, l1PortalPrKey);
-
-  // Unpause L2 Contracts
-  unpauseContract(
-    "L2StandardBridge",
-    addresses.l2StandardBridgeAddress,
-    l2Provider,
-    l2BridgePrKey,
-  );
-  unpauseContract(
-    "L2Portal",
-    addresses.l2PortalAddress,
-    l2Provider,
-    l2PortalPrKey,
-  );
-  unpauseContract("Faucet", faucetAddr, l2Provider, faucetPrKey);
+async function pauseContract(contract: Contract, owner: Wallet) {
+  const actualOwner = await contract.owner();
+  const ownedContract = contract.connect(owner);
+  console.log({
+    contract: contract.address,
+    actualOwner,
+    providedOwner: owner.address,
+  });
+  return await ownedContract.pause();
 }
 
-pauseContracts()
+async function unpauseContract(contract: Contract, owner: Wallet) {
+  const actualOwner = await contract.owner();
+  const ownedContract = contract.connect(owner);
+  console.log({
+    contract: contract.address,
+    actualOwner,
+    providedOwner: owner.address,
+  });
+  return await ownedContract.unpause();
+}
+
+main()
   .then(() => process.exit(0))
   .catch((error) => {
     console.error(error);
