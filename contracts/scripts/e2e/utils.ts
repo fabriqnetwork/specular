@@ -3,11 +3,11 @@ import { Wallet, BigNumber, Contract } from "ethers";
 import { ethers } from "hardhat";
 
 const l1Provider = new ethers.providers.JsonRpcProvider(
-  process.env.L2_RPC_URL || "http://localhost:8545",
+  process.env.L1_RPC_URL || "http://localhost:8545",
 );
 
 const l2Provider = new ethers.providers.JsonRpcProvider(
-  process.env.L1_RPC_URL || "http://localhost:4011",
+  process.env.L2_RPC_URL || "http://localhost:4011",
 );
 
 const l1BridgeAddress = process.env.L1STANDARD_BRIDGE_ADDR || "invalid address";
