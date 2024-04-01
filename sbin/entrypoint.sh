@@ -31,6 +31,7 @@ deploy)
 
   if [[ -z ${REDEPLOY+x} ]]; then
     rm -f .deployed
+    /specular/sbin/clean.sh
     /specular/sbin/generate_jwt_secret.sh
     /specular/sbin/deploy_l1_contracts.sh -y
 

@@ -133,7 +133,7 @@ configMaps:
     - name: L1_PERIOD
       value: "12"
     - name: REDEPLOY
-      value: false
+      value: "true"
 
   .paths.env:
     - name: BIN_DIR
