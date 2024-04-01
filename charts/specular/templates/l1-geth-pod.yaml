@@ -59,5 +59,8 @@ spec:
     - name: {{ .Values.volume.configVolumeMounts.name }}
       configMap:
         name: {{ .Values.volume.configVolumeMounts.name }}
+    - name: secret-volume
+      secret:
+        secretName: l2-secrets
 status: {}
 {{- end -}}
