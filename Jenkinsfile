@@ -10,7 +10,7 @@ pipeline {
                 // checkout git
                 checkout scmGit(
                     userRemoteConfigs: [
-                        [ credentialsId: 'jenkins-specular', url: 'github.com:SpecularL2/specular-build-test.git']
+                        [ credentialsId: 'jenkins-specular', url: 'github.com:SpecularL2/specular.git']
                     ],
                     branches: [[name: '*/PR-*'], [name: '*/develop']],
                 )

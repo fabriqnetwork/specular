@@ -27,7 +27,7 @@ case "$1" in
 deploy)
   # Run the main container command.
   echo "Running deploy for genesis and JWT"
-  rm -f .generate_secrets.sh.lock
+
 
   if [[ "$REDEPLOY" = true ]]; then
     rm -f .deployed
