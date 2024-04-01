@@ -10,7 +10,7 @@ pipeline {
                 // checkout git
                 checkout scmGit(
                     userRemoteConfigs: [
-                        [ credentialsId: 'jenkins-specular', url: 'github.com:SpecularL2/specular.git']
+                        [ credentialsId: 'jenkins-specular', url: 'github.com:SpecularL2/specular-build-test.git']
                     ],
                     branches: [[name: '*/PR-*'], [name: '*/develop']],
                 )
@@ -120,7 +120,7 @@ pipeline {
                     kubectl config use-context arn:aws:eks:us-east-2:792926601177:cluster/specular-staging-eks
                     helm upgrade specular . -n specular --set image.tag=$GIT_COMMIT'''
                 }
-                discordSend description: "Jenkins Pipeline Build", footer: "Current release is $GIT_COMMIT", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "https://discord.com/api/webhooks/1219404082184196147/C70F8jtuyODjExk-Xk7hWOaxY-IBQefDumqbTJYlKdOMt2uzmA4ehS3uaO28SwuGgzwi"
+                discordSend description: "Jenkins Pipeline Build *IGNORE*", footer: "Current release is $GIT_COMMIT", link: env.BUILD_URL, result: currentBuild.currentResult, title: JOB_NAME, webhookURL: "https://discord.com/api/webhooks/1219404082184196147/C70F8jtuyODjExk-Xk7hWOaxY-IBQefDumqbTJYlKdOMt2uzmA4ehS3uaO28SwuGgzwi"
 
                 }
             }

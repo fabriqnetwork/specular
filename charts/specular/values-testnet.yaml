@@ -8,10 +8,6 @@ enabled:
   infura: true
   debug: true
 
-generator:
-  command: "../sbin/entrypoint.sh deploy"
-  deploy: false
-
 volume:
   efs:
     mountPath: /specular/workspace
@@ -39,6 +35,10 @@ volume:
 
     - name: VALIDATOR_PRIV_KEY
       file: validator_pk.txt
+
+generator:
+  command: "../sbin/entrypoint.sh deploy"
+  deploy: false
 
 configMaps:
   .sp_geth.env:
@@ -116,6 +116,8 @@ configMaps:
       value: "ws://l1.sepolia.specular.network:8546"
     - name: L1_PERIOD
       value: "12"
+    - name: REDEPLOY
+      value: "true"
 
   .paths.env:
     - name: BIN_DIR

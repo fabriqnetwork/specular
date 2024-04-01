@@ -27,8 +27,17 @@ case "$1" in
 deploy)
   # Run the main container command.
   echo "Running deploy for genesis and JWT"
-  /specular/sbin/generate_jwt_secret.sh
-  /specular/sbin/deploy_l1_contracts.sh -y
+
+
+  if [[ "$REDEPLOY" = true ]]; then
+    rm -f .deployed
+    /specular/sbin/clean.sh
+    /specular/sbin/generate_jwt_secret.sh
+    /specular/sbin/deploy_l1_contracts.sh -y
+
+  fi
+
+  touch .generate_secrets.sh.lock
   ;;
 start)
   shift

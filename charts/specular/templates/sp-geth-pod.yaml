@@ -56,14 +56,12 @@ spec:
           mountPath: {{ $.Values.volume.efs.mountPath }}/{{ $value }}
           subPath: {{ $value }}
 {{- end }}
-{{- if not .Values.generator.deploy }}
   {{- range $i, $value := .Values.volume.secrets }}
         - name: secret-volume
           mountPath: {{ $.Values.volume.efs.mountPath }}/{{ $value.file }}
           subPath: {{ $value.file }}
           readOnly: true
   {{- end }}
-{{- end }}
       workingDir: {{ .Values.volume.efs.mountPath }}
   terminationGracePeriodSeconds: 15
   restartPolicy: OnFailure
@@ -74,9 +72,7 @@ spec:
     - name: {{ .Values.volume.configVolumeMounts.name }}
       configMap:
         name: {{ .Values.volume.configVolumeMounts.name }}
-{{- if not .Values.generator.deploy }}
     - name: secret-volume
       secret:
         secretName: l2-secrets
-{{- end }}
 status: {}
