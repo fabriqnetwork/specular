@@ -27,6 +27,10 @@ spec:
           subPath: {{ $value.file }}
           readOnly: true
 {{- end }}
+      lifecycle:
+        preStop:
+          exec:
+            command: ["sh", "-c", "rm -f /specular/workspace/.*.lock"]
   restartPolicy: Never
   volumes:
     - name: {{ .Values.volume.efs.name }}
