@@ -29,7 +29,7 @@ deploy)
   echo "Running deploy for genesis and JWT"
   rm -f .generate_secrets.sh.lock
 
-  if [[ REDEPLOY = "true" ]]; then
+  if [[ "$REDEPLOY" = true ]]; then
     rm -f .deployed
     /specular/sbin/clean.sh
     /specular/sbin/generate_jwt_secret.sh
