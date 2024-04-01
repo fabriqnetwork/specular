@@ -144,6 +144,8 @@ configMaps:
       value: "ws://l1.sepolia.specular.network:8546"
     - name: L1_PERIOD
       value: "12"
+    - name: REDEPLOY
+      value: false
 
   .paths.env:
     - name: BIN_DIR

@@ -132,6 +132,8 @@ configMaps:
       value: "ws://$L1_GETH_SERVICE_HOST:$L1_GETH_SERVICE_PORT_8546"
     - name: L1_PERIOD
       value: "12"
+    - name: REDEPLOY
+      value: false
 
   .paths.env:
     - name: BIN_DIR
